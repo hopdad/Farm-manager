@@ -6,11 +6,13 @@
  * fetch keeps the last good list and retries.
  */
 import { z } from 'zod';
+import type { PublicConfig } from '../../../config';
 import {
   type MapLayersResponse,
   mapLayerRowSchema,
   type ResolvedMapLayer,
 } from '../../../domain/map-layers';
+import { getRealtimeClient, getSseRealtimeClient } from '../../../platform/realtime/client';
 import type { ResolvedRealtime } from '../fleet/realtime';
 
 export const LAYERS_URL = '/api/layers';
@@ -32,6 +34,18 @@ export function parseLayersResponse(body: unknown): MapLayersResponse {
     else console.warn('[layer rail] dropped a malformed layer row', r.error.issues[0]?.message);
   }
   return { layers };
+}
+
+/**
+ * The platform's realtime client for the rail (and whether it can deliver right now). Unlike the
+ * fleet's resolveRealtimeClient it never picks up the M0 fleet test double
+ * (`window.__farmTestRealtime`): that double counts every subscriber's resync, and the rail's
+ * `layers` subscription is not part of what the fleet specs count.
+ */
+export function railRealtime(cfg: Pick<PublicConfig, 'realtime'>): ResolvedRealtime {
+  const client = getRealtimeClient(cfg.realtime);
+  if (cfg.realtime !== 'sse') return { client, connected: () => false };
+  return { client, connected: () => getSseRealtimeClient()?.state === 'ready' };
 }
 
 export interface LayersFeedOptions {

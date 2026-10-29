@@ -2,6 +2,8 @@
  * The layer rail: a left-side column on the wall (72 px targets), a drawer on phones (52 px).
  * Closed, it is one button at the left edge, centred like the map controls on the right.
  * The rail itself lets map gestures through (pointer-events: none); only its controls take taps.
+ * Stacking: z-index 2, after the map in the DOM, so it covers the map's legend and badges but a
+ * tapped machine's card (z-index 3, top-left) shows on top of it.
  */
 
 .rail {
@@ -9,7 +11,7 @@
   left: var(--gap);
   top: var(--gap);
   bottom: calc(var(--gap) + 18px);
-  z-index: 4;
+  z-index: 2;
   display: flex;
   align-items: center;
   pointer-events: none;

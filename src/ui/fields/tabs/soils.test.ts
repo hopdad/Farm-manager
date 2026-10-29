@@ -11,7 +11,7 @@ import { type FieldSoilRow, summarizeFieldSoils } from '../../../domain/soils';
 import { DRAINAGE_COLORS, DRAINAGE_UNKNOWN_COLOR } from '../../map/layers/soils';
 import { FIELD_PANEL_TABS } from '../tab-registry';
 import { orderTabs } from '../tabs';
-import { SoilsBody, SoilsTab, soilsSourceOf, soilsTab, soilsTabView } from './soils';
+import { SLIVER_PCT, SoilsBody, SoilsTab, soilsSourceOf, soilsTab, soilsTabView } from './soils';
 
 const ROWS: FieldSoilRow[] = [
   {
@@ -144,6 +144,23 @@ describe('soilsTabView', () => {
     const v = soilsTabView([ROWS[1] as FieldSoilRow]);
     expect(v.weightedNccpi).toBe('—');
     expect(v.nccpiPercent).toBeNull();
+  });
+
+  test('edge slivers are not listed but are counted', () => {
+    const sliver: FieldSoilRow = {
+      ...(ROWS[2] as FieldSoilRow),
+      mukey: '99901005',
+      acres: 0.01,
+      pct: 0.01,
+    };
+    const v = soilsTabView([...ROWS, sliver]);
+    expect(v.rows.map((r) => r.mukey)).not.toContain('99901005');
+    expect(v.rows).toHaveLength(3);
+    expect(v.slivers).toBe(`1 sliver along the edges (under ${SLIVER_PCT} %) not listed`);
+    expect(soilsTabView(ROWS).slivers).toBeNull();
+    // A sliver of a class no listed unit has doesn't show in the drainage mix either.
+    const odd: FieldSoilRow = { ...sliver, mukey: '99901006', drainageClass: 'Well drained' };
+    expect(soilsTabView([...ROWS, odd]).drainage.map((x) => x.label)).not.toContain('Well drained');
   });
 
   test('no rows is the empty state', () => {

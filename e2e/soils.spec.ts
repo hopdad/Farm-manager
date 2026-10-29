@@ -15,6 +15,7 @@ import { assertLocalUrl } from '../src/db/admin';
 import { createPool } from '../src/db/client';
 import type { MapLayersResponse } from '../src/domain/map-layers';
 import { tileFor } from '../src/test/fixtures';
+import { SLIVER_PCT } from '../src/ui/fields/tabs/soils';
 import { loadSoilsRun } from '../tools/gis/soils-load';
 import { openRun } from '../tools/gis/soils-raw';
 import { signInAs } from './support/auth';
@@ -47,12 +48,13 @@ test.beforeAll(async () => {
     `select f.id::text as id, f.name,
             extensions.ST_X(extensions.ST_PointOnSurface(b.geom)) as lng,
             extensions.ST_Y(extensions.ST_PointOnSurface(b.geom)) as lat,
-            count(fs.mukey)::int as mapunits
+            count(fs.mukey) filter (where fs.pct >= $1)::int as mapunits
        from farm.current_boundaries b
        join farm.fields f on f.id = b.field_id and f.active
        join gis.field_soils fs on fs.boundary_id = b.id
       group by f.id, f.name, b.geom
       order by f.name`,
+    [SLIVER_PCT],
   );
   fields = r.rows;
 });

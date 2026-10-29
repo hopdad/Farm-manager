@@ -50,7 +50,15 @@ export interface SoilsTabView {
   dominant: string | null;
   drainage: { label: string; color: string; pct: number; text: string }[];
   rows: SoilsTabRow[];
+  /** "2 slivers along the edges (under 0.05 %) not listed", or null. */
+  slivers: string | null;
 }
+
+/**
+ * Map units covering less than this share of the boundary (percent) are edge slivers where a
+ * boundary grazes a neighbouring soil polygon: kept in the data and the weighted NCCPI, not listed.
+ */
+export const SLIVER_PCT = 0.05;
 
 const colorOf = (c: string | null) =>
   c && (DRAINAGE_CLASSES as readonly string[]).includes(c)
@@ -79,9 +87,12 @@ export function soilsTabView(
       dominant: null,
       drainage: [],
       rows: [],
+      slivers: null,
     };
   }
   const d = summary.dominant;
+  const listed = soils.filter((r) => r.pct >= SLIVER_PCT);
+  const hidden = soils.length - listed.length;
   return {
     empty: false,
     weightedNccpi: summary.weightedNccpi === null ? '—' : summary.weightedNccpi.toFixed(2),
@@ -95,7 +106,8 @@ export function soilsTabView(
           d.drainageClass ? `, ${d.drainageClass.toLowerCase()}` : ''
         } · ${fmtPct(d.pct)} %`
       : null,
-    drainage: [...summary.drainage]
+    drainage: summary.drainage
+      .filter((x) => x.pct >= SLIVER_PCT)
       .sort((a, b) => drainageRank(a.drainageClass) - drainageRank(b.drainageClass))
       .map((x) => ({
         label: x.drainageClass === 'Unknown' ? 'Not rated' : x.drainageClass,
@@ -103,7 +115,7 @@ export function soilsTabView(
         pct: x.pct,
         text: `${fmtPct(x.pct)} %`,
       })),
-    rows: [...soils]
+    rows: listed
       .sort((a, b) => b.acres - a.acres || a.mukey.localeCompare(b.mukey))
       .map((r) => ({
         mukey: r.mukey,
@@ -117,6 +129,10 @@ export function soilsTabView(
         pct: `${fmtPct(r.pct)} %`,
         nccpi: r.nccpi === null ? '—' : r.nccpi.toFixed(2),
       })),
+    slivers:
+      hidden > 0
+        ? `${hidden} sliver${hidden === 1 ? '' : 's'} along the edges (under ${SLIVER_PCT} %) not listed`
+        : null,
   };
 }
 
@@ -400,6 +416,11 @@ export function SoilsBody({
         )}
       </section>
 
+      {v.slivers && (
+        <p style={S.foot} data-testid="field-soils-slivers">
+          {v.slivers}
+        </p>
+      )}
       <p style={S.foot} data-testid="field-soils-source">
         {source?.synthetic ? (
           <strong style={{ color: '#fbbf24' }}>{source.text}. </strong>

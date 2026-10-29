@@ -25,13 +25,12 @@ import type {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicConfig } from '../../../config';
 import type { LayerLegend, ResolvedMapLayer } from '../../../domain/map-layers';
-import { resolveRealtimeClient } from '../fleet/realtime';
 import { applyLayers } from '../layers/apply';
 import { LAYER_DEFS } from '../layers/registry';
 import { type LayerDef, resolveLayers } from '../layers/types';
 import { useLayerVisibilityStore } from '../layers/visibility';
 import type { BasemapFlavor, MapVariant } from '../types';
-import { startLayersFeed } from './feed';
+import { railRealtime, startLayersFeed } from './feed';
 import { layerKeyOfSource, type RailItem, railModel } from './model';
 import { browserStorage, loadRailPrefs, saveRailPrefs } from './persist';
 import css from './rail.module.css';
@@ -44,7 +43,7 @@ export interface LayerRailProps {
   map: MapLibreMap | null;
   variant: MapVariant;
   /** Realtime adapter for `layers` updates (publicConfig); default local SSE. */
-  config?: Pick<PublicConfig, 'appEnv' | 'realtime'>;
+  config?: Pick<PublicConfig, 'realtime'>;
   /** Basemap flavour the layers are styled for (default: dark on the wall, light on phones). */
   flavor?: BasemapFlavor;
   /** The defs to offer (tests); default LAYER_DEFS. */
@@ -59,10 +58,7 @@ interface ApplyState {
   flavor: BasemapFlavor;
 }
 
-const DEFAULT_CONFIG: Pick<PublicConfig, 'appEnv' | 'realtime'> = {
-  appEnv: 'development',
-  realtime: 'sse',
-};
+const DEFAULT_CONFIG: Pick<PublicConfig, 'realtime'> = { realtime: 'sse' };
 
 function useOnline(): boolean {
   const [online, setOnline] = useState(true);
@@ -217,7 +213,7 @@ export function LayerRail({
 
   // The registry, live.
   useEffect(() => {
-    const realtime = resolveRealtimeClient(config);
+    const realtime = railRealtime(config);
     return startLayersFeed({
       realtime,
       onLayers: (layers) => {
