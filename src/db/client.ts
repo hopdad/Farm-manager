@@ -32,10 +32,12 @@ export interface PoolOptions {
 
 /** A new pg Pool (caller owns its lifecycle). Defaults: DATABASE_URL, DB_POOL_MAX. */
 export function createPool(opts: PoolOptions = {}): pg.Pool {
-  const cfg = getConfig();
+  // Read the app config only for what the caller didn't pass, so tools that bring their own
+  // URL and size (bootstrap, tests) work before .env.local exists.
+  const cfg = opts.connectionString === undefined || opts.max === undefined ? getConfig() : null;
   const pool = new pg.Pool({
-    connectionString: opts.connectionString ?? cfg.DATABASE_URL,
-    max: opts.max ?? cfg.DB_POOL_MAX,
+    connectionString: opts.connectionString ?? cfg?.DATABASE_URL,
+    max: opts.max ?? cfg?.DB_POOL_MAX,
     application_name: opts.applicationName ?? 'farm-app',
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 10_000,

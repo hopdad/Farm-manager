@@ -248,6 +248,8 @@ export interface BootstrapDeps {
   runDbCheck(): Promise<{ code: number; output: string }>;
   /** Steps 4a-4e (default: the real ones). Returns false after printing a failure. */
   database?: (a: DbStepArgs) => Promise<boolean>;
+  /** Summary lines about signing in, read from the database (default: the real ones). */
+  signInLines?: (cfg: Config | null, port: number, dry: boolean) => Promise<string[]>;
 }
 
 async function realIsStandIn(origin: string): Promise<boolean> {
@@ -615,7 +617,9 @@ export async function bootstrap(flags: BootstrapFlags, d: BootstrapDeps): Promis
 
   // Summary.
   section(dry ? 'Dry run complete: nothing was changed.' : 'Ready.');
-  for (const l of await summary(appPort, cfg, d.platform, dry)) out(l);
+  for (const l of await summary(appPort, cfg, d.platform, dry, d.signInLines ?? signInLines)) {
+    out(l);
+  }
   return 0;
 }
 
@@ -836,14 +840,17 @@ async function isConfigured(cfg: Config, migrateUrl: string): Promise<true | str
   }
 }
 
-/** Sign-in lines from the database (owner setup link, devices, demo PINs); empty on a dry run. */
+const GENERIC_SIGN_IN_LINES = [
+  '  Sign-in:            `pnpm dev` prints the first-run owner link, then where to sign in and',
+  '                      the demo PINs (docs/kiosk.md: the wall kiosk and cab iPads)',
+];
+
+/**
+ * Sign-in lines from the database (owner setup link, devices, demo PINs). On a dry run, or if
+ * the database can't answer, the generic pointer to `pnpm dev`: the summary never fails a run.
+ */
 async function signInLines(cfg: Config | null, port: number, dry: boolean): Promise<string[]> {
-  if (!cfg || dry) {
-    return [
-      '  Sign-in:            `pnpm dev` prints the first-run owner link, then where to sign in and',
-      '                      the demo PINs (docs/kiosk.md: the wall kiosk and cab iPads)',
-    ];
-  }
+  if (!cfg || dry) return GENERIC_SIGN_IN_LINES;
   const pool = createPool({
     connectionString: cfg.DATABASE_URL,
     max: 1,
@@ -851,6 +858,8 @@ async function signInLines(cfg: Config | null, port: number, dry: boolean): Prom
   });
   try {
     return await authBannerLines(pool, cfg.SESSION_SECRET, `http://localhost:${port}`);
+  } catch {
+    return GENERIC_SIGN_IN_LINES;
   } finally {
     await pool.end().catch(() => undefined);
   }
@@ -861,13 +870,14 @@ async function summary(
   cfg: Config | null,
   platform: NodeJS.Platform,
   dry: boolean,
+  readSignInLines: NonNullable<BootstrapDeps['signInLines']>,
 ): Promise<string[]> {
   const origins = cfg?.DEV_ORIGINS.length ? cfg.DEV_ORIGINS : devOriginCandidates();
   const adapters = new Map(privateIPv4Candidates().map((c) => [c.address, c.iface]));
   const lines = [
     '  Start everything:   pnpm dev        (app + clock + vendor stand-in; Ctrl+C stops all)',
     `  Board:              http://localhost:${port}/board`,
-    ...(await signInLines(cfg, port, dry)),
+    ...(await readSignInLines(cfg, port, dry)),
     `  Sync health:        http://localhost:${port}/admin/connectors   (clock + simulation controls)`,
     cfg
       ? `  Admin on this PC:   ${adminUnlockUrl(`http://localhost:${port}`, cfg.SESSION_SECRET)}`

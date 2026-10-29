@@ -54,6 +54,7 @@ function fakeDeps(
     runDbCheck: async () => {
       throw new Error('nothing may run in this test');
     },
+    signInLines: async () => ['  Sign-in:            (stubbed in tests)'],
     ...over,
   };
 }
