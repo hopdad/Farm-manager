@@ -102,6 +102,13 @@ describe('parseConfig', () => {
     expect(() => parseConfig({})).toThrow(/pnpm env:init/);
   });
 
+  test('BASEMAP_STYLE=openfreemap is refused until that style exists', () => {
+    expect(parseConfig(base).BASEMAP_STYLE).toBe('protomaps-local');
+    expect(issues({ ...base, BASEMAP_STYLE: 'openfreemap' }).join('\n')).toMatch(
+      /BASEMAP_STYLE: 'openfreemap': the online style is not built yet/,
+    );
+  });
+
   test('VENDOR_SIM_URL must be a loopback address', () => {
     for (const ok of ['http://127.0.0.1:4011', 'http://localhost:4010', 'http://[::1]:4010']) {
       expect(parseConfig({ ...base, VENDOR_SIM_URL: ok }).VENDOR_SIM_URL).toBe(ok);

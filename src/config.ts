@@ -85,6 +85,11 @@ const baseSchema = z.object({
   AUTH_PROVIDER: z.enum(['local', 'supabase']).default('local'),
   /** Client realtime adapter: sse (local /api/realtime) | supabase (Broadcast). */
   NEXT_PUBLIC_REALTIME: z.enum(['sse', 'supabase']).default('sse'),
+  /**
+   * protomaps-local (the offline PMTiles basemap) | openfreemap (online; a second style with its
+   * own layer anchors, plan §1). Only protomaps-local is built so far, so openfreemap is refused
+   * instead of being silently ignored.
+   */
   BASEMAP_STYLE: z.enum(['protomaps-local', 'openfreemap']).default('protomaps-local'),
   /** Local storage adapter root (relative to the project). */
   STORAGE_DIR: z.string().min(1).default('.data/storage'),
@@ -162,6 +167,14 @@ const baseSchema = z.object({
 });
 
 const configSchema = baseSchema.superRefine((c, ctx) => {
+  if (c.BASEMAP_STYLE === 'openfreemap') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['BASEMAP_STYLE'],
+      message:
+        "'openfreemap': the online style is not built yet (plan §1); use protomaps-local (the default)",
+    });
+  }
   const modes: [string, Mode][] = [
     ['CONNECTOR_DEERE', c.CONNECTOR_DEERE],
     ['CONNECTOR_ELD', c.CONNECTOR_ELD],
