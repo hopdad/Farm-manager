@@ -11,7 +11,10 @@
  *  - OVERLAYS: hand-entered values that live on synced rows: a field's landlord when it is one
  *    of your own parties, field notes edited in the app, a hidden (inactive) field, a farm's
  *    customer when it is one of your own parties; on Deere fields also the tenure and county
- *    (Operations Center has neither), on Deere parties the contact details.
+ *    (Operations Center has neither), on Deere parties the contact details; on the demo crew's
+ *    sign-ins (which the seed brings back under the same ids) whether they are switched off,
+ *    their role, their epoch and a PIN changed in the app, so `db:reset` never turns switched-off
+ *    demo sign-ins back on.
  *
  * Import upserts by id (`on conflict (id)`), table by table in foreign-key order, in ONE
  * transaction: all or nothing unless `partial`. Re-importing the same file changes nothing.
@@ -339,6 +342,11 @@ interface OverlaySpec {
   columns: Record<string, string>;
   /** As TableSpec.actors. */
   actors?: Record<string, ActorTable>;
+  /**
+   * A row that is not in the target database: 'warn' (a synced row that comes back with the
+   * next sync; the default) or 'skip' (rows only a seed creates: nothing to restore without it).
+   */
+  missing?: 'warn' | 'skip';
 }
 
 const OWN_PARTY = (col: string) =>
@@ -374,6 +382,21 @@ export const OVERLAYS: readonly OverlaySpec[] = [
       notes: 'true',
       roles: 'true',
     },
+  },
+  {
+    // The demo crew's sign-ins (tools/seed demo + seedDemoPeople, deterministic ids). The seed
+    // inserts them active with this install's derived PINs and pin_set_at = created_at, so a
+    // later pin_set_at (or none) is a PIN set or cleared in the app.
+    table: 'farm.app_users',
+    where: `t.source = 'demo'`,
+    columns: {
+      active: 'not t.active',
+      role: 'true',
+      session_epoch: 't.session_epoch > 0',
+      pin_hash: 't.pin_set_at is distinct from t.created_at',
+      pin_set_at: 't.pin_set_at is distinct from t.created_at',
+    },
+    missing: 'skip',
   },
 ];
 
@@ -711,7 +734,9 @@ export async function importData(
         try {
           row = await withKnownActors(c, o.table, o.actors, original, report.warnings);
           const exists = await c.query(`select 1 from ${o.table} where id = $1`, [row.id]);
-          if (!exists.rowCount) {
+          if (!exists.rowCount && o.missing === 'skip') {
+            counts.unchanged++;
+          } else if (!exists.rowCount) {
             report.warnings.push({
               table: o.table,
               id: String(row.id),

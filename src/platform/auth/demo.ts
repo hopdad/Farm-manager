@@ -2,7 +2,9 @@
  * Demo people: sign-ins for the demo farm's crew (tools/seed demo), so the PIN pad, the people
  * admin and the role checks can be tried on day one. One manager, three operators, four
  * drivers. Rows: farm.app_users with source 'demo', source_id `user:<crew key>`, deterministic
- * ids (plan §4), never exported.
+ * ids (plan §4). data:export carries only what was changed in the app (switched off, role,
+ * epoch, a new PIN) as an overlay, so a `db:reset` wrapped in data:export / data:import keeps
+ * them switched off (tools/import/data-transfer.ts).
  *
  * Their PINs are NOT in the repo: each is derived from this install's SESSION_SECRET (like the
  * M0 admin key), so only the person at the PC sees them (bootstrap / `pnpm dev` print them, and

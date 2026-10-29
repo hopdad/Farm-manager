@@ -14,6 +14,12 @@ import {
   validateParty,
 } from '../../src/db/queries/parties';
 import { importSeasons } from '../../src/db/queries/seasons';
+import {
+  DEMO_PEOPLE,
+  deactivateDemoPeople,
+  demoUserId,
+  seedDemoPeople,
+} from '../../src/platform/auth/demo';
 import { localParts } from '../../src/sim/time';
 import { setupTestDb } from '../../src/test/db';
 import { seedDemo } from '../seed/demo';
@@ -24,6 +30,7 @@ import { rectangle } from './testing/shapefile';
 
 const t = setupTestDb(import.meta.url);
 const actor = { appUserId: null, displayName: 'Derrick' };
+const SECRET = 'data-transfer-test-secret-0123456789abcdef';
 const pad = (n: number) => String(n).padStart(2, '0');
 const lp = localParts(Date.now());
 const TODAY = `${lp.y}-${pad(lp.m)}-${pad(lp.d)}`;
@@ -191,6 +198,57 @@ describe('data:export / data:import', () => {
       expect(c.inserted + c.updated + c.failed).toBe(0);
     }
     expect(again.overlays['farm.fields']).toMatchObject({ updated: 0, unchanged: 1 });
+  });
+
+  test('switched-off demo sign-ins stay off through export, reset and import', async () => {
+    const { pool, admin } = t();
+    await seedDemo(pool, { seed: 1, eldVendor: 'samsara' });
+    await seedDemoPeople(pool, SECRET);
+    const amy = demoUserId('crew-amy');
+    const dale = demoUserId('crew-dale');
+    // Dale got his own PIN and a promotion in the app; then everyone was switched off.
+    await pool.query(
+      `update farm.app_users set role = 'manager', pin_hash = 'scrypt$changed', pin_set_at = now() + interval '1 minute'
+        where id = $1`,
+      [dale],
+    );
+    expect(await deactivateDemoPeople(pool)).toBe(DEMO_PEOPLE.length);
+    const before = await pool.query(
+      `select id, role, active, session_epoch, case when id = $1 then pin_hash end as pin_hash
+         from farm.app_users where source = 'demo' order by id`,
+      [dale],
+    );
+
+    const doc = JSON.parse(JSON.stringify(await exportData(pool)));
+    expect(doc.tables['farm.app_users']).toEqual([]);
+    const overlay = doc.overlays['farm.app_users'] as Record<string, unknown>[];
+    expect(overlay).toHaveLength(DEMO_PEOPLE.length);
+    // An untouched PIN is the seed's (derived from this install's secret): not in the file.
+    expect(overlay.find((r) => r.id === amy)).not.toHaveProperty('pin_hash');
+    expect(overlay.find((r) => r.id === dale)).toMatchObject({ pin_hash: 'scrypt$changed' });
+
+    // db:reset: the seed brings the demo crew back, active, with their default PINs.
+    await resetAndResync(admin, pool);
+    await seedDemoPeople(pool, SECRET);
+    const reseeded = await pool.query(
+      `select count(*)::int as n from farm.app_users where source = 'demo' and active`,
+    );
+    expect(reseeded.rows[0]?.n).toBe(DEMO_PEOPLE.length);
+
+    const report = await importData(pool, doc);
+    expect(report.errors).toEqual([]);
+    const after = await pool.query(
+      `select id, role, active, session_epoch, case when id = $1 then pin_hash end as pin_hash
+         from farm.app_users where source = 'demo' order by id`,
+      [dale],
+    );
+    expect(after.rows).toEqual(before.rows);
+
+    // Without the demo seed (a fresh production database) the overlay is skipped quietly.
+    await resetAndResync(admin, pool);
+    const bare = await importData(pool, doc);
+    expect(bare.errors).toEqual([]);
+    expect(bare.warnings.filter((w) => w.table === 'farm.app_users')).toEqual([]);
   });
 
   test('all or nothing, dry run, and refusing what is not an export', async () => {
