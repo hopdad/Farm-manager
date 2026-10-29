@@ -579,23 +579,23 @@ Every slice ends with a **Friday demo you run on your PC** and green CI.
   - `postgres` is NOSUPERUSER CREATEDB CREATEROLE BYPASSRLS, and `search_path` is `"$user",public,extensions`.
 
   Result: all four hold; PostGIS is 3.3.7 with GEOS 3.14 and PROJ 9.7; EPSG 3078, 5070 and 3857 are present. Recorded in `docs/adr/0001-db-image.md`. If `db:check` fails on the PC, use the fallback in §2.
-- [ ] **Scaffold:** Next 16 + TypeScript, Biome seam rules, Vitest, Playwright, `.gitattributes`, `.node-version`, `config.ts` (loads env with `@next/env`), `bootstrap.ts`, `tools/dev.ts`.
-- [ ] **GitHub Actions:**
+- [x] **Scaffold:** Next 16 + TypeScript, Biome seam rules, Vitest, Playwright, `.gitattributes`, `.node-version`, `config.ts` (loads env with `@next/env`), `bootstrap.ts`, `tools/dev.ts`.
+- [x] **GitHub Actions:**
   - Linux runs lint, typecheck, unit tests and DB tests against the pinned image on every push, plus e2e on PRs.
   - Windows runs lint, typecheck, unit tests and `bootstrap --dry-run` on `main` and nightly only. Private repos get 2,000 free minutes a month, and Windows minutes count double.
-- [ ] **Migration 1:**
+- [x] **Migration 1:**
   - The `extensions` schema, extensions, the app schemas and the `farm_app` role.
   - `app.publish`, `app.topic_seq`, `app.claim_due`.
   - parties, farms, fields, `field_boundaries` (EXCLUDE + acreage trigger), machines, machine_state, positions, and the `ingest` plumbing.
 
   The local app connects as a `farm_app` login role.
-- [ ] Demo seed: grid-generated fields, fictional parties, fleet and elevators, 5 seasons of synthetic history.
-- [ ] Sim v0 (combines in passes, carts, semis on section roads to elevators) and **vendor stand-in v0**: the Samsara-shaped vehicle locations feed (bearer token, cursor paging) and the Deere-shaped OAuth flow and machine locations, with the fault-injection and clock control APIs. The `fleet.*` jobs run in sim mode through the live clients. The clock, with the shared schedule validator. `/api/jobs/[name]` (lease, then 202, then `after()`), outside the proxy matcher.
-- [ ] **Realtime:**
+- [x] Demo seed: grid-generated fields, fictional parties, fleet and elevators, 5 seasons of synthetic history.
+- [x] Sim v0 (combines in passes, carts, semis on section roads to elevators) and **vendor stand-in v0**: the Samsara-shaped vehicle locations feed (bearer token, cursor paging) and the Deere-shaped OAuth flow and machine locations, with the fault-injection and clock control APIs. The `fleet.*` jobs run in sim mode through the live clients. The clock, with the shared schedule validator. `/api/jobs/[name]` (lease, then 202, then `after()`), outside the proxy matcher.
+- [x] **Realtime:**
   - The SSE route sends `text/event-stream`, `Cache-Control: no-cache, no-transform` and `X-Accel-Buffering: no`, with a 15 s heartbeat.
   - One shared EventSource per tab; the client adapter has `seq` and `onResync`.
   - A batched `fleet.tick`.
-- [ ] Map shell: `WarRoomMap` (react-map-gl + `MapLibreOverlay` interleaved), local PMTiles basemap with local fonts and sprites, field fills from `/api/tiles/fields`, and a fleet `IconLayer` that glides between ticks. Routes: `/board` (touch pan, pinch and rotate) and `/m`.
+- [x] Map shell: `WarRoomMap` (react-map-gl + `MapLibreOverlay` interleaved), local PMTiles basemap with local fonts and sprites, field fills from `/api/tiles/fields`, and a fleet `IconLayer` that glides between ticks. Routes: `/board` (touch pan, pinch and rotate) and `/m`.
 
 **Done when:**
 1. On your PC, follow §2 (`pnpm install`, `pnpm run bootstrap`, `pnpm dev`) and open `/board`.
@@ -609,44 +609,52 @@ Every slice ends with a **Friday demo you run on your PC** and green CI.
 **Goal:** the spec's Phase 1 on your PC with your real fields, read-only. Deere and trucks are live once their gates open; until then they run in sim or replay.
 
 **1a Tap a field, fleet panel, sign-in (Nov 16 – Nov 29)**
-- [ ] field_seasons, geofences (elevators, shop, field entrances), app_users, devices. Geofence enter/exit detection inside the positions job.
-- [ ] Tap a field to see the boundary, acres, owner or landlord, 5 seasons, open jobs (placeholder) and notes. Phones get a bottom sheet; the wall gets 72 px targets.
-- [ ] Fleet panel: moving, idle, down, stale (more than 10 min old), with a position-source badge. Mark a machine down, with a reason, from a phone.
-- [ ] `LocalAuth`: device and manager sessions, plus operator PIN on shared devices with lockout. Roles. Kiosk device session (D8). `pnpm pilot` + kiosk instructions.
-- [ ] Doc-derived replay fixtures for Deere (fields, boundaries, operations with coverage, machine locations, flags) and the ELD from the public API references, validated by the same zod schemas.
+- [x] field_seasons, geofences (elevators, shop, field entrances), app_users, devices. Geofence enter/exit detection inside the positions job.
+- [x] Tap a field to see the boundary, acres, owner or landlord, 5 seasons, open jobs (placeholder) and notes. Phones get a bottom sheet; the wall gets 72 px targets.
+- [x] Fleet panel: moving, idle, down, stale (more than 10 min old), with a position-source badge. Mark a machine down, with a reason, from a phone.
+- [x] `LocalAuth`: device and manager sessions, plus operator PIN on shared devices with lockout. Roles. Kiosk device session (D8). `pnpm pilot` + kiosk instructions.
+- [x] Doc-derived replay fixtures for Deere (fields, boundaries, operations with coverage, machine locations, flags) and the ELD from the public API references, validated by the same zod schemas.
 
 *Done when:*
 - On a touchscreen laptop or TV, tapping a field opens the panel in under 200 ms.
 - Marking a combine "down" on your phone updates the wall within 2 s, in `pnpm pilot` too (sign-in works over `http://<lan-ip>`).
 - `CONNECTOR_DEERE=replay` runs on the doc-derived fixtures.
 
+*As built (Oct 29, 2026; `e2e/m1-demo.spec.ts`, `e2e/field-panel.spec.ts`, `e2e/fleet-panel*.spec.ts`, `e2e/auth.spec.ts`):* a field tap opens its panel in about 40-70 ms on the composed board (software WebGL); a phone signed in over `http://<lan-ip>` under `pnpm pilot` marks a combine down and the wall follows in about 0.1 s; replay runs on Deere and Samsara fixtures written from the vendors' published OpenAPI documents (developer.deere.com itself was unreachable from the build machine), and CI runs the fleet specs in replay mode. Deviations: marking machines down and logging soil temperatures need **driver** (the contract's `ROLE_FOR`), not operator; Motive has no replay fixtures until D3; geofence visits break after a 30-minute gap. Defaults: `docs/decisions.md`.
+
 **1b Weather strip + spray go/no-go v0 (Nov 30 – Dec 13)**
-- [ ] `weather.nws` job: per-field grid lookup (cached), hourly forecast stored with `issued_at`, nearby station observations, sim fallback.
-- [ ] Strip: today and 3-day rain, wind, gusts and temperature, plus soil temperature from manual probe readings entered on a phone (shown with their age) until D5 is built in 2b.
-- [ ] Go/no-go v0, pulled forward from Phase 2 because it uses the same data. Inputs: sustained wind, gusts, rain-free hours, and an inversion heuristic (low wind and clear sky near dawn or dusk). Thresholds come from D4. It's marked advisory, and the reasons are stored.
+- [x] `weather.nws` job: per-field grid lookup (cached), hourly forecast stored with `issued_at`, nearby station observations, sim fallback.
+- [x] Strip: today and 3-day rain, wind, gusts and temperature, plus soil temperature from manual probe readings entered on a phone (shown with their age) until D5 is built in 2b.
+- [x] Go/no-go v0, pulled forward from Phase 2 because it uses the same data. Inputs: sustained wind, gusts, rain-free hours, and an inversion heuristic (low wind and clear sky near dawn or dusk). Thresholds come from D4. It's marked advisory, and the reasons are stored.
 
 *Done when:* the strip shows real NWS data for your gridpoints. With `CONNECTOR_WEATHER=sim` and the internet unplugged it still renders, and moving the sim's wind slider flips field colors with reasons.
 
+*As built:* the sim and offline parts are automated (`e2e/weather.spec.ts`, `e2e/m1-demo.spec.ts`). **Real NWS data is still to be seen on your PC:** api.weather.gov answered 403 at the build machine's proxy, so the live client follows the NWS OpenAPI document and its unconfirmed points are listed on `/admin/connectors`; README "Live weather" switches it on. The thresholds are the D4 defaults, marked advisory. Field colours use the current hour; the inversion check uses the real sun.
+
 **1c Your real fields, people, history and soils (Dec 14 – Dec 20)**
-- [ ] `import:boundaries` (Ops Center shapefile export or GeoJSON) creates boundary versions. **Boundaries for Deere fields are read-only in Phase 1** (Operations Center stays the system of record, D6). An attempted edit becomes a "change this in Ops Center" note. Drawing, editing, splitting and merging (with lineage) are allowed only for fields with no `deere_field_id` (prospects, customers not in Ops Center).
-- [ ] `import:seasons <csv>` with a template (field, crop_year, crop, variety, planted_on, harvested_on, yield_bu_ac) from your records or crop-insurance APH, so real fields show 5 seasons before Deere is connected.
-- [ ] Landlords, customers and crew through admin forms and CSV import.
-- [ ] `gis:soils`: county-wide load, then a per-boundary clip. Soils layer. Field soils tab: series, drainage and percentage, plus weighted NCCPI.
-- [ ] `data:export` / `data:import`, built now because real data starts now.
+- [x] `import:boundaries` (Ops Center shapefile export or GeoJSON) creates boundary versions. **Boundaries for Deere fields are read-only in Phase 1** (Operations Center stays the system of record, D6). An attempted edit becomes a "change this in Ops Center" note. Drawing, editing, splitting and merging (with lineage) are allowed only for fields with no `deere_field_id` (prospects, customers not in Ops Center).
+- [x] `import:seasons <csv>` with a template (field, crop_year, crop, variety, planted_on, harvested_on, yield_bu_ac) from your records or crop-insurance APH, so real fields show 5 seasons before Deere is connected.
+- [x] Landlords, customers and crew through admin forms and CSV import.
+- [x] `gis:soils`: county-wide load, then a per-boundary clip. Soils layer. Field soils tab: series, drainage and percentage, plus weighted NCCPI.
+- [x] `data:export` / `data:import`, built now because real data starts now.
 
 *Done when:*
 - Your own fields replace the demo.
 - Tapping one shows its real soils, landlord and 5 seasons of crop and yield.
 - `data:export` → `db:reset` → re-sync from replay → `data:import` round-trips your data unchanged, including references to synced rows.
 
+*As built:* `e2e/m1-demo.spec.ts` imports a test farm with the two CLIs and taps a field (soils, landlord, 5 seasons); the round trip is a DB test (`tools/import/data-transfer.db.test.ts`) and was run by hand on the dev database (identical exports). A row whose person isn't in the target database (a test sign-in) comes back without that link instead of failing the import. **Real SSURGO is still to be loaded on your PC** (Soil Data Access was unreachable here): `pnpm gis:soils`; until then a clearly labelled synthetic soils layer covers the demo farm. Not built: the Web Soil Survey + ogr2ogr fallback, and `--target=prod` (MD). `--hide-demo` switches every demo field off (the shared demo farm is not per-farm).
+
 *Holiday buffer, Dec 21 – Jan 3:* catch up and fix.
 
 **1d Imagery, parcels, tile maps, layer rail (Jan 4 – Jan 17)**
-- [ ] Storage adapter (Range, signed GET/PUT, 4 MB body limit, no overwrites in `tiles`) and the `gis.map_layers` registry with legends, versions and cache policy.
-- [ ] NAIP online layer plus AOI close-up PMTiles. Parcels import (D7) and private MVT with owner names. `tile_lines` import and draw tool.
-- [ ] Layer toggles down one side: soils, elevation and drainage, imagery, tile maps, parcels, live fleet, custom-work customers.
+- [x] Storage adapter (Range, signed GET/PUT, 4 MB body limit, no overwrites in `tiles`) and the `gis.map_layers` registry with legends, versions and cache policy.
+- [x] NAIP online layer plus AOI close-up PMTiles. Parcels import (D7) and private MVT with owner names. `tile_lines` import and draw tool.
+- [x] Layer toggles down one side: soils, elevation and drainage, imagery, tile maps, parcels, live fleet, custom-work customers.
 
 *Done when:* with the internet unplugged, the basemap, fields, soils, parcels (Lenawee if received, otherwise the synthetic fixture), tile lines, AOI imagery and simulated fleet all still work. Online-only imagery shows "offline".
+
+*As built:* automated with every non-local host blocked (`e2e/m1-demo.spec.ts`, `e2e/layers.spec.ts`, `e2e/imagery.spec.ts`), except **AOI imagery**, which needs one `pnpm gis:naip` on your PC (imagery.nationalmap.gov was unreachable here; the pipeline was exercised end to end on a synthetic tile with `--fixture`). Parcel owner names reach managers and the owner only, in the tiles and the Parcels tab. The Michigan NAIP year is unconfirmed (`--vintage`).
 
 **1e Lidar and crop history (Jan 18 – Jan 31)**
 - [ ] `gis:dem` with the warp-first step, over the AOI. Hillshade, slope and contours. Depressions and flow paths: WhiteboxTools, falling back to GRASS `r.watershed`. If both fight you, flow paths move to 4b prospect scoring and the reason goes in an ADR.

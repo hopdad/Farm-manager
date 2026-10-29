@@ -663,3 +663,55 @@ synced rows are deterministic, so hand-entered rows that reference them survive
 | D6 | Deere is the boundary master for any field with `deere_field_id` (read-only in the app) | `boundaryEditPolicy`, `farm.boundary_change_requests` |
 | D7 | Parcels: a synthetic fixture until a county or vendor file arrives | `gis:parcels`, `gis.parcel_imports.source = 'synthetic'` |
 | D8 | Roles owner/manager/operator/driver/viewer; the wall and cab/truck iPads are shared devices (operator PIN), phones are personal | `ROLES`, `SHARED_DEVICE_KINDS`, `farm.devices.role` |
+
+---
+
+## 15. As integrated (Oct 29, 2026)
+
+The seven builder branches are merged into `claude/m1-see-it`; the worktrees and `m1/*` branches
+are gone. What the integration settled, where the builders' reports asked:
+
+- **Schema:** `db/pending/weather.sql` and `db/pending/imagery.sql` are migration
+  `0004_m1_integration` (the retention index on `farm.spray_assessments (grid_id,
+  forecast_issued_at, for_hour)`, mirrored in `src/db/schema/farm.ts`, and
+  `app.mvt_parcels(z, x, y, with_owners)`). `db/pending/` holds only its README again.
+- **Auth (§4):** `/admin/*` uses `requireRole(ROLE_FOR.admin)` through `src/app/admin/_lib/guard.ts`
+  (the admin cookie is still a provisional owner on the PC); `/board` and `/m` call
+  `requirePageSession`; starting the Deere connect flow outside sim needs a manager. The
+  launchers and bootstrap print `authBannerLines`; the demo seed adds the demo people.
+- **Roles kept as contracted:** `markMachineDown` and `enterSoilTemp` stay `driver` (two tasks
+  said operator; `docs/decisions.md` D8 says how to change it).
+- **Parcels (§3.2, §5.3, §7.4):** the tiles route picks the owners variant by the session's role
+  (`TileLayerDef.sqlForRole`), and `GET /api/layers` gives that variant its own `?v=` suffix
+  (`.o`), so a shared browser never reuses one person's owner tiles for the next.
+  `GET /api/fields/<id>` redacts `parcels[].ownerName/ownerMailing` below manager on the server.
+- **`GET /api/layers`:** as built by soils: public rows for everyone (also signed out), private
+  rows from `viewPrivate`; never a 401. MVT rows carry the tiles route's version.
+- **Field panel (§8, §12):** tabs in order Overview, History, Soils, Parcels, Spray. The panel
+  takes `config` and `map` besides `fieldId`/`variant`/`onClose`, and `GET /api/fields/<id>`
+  names the session's role in `X-Farm-Role`. A notes save bumps `fields.updated_at`, which moves
+  the fields tiles' `?v=` (new page loads only).
+- **Board layout (§12):** `src/ui/board/BoardScreen.tsx` composes everything around one map;
+  panels read `--dock-right/left/bottom/gap` from `.mapArea`. Field taps are ignored while a tile
+  line is drawn; the rail's fleet toggle drives `fleetVisible`. WarRoomMap only runs deck.gl's
+  GPU pick when a machine is drawn near the tap (`src/ui/map/fleet/pick.ts`).
+- **Jobs (§13):** a job may name its `connector`; `JOBS_DEMO_CADENCE` applies only while that
+  connector is sim, replay or off, and the config no longer refuses it next to a live connector.
+  `weather.nws` drops its cached grid cells when the weather source changes
+  (`app.settings` `weather.grid_source`).
+- **Spray assessments (§3.1):** `writeAssessments` uses `on conflict … do update set assessed_at`
+  only when a newer row for that field and hour exists (weather's report): "newest by
+  assessed_at" is what the farm was last told. Staleness (`forecast_stale`) is added at read time.
+- **Replay (§10):** two fixtures stretch "anchor = the instant treated as now" so machines move:
+  the Deere breadcrumbs anchor at the start of a 30-minute period (`shiftStepSeconds` 1800) and
+  the Samsara positions are a closed loop of 120 cursor-keyed pages (`shiftStepSeconds` 1). The
+  Deere stand-in now sends breadcrumbs in the documented shapes too.
+- **Data export (§13):** who-did-it columns (`entered_by`, `created_by`, `down_by`, …) are declared
+  per table; a link to a person or device the target database doesn't have is imported as null
+  with a note instead of failing the import. `farm.app_users` and `farm.devices` with source
+  `app` travel in the file (never the enrollment code hash).
+- **Shared helpers:** one `isSameOriginRequest` (`src/platform/http/origin.ts`), also on tile-line
+  writes; server actions accept 4 MB bodies (`next.config.ts`).
+- **Seed:** `tools/seed/extras.ts` (demo people, soils from a cached SSURGO run or the synthetic
+  fixture, synthetic parcels unless a real file was imported, the online NAIP row) after the
+  demo farm, which now has one field-entrance geofence per field.
