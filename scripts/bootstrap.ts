@@ -367,9 +367,8 @@ export async function bootstrap(flags: BootstrapFlags, d: BootstrapDeps): Promis
         '.env',
         `missing, but the database volume ${vols[0]} exists with its old password`,
       );
-      out(
-        '          Restore your old .env, or start clean with `pnpm db:nuke` (deletes the local database).',
-      );
+      out('          Restore your old .env, or start clean (deletes the local database):');
+      out('          pnpm env:init, then pnpm db:nuke, then pnpm run bootstrap');
       return fail(out, 'database password unknown');
     }
   }
