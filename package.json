@@ -69,6 +69,7 @@
     "@tanstack/react-query": "5.105.0",
     "@turf/turf": "7.4.0",
     "@vercel/functions": "3.10.4",
+    "but-unzip": "0.1.10",
     "croner": "10.0.1",
     "csv-parse": "7.0.3",
     "drizzle-orm": "0.45.4",

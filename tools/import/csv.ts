@@ -2,6 +2,10 @@
  * Spreadsheet CSVs as people save them on Windows (Excel's BOM, CRLF, quoted commas, blank
  * lines, "Crop Year" headers): one parser for the seasons and parties imports, with the CSV
  * line number of every row so errors point at the right line. Pure; csv-parse/sync.
+ *
+ * Bytes become text with `decodeCsvBytes`: Excel on Windows saves "CSV (Comma delimited)" in the
+ * ANSI code page (Windows-1252), also when it opened our ASCII-only template, so a file that is
+ * not valid UTF-8 is read as Windows-1252 (é, ’, ®, ½ intact) instead of turning into U+FFFD.
  */
 import { parse } from 'csv-parse/sync';
 
@@ -28,6 +32,18 @@ export const normHeader = (h: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
+
+/**
+ * A CSV file's bytes as text: UTF-8 when they are valid UTF-8 (a BOM is dropped), else
+ * Windows-1252 (Excel's "CSV (Comma delimited)" on Windows).
+ */
+export function decodeCsvBytes(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder('windows-1252').decode(bytes);
+  }
+}
 
 /** Bigger files are refused (a crop-history or contact list is a few hundred rows). */
 export const MAX_CSV_BYTES = 2 * 1024 * 1024;

@@ -17,6 +17,7 @@ import type { MultiLineString } from 'geojson';
 import { TILE_KINDS, type TileKind, type TileOrigin } from '../../src/db/queries/tile-lines-schema';
 import { deterministicId } from '../../src/domain/ids';
 import { checkLngLat, type VectorFeature } from '../gis/parcels-io';
+import { splitMapSpec } from '../gis/parcels-map';
 
 export const TILE_COLUMNS = ['size', 'depth', 'installed', 'kind', 'installer', 'notes'] as const;
 export type TileColumn = (typeof TILE_COLUMNS)[number];
@@ -52,12 +53,10 @@ export const TILE_COLUMN_CANDIDATES: Record<TileColumn, readonly string[]> = {
 
 export type TileColumnMap = Partial<Record<TileColumn, string>>;
 
+/** Parse `size=PIPE_DIA,depth=DEPTH_IN` (the CLI's --map; see splitMapSpec for PowerShell). */
 export function parseTileColumnMap(spec: string): TileColumnMap {
   const out: TileColumnMap = {};
-  for (const part of spec
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)) {
+  for (const part of splitMapSpec(spec)) {
     const m = /^([a-z]+)=(.+)$/.exec(part);
     if (!m || !(TILE_COLUMNS as readonly string[]).includes(m[1] as string)) {
       throw new Error(`bad --map entry '${part}' (columns: ${TILE_COLUMNS.join(', ')})`);

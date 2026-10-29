@@ -133,7 +133,9 @@ export async function resolveAoi(
     return null;
   });
   if (text !== null) {
-    return { area: areaOf(JSON.parse(text), file), sha256: sha256Hex(text), from: file };
+    // data\aoi.geojson is made by hand on Windows: Notepad or PowerShell may add a BOM.
+    const clean = text.replace(/^\uFEFF/, '');
+    return { area: areaOf(JSON.parse(clean), file), sha256: sha256Hex(clean), from: file };
   }
   const r = await pool.query<{ g: string | null }>(
     `select extensions.ST_AsGeoJSON(extensions.ST_SimplifyPreserveTopology(

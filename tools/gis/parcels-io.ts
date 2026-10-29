@@ -6,9 +6,14 @@
  *    WGS84).
  *  - Shapefile: a .zip (one or more .shp inside) or a .shp with its .dbf / .prj / .cpg next to it.
  *    shpjs reprojects to WGS84 with the .prj (proj4); without one, projected coordinates fail
- *    the longitude/latitude check (`checkLngLat`) instead of landing in the ocean.
- *  - GeoPackage (.gpkg) and anything else GDAL reads: `ogr2ogr -f GeoJSON -t_srs EPSG:4326` in
- *    the pinned GDAL container (docs/contracts-m1.md §13), written to a temp directory.
+ *    the longitude/latitude check (`checkLngLat`) instead of landing in the ocean. Zips are
+ *    unpacked under limits (1 GB, tools/import/zip-vectors.ts), and a .dbf without a .cpg is
+ *    read as UTF-8 only when it is valid UTF-8, else Windows-1252 (owner names keep their
+ *    accents).
+ *  - GeoPackage (.gpkg), an Esri File Geodatabase (a `.gdb` folder, or a zip holding one: county
+ *    parcel data usually ships that way) and anything else GDAL reads: `ogr2ogr -f GeoJSON
+ *    -t_srs EPSG:4326` in the pinned GDAL container (docs/contracts-m1.md §13), written to a
+ *    temp directory. A zipped geodatabase is read in place through GDAL's /vsizip/.
  *  - An ArcGIS FeatureServer / MapServer layer URL (`https://…/FeatureServer/0`): paged
  *    `query?where=1=1&outFields=*&outSR=4326&f=geojson&orderByFields=<objectIdField>` with
  *    `resultOffset` / `resultRecordCount`, continuing while the reply says
@@ -20,12 +25,17 @@
  * boundary importer's reader in tools/import/). CLI-only: never imported by app code.
  */
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { Feature, Geometry, Position } from 'geojson';
-import shp from 'shpjs';
 import { type RunOptions, type RunResult, run as runProcess } from '../../src/lib/proc';
+import {
+  COUNTY_ZIP_LIMITS,
+  parseShapefileParts,
+  unzipVectors,
+  type ZippedVectors,
+} from '../import/zip-vectors';
 import { describeError, type FetchLike, fetchWithRetry } from './http';
 
 /** The pinned GDAL image (docs/contracts-m1.md §13). */
@@ -109,22 +119,41 @@ export function parseGeoJsonText(text: string, name: string): VectorFeature[] {
   return asFeatures(value, path.basename(name).replace(/\.[^.]+$/, ''), name);
 }
 
-/** A zipped shapefile (one or more .shp inside). */
-export async function readShapefileZip(bytes: Uint8Array, name: string): Promise<VectorFeature[]> {
-  let out: Awaited<ReturnType<typeof shp>>;
+async function unzipOrThrow(bytes: Uint8Array, name: string): Promise<ZippedVectors> {
   try {
-    out = await shp(bytes);
+    return await unzipVectors(bytes, COUNTY_ZIP_LIMITS);
   } catch (e) {
     throw new VectorInputError(`${name}: could not read the zip (${(e as Error).message})`);
   }
-  const layers = Array.isArray(out) ? out : [out];
-  return layers.flatMap((l) =>
-    l.features.map((f) => ({
-      geometry: f.geometry,
-      properties: f.properties ?? {},
-      layer: l.fileName ?? path.basename(name, '.zip'),
-    })),
-  );
+}
+
+/** A zipped shapefile (one or more .shp inside; GeoJSON entries too). */
+export async function readShapefileZip(
+  bytes: Uint8Array,
+  name: string,
+  zipped?: ZippedVectors,
+): Promise<VectorFeature[]> {
+  const z = zipped ?? (await unzipOrThrow(bytes, name));
+  const out: VectorFeature[] = [];
+  for (const s of z.shapefiles) {
+    let fc: Awaited<ReturnType<typeof parseShapefileParts>>;
+    try {
+      fc = await parseShapefileParts(s);
+    } catch (e) {
+      throw new VectorInputError(`${name}: could not read ${s.path}.shp (${(e as Error).message})`);
+    }
+    const layer = path.posix.basename(s.path);
+    for (const f of fc.features) {
+      out.push({ geometry: f.geometry, properties: f.properties ?? {}, layer });
+    }
+  }
+  for (const j of z.geojson) {
+    out.push(...parseGeoJsonText(new TextDecoder().decode(j.bytes), j.path));
+  }
+  if (!z.shapefiles.length && !z.geojson.length) {
+    throw new VectorInputError(`${name}: the zip holds no shapefile (.shp), GeoJSON or .gdb`);
+  }
+  return out;
 }
 
 /** A .shp plus whichever of .dbf / .prj / .cpg sit next to it (same base name, any case). */
@@ -141,20 +170,19 @@ export async function readShapefileSet(
   };
   const main = await readFile(shpPath);
   const [dbf, prj, cpg] = await Promise.all([sidecar('dbf'), sidecar('prj'), sidecar('cpg')]);
-  let fc: Awaited<ReturnType<typeof shp>>;
+  let fc: Awaited<ReturnType<typeof parseShapefileParts>>;
   try {
-    fc = await shp({
+    fc = await parseShapefileParts({
       shp: main,
       dbf: dbf ?? undefined,
-      prj: prj ? prj.toString('utf8') : undefined,
-      cpg: cpg ? cpg.toString('utf8') : undefined,
+      prj: prj ?? undefined,
+      cpg: cpg ?? undefined,
     });
   } catch (e) {
     throw new VectorInputError(
       `${shpPath}: could not read the shapefile (${(e as Error).message})`,
     );
   }
-  if (Array.isArray(fc)) throw new VectorInputError(`${shpPath}: unexpected several layers`);
   const parts = [main, dbf, prj, cpg].filter((b) => b !== null);
   return {
     features: fc.features.map((f) => ({
@@ -167,8 +195,17 @@ export async function readShapefileSet(
   };
 }
 
-/** `docker run` arguments converting `file` (in `inDir`) to GeoJSON in `outDir`. */
-export function ogr2ogrArgs(inDir: string, file: string, outDir: string, layer?: string): string[] {
+/**
+ * `docker run` arguments converting `file` (in `inDir`) to GeoJSON in `outDir`. `inner`: a path
+ * inside the zip `file` to open through GDAL's /vsizip/ (a zipped File Geodatabase).
+ */
+export function ogr2ogrArgs(
+  inDir: string,
+  file: string,
+  outDir: string,
+  layer?: string,
+  inner?: string,
+): string[] {
   return [
     'run',
     '--rm',
@@ -185,22 +222,31 @@ export function ogr2ogrArgs(inDir: string, file: string, outDir: string, layer?:
     '-lco',
     'RFC7946=YES',
     '/out/out.geojson',
-    `/in/${file}`,
+    inner ? `/vsizip//in/${file}/${inner}` : `/in/${file}`,
     ...(layer ? [layer] : []),
   ];
 }
 
-/** Any GDAL-readable file (GeoPackage, File Geodatabase zip, …) through ogr2ogr in Docker. */
+/**
+ * Any GDAL-readable file (GeoPackage, a File Geodatabase folder, …) through ogr2ogr in Docker.
+ * `inner`: open that path inside the zip `file` (/vsizip/).
+ */
 export async function readWithGdal(
   file: string,
-  opts: { run?: Runner; layer?: string } = {},
+  opts: { run?: Runner; layer?: string; inner?: string } = {},
 ): Promise<VectorFeature[]> {
   const run = opts.run ?? runProcess;
   const out = await mkdtemp(path.join(tmpdir(), 'farm-ogr-'));
   try {
     const r = await run(
       'docker',
-      ogr2ogrArgs(path.dirname(path.resolve(file)), path.basename(file), out, opts.layer),
+      ogr2ogrArgs(
+        path.dirname(path.resolve(file)),
+        path.basename(file),
+        out,
+        opts.layer,
+        opts.inner,
+      ),
       {
         timeoutMs: 30 * 60_000,
       },
@@ -332,8 +378,19 @@ export async function readVectorInput(
     }
   }
   const s = await stat(input).catch(() => null);
-  if (!s?.isFile()) throw new VectorInputError(`${input}: no such file`);
   const kind = ext(input);
+  if (s?.isDirectory() && kind === 'gdb') {
+    // A File Geodatabase is a folder (Windows Explorer shows it as one).
+    const listing = await gdbListing(input);
+    return {
+      name: path.basename(input),
+      sha256: sha256(Buffer.from(listing.text)),
+      bytes: listing.bytes,
+      downloaded: null,
+      features: await readWithGdal(input, { run: opts.run }),
+    };
+  }
+  if (!s?.isFile()) throw new VectorInputError(`${input}: no such file`);
   if (kind === 'shp') {
     const r = await readShapefileSet(input);
     return { name: path.basename(input), ...r, downloaded: null };
@@ -348,13 +405,37 @@ export async function readVectorInput(
   if (kind === 'geojson' || kind === 'json') {
     return { ...base, features: parseGeoJsonText(bytes.toString('utf8'), input) };
   }
-  if (kind === 'zip') return { ...base, features: await readShapefileZip(bytes, input) };
-  if (kind === 'gpkg' || kind === 'gdb' || kind === 'kml' || kind === 'gml') {
+  if (kind === 'zip') {
+    const zipped = await unzipOrThrow(bytes, input);
+    if (!zipped.shapefiles.length && !zipped.geojson.length && zipped.gdbPaths.length) {
+      // A zipped File Geodatabase: GDAL reads it in place.
+      return {
+        ...base,
+        features: await readWithGdal(input, { run: opts.run, inner: zipped.gdbPaths[0] }),
+      };
+    }
+    return { ...base, features: await readShapefileZip(bytes, input, zipped) };
+  }
+  if (kind === 'gpkg' || kind === 'kml' || kind === 'gml') {
     return { ...base, features: await readWithGdal(input, { run: opts.run }) };
   }
   throw new VectorInputError(
-    `${input}: unsupported file type '.${kind}'. Give a .geojson, a zipped shapefile (.zip), a .shp with its .dbf/.prj, a .gpkg, or an ArcGIS layer URL`,
+    `${input}: unsupported file type '.${kind}'. Give a .geojson, a zipped shapefile (.zip), a .shp with its .dbf/.prj, a .gpkg, a .gdb folder (or a zip of one), or an ArcGIS layer URL`,
   );
+}
+
+/** A File Geodatabase folder's identity for gis.parcel_imports: sorted names and sizes. */
+async function gdbListing(dir: string): Promise<{ text: string; bytes: number }> {
+  const names = (await readdir(dir)).sort();
+  let bytes = 0;
+  const lines: string[] = [];
+  for (const n of names) {
+    const st = await stat(path.join(dir, n)).catch(() => null);
+    if (!st?.isFile()) continue;
+    bytes += st.size;
+    lines.push(`${n}\t${st.size}`);
+  }
+  return { text: lines.join('\n'), bytes };
 }
 
 /** Every position of a geometry. */

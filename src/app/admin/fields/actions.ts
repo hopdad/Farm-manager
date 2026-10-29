@@ -42,7 +42,7 @@ import {
   type InputFile,
   parseBoundaryFiles,
 } from '../../../../tools/import/boundary-file';
-import { CsvError } from '../../../../tools/import/csv';
+import { CsvError, decodeCsvBytes } from '../../../../tools/import/csv';
 import { detroitMidnight, parseDate } from '../../../../tools/import/dates';
 import { parseSeasonsCsv } from '../../../../tools/import/seasons-csv';
 import type { ActionResult } from '../action-result';
@@ -143,7 +143,7 @@ async function seasonImport(form: FormData, dryRun: boolean): Promise<DataResult
     if (!file) throw new FieldDataError('choose a .csv file');
     let parsed: ReturnType<typeof parseSeasonsCsv>;
     try {
-      parsed = parseSeasonsCsv(new TextDecoder().decode(file.bytes), localParts(Date.now()).y);
+      parsed = parseSeasonsCsv(decodeCsvBytes(file.bytes), localParts(Date.now()).y);
     } catch (e) {
       if (e instanceof CsvError)
         return { ok: false, message: e.message, data: problemView(e.message, []) };

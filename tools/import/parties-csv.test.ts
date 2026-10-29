@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { parseRoles, validateParty } from '../../src/db/queries/parties';
-import { readCsv } from './csv';
+import { decodeCsvBytes, readCsv } from './csv';
 import { PARTY_COLUMNS, parsePartiesCsv } from './parties-csv';
 
 const here = import.meta.dirname;
@@ -22,6 +22,19 @@ describe('parsePartiesCsv', () => {
       ['Casey Morgan', 'person', ['crew'], null],
     ]);
     expect(r.rows[0]?.address).toBe('1200 River Rd, Adrian MI 49221');
+  });
+
+  test('a file Excel saved on Windows (Windows-1252) keeps its accents and curly quotes', () => {
+    const bytes = Buffer.from(
+      'display_name,kind,roles,phone\r\nJos\xe9 O\x92Brien,person,landlord,555-0100\r\n',
+      'latin1',
+    );
+    const r = parsePartiesCsv(decodeCsvBytes(bytes));
+    expect(r.errors).toEqual([]);
+    expect(r.rows[0]?.displayName).toBe('José O’Brien');
+    // UTF-8 (with Excel's BOM) is read as UTF-8.
+    const utf8 = Buffer.from('\ufeffdisplay_name\r\nJosé O’Brien\r\n', 'utf8');
+    expect(parsePartiesCsv(decodeCsvBytes(utf8)).rows[0]?.displayName).toBe('José O’Brien');
   });
 
   test('aliases, several roles, problems by line', () => {

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { CsvError, readCsv, writeCsv } from './csv';
+import { CsvError, decodeCsvBytes, readCsv, writeCsv } from './csv';
 import { normalizeCrop, parseSeasonsCsv, SEASON_COLUMNS, validateSeason } from './seasons-csv';
 
 const here = import.meta.dirname;
@@ -41,6 +41,19 @@ describe('parseSeasonsCsv', () => {
     expect(r.rows).toHaveLength(1);
     expect(r.rows[0]).toMatchObject({ line: 4, field: 'Home 80', crop: 'soybeans', yieldBuAc: 61 });
     expect(r.warnings).toEqual([{ line: 1, message: 'ignored column(s): notes' }]);
+  });
+
+  test('a Windows-1252 file (Excel on Windows) keeps ® and accented names', () => {
+    const bytes = Buffer.from(
+      'field,crop_year,crop,variety\r\nHome 80,2024,corn,Pioneer\xae P1185\r\nS\xe9bastien 40,2024,soybeans,\r\n',
+      'latin1',
+    );
+    const r = parseSeasonsCsv(decodeCsvBytes(bytes), 2026);
+    expect(r.errors).toEqual([]);
+    expect(r.rows.map((x) => [x.field, x.variety])).toEqual([
+      ['Home 80', 'Pioneer® P1185'],
+      ['Sébastien 40', null],
+    ]);
   });
 
   test('every problem is reported with its line', () => {

@@ -12,7 +12,10 @@
  *
  * Shapefiles are reprojected to WGS84 by shpjs with their .prj (proj4). A missing or unreadable
  * .prj leaves projected coordinates (metres or feet) behind: they fail the longitude/latitude
- * check below instead of landing somewhere in the ocean.
+ * check below instead of landing somewhere in the ocean. Zips are unpacked under limits
+ * (./zip-vectors.ts: 64 MB and 2000 entries for an upload, so a zip bomb can't take the server
+ * down), and a .dbf without a .cpg is decoded as UTF-8 only when it is valid UTF-8, else as
+ * Windows-1252 (what a .dbf without a .cpg is on Windows), so accented names arrive intact.
  *
  * Attribute names: the exact column names of an Ops Center export were NOT confirmed from
  * Deere documentation when this was written (developer.deere.com and the third-party guides
@@ -27,9 +30,16 @@
  * MultiPolygon; the database makes it valid and unions it on write.
  */
 import type { Feature, Geometry, MultiPolygon, Polygon, Position } from 'geojson';
-import shp from 'shpjs';
 import type { IncomingBoundary } from '../../src/db/queries/boundaries';
 import { BASEMAP_BBOX } from '../../src/platform/storage/basemap';
+import {
+  parseShapefileParts,
+  UPLOAD_ZIP_LIMITS,
+  unzipVectors,
+  type ZipLimits,
+  type ZippedVectors,
+  ZipReadError,
+} from './zip-vectors';
 
 export interface InputFile {
   /** File name (extension decides how it is read); paths inside are kept for messages. */
@@ -76,11 +86,17 @@ const stripExt = (p: string) => p.replace(/\.[^./\\]+$/, '');
 
 const SHAPEFILE_PARTS = new Set(['shp', 'shx', 'dbf', 'prj', 'cpg', 'sbn', 'sbx', 'xml']);
 
-/** Read the uploaded/named files into layers. Throws BoundaryFileError with a fix-it message. */
-export async function readBoundaryFiles(files: readonly InputFile[]): Promise<ParsedLayer[]> {
+/**
+ * Read the uploaded/named files into layers. Throws BoundaryFileError with a fix-it message.
+ * `zipLimits`: what a zip may unpack to (default: an admin upload's).
+ */
+export async function readBoundaryFiles(
+  files: readonly InputFile[],
+  zipLimits: ZipLimits = UPLOAD_ZIP_LIMITS,
+): Promise<ParsedLayer[]> {
   if (files.length === 0) throw new BoundaryFileError('no file given');
   const kinds = new Set(files.map((f) => ext(f.name)));
-  if (files.length === 1 && kinds.has('zip')) return readZip(files[0] as InputFile);
+  if (files.length === 1 && kinds.has('zip')) return readZip(files[0] as InputFile, zipLimits);
   if (files.length === 1 && (kinds.has('geojson') || kinds.has('json'))) {
     return [readGeoJson(files[0] as InputFile)];
   }
@@ -90,22 +106,39 @@ export async function readBoundaryFiles(files: readonly InputFile[]): Promise<Pa
   );
 }
 
-async function readZip(file: InputFile): Promise<ParsedLayer[]> {
-  let out: Awaited<ReturnType<typeof shp>>;
+async function readZip(file: InputFile, limits: ZipLimits): Promise<ParsedLayer[]> {
+  let zipped: ZippedVectors;
   try {
-    out = await shp(file.bytes);
+    zipped = await unzipVectors(file.bytes, limits);
   } catch (e) {
-    const msg = (e as Error).message;
-    if (/no layers/i.test(msg)) {
-      throw new BoundaryFileError(`${file.name}: the zip holds no shapefile (.shp) or GeoJSON`);
+    if (e instanceof ZipReadError && e.reason !== 'unreadable') {
+      const upload = limits.maxUnzippedBytes <= UPLOAD_ZIP_LIMITS.maxUnzippedBytes;
+      throw new BoundaryFileError(
+        `${file.name}: ${e.message}; split it${upload ? ', or import it on the PC with `pnpm import:boundaries`' : ''}`,
+      );
     }
-    throw new BoundaryFileError(`${file.name}: could not read the zip (${msg})`);
+    throw new BoundaryFileError(`${file.name}: could not read the zip (${(e as Error).message})`);
   }
-  const layers = Array.isArray(out) ? out : [out];
-  return layers.map((l) => ({
-    fileName: l.fileName ?? stripExt(file.name),
-    features: l.features as ParsedLayer['features'],
-  }));
+  const layers: ParsedLayer[] = [];
+  for (const s of zipped.shapefiles) {
+    try {
+      const fc = await parseShapefileParts(s);
+      layers.push({ fileName: s.path, features: fc.features as ParsedLayer['features'] });
+    } catch (e) {
+      throw new BoundaryFileError(
+        `${file.name}: could not read ${s.path}.shp (${(e as Error).message})`,
+      );
+    }
+  }
+  for (const j of zipped.geojson) layers.push(readGeoJson({ name: j.path, bytes: j.bytes }));
+  if (!layers.length) {
+    throw new BoundaryFileError(
+      zipped.gdbPaths.length
+        ? `${file.name}: the zip holds an Esri File Geodatabase (${zipped.gdbPaths.join(', ')}), not a shapefile: export the boundaries as a shapefile or GeoJSON`
+        : `${file.name}: the zip holds no shapefile (.shp) or GeoJSON`,
+    );
+  }
+  return layers;
 }
 
 async function readShapefileSet(files: readonly InputFile[]): Promise<ParsedLayer> {
@@ -119,17 +152,13 @@ async function readShapefileSet(files: readonly InputFile[]): Promise<ParsedLaye
     );
   }
   const main = shps[0] as InputFile;
-  const dbf = by('dbf')[0];
-  const prj = by('prj')[0];
-  const cpg = by('cpg')[0];
   try {
-    const fc = await shp({
+    const fc = await parseShapefileParts({
       shp: main.bytes,
-      dbf: dbf?.bytes,
-      prj: prj ? new TextDecoder().decode(prj.bytes) : undefined,
-      cpg: cpg ? new TextDecoder().decode(cpg.bytes) : undefined,
+      dbf: by('dbf')[0]?.bytes,
+      prj: by('prj')[0]?.bytes,
+      cpg: by('cpg')[0]?.bytes,
     });
-    if (Array.isArray(fc)) throw new Error('unexpected several layers');
     return { fileName: stripExt(main.name), features: fc.features as ParsedLayer['features'] };
   } catch (e) {
     throw new BoundaryFileError(
@@ -469,8 +498,9 @@ function summarizeRefs(refs: string[]): string {
 export async function parseBoundaryFiles(
   files: readonly InputFile[],
   opts: AttributeOptions = {},
+  zipLimits: ZipLimits = UPLOAD_ZIP_LIMITS,
 ): Promise<ExtractResult> {
-  const layers = await readBoundaryFiles(files);
+  const layers = await readBoundaryFiles(files, zipLimits);
   const sourceName =
     files.length === 1
       ? baseName((files[0] as InputFile).name)

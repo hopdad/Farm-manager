@@ -94,7 +94,9 @@ async function main(): Promise<void> {
   const text = await readFile(path.resolve(args.file), 'utf8');
   let doc: unknown;
   try {
-    doc = JSON.parse(text);
+    // A file saved again on Windows (PowerShell 5.1 Set-Content -Encoding UTF8, Notepad's
+    // "UTF-8 with BOM") starts with a BOM, which JSON.parse refuses.
+    doc = JSON.parse(text.replace(/^\uFEFF/, ''));
   } catch (e) {
     throw new ExportFormatError(`${args.file} is not JSON (${(e as Error).message})`);
   }

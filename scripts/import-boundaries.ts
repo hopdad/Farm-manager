@@ -38,6 +38,7 @@ import {
 } from '../tools/import/boundary-file';
 import { detroitMidnight, parseDate } from '../tools/import/dates';
 import { formatBoundaryReport } from '../tools/import/report';
+import { COUNTY_ZIP_LIMITS } from '../tools/import/zip-vectors';
 
 export class UsageError extends Error {}
 
@@ -162,7 +163,8 @@ async function main(): Promise<void> {
     return;
   }
   const files = await readInputFiles(args.file);
-  const parsed = await parseBoundaryFiles(files, args.attributes);
+  // On the PC a whole-farm export may be big: the county-file limits, not an upload's.
+  const parsed = await parseBoundaryFiles(files, args.attributes, COUNTY_ZIP_LIMITS);
   for (const w of parsed.warnings) console.warn(`[import] note: ${w}`);
   if (parsed.errors.length) {
     for (const e of parsed.errors) console.error(`[import] ${e}`);

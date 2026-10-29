@@ -5,7 +5,7 @@
  * content-addressed storage, the `naip_aoi` row, the previous archive removed only after the row
  * moved, and an offline rebuild that reproduces the same bytes.
  */
-import { mkdtemp, readFile, rm, stat, unlink } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { PMTiles, type Source, TileType } from 'pmtiles';
@@ -100,6 +100,26 @@ describe('gis:naip (fixture transport)', () => {
     const aoi = await resolveAoi(t().pool, project);
     expect(aoi.from).toMatch(/1 mile/);
     expect(aoi.area.type).toBe('MultiPolygon');
+    expect(aoi.sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  test('a hand-made data/aoi.geojson saved with a BOM (Notepad, PowerShell 5.1) is read', async () => {
+    const file = path.join(project, 'aoi-bom.geojson');
+    const square = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [-84.07, 41.88],
+          [-84.05, 41.88],
+          [-84.05, 41.9],
+          [-84.07, 41.9],
+          [-84.07, 41.88],
+        ],
+      ],
+    };
+    await writeFile(file, `\uFEFF${JSON.stringify(square)}`, 'utf8');
+    const aoi = await resolveAoi(t().pool, project, file);
+    expect(aoi.from).toBe(file);
     expect(aoi.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 

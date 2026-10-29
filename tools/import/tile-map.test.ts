@@ -246,6 +246,12 @@ describe('import:tile arguments', () => {
 
   test('refuses bad input', () => {
     expect(() => parseTileArgs([])).toThrow(/one file/);
+    expect(
+      parseTileArgs(['t.zip', '--map', 'size=PIPE_DIA', 'depth=DEPTH_IN', '--map', 'kind=T']),
+    ).toMatchObject({
+      input: 't.zip',
+      columns: { size: 'PIPE_DIA', depth: 'DEPTH_IN', kind: 'T' },
+    });
     expect(() => parseTileArgs(['a', '--origin', 'manual'])).toThrow(/--origin/);
     expect(() => parseTileArgs(['a', '--size', 'big'])).toThrow(/--size/);
     expect(() => parseTileArgs(['a', '--kind', 'drain'])).toThrow(/--kind/);

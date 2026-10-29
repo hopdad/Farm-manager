@@ -21,7 +21,7 @@ import {
 } from '@/db/queries/parties';
 import { isUuid } from '@/domain/ids';
 import { ROLE_FOR } from '@/platform/auth/types';
-import { CsvError } from '../../../../tools/import/csv';
+import { CsvError, decodeCsvBytes } from '../../../../tools/import/csv';
 import { parsePartiesCsv } from '../../../../tools/import/parties-csv';
 import type { ActionResult } from '../action-result';
 import { actorOf, type DataResult, formText, runAction } from '../fields/_lib/access';
@@ -141,7 +141,7 @@ async function partyImport(form: FormData, dryRun: boolean): Promise<DataResult<
     if (!file) throw new FieldDataError('choose a .csv file');
     let parsed: ReturnType<typeof parsePartiesCsv>;
     try {
-      parsed = parsePartiesCsv(new TextDecoder().decode(await file.arrayBuffer()));
+      parsed = parsePartiesCsv(decodeCsvBytes(new Uint8Array(await file.arrayBuffer())));
     } catch (e) {
       if (e instanceof CsvError)
         return { ok: false, message: e.message, data: problemView(e.message, []) };

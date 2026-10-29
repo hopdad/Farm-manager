@@ -7,7 +7,8 @@
  * Inputs: GeoJSON, a zipped shapefile, a .shp with its .dbf/.prj, a GeoPackage (GDAL in Docker)
  * or an ArcGIS layer URL (tools/gis/parcels-io.ts), with LineString / MultiLineString features.
  * Attributes (size, depth, install date, kind, installer, notes) are detected by name
- * (tools/import/tile-map.ts); `--map size=PIPE_DIA,depth=DEPTH_IN` names them. The file NAME
+ * (tools/import/tile-map.ts); `--map 'size=PIPE_DIA,depth=DEPTH_IN'` names them (quote it in
+ * PowerShell, or repeat --map). The file NAME
  * identifies the drawing: re-running the same file changes nothing, a corrected file of the same
  * name updates its lines in place (by the features' ID column, else their order), and
  * `--replace` removes lines it no longer has.
@@ -33,18 +34,20 @@ import { TILE_KINDS, type TileKind } from '../../src/db/queries/tile-lines-schem
 import { isMainModule } from '../../src/lib/proc';
 import { describeError } from '../gis/http';
 import { readVectorInput, VectorInputError } from '../gis/parcels-io';
+import { splitMapPositionals } from '../gis/parcels-map';
 import { loadTileLines } from './tile-load';
 import {
   IMPORT_ORIGINS,
   mapTileFeatures,
   parseTileColumnMap,
+  TILE_COLUMNS,
   type TileColumnMap,
   type TileMapResult,
 } from './tile-map';
 
 export const USAGE = `usage: pnpm import:tile <file> [--origin installer_drawing|deere_tile_plow] [--field <name|id>]
                        [--installer <name>] [--installed-on YYYY-MM-DD] [--size <in>] [--depth <ft>]
-                       [--kind main|submain|lateral|unknown] [--map size=ATTR,…] [--replace] [--dry-run]`;
+                       [--kind main|submain|lateral|unknown] [--map 'size=ATTR,…'] [--replace] [--dry-run]`;
 
 export interface TileArgs {
   input: string;
@@ -81,14 +84,17 @@ export function parseTileArgs(argv: readonly string[]): TileArgs {
       size: { type: 'string' },
       depth: { type: 'string' },
       kind: { type: 'string' },
-      map: { type: 'string' },
+      map: { type: 'string', multiple: true },
       replace: { type: 'boolean', default: false },
       'dry-run': { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
   });
   const help = values.help === true;
-  if (!help && positionals.length !== 1) throw new Error('give one file');
+  // PowerShell may hand an unquoted `--map a=X,b=Y` on as separate arguments.
+  const split = splitMapPositionals(positionals, TILE_COLUMNS);
+  if (!help && split.rest.length !== 1) throw new Error('give one file');
+  const mapSpec = [...(values.map ?? []), ...split.map].join(',');
   const origin = (values.origin ?? 'installer_drawing') as TileArgs['origin'];
   if (!IMPORT_ORIGINS.includes(origin))
     throw new Error(`--origin must be ${IMPORT_ORIGINS.join(' or ')}`);
@@ -100,7 +106,7 @@ export function parseTileArgs(argv: readonly string[]): TileArgs {
   if (kind !== undefined && !TILE_KINDS.includes(kind))
     throw new Error(`--kind must be ${TILE_KINDS.join(', ')}`);
   return {
-    input: positionals[0] ?? '',
+    input: split.rest[0] ?? '',
     origin,
     field: values.field ?? null,
     installer: values.installer,
@@ -108,7 +114,7 @@ export function parseTileArgs(argv: readonly string[]): TileArgs {
     sizeIn: positiveNumber(values.size, '--size (inches)', 120),
     depthFt: positiveNumber(values.depth, '--depth (feet)', 30),
     kind,
-    columns: values.map ? parseTileColumnMap(values.map) : {},
+    columns: mapSpec ? parseTileColumnMap(mapSpec) : {},
     replace: values.replace === true,
     dryRun: values['dry-run'] === true,
     help,

@@ -17,7 +17,7 @@ import { createPool } from '../src/db/client';
 import { importSeasons, type SeasonImportReport } from '../src/db/queries/seasons';
 import { isMainModule } from '../src/lib/proc';
 import { localParts } from '../src/sim/time';
-import { CsvError } from '../tools/import/csv';
+import { CsvError, decodeCsvBytes } from '../tools/import/csv';
 import { table } from '../tools/import/report';
 import { parseSeasonsCsv, type RowProblem } from '../tools/import/seasons-csv';
 
@@ -87,7 +87,7 @@ async function main(): Promise<void> {
     process.exitCode = 2;
     return;
   }
-  const text = await readFile(path.resolve(args.file), 'utf8');
+  const text = decodeCsvBytes(await readFile(path.resolve(args.file)));
   const year = localParts(Date.now()).y;
   const parsed = parseSeasonsCsv(text, year);
   if (parsed.errors.length || parsed.warnings.length) {

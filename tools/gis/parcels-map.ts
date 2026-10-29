@@ -111,13 +111,43 @@ export const PARCEL_COLUMN_CANDIDATES: Record<ParcelColumn, readonly string[]> =
 
 export type ColumnMap = Partial<Record<ParcelColumn, string>>;
 
-/** Parse `parcel=PIN,owner=OWNER1` (the CLI's --map). */
+/**
+ * The entries of a `--map` value: `parcel=PIN,owner=OWNER1`. Also split where whitespace comes
+ * before the next `col=`: in PowerShell (`pnpm` is pnpm.ps1 there) an unquoted
+ * `parcel=PIN,owner=OWNER1` is an array, which the npm shim passes on as
+ * `parcel=PIN owner=OWNER1` (Microsoft, about_Parsing, argument mode). An attribute name with a
+ * space in it (`owner=Owner Name`, GeoJSON) stays whole.
+ */
+export function splitMapSpec(spec: string): string[] {
+  return spec
+    .split(/\s*,\s*|\s+(?=[A-Za-z0-9]+=)/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/**
+ * `--map` given as separate arguments (`--map parcel=PIN owner=OWNER1` reaches the CLI as a
+ * positional `owner=OWNER1` when PowerShell splats the array): the positionals that name one of
+ * `columns` (`<column>=<attribute>`) are map entries, the rest stay positionals.
+ */
+export function splitMapPositionals(
+  positionals: readonly string[],
+  columns: readonly string[],
+): { map: string[]; rest: string[] } {
+  const map: string[] = [];
+  const rest: string[] = [];
+  for (const p of positionals) {
+    const key = /^([A-Za-z0-9]+)=./.exec(p)?.[1];
+    if (key && columns.includes(key)) map.push(p);
+    else rest.push(p);
+  }
+  return { map, rest };
+}
+
+/** Parse `parcel=PIN,owner=OWNER1` (the CLI's --map; see splitMapSpec). */
 export function parseColumnMap(spec: string): ColumnMap {
   const out: ColumnMap = {};
-  for (const part of spec
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)) {
+  for (const part of splitMapSpec(spec)) {
     const m = /^([A-Za-z0-9]+)=(.+)$/.exec(part);
     if (!m || !(PARCEL_COLUMNS as readonly string[]).includes(m[1] as string)) {
       throw new Error(`bad --map entry '${part}' (columns: ${PARCEL_COLUMNS.join(', ')})`);

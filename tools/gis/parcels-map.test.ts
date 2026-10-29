@@ -61,6 +61,12 @@ describe('detectColumns', () => {
 
   test('parseColumnMap reads the CLI form and refuses unknown columns', () => {
     expect(parseColumnMap('parcel=PIN, owner=OWNER1')).toEqual({ parcel: 'PIN', owner: 'OWNER1' });
+    // PowerShell's unquoted array, as the npm shim passes it on; a name with a space stays whole.
+    expect(parseColumnMap('parcel=PIN owner=OWNER1')).toEqual({ parcel: 'PIN', owner: 'OWNER1' });
+    expect(parseColumnMap('owner=Owner Name,parcel=PIN')).toEqual({
+      owner: 'Owner Name',
+      parcel: 'PIN',
+    });
     expect(() => parseColumnMap('colour=RED')).toThrow(/bad --map/);
   });
 });

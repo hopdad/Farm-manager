@@ -1,8 +1,9 @@
 /** Vector inputs: GeoJSON, a shapefile set on disk, ArcGIS FeatureServer paging, ogr2ogr args. */
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { rectangle, shapefileFiles, zip } from '../import/testing/shapefile';
 import {
   checkLngLat,
   featureServerPageUrl,
@@ -284,6 +285,62 @@ describe('GDAL (GeoPackage and friends)', () => {
       stderr: 'Cannot connect to the Docker daemon',
     });
     await expect(readWithGdal(path.join(dir, 'x.gpkg'), { run: fail })).rejects.toThrow(/Docker/);
+  });
+});
+
+describe('Esri File Geodatabase (county parcel data)', () => {
+  /** A runner that records the ogr2ogr source and writes one feature. */
+  function recordingRunner() {
+    const sources: string[] = [];
+    const run = async (_cmd: string, args: string[]) => {
+      const out = (args[args.indexOf('-v', 3) + 1] ?? '').split(':/out')[0] as string;
+      sources.push(args[args.indexOf('/out/out.geojson') + 1] as string);
+      await writeFile(
+        path.join(out, 'out.geojson'),
+        '{"type":"FeatureCollection","features":[{"type":"Feature","geometry":null,"properties":{"PIN":"7"}}]}',
+      );
+      return { code: 0, stdout: '', stderr: '' };
+    };
+    return { run, sources };
+  }
+
+  test('a .gdb folder goes to GDAL', async () => {
+    const gdb = path.join(dir, 'Parcels.gdb');
+    await mkdir(gdb, { recursive: true });
+    await writeFile(path.join(gdb, 'a00000001.gdbtable'), 'x');
+    const r = recordingRunner();
+    const src = await readVectorInput(gdb, { run: r.run });
+    expect(r.sources).toEqual(['/in/Parcels.gdb']);
+    expect(src).toMatchObject({ name: 'Parcels.gdb', bytes: 1, downloaded: null });
+    expect(src.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(src.features[0]?.properties).toEqual({ PIN: '7' });
+  });
+
+  test('a zip holding a .gdb goes to GDAL through /vsizip/', async () => {
+    const file = path.join(dir, 'lenawee-parcels.zip');
+    await writeFile(
+      file,
+      zip({
+        'Lenawee_Parcels.gdb/a00000001.gdbtable': new Uint8Array([1, 2, 3]),
+        'Lenawee_Parcels.gdb/gdb': new Uint8Array([4]),
+      }),
+    );
+    const r = recordingRunner();
+    const src = await readVectorInput(file, { run: r.run });
+    expect(r.sources).toEqual(['/vsizip//in/lenawee-parcels.zip/Lenawee_Parcels.gdb']);
+    expect(src.features).toHaveLength(1);
+  });
+
+  test('a zipped shapefile with a Windows-1252 .dbf keeps owner names intact', async () => {
+    const files = shapefileFiles('Parcels', [
+      { geometry: rectangle(-83.9, 41.9, 300, 300), attributes: { OWNER: 'XXXXXXXX' } },
+    ]);
+    const dbf = files['Parcels.dbf'] as Uint8Array;
+    dbf.set([...Buffer.from('Ren\xe9e Ko', 'latin1')], Buffer.from(dbf).indexOf('XXXXXXXX'));
+    const file = path.join(dir, 'parcels-1252.zip');
+    await writeFile(file, zip(files));
+    const src = await readVectorInput(file);
+    expect(src.features[0]?.properties.OWNER).toBe('Renée Ko');
   });
 });
 
