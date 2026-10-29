@@ -1,7 +1,9 @@
 /**
  * Motive client: THIN placeholder until D3 (plan §5). Reads each vehicle's current location
- * (no history feed), so the cursor is the newest `located_at` seen; a location at or before it
- * is skipped. Enough for ELD_VENDOR=motive to drive the board in sim mode.
+ * (no history feed), so the cursor is the newest `located_at` seen PER VEHICLE (JSON
+ * `{"<vehicle id>":"<iso>"}`); a vehicle's location at or before its own watermark is skipped.
+ * (One global watermark would drop every truck whose ELD reports a little later than the
+ * fastest one.) Enough for ELD_VENDOR=motive to drive the board in sim mode.
  */
 
 import { normalizeHeading } from '../../domain/fleet';
@@ -37,6 +39,22 @@ export function mapMotivePosition(raw: unknown): NormalizedPosition[] {
   ];
 }
 
+/** Per-vehicle watermarks from a cursor ('' or anything that isn't the JSON map: none yet). */
+export function parseMotiveCursor(cursor: string | null): Record<string, string> {
+  if (!cursor?.startsWith('{')) return {};
+  try {
+    const parsed = JSON.parse(cursor) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out: Record<string, string> = {};
+    for (const [id, iso] of Object.entries(parsed)) {
+      if (typeof iso === 'string' && !Number.isNaN(Date.parse(iso))) out[id] = iso;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export class MotiveClient {
   readonly endpoint: MotiveEndpoint;
   private readonly http: Omit<VendorHttpOptions, 'vendor'>;
@@ -55,9 +73,8 @@ export class MotiveClient {
   }
 
   async pollPositions(cursor: string | null): Promise<PollResult<RawItem<MotivePositionRaw>>> {
-    const since = cursor ? Date.parse(cursor) : Number.NEGATIVE_INFINITY;
+    const seen = parseMotiveCursor(cursor);
     const items: RawItem<MotivePositionRaw>[] = [];
-    let newest = Number.isNaN(since) ? Number.NEGATIVE_INFINITY : since;
     for (let page = 1; page <= MAX_PAGES; page++) {
       const u = new URL(`${this.endpoint.baseUrl}/v1/vehicle_locations`);
       u.searchParams.set('per_page', String(PER_PAGE));
@@ -75,21 +92,19 @@ export class MotiveClient {
         const loc = vehicle.current_location;
         if (!loc) continue;
         const t = Date.parse(loc.located_at);
-        if (!(t > since)) continue;
-        newest = Math.max(newest, t);
+        const since = seen[vehicle.id];
+        if (since !== undefined && !(t > Date.parse(since))) continue;
+        const iso = new Date(t).toISOString();
+        seen[vehicle.id] = iso;
         items.push({
-          externalId: `${vehicle.id}:${new Date(t).toISOString()}`,
+          externalId: `${vehicle.id}:${iso}`,
           payload: { id: vehicle.id, number: vehicle.number ?? null, location: loc },
         });
       }
       const p = body.pagination;
       if (!p || p.page_no * p.per_page >= p.total || body.vehicles.length === 0) break;
     }
-    return {
-      items,
-      cursor: Number.isFinite(newest) ? new Date(newest).toISOString() : (cursor ?? ''),
-      hasMore: false,
-    };
+    return { items, cursor: JSON.stringify(seen), hasMore: false };
   }
 
   asPositionSource(): PositionSource {
