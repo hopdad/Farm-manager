@@ -6,6 +6,7 @@
  */
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
+import { FieldPanel, type FieldPanelMap } from '../fields/FieldPanel';
 import type { FleetFrame } from '../map/fleet/model';
 import { KIND_COLORS, KIND_LABELS } from '../map/fleet/style';
 import { type FleetStatus, useFleet } from '../map/fleet/useFleet';
@@ -158,6 +159,8 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
     deereStaleAfterSeconds: data.config.deereStaleAfterSeconds,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [fieldId, setFieldId] = useState<string | null>(null);
+  const [map, setMap] = useState<FieldPanelMap | null>(null);
   const [flyTo, setFlyTo] = useState<{ lng: number; lat: number; nonce: number } | null>(null);
   const selected = status.machines.find((m) => m.id === selectedId) ?? null;
   const onSelect = useCallback((id: string | null) => setSelectedId(id), []);
@@ -183,9 +186,20 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
           onSelect={onSelect}
           showLegend={variant === 'wall'}
           flyTo={flyTo}
+          onFieldTap={setFieldId}
+          onMapReady={setMap}
         />
         {selected && variant === 'wall' && (
           <MachineCard m={selected} onClose={() => setSelectedId(null)} />
+        )}
+        {fieldId && (
+          <FieldPanel
+            fieldId={fieldId}
+            variant={variant}
+            config={data.config}
+            map={map}
+            onClose={() => setFieldId(null)}
+          />
         )}
       </div>
       {variant === 'phone' && (
