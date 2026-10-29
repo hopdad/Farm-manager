@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { childEnv } from '../src/config';
+import { startVendorSim } from '../src/sim/vendors/server';
+import { createStubSimWorld } from '../src/sim/vendors/stub-world';
 import {
+  applySimFlags,
   appPort,
   descendantsOf,
   originsDrift,
@@ -58,10 +61,12 @@ describe('parseLaunchArgs', () => {
       scenario: 'spray-windy',
       speed: 30,
       clock: false,
+      resume: false,
       skipBuild: false,
       help: false,
     });
     expect(parseLaunchArgs(['--port=3001'], 'dev').port).toBe(3001);
+    expect(parseLaunchArgs(['--resume'], 'pilot').resume).toBe(true);
   });
 
   test('pilot accepts --skip-build; dev does not', () => {
@@ -83,6 +88,35 @@ describe('parseLaunchArgs', () => {
   test('usage names the flags', () => {
     expect(usage('dev')).toMatch(/--scenario=<harvest-day\|/);
     expect(usage('pilot')).toMatch(/--skip-build/);
+  });
+});
+
+describe('applySimFlags (the stand-in at launch)', () => {
+  test('a launch restarts the scenario day and clears faults; a reused stand-in only gets flags', async () => {
+    const sim = await startVendorSim({ createWorld: createStubSimWorld, port: 0 });
+    const log: string[] = [];
+    try {
+      sim.control.clock({ action: 'jump', simTime: '2026-10-16T02:00:00Z' });
+      sim.control.faults({
+        action: 'add',
+        rule: { vendor: 'samsara', kind: 'outage', label: 'trucks API down' },
+      });
+      // Reused stand-in, no flags: nothing changes.
+      await applySimFlags(sim.url, {}, (m) => log.push(m));
+      expect(sim.status().faults.rules).toHaveLength(1);
+      expect(sim.status().clock.simNow >= '2026-10-16T02:00:00').toBe(true);
+      // Started by the launcher: the day restarts at the scenario start, faults cleared.
+      await applySimFlags(sim.url, { speed: 30 }, (m) => log.push(m), {
+        scenario: 'harvest-day',
+      });
+      const st = sim.status();
+      expect(st.faults.rules).toEqual([]);
+      expect(st.clock.speed).toBe(30);
+      expect(Date.parse(st.clock.simNow) - Date.parse(st.scenario.startsAt)).toBeLessThan(60_000);
+      expect(log.join('\n')).toMatch(/scenario harvest-day from its start/);
+    } finally {
+      await sim.close();
+    }
   });
 });
 

@@ -11,16 +11,21 @@
  *   4. Migrations (scripts/db.ts migrate) when behind; the DB tests' farm_test_template;
  *      db/pending/*.sql; `db:configure local`; `db:check`.
  *   5. Demo seed: scripts/seed.ts demo (when present; it is idempotent).
- *   6. Offline basemap: tools/gis/basemap.ts when tiles/basemap.json or its file is missing
- *      (when present; failure stops bootstrap: "offline basemap missing, run pnpm gis:basemap").
- *   7. Sim connector setup (tools/vendor-sim/connect.ts, when present), then the URLs, the phone
- *      check and the Windows firewall step.
+ *   6. Offline basemap: tools/gis/basemap.ts when tiles/basemap.json or its file is missing, or
+ *      when only the synthetic test basemap is installed (failure stops bootstrap: "offline
+ *      basemap missing, run pnpm gis:basemap").
+ *   7. Sim connector setup (tools/vendor-sim/connect.ts: Deere sim tokens, ELD token check), then
+ *      the URLs, the phone check and the Windows firewall step.
  *
  * Flags:
  *   --dry-run      inspect and print what would be done; changes nothing (passes on a Windows CI
  *                  runner without Docker or env files)
  *   --db=external  use the Postgres in DATABASE_URL_MIGRATE (no Docker for the database)
- *   --no-docker    no Docker at all (implies --db=external; passed on to the basemap builder)
+ *   --no-docker    no Docker at all (implies --db=external; the basemap must then be copied in)
+ *   --synthetic-basemap
+ *                  accept (or install) the synthetic test basemap instead of a real Protomaps
+ *                  extract: CI, and machines that cannot reach build.protomaps.com. The board
+ *                  badges it; a later plain bootstrap or `pnpm gis:basemap` replaces it.
  */
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
@@ -59,17 +64,27 @@ export interface BootstrapFlags {
   /** 'docker': the compose database; 'external': DATABASE_URL_MIGRATE as configured. */
   db: 'docker' | 'external';
   noDocker: boolean;
+  /** Accept / install the synthetic test basemap (CI, no access to build.protomaps.com). */
+  syntheticBasemap: boolean;
   help: boolean;
 }
 
 export class BootstrapUsageError extends Error {}
 
-export const USAGE = 'usage: pnpm run bootstrap [--dry-run] [--db=external] [--no-docker]';
+export const USAGE =
+  'usage: pnpm run bootstrap [--dry-run] [--db=external] [--no-docker] [--synthetic-basemap]';
 
 export function parseBootstrapArgs(argv: string[]): BootstrapFlags {
-  const f: BootstrapFlags = { dryRun: false, db: 'docker', noDocker: false, help: false };
+  const f: BootstrapFlags = {
+    dryRun: false,
+    db: 'docker',
+    noDocker: false,
+    syntheticBasemap: false,
+    help: false,
+  };
   for (const arg of argv) {
     if (arg === '--dry-run') f.dryRun = true;
+    else if (arg === '--synthetic-basemap') f.syntheticBasemap = true;
     else if (arg === '--no-docker') f.noDocker = true;
     else if (arg === '--db=external') f.db = 'external';
     else if (arg === '--db=docker') f.db = 'docker';
@@ -172,20 +187,31 @@ export function unexpectedCheckFailures(
     .map((r) => r.check);
 }
 
-/** tiles/basemap.json and the PMTiles file it names (docs/contracts.md §10). */
-export function basemapState(storageRoot: string): { ok: boolean; detail: string } {
+/**
+ * tiles/basemap.json and the PMTiles file it names (docs/contracts.md §10). The synthetic test
+ * basemap (`build` local:synthetic…) counts as missing unless `acceptSynthetic`, so a PC that
+ * once ran without access to Protomaps gets the real extract on its next bootstrap.
+ */
+export function basemapState(
+  storageRoot: string,
+  opts: { acceptSynthetic?: boolean } = {},
+): { ok: boolean; synthetic: boolean; detail: string } {
   const manifest = path.join(storageRoot, 'tiles', 'basemap.json');
-  if (!existsSync(manifest)) return { ok: false, detail: 'tiles/basemap.json missing' };
+  const no = (detail: string, synthetic = false) => ({ ok: false, synthetic, detail });
+  if (!existsSync(manifest)) return no('tiles/basemap.json missing');
   try {
-    const m = JSON.parse(readFileSync(manifest, 'utf8')) as { key?: unknown };
-    if (typeof m.key !== 'string' || !m.key)
-      return { ok: false, detail: 'basemap.json has no key' };
+    const m = JSON.parse(readFileSync(manifest, 'utf8')) as { key?: unknown; build?: unknown };
+    if (typeof m.key !== 'string' || !m.key) return no('basemap.json has no key');
     if (!existsSync(path.join(storageRoot, 'tiles', m.key))) {
-      return { ok: false, detail: `basemap.json names ${m.key}, which is missing` };
+      return no(`basemap.json names ${m.key}, which is missing`);
     }
-    return { ok: true, detail: m.key };
+    const synthetic = typeof m.build === 'string' && m.build.startsWith('local:synthetic');
+    if (synthetic && !opts.acceptSynthetic) {
+      return no(`only the synthetic test basemap is installed (${m.key})`, true);
+    }
+    return { ok: true, synthetic, detail: synthetic ? `${m.key} (synthetic test basemap)` : m.key };
   } catch (e) {
-    return { ok: false, detail: `basemap.json unreadable: ${(e as Error).message}` };
+    return no(`basemap.json unreadable: ${(e as Error).message}`);
   }
 }
 
@@ -472,7 +498,10 @@ export async function bootstrap(flags: BootstrapFlags, d: BootstrapDeps): Promis
     }
 
     const storageRoot = path.resolve(d.projectDir, cfg?.STORAGE_DIR ?? '.data/storage');
-    const bm = basemapState(storageRoot);
+    const acceptSynthetic = flags.syntheticBasemap;
+    const bm = basemapState(storageRoot, { acceptSynthetic });
+    const basemapArgs = flags.syntheticBasemap ? ['--synthetic'] : [];
+    const basemapCmd = [posix(BASEMAP_ENTRY), ...basemapArgs].join(' ');
     if (bm.ok) {
       line('DONE', 'offline basemap', bm.detail);
     } else if (!has(BASEMAP_ENTRY)) {
@@ -482,17 +511,25 @@ export async function bootstrap(flags: BootstrapFlags, d: BootstrapDeps): Promis
         `${bm.detail}; ${posix(BASEMAP_ENTRY)} not built yet (map stage)`,
       );
     } else if (dry) {
-      line('TODO', 'offline basemap', `${bm.detail}: would run ${posix(BASEMAP_ENTRY)}`);
-    } else {
-      line(
-        'RUN',
-        'offline basemap',
-        `${bm.detail}: ${posix(BASEMAP_ENTRY)}${flags.noDocker ? ' --no-docker' : ''}`,
+      line('TODO', 'offline basemap', `${bm.detail}: would run ${basemapCmd}`);
+    } else if (flags.noDocker) {
+      // pmtiles extract runs in protomaps/go-pmtiles (Docker); a native go-pmtiles download for
+      // --no-docker is not built yet.
+      throw new StepFailed(
+        'offline basemap missing: `pnpm gis:basemap` needs Docker (protomaps/go-pmtiles). ' +
+          'Run it on a machine with Docker and copy .data/storage/tiles here.',
       );
-      const code = await d.runTsx(BASEMAP_ENTRY, flags.noDocker ? ['--no-docker'] : []);
-      const after = basemapState(storageRoot);
+    } else {
+      line('RUN', 'offline basemap', `${bm.detail}: ${basemapCmd}`);
+      const code = await d.runTsx(BASEMAP_ENTRY, basemapArgs);
+      const after = basemapState(storageRoot, { acceptSynthetic });
       if (code !== 0 || !after.ok) {
-        throw new StepFailed('offline basemap missing, run `pnpm gis:basemap`');
+        throw new StepFailed(
+          'offline basemap missing, run `pnpm gis:basemap`' +
+            (bm.synthetic || after.synthetic
+              ? ' (or keep the synthetic test basemap: pnpm run bootstrap --synthetic-basemap)'
+              : ''),
+        );
       }
       line('DONE', 'offline basemap', after.detail);
     }

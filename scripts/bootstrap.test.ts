@@ -57,7 +57,13 @@ function fakeDeps(
   };
 }
 
-const DRY = { dryRun: true, db: 'docker', noDocker: false, help: false } as const;
+const DRY = {
+  dryRun: true,
+  db: 'docker',
+  noDocker: false,
+  syntheticBasemap: false,
+  help: false,
+} as const;
 const REAL = { ...DRY, dryRun: false } as const;
 
 describe('arguments', () => {
@@ -66,8 +72,10 @@ describe('arguments', () => {
       dryRun: false,
       db: 'docker',
       noDocker: false,
+      syntheticBasemap: false,
       help: false,
     });
+    expect(parseBootstrapArgs(['--synthetic-basemap'])).toMatchObject({ syntheticBasemap: true });
     expect(parseBootstrapArgs(['--dry-run', '--db=external'])).toMatchObject({
       dryRun: true,
       db: 'external',
@@ -120,17 +128,42 @@ describe('checks', () => {
 
   test('basemap state follows basemap.json and the file it names', () => {
     const root = tmp();
-    expect(basemapState(root)).toEqual({ ok: false, detail: 'tiles/basemap.json missing' });
+    expect(basemapState(root)).toEqual({
+      ok: false,
+      synthetic: false,
+      detail: 'tiles/basemap.json missing',
+    });
     mkdirSync(path.join(root, 'tiles'));
     writeFileSync(
       path.join(root, 'tiles', 'basemap.json'),
-      JSON.stringify({ key: 'basemap.abcd1234.pmtiles' }),
+      JSON.stringify({ key: 'basemap.abcd1234.pmtiles', build: '20261028.pmtiles' }),
     );
     expect(basemapState(root).ok).toBe(false);
     writeFileSync(path.join(root, 'tiles', 'basemap.abcd1234.pmtiles'), 'x');
-    expect(basemapState(root)).toEqual({ ok: true, detail: 'basemap.abcd1234.pmtiles' });
+    expect(basemapState(root)).toEqual({
+      ok: true,
+      synthetic: false,
+      detail: 'basemap.abcd1234.pmtiles',
+    });
     writeFileSync(path.join(root, 'tiles', 'basemap.json'), '{nope');
     expect(basemapState(root).detail).toMatch(/unreadable/);
+  });
+
+  test('the synthetic test basemap counts as missing unless --synthetic-basemap', () => {
+    const root = tmp();
+    mkdirSync(path.join(root, 'tiles'));
+    writeFileSync(path.join(root, 'tiles', 'basemap.3af318ec.pmtiles'), 'x');
+    writeFileSync(
+      path.join(root, 'tiles', 'basemap.json'),
+      JSON.stringify({ key: 'basemap.3af318ec.pmtiles', build: 'local:synthetic-se-michigan' }),
+    );
+    expect(basemapState(root)).toMatchObject({ ok: false, synthetic: true });
+    expect(basemapState(root).detail).toMatch(/only the synthetic test basemap/);
+    expect(basemapState(root, { acceptSynthetic: true })).toEqual({
+      ok: true,
+      synthetic: true,
+      detail: 'basemap.3af318ec.pmtiles (synthetic test basemap)',
+    });
   });
 });
 
@@ -246,9 +279,15 @@ describe('optional builders (seed, basemap, sim connect)', () => {
     );
     return { dir, cfg };
   }
-  const EXTERNAL = { dryRun: false, db: 'external', noDocker: true, help: false } as const;
+  const EXTERNAL = {
+    dryRun: false,
+    db: 'external',
+    noDocker: false,
+    syntheticBasemap: false,
+    help: false,
+  } as const;
 
-  test('runs the seed, builds the missing basemap (passing --no-docker) and the sim connect step', async () => {
+  test('runs the seed, builds the missing basemap and the sim connect step', async () => {
     const { dir, cfg } = project();
     const calls: string[] = [];
     const d = fakeDeps({
@@ -272,10 +311,68 @@ describe('optional builders (seed, basemap, sim connect)', () => {
     expect(await bootstrap(EXTERNAL, d)).toBe(0);
     expect(calls).toEqual([
       'scripts/seed.ts demo',
-      'tools/gis/basemap.ts --no-docker',
+      'tools/gis/basemap.ts',
       'tools/vendor-sim/connect.ts',
     ]);
     expect(d.lines.join('\n')).toMatch(/DONE\s+offline basemap\s+basemap\.0badf00d\.pmtiles/);
+  });
+
+  test('--synthetic-basemap installs the synthetic one; a plain run replaces it', async () => {
+    const { dir, cfg } = project();
+    const tiles = path.join(dir, '.data', 'storage', 'tiles');
+    const calls: string[] = [];
+    const runTsx = async (entry: string, args: string[]) => {
+      calls.push([path.basename(entry), ...args].join(' '));
+      if (entry.endsWith('basemap.ts')) {
+        const synthetic = args.includes('--synthetic');
+        const key = synthetic ? 'basemap.3af318ec.pmtiles' : 'basemap.0badf00d.pmtiles';
+        mkdirSync(tiles, { recursive: true });
+        writeFileSync(path.join(tiles, key), 'x');
+        writeFileSync(
+          path.join(tiles, 'basemap.json'),
+          JSON.stringify({
+            key,
+            build: synthetic ? 'local:synthetic-se-michigan' : '20261028.pmtiles',
+          }),
+        );
+      }
+      return 0;
+    };
+    const deps = () =>
+      fakeDeps({
+        projectDir: dir,
+        loadConfig: () => ({ ok: true, config: cfg }),
+        database: async () => true,
+        runTsx,
+      });
+    expect(await bootstrap({ ...EXTERNAL, syntheticBasemap: true }, deps())).toBe(0);
+    expect(calls).toContain('basemap.ts --synthetic');
+    calls.length = 0;
+    // Accepted as is on the next --synthetic-basemap run.
+    expect(await bootstrap({ ...EXTERNAL, syntheticBasemap: true }, deps())).toBe(0);
+    expect(calls).toEqual(['seed.ts demo', 'connect.ts']);
+    // A plain bootstrap fetches the real extract.
+    const d = deps();
+    expect(await bootstrap(EXTERNAL, d)).toBe(0);
+    expect(calls).toContain('basemap.ts');
+    expect(d.lines.join('\n')).toMatch(/only the synthetic test basemap is installed/);
+  });
+
+  test('--no-docker cannot build a basemap: it says so instead of calling Docker', async () => {
+    const { dir, cfg } = project();
+    const calls: string[] = [];
+    const d = fakeDeps({
+      projectDir: dir,
+      loadConfig: () => ({ ok: true, config: cfg }),
+      database: async () => true,
+      runTsx: async (entry) => {
+        calls.push(path.basename(entry));
+        return 0;
+      },
+    });
+    expect(await bootstrap({ ...EXTERNAL, noDocker: true }, d)).toBe(1);
+    expect(calls).toEqual(['seed.ts']);
+    expect(d.lines.join('\n')).toMatch(/gis:basemap` needs Docker/);
   });
 
   test('an existing basemap is not rebuilt', async () => {
@@ -283,7 +380,10 @@ describe('optional builders (seed, basemap, sim connect)', () => {
     const tiles = path.join(dir, '.data', 'storage', 'tiles');
     mkdirSync(tiles, { recursive: true });
     writeFileSync(path.join(tiles, 'basemap.1.pmtiles'), 'x');
-    writeFileSync(path.join(tiles, 'basemap.json'), JSON.stringify({ key: 'basemap.1.pmtiles' }));
+    writeFileSync(
+      path.join(tiles, 'basemap.json'),
+      JSON.stringify({ key: 'basemap.1.pmtiles', build: '20261028.pmtiles' }),
+    );
     const calls: string[] = [];
     const d = fakeDeps({
       projectDir: dir,

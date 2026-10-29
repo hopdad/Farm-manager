@@ -16,6 +16,7 @@
     "clock": "tsx tools/clock/index.ts",
     "jobs:emit-cron": "tsx scripts/jobs-emit-cron.ts",
     "vendor-sim": "tsx tools/vendor-sim/index.ts",
+    "vendor-sim:connect": "tsx tools/vendor-sim/connect.ts",
     "bootstrap": "tsx scripts/bootstrap.ts",
     "env:init": "tsx scripts/env.ts",
     "lint": "biome check .",

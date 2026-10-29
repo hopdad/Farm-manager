@@ -1,8 +1,10 @@
 /**
  * pnpm dev: the whole local stack in one terminal (plan §2 "Daily commands").
  *
- *   1. the vendor stand-in (tools/vendor-sim, VENDOR_SIM_URL), then --scenario / --speed through
- *      its control API (POST /_control/scenario, /_control/clock);
+ *   1. the vendor stand-in (tools/vendor-sim, VENDOR_SIM_URL). A stand-in this launcher starts
+ *      begins the scenario day at its start (POST /_control/scenario; faults cleared; Deere grants
+ *      kept), so every `pnpm dev` opens on a moving harvest morning whatever ran yesterday;
+ *      --resume keeps the saved sim day instead. --speed goes through POST /_control/clock;
  *   2. `next dev -H 0.0.0.0 --port <PUBLIC_URL's port>` (phones on the LAN can reach it);
  *   3. once GET /api/health answers 200, the job clock (tools/clock) unless --no-clock or
  *      CLOCK=pgcron;
@@ -11,6 +13,7 @@
  *   pnpm dev --scenario=spray-windy --speed=30      a farm day in about 30 minutes
  *   pnpm dev --no-clock                             the app (and stand-in) without scheduled jobs
  *   pnpm dev --port=3001                            another port (PUBLIC_URL follows for children)
+ *   pnpm dev --resume                               continue the saved sim day (.data/vendor-sim)
  *
  * Ctrl+C stops every child and its descendants on Windows and POSIX, without orphans:
  *  - POSIX: each child runs in its own process group (detached), and the group gets SIGTERM, then
@@ -58,6 +61,8 @@ export interface LaunchArgs {
   scenario?: ScenarioName;
   speed?: number;
   clock: boolean;
+  /** Keep the stand-in's saved sim day instead of restarting the scenario at its start. */
+  resume: boolean;
   port?: number;
   /** pilot only: reuse the existing production build. */
   skipBuild: boolean;
@@ -70,12 +75,12 @@ export function usage(mode: LaunchMode): string {
   const extra = mode === 'pilot' ? ' [--skip-build]' : '';
   return (
     `usage: pnpm ${mode} [--scenario=<${SCENARIO_NAMES.join('|')}>] [--speed=<sim seconds per second>]` +
-    ` [--no-clock] [--port=<n>]${extra}`
+    ` [--resume] [--no-clock] [--port=<n>]${extra}`
   );
 }
 
 export function parseLaunchArgs(argv: string[], mode: LaunchMode): LaunchArgs {
-  const out: LaunchArgs = { clock: true, skipBuild: false, help: false };
+  const out: LaunchArgs = { clock: true, resume: false, skipBuild: false, help: false };
   for (const arg of argv) {
     const eq = arg.indexOf('=');
     const flag = eq === -1 ? arg : arg.slice(0, eq);
@@ -97,6 +102,9 @@ export function parseLaunchArgs(argv: string[], mode: LaunchMode): LaunchArgs {
       }
       case '--no-clock':
         out.clock = false;
+        break;
+      case '--resume':
+        out.resume = true;
         break;
       case '--port': {
         const n = Number(value);
@@ -549,15 +557,24 @@ async function postControl(baseUrl: string, path: string, body: unknown): Promis
   return text ? JSON.parse(text) : null;
 }
 
-/** Apply --scenario / --speed through the stand-in's control API. */
+/**
+ * Apply --scenario / --speed through the stand-in's control API. `restart` (a stand-in this
+ * launcher started, without --resume): begin `restart.scenario` at its start and clear manual
+ * faults, so a launch never opens on yesterday's night or a forgotten "trucks API down".
+ */
 export async function applySimFlags(
   baseUrl: string,
   args: Pick<LaunchArgs, 'scenario' | 'speed'>,
   log: (m: string) => void,
+  restart?: { scenario: ScenarioName },
 ): Promise<void> {
-  if (args.scenario) {
-    await postControl(baseUrl, '/_control/scenario', { scenario: args.scenario });
-    log(`stand-in: scenario ${args.scenario} (clock re-anchored at its start)`);
+  const scenario = args.scenario ?? restart?.scenario;
+  if (scenario) {
+    await postControl(baseUrl, '/_control/scenario', { scenario });
+    log(`stand-in: scenario ${scenario} from its start (clock re-anchored now)`);
+  }
+  if (restart) {
+    await postControl(baseUrl, '/_control/faults', { action: 'clear' });
   }
   if (args.speed !== undefined) {
     const req: ClockControlRequest = { action: 'speed', speed: args.speed };
@@ -644,6 +661,8 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
   const env = childEnv({
     PUBLIC_URL: publicUrl,
     VENDOR_SIM_URL: simBase,
+    // Offline by design (plan §6 M0 "unplug the WAN"): no anonymous usage pings from Next.
+    NEXT_TELEMETRY_DISABLED: '1',
     ...(prod ? { NODE_ENV: 'production' } : {}),
     ...(process.stdout.isTTY ? { FORCE_COLOR: '1' } : {}),
   });
@@ -689,6 +708,8 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
     );
     simNote = 'missing';
   } else {
+    // It boots the configured scenario (resuming its saved state, Deere grants included); a
+    // --scenario is applied through the control API below, which keeps the grants.
     simChild = sup.start({
       name: 'sim',
       command: process.execPath,
@@ -696,7 +717,6 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
       cwd: dir,
       env: childEnv({
         ...env,
-        ...(args.scenario ? { SIM_SCENARIO: args.scenario } : {}),
         ...(args.speed !== undefined ? { SIM_SPEED: String(args.speed) } : {}),
       }),
       critical: false,
@@ -711,8 +731,13 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
     if (!st) {
       say(`the vendor stand-in did not answer ${simBase}/_control/status; continuing without it`);
     } else {
+      // Restart the day unless --resume, or SIM_FROZEN_AT pinned the clock at boot.
+      const restart =
+        simNote === 'started' && !args.resume && !cfg.SIM_FROZEN_AT
+          ? { scenario: args.scenario ?? cfg.SIM_SCENARIO }
+          : undefined;
       try {
-        await applySimFlags(simBase, args, say);
+        await applySimFlags(simBase, args, say, restart);
       } catch (e) {
         say(`could not apply --scenario/--speed: ${(e as Error).message}`);
       }
