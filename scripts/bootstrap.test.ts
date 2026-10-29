@@ -376,6 +376,26 @@ describe('optional builders (seed, basemap, sim connect)', () => {
     expect(d.lines.join('\n')).toMatch(/only the synthetic test basemap is installed/);
   });
 
+  test('--db=external refuses a remote DATABASE_URL_MIGRATE before connecting to it', async () => {
+    const { dir } = project();
+    const remote = parseConfig(
+      {
+        DATABASE_URL: 'postgres://farm_app:pw@127.0.0.1:1/postgres',
+        // The session pooler in production; ?host= overrides count too.
+        DATABASE_URL_MIGRATE:
+          'postgres://postgres:pw@localhost:5432/postgres?host=aws-0-us-east-1.pooler.supabase.com',
+        JOBS_SECRET: 'j'.repeat(64),
+        SESSION_SECRET: 's'.repeat(64),
+      },
+      dir,
+    );
+    const d = fakeDeps({ projectDir: dir, loadConfig: () => ({ ok: true, config: remote }) });
+    expect(await bootstrap(EXTERNAL, d)).toBe(1);
+    expect(d.lines.join('\n')).toMatch(
+      /FAIL\s+database\s+bootstrap only sets up a local database; DATABASE_URL_MIGRATE points at aws-0-us-east-1\.pooler\.supabase\.com/,
+    );
+  });
+
   test('--no-docker cannot build a basemap: it says so instead of calling Docker', async () => {
     const { dir, cfg } = project();
     const calls: string[] = [];

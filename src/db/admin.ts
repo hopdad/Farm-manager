@@ -42,14 +42,26 @@ export function databaseOf(url: string): string {
   return decodeURIComponent(new URL(url).pathname.replace(/^\//, '')) || 'postgres';
 }
 
+/**
+ * Every host pg would connect to for `url`: pg-connection-string lets a `host` query parameter
+ * override the URL's host (postgres://…@localhost/db?host=db.prod.example.com connects to the
+ * latter), and `hostaddr` is libpq's numeric override; both count.
+ */
+export function connectionHosts(url: string): string[] {
+  const u = new URL(url);
+  const host = u.searchParams.getAll('host');
+  return [...(host.length ? host : [u.hostname]), ...u.searchParams.getAll('hostaddr')];
+}
+
 export function isLoopbackUrl(url: string): boolean {
-  return LOOPBACK_HOSTS.has(new URL(url).hostname);
+  return connectionHosts(url).every((h) => LOOPBACK_HOSTS.has(h));
 }
 
 /** db:reset, db:seed and sim:* refuse anything but a local database (plan §1). */
 export function assertLocalUrl(url: string, what: string): void {
   if (!isLoopbackUrl(url)) {
-    throw new Error(`${what} refuses non-local database host '${new URL(url).hostname}'.`);
+    const remote = connectionHosts(url).filter((h) => !LOOPBACK_HOSTS.has(h));
+    throw new Error(`${what} refuses non-local database host '${remote.join("', '")}'.`);
   }
 }
 

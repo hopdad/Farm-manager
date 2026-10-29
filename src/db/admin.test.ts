@@ -31,6 +31,17 @@ describe('db admin helpers (no database)', () => {
     );
   });
 
+  test("pg's ?host= / hostaddr overrides are what counts", () => {
+    const sneaky = 'postgres://u:p@localhost:15432/postgres?host=db.prod.example.com';
+    expect(isLoopbackUrl(sneaky)).toBe(false);
+    expect(() => assertLocalUrl(sneaky, 'db:reset')).toThrow(
+      /db:reset refuses non-local database host 'db.prod.example.com'/,
+    );
+    expect(isLoopbackUrl('postgres://u:p@localhost/postgres?hostaddr=10.0.0.5')).toBe(false);
+    expect(isLoopbackUrl('postgres://u:p@db.example.com/postgres?host=127.0.0.1')).toBe(true);
+    expect(isLoopbackUrl('postgres://u:p@127.0.0.1/postgres?host=localhost&host=evil')).toBe(false);
+  });
+
   test('test database names are unique, prefixed and short enough', () => {
     const a = testDatabaseName('boundaries.db.test.ts');
     const b = testDatabaseName('boundaries.db.test.ts');

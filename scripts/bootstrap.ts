@@ -34,8 +34,10 @@ import type { Config, ConfigError } from '../src/config';
 import { tryGetConfig } from '../src/config';
 import {
   appliedMigrationCount,
+  connectionHosts,
   databaseOf,
   farmAppCanLogin,
+  isLoopbackUrl,
   pendingSqlFiles,
   readJournal,
   refreshTestTemplate,
@@ -647,6 +649,15 @@ async function databaseSteps(a: DbStepArgs): Promise<boolean> {
   const migrateUrl = cfg.DATABASE_URL_MIGRATE;
   if (!migrateUrl) {
     line('FAIL', 'DATABASE_URL_MIGRATE', 'missing from .env.local');
+    return false;
+  }
+  if (!isLoopbackUrl(migrateUrl)) {
+    // Before connecting: migrations, the test template and db:configure are for a local server.
+    line(
+      'FAIL',
+      'database',
+      `bootstrap only sets up a local database; DATABASE_URL_MIGRATE points at ${connectionHosts(migrateUrl).join(', ')}`,
+    );
     return false;
   }
   const dbName = databaseOf(migrateUrl);
