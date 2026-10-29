@@ -12,8 +12,9 @@
  *      db/pending/*.sql; `db:configure local`; `db:check`.
  *   5. Demo seed: scripts/seed.ts demo (when present; it is idempotent).
  *   6. Offline basemap: tools/gis/basemap.ts when tiles/basemap.json or its file is missing, or
- *      when only the synthetic test basemap is installed (failure stops bootstrap: "offline
- *      basemap missing, run pnpm gis:basemap").
+ *      when only the synthetic test basemap is installed. With no basemap at all a failure stops
+ *      bootstrap ("offline basemap missing, run pnpm gis:basemap"); an installed synthetic one is
+ *      kept with a WARN when the real extract can't be fetched, so a re-run never fails on it.
  *   7. Sim connector setup (tools/vendor-sim/connect.ts: Deere sim tokens, ELD token check), then
  *      the URLs, the phone check and the Windows firewall step.
  *
@@ -25,7 +26,8 @@
  *   --synthetic-basemap
  *                  accept (or install) the synthetic test basemap instead of a real Protomaps
  *                  extract: CI, and machines that cannot reach build.protomaps.com. The board
- *                  badges it; a later plain bootstrap or `pnpm gis:basemap` replaces it.
+ *                  badges it; a later plain bootstrap or `pnpm gis:basemap` replaces it when
+ *                  Protomaps is reachable (and keeps it, with a warning, while it isn't).
  */
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
@@ -564,6 +566,19 @@ export async function bootstrap(flags: BootstrapFlags, d: BootstrapDeps): Promis
     const bm = basemapState(storageRoot, { acceptSynthetic });
     const basemapArgs = flags.syntheticBasemap ? ['--synthetic'] : [];
     const basemapCmd = [posix(BASEMAP_ENTRY), ...basemapArgs].join(' ');
+    /**
+     * A plain re-run on a PC that once installed the synthetic test basemap and can't fetch the
+     * real one (no Docker, Protomaps unreachable): keep the synthetic one with a warning, never
+     * fail on it. false when no usable synthetic basemap is installed.
+     */
+    const keepSynthetic = (root: string, why: string): boolean => {
+      const kept = basemapState(root, { acceptSynthetic: true });
+      if (!kept.ok || !kept.synthetic) return false;
+      line('WARN', 'offline basemap', `kept ${kept.detail}`);
+      out(`          ${why}.`);
+      out('          The board badges the synthetic basemap (made-up roads and towns) until then.');
+      return true;
+    };
     if (bm.ok) {
       line('DONE', 'offline basemap', bm.detail);
     } else if (!has(BASEMAP_ENTRY)) {
@@ -577,23 +592,28 @@ export async function bootstrap(flags: BootstrapFlags, d: BootstrapDeps): Promis
     } else if (flags.noDocker) {
       // pmtiles extract runs in protomaps/go-pmtiles (Docker); a native go-pmtiles download for
       // --no-docker is not built yet.
-      throw new StepFailed(
-        'offline basemap missing: `pnpm gis:basemap` needs Docker (protomaps/go-pmtiles). ' +
-          'Run it on a machine with Docker and copy .data/storage/tiles here.',
-      );
+      const why =
+        '`pnpm gis:basemap` needs Docker (protomaps/go-pmtiles). ' +
+        'Run it on a machine with Docker and copy .data/storage/tiles here.';
+      if (!keepSynthetic(storageRoot, why)) throw new StepFailed(`offline basemap missing: ${why}`);
     } else {
       line('RUN', 'offline basemap', `${bm.detail}: ${basemapCmd}`);
       const code = await d.runTsx(BASEMAP_ENTRY, basemapArgs);
       const after = basemapState(storageRoot, { acceptSynthetic });
-      if (code !== 0 || !after.ok) {
+      if (code === 0 && after.ok) {
+        line('DONE', 'offline basemap', after.detail);
+      } else if (
+        !keepSynthetic(
+          storageRoot,
+          'the real Protomaps extract could not be fetched (see above); `pnpm gis:basemap`, ' +
+            'or the next bootstrap, fetches it once Protomaps can be reached',
+        )
+      ) {
         throw new StepFailed(
-          'offline basemap missing, run `pnpm gis:basemap`' +
-            (bm.synthetic || after.synthetic
-              ? ' (or keep the synthetic test basemap: pnpm run bootstrap --synthetic-basemap)'
-              : ''),
+          'offline basemap missing, run `pnpm gis:basemap` (or carry on with the synthetic ' +
+            'test basemap: pnpm run bootstrap --synthetic-basemap)',
         );
       }
-      line('DONE', 'offline basemap', after.detail);
     }
 
     if (!has(SIM_CONNECT_ENTRY)) {

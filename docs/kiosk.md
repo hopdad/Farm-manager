@@ -39,20 +39,28 @@ in that browser only, never in production).
 
 ## Enroll the wall display (Windows)
 
+The wall is this PC's screen: Chrome in kiosk mode with **its own profile** (`--user-data-dir`,
+so the flags aren't swallowed by a Chrome that is already open), showing
+`http://localhost:3000/board`. A browser's sign-in belongs to one profile **and** one address:
+enrolling in your everyday Chrome, or on the PC's network address (the panel's main link and
+its QR code, which are for iPads and phones), would leave the kiosk on the sign-in page. So
+the enrollment is opened in the kiosk's profile, on `localhost`:
+
 1. On the PC, open **Devices** (`/admin/devices`), add a device: name `Shop wall`, kind
-   **Wall display**. The page shows a one-time code, its link and a QR code (valid one hour).
-2. Open that link once in the kiosk's own Chrome profile, **without** kiosk mode
-   (PowerShell, one line; paste your link):
+   **Wall display**. The code panel (valid one hour) starts with **On this PC (wall kiosk)**.
+2. Copy its first command into PowerShell (one line; the panel's has your code in place of
+   `K7QD2M9XPA`). It opens the kiosk's profile, **without** kiosk mode, on the code:
 
    ```powershell
-   & "C:\Program Files\Google\Chrome\Application\chrome.exe" --user-data-dir=$env:LOCALAPPDATA\farm-kiosk "http://localhost:3000/enroll?code=K7QD2M9XPA"
+   & "C:\Program Files\Google\Chrome\Application\chrome.exe" --no-first-run "--user-data-dir=$env:LOCALAPPDATA\farm-kiosk" "http://localhost:3000/enroll?code=K7QD2M9XPA"
    ```
 
    Press **Enroll as Shop wall**: the board opens. Close that window.
-3. From then on start the wall in kiosk mode with the same profile:
+3. From then on start the wall in kiosk mode with the same profile (the panel's second
+   command):
 
    ```powershell
-   & "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --force-device-scale-factor=2 --user-data-dir=$env:LOCALAPPDATA\farm-kiosk http://localhost:3000/board
+   & "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --no-first-run --force-device-scale-factor=2 "--user-data-dir=$env:LOCALAPPDATA\farm-kiosk" http://localhost:3000/board
    ```
 
    **The board is laid out for 1920 x 1080 CSS pixels** (type you can read across the room,
@@ -60,10 +68,16 @@ in that browser only, never in production).
    display scaling says: **2** for a 4K panel (3840 wide), **1** for a 1080p panel. Without it,
    a 4K TV at 100 % scaling shows 3840 CSS px (tiny type) and one at 300 % only 1280 (the
    panels cover the fields). The board shows a *Display scaling* badge when the width is far
-   from 1920.
+   from 1920. Alt+F4 leaves kiosk mode.
 
    The enrollment stays in that profile (renewed every day the board is used). The full kiosk
    flags, start-on-boot and the stale-reload watchdog arrive with the 1g kiosk runbook.
+
+If `pnpm dev` runs on another port (`PUBLIC_URL` in `.env.local`), the panel's commands carry
+it. If Chrome is installed for your Windows user only, it is
+`$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe` instead: use that path in both
+commands. A wall screen driven by **another** computer is enrolled like an iPad: open the
+panel's main link (or scan the QR code) there.
 
 **Signing in at the wall:** tap the name chip at the top right of the board, tap your name,
 enter your PIN. The chip shows who is signed in; tap it and **Switch user** when you leave.
@@ -109,8 +123,6 @@ pnpm auth:reset-owner
 
 It prints a one-time link (30 minutes) that sets a new owner PIN, unlocks the owner and signs
 out their other sessions. Before the owner exists it prints the first-run link again.
-(Until the integration adds the script name, the same command is
-`pnpm exec tsx src/platform/auth/cli.ts reset-owner`.)
 
 `pnpm auth:links` prints the sign-in lines `pnpm dev` shows (owner setup or sign-in, Devices,
 demo PINs); `pnpm auth:demo-people` creates the demo people and prints their PINs.
@@ -120,6 +132,8 @@ demo PINs); `pnpm auth:demo-people` creates the demo people and prints their PIN
 | You see | Do |
 |---|---|
 | "Sign in" page instead of the board | This browser isn't enrolled: enter a code, or sign in as a manager |
+| The wall kiosk shows "Sign in" right after enrolling | It was enrolled in another Chrome profile or on another address (the LAN link or QR code). On **Devices**, **New code** for the wall, then run the panel's **On this PC (wall kiosk)** command (it opens the code on `localhost` in the kiosk profile) |
+| PowerShell: `The term 'C:\Program Files\Google\Chrome\...' is not recognized` | Chrome is installed for your user only: use `& "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"` at the start of the command |
 | "This browser's sign-in has ended" | The device was revoked or enrolled somewhere else: ask for a **New code** |
 | "Too many wrong PINs" | Wait (the page says how long), or a manager taps **Unlock** on People |
 | The iPad can't open the link | Use the link with the PC's network address, and allow Node.js through the Windows firewall on private networks (README) |

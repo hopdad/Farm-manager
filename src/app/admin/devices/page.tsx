@@ -220,8 +220,9 @@ export default async function DevicesPage() {
           <h2>Kiosk and iPads</h2>
           <ul className={css.events}>
             <li>
-              The wall: open the code&apos;s link once in the kiosk Chrome profile, then start kiosk
-              mode.
+              The wall on this PC: add a Wall display; its code panel gives the PowerShell command
+              that opens the code on localhost in the kiosk&apos;s own Chrome profile, then the one
+              that starts kiosk mode.
             </li>
             <li>
               Cab and truck iPads: scan the QR code with the camera, tap Enroll, then Add to Home

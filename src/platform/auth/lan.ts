@@ -6,6 +6,9 @@
  */
 import { networkInterfaces } from 'node:os';
 
+/** The host the wall kiosk on the PC opens (README, docs/kiosk.md): http://localhost:3000/board. */
+export const KIOSK_HOST = 'localhost';
+
 const PRIVATE = [/^10\./, /^192\.168\./, /^172\.(1[6-9]|2\d|3[01])\./];
 
 export function isLoopbackHost(host: string): boolean {
@@ -47,6 +50,12 @@ export interface EnrollLinks {
   localUrl: string | null;
   /** Every shop-network link (the first is `url`), when the manager is on the PC itself. */
   lanUrls: string[];
+  /**
+   * The link for the wall kiosk on the PC itself, whatever address this browser used: always
+   * http://localhost on the app's port. The kiosk opens http://localhost:3000/board and cookies
+   * belong to one host, so a wall enrolled on the LAN address would land on /login.
+   */
+  kioskUrl: string;
 }
 
 /**
@@ -61,11 +70,11 @@ export function enrollLinks(
 ): EnrollLinks {
   const u = new URL(origin);
   const own = `${u.origin}${path}`;
+  const port = u.port ? `:${u.port}` : '';
+  const kioskUrl = `${u.protocol}//${KIOSK_HOST}${port}${path}`;
   if (!isLoopbackHost(u.hostname) || addresses.length === 0) {
-    return { url: own, localUrl: null, lanUrls: [] };
+    return { url: own, localUrl: null, lanUrls: [], kioskUrl };
   }
-  const lanUrls = rankLanAddresses(addresses).map(
-    (ip) => `${u.protocol}//${ip}${u.port ? `:${u.port}` : ''}${path}`,
-  );
-  return { url: lanUrls[0] as string, localUrl: own, lanUrls };
+  const lanUrls = rankLanAddresses(addresses).map((ip) => `${u.protocol}//${ip}${port}${path}`);
+  return { url: lanUrls[0] as string, localUrl: own, lanUrls, kioskUrl };
 }

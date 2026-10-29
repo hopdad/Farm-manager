@@ -4,8 +4,9 @@
  *
  *  - a browser with no session sees the sign-in / enrollment screen, never an error, and API
  *    calls get 401 JSON (never a redirect);
- *  - a manager adds a wall on /admin/devices, the wall opens the one-time link and shows the
- *    board; revoking signs it out at once and the code never works twice;
+ *  - a manager adds a wall on /admin/devices; the kiosk profile on the PC opens the panel's
+ *    localhost link, enrolls, and its later starts on http://localhost:<port>/board show the
+ *    board (not /login); revoking signs it out at once and the code never works twice;
  *  - on a shared device people pick their name, enter their PIN, and "switch user";
  *  - five wrong PINs lock that person for 15 minutes, even with the right PIN after;
  *  - a viewer can't change anything: refused pages, and a server action posted from a page a
@@ -76,7 +77,7 @@ test.describe('signed out', () => {
   });
 });
 
-test('a manager enrolls a wall; the wall opens the board; revoking signs it out', async ({
+test('a manager enrolls the wall kiosk on this PC; its board opens; revoking signs it out', async ({
   browser,
   baseURL,
 }) => {
@@ -84,6 +85,7 @@ test('a manager enrolls a wall; the wall opens the board; revoking signs it out'
   test.setTimeout(120_000);
   const name = `E2E wall ${Date.now().toString(36)}`;
   const manager = await browser.newContext();
+  // The kiosk's own Chrome profile (--user-data-dir): nothing from the manager's browser.
   const wall = await browser.newContext({ storageState: SIGNED_OUT });
   try {
     await signInAs(manager, 'manager');
@@ -100,29 +102,53 @@ test('a manager enrolls a wall; the wall opens the board; revoking signs it out'
     expect(code).toMatch(/^[0-9A-Z]{5}-[0-9A-Z]{5}$/);
     expect(shown.pathname).toBe('/enroll');
     // On the PC itself the QR link carries the PC's LAN address (a scanned localhost opens the
-    // iPad itself); the localhost link is listed as "on this PC".
+    // iPad itself), for another screen.
     if (await panel.getByTestId('enroll-lan-links').isVisible()) {
       expect(shown.hostname).not.toMatch(/^(localhost|127\.)/);
     }
-    // This test's wall browser uses the base URL (its cookies are checked there).
-    const link = new URL(`${shown.pathname}${shown.search}`, baseURL).toString();
 
-    // On the wall: opening the link shows what it enrolls; the button spends the code.
+    // The wall kiosk on this PC: the panel's localhost link and the PowerShell commands that
+    // open it in the kiosk profile, then start the kiosk on the same host (README "First run").
+    const kiosk = panel.getByTestId('enroll-kiosk');
+    await expect(kiosk).toContainText('On this PC (wall kiosk)');
+    const appPort = new URL(baseURL as string).port;
+    const link = new URL((await kiosk.getByTestId('enroll-kiosk-link').textContent()) as string);
+    expect(link.hostname).toBe('localhost');
+    expect(link.port).toBe(appPort);
+    expect(link.pathname).toBe('/enroll');
+    expect(link.searchParams.get('code')).toBe(code.replace('-', ''));
+    const enrollCmd = (await kiosk.getByTestId('enroll-kiosk-command').textContent()) as string;
+    expect(enrollCmd).toContain('"--user-data-dir=$env:LOCALAPPDATA\\farm-kiosk"');
+    expect(enrollCmd).toContain(`"${link.href}"`);
+    expect(enrollCmd).not.toContain('--kiosk');
+    const startCmd = (await kiosk.getByTestId('enroll-kiosk-start').textContent()) as string;
+    const boardUrl = `${link.origin}/board`;
+    expect(startCmd).toContain('--kiosk');
+    expect(startCmd).toContain('"--user-data-dir=$env:LOCALAPPDATA\\farm-kiosk"');
+    expect(startCmd.endsWith(` ${boardUrl}`)).toBe(true);
+
+    // In the kiosk profile: the link shows what it enrolls; the button spends the code.
     const screen = await wall.newPage();
-    await screen.goto(link);
+    await screen.goto(link.href);
     await expect(screen.getByTestId('enroll-device-name')).toContainText(name);
     await screen.getByTestId('enroll-submit').click();
     await expect(screen).toHaveURL(/\/board$/);
     await expect(screen.getByTestId('board')).toBeVisible();
-    await expect(screen.getByTestId('session-chip')).toContainText(name);
-    const cookie = await authCookie(wall, baseURL as string);
+    await screen.close();
+    // Every later start opens the board on localhost in that profile: still the wall, no /login.
+    const kioskScreen = await wall.newPage();
+    await kioskScreen.goto(boardUrl);
+    expect(kioskScreen.url()).toBe(boardUrl);
+    await expect(kioskScreen.getByTestId('board')).toBeVisible();
+    await expect(kioskScreen.getByTestId('session-chip')).toContainText(name);
+    const cookie = await authCookie(wall, link.origin);
     expect(cookie).toMatchObject({ httpOnly: true, sameSite: 'Lax', secure: false });
-    expect((await screen.request.get('/api/fleet')).status()).toBe(200);
+    expect((await kioskScreen.request.get(`${link.origin}/api/fleet`)).status()).toBe(200);
 
     // The code works once.
     const again = await browser.newContext({ storageState: SIGNED_OUT });
     const p2 = await again.newPage();
-    await p2.goto(link);
+    await p2.goto(link.href);
     await expect(p2.getByTestId('enroll-error')).toContainText('already used');
     await again.close();
 
@@ -131,12 +157,31 @@ test('a manager enrolls a wall; the wall opens the board; revoking signs it out'
     const row = admin.locator(`[data-testid="device-row"][data-device-name="${name}"]`);
     await row.getByTestId('device-revoke').click();
     await expect(admin.getByTestId('admin-notice')).toContainText('Revoked');
-    expect((await screen.request.get('/api/fleet')).status()).toBe(401);
-    await screen.goto('/login');
-    await expect(screen.getByTestId('login-stale')).toBeVisible();
+    expect((await kioskScreen.request.get(`${link.origin}/api/fleet`)).status()).toBe(401);
+    await kioskScreen.goto(`${link.origin}/login`);
+    await expect(kioskScreen.getByTestId('login-stale')).toBeVisible();
   } finally {
     await manager.close();
     await wall.close();
+  }
+});
+
+test('a cab iPad gets the link and QR code, and no kiosk commands', async ({ browser }) => {
+  onlyWall();
+  const manager = await browser.newContext();
+  try {
+    await signInAs(manager, 'manager');
+    const admin = await manager.newPage();
+    await admin.goto('/admin/devices');
+    await admin.getByTestId('add-device-name').fill(`E2E cab ${Date.now().toString(36)}`);
+    await admin.getByTestId('add-device-kind').selectOption('cab_ipad');
+    await admin.getByTestId('add-device-submit').click();
+    const panel = admin.getByTestId('enroll-code-panel');
+    await expect(panel.getByTestId('enroll-qr')).toBeVisible();
+    await expect(panel.getByTestId('enroll-link')).toBeVisible();
+    await expect(panel.getByTestId('enroll-kiosk')).toHaveCount(0);
+  } finally {
+    await manager.close();
   }
 });
 

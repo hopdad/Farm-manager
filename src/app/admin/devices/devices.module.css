@@ -19,3 +19,23 @@
   background: #fff;
   border-radius: 12px;
 }
+
+.command {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.commandText {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 12px;
+  background: #0b1210;
+  border: 1px solid #1f2d27;
+  border-radius: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #e6f2ea;
+  user-select: all;
+}

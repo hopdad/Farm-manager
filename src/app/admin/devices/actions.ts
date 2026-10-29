@@ -11,6 +11,7 @@ import { getConfig } from '@/config';
 import { getDb } from '@/db/client';
 import type { DeviceKind } from '@/domain/farm';
 import { formatEnrollCode } from '@/platform/auth/codes';
+import { type KioskCommands, kioskCommands } from '@/platform/auth/kiosk';
 import { enrollLinks, privateAddresses } from '@/platform/auth/lan';
 import { DEFAULT_DEVICE_ROLE, isDeviceKind } from '@/platform/auth/policy';
 import { qrSvgPath } from '@/platform/auth/qr';
@@ -42,6 +43,12 @@ export interface EnrollCodeView {
   localUrl: string | null;
   /** The link on each of the PC's LAN addresses, when this browser used localhost. */
   lanUrls: string[];
+  /**
+   * A wall display: the localhost link and the PowerShell commands that open it in the wall
+   * kiosk's own Chrome profile on this PC (cookies belong to one host and one profile), then
+   * start the kiosk. null for the other kinds.
+   */
+  kiosk: ({ url: string } & KioskCommands) | null;
   qr: { size: number; path: string };
   expiresAt: string;
 }
@@ -93,12 +100,17 @@ async function requestOrigin(): Promise<{ origin: string; host: string; port: st
 
 async function codeView(issued: IssuedCode): Promise<EnrollCodeView> {
   const { origin } = await requestOrigin();
-  const links = enrollLinks(origin, `/enroll?code=${issued.code}`, privateAddresses());
+  const { kioskUrl, ...links } = enrollLinks(
+    origin,
+    `/enroll?code=${issued.code}`,
+    privateAddresses(),
+  );
   return {
     deviceName: issued.device.name,
     kind: issued.device.kind,
     code: formatEnrollCode(issued.code),
     ...links,
+    kiosk: issued.device.kind === 'wall' ? { url: kioskUrl, ...kioskCommands(kioskUrl) } : null,
     qr: qrSvgPath(links.url),
     expiresAt: issued.expiresAt.toISOString(),
   };

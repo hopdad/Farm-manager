@@ -451,6 +451,51 @@ describe('optional builders (seed, basemap, sim connect)', () => {
     );
   });
 
+  test('a plain re-run keeps an installed synthetic basemap when Protomaps is unreachable', async () => {
+    const { dir, cfg } = project();
+    const tiles = path.join(dir, '.data', 'storage', 'tiles');
+    mkdirSync(tiles, { recursive: true });
+    writeFileSync(path.join(tiles, 'basemap.3af318ec.pmtiles'), 'x');
+    const manifest = JSON.stringify({
+      key: 'basemap.3af318ec.pmtiles',
+      build: 'local:synthetic-se-michigan',
+    });
+    writeFileSync(path.join(tiles, 'basemap.json'), manifest);
+    const calls: string[] = [];
+    const d = fakeDeps({
+      projectDir: dir,
+      loadConfig: () => ({ ok: true, config: cfg }),
+      database: async () => true,
+      // gis:basemap can't reach Protomaps: it exits 1 and leaves the old basemap in place.
+      runTsx: async (entry, args) => {
+        calls.push([path.basename(entry), ...args].join(' '));
+        return entry.endsWith('basemap.ts') ? 1 : 0;
+      },
+    });
+    expect(await bootstrap(EXTERNAL, d)).toBe(0);
+    // It still tried the real one, then went on to the sim connector step.
+    expect(calls).toEqual(['seed.ts demo', 'basemap.ts', 'connect.ts']);
+    const text = d.lines.join('\n');
+    expect(text).toMatch(
+      /WARN\s+offline basemap\s+kept basemap\.3af318ec\.pmtiles \(synthetic test basemap\)/,
+    );
+    expect(text).toMatch(/fetches it once Protomaps can be reached/);
+    expect(text).not.toMatch(/bootstrap stopped/);
+    expect(readFileSync(path.join(tiles, 'basemap.json'), 'utf8')).toBe(manifest);
+
+    // Without Docker (no gis:basemap at all) it is kept the same way.
+    calls.length = 0;
+    const noDocker = fakeDeps({
+      projectDir: dir,
+      loadConfig: d.loadConfig,
+      database: d.database,
+      runTsx: d.runTsx,
+    });
+    expect(await bootstrap({ ...EXTERNAL, noDocker: true }, noDocker)).toBe(0);
+    expect(calls).toEqual(['seed.ts demo', 'connect.ts']);
+    expect(noDocker.lines.join('\n')).toMatch(/WARN\s+offline basemap\s+kept basemap\.3af318ec/);
+  });
+
   test('a failing seed stops bootstrap with the command to retry', async () => {
     const { dir, cfg } = project();
     const d = fakeDeps({

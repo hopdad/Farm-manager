@@ -46,6 +46,7 @@ describe('lan', () => {
         'http://192.168.1.50:3000/enroll?code=K7QD2M9XPA',
         'http://172.18.0.1:3000/enroll?code=K7QD2M9XPA',
       ],
+      kioskUrl: 'http://localhost:3000/enroll?code=K7QD2M9XPA',
     });
     expect(isLoopbackHost(new URL(onPc.url).hostname)).toBe(false);
     // Already on the LAN address (or no LAN at all): that origin as is.
@@ -53,9 +54,29 @@ describe('lan', () => {
       url: 'http://192.168.1.50:3000/enroll?code=K7QD2M9XPA',
       localUrl: null,
       lanUrls: [],
+      kioskUrl: 'http://localhost:3000/enroll?code=K7QD2M9XPA',
     });
     expect(enrollLinks('http://localhost:3000', path, []).url).toBe(
       'http://localhost:3000/enroll?code=K7QD2M9XPA',
+    );
+  });
+
+  test('the wall kiosk link is localhost on the app port, whatever address the manager used', () => {
+    // The kiosk opens http://localhost:<port>/board in its own profile; cookies belong to one
+    // host, so an enrollment on the LAN address (or on 127.0.0.1) would leave it on /login.
+    const path = '/enroll?code=K7QD2M9XPA';
+    for (const origin of [
+      'http://localhost:3001',
+      'http://127.0.0.1:3001',
+      'http://192.168.1.50:3001',
+      'http://farm-pc.local:3001',
+    ]) {
+      expect(enrollLinks(origin, path, ['192.168.1.50']).kioskUrl, origin).toBe(
+        'http://localhost:3001/enroll?code=K7QD2M9XPA',
+      );
+    }
+    expect(enrollLinks('http://192.168.1.50', path, []).kioskUrl).toBe(
+      'http://localhost/enroll?code=K7QD2M9XPA',
     );
   });
 });

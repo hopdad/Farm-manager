@@ -88,11 +88,27 @@ after.
 1. `pnpm dev` prints an **Owner** link the first time:
    `http://localhost:3000/login/setup?code=…`. Open it **on the PC**, enter your name and a PIN
    only you know: you are the owner. After that `pnpm dev` prints where to sign in instead.
-2. **The wall display:** on **/admin/devices** add a *Wall display*; open the link (or scan the
-   QR code) on the wall's browser once. Start it as a kiosk:
-   `& "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --force-device-scale-factor=2 --user-data-dir=$env:LOCALAPPDATA\farm-kiosk http://localhost:3000/board`
-   (the board is laid out for 1920 x 1080 CSS px: `2` for a 4K panel, `1` for a 1080p one).
-   Anyone at the wall taps the name chip (top right) to sign in with their PIN.
+2. **The wall display (this PC):** on **/admin/devices** add a device of kind *Wall display*.
+   The kiosk is a Chrome with its own profile on `localhost`, and a sign-in belongs to one
+   profile and one address, so don't click the panel's link or scan its QR code (those are for
+   other screens). Instead, once, paste the panel's **On this PC (wall kiosk)** command into
+   PowerShell; it opens the kiosk's profile on the code over `localhost` (your code in place of
+   `K7QD2M9XPA`):
+
+   ```powershell
+   & "C:\Program Files\Google\Chrome\Application\chrome.exe" --no-first-run "--user-data-dir=$env:LOCALAPPDATA\farm-kiosk" "http://localhost:3000/enroll?code=K7QD2M9XPA"
+   ```
+
+   Press **Enroll as** *(the wall's name)*: the board opens; close that window. From then on
+   start the wall with:
+
+   ```powershell
+   & "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --no-first-run --force-device-scale-factor=2 "--user-data-dir=$env:LOCALAPPDATA\farm-kiosk" http://localhost:3000/board
+   ```
+
+   (The board is laid out for 1920 x 1080 CSS px: `2` for a 4K panel, `1` for a 1080p one.
+   Alt+F4 leaves kiosk mode.) Anyone at the wall taps the name chip (top right) to sign in
+   with their PIN.
 3. **Cab iPads, truck iPads, crew phones:** the same page; a phone is added *for* a person and
    signs in as them. Step by step: [`docs/kiosk.md`](docs/kiosk.md).
 4. **Demo PINs.** The eight demo crew members have sign-ins (Amy Kovach is the demo manager).
@@ -227,7 +243,7 @@ for the plan's defaults (trucks every 30 s, stale after 10 minutes).
 | `offline basemap missing, run pnpm gis:basemap` | The Protomaps download failed. Check the internet connection and run `pnpm gis:basemap`. Behind a corporate proxy: `$env:NODE_USE_ENV_PROXY=1`, then `pnpm gis:basemap`. To carry on without it: `pnpm run bootstrap --synthetic-basemap` installs a small made-up test basemap (the board badges it; a later plain bootstrap replaces it). |
 | `running scripts is disabled on this system` | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, then open a new PowerShell. |
 | Wrong Node version at `pnpm install` | Install Node 24 (see Prerequisites), open a new PowerShell, `pnpm install`. |
-| The board or `/m` shows the sign-in page | Nobody is signed in on that browser, or its device was revoked. On the PC: open the Owner link (first run) or the Admin link `pnpm dev` printed. Elsewhere: sign in with a name and PIN (managers), or enroll the screen on **/admin/devices** ([`docs/kiosk.md`](docs/kiosk.md)). |
+| The board or `/m` shows the sign-in page | Nobody is signed in on that browser, or its device was revoked. On the PC: open the Owner link (first run) or the Admin link `pnpm dev` printed. Elsewhere: sign in with a name and PIN (managers), or enroll the screen on **/admin/devices** ([`docs/kiosk.md`](docs/kiosk.md)). The wall kiosk right after enrolling: it was enrolled in another Chrome profile or on the LAN link; **New code** for the wall and run the panel's **On this PC (wall kiosk)** command (First run, step 2). |
 | "Admin is locked" on an admin page | It needs a manager: sign in at `/login`, or open the Admin link `pnpm dev` printed (on the PC). |
 | A PIN is refused with "locked" | Five wrong PINs lock that person for 15 minutes (longer if it keeps happening). A manager can **Unlock** them on **/admin/people**. |
 | Forgot the owner PIN | `pnpm auth:reset-owner`, then open the link it prints on the PC within 30 minutes. |
