@@ -89,23 +89,81 @@ describe('FleetModel', () => {
   test('a tick mid-glide starts from where the marker is drawn, not where it was heading', () => {
     const m = model();
     m.applySnapshot([machine({ lng: 0, lat: 0 })], 0);
-    m.applyTick([machine({ lng: 0.01, lat: 0, ts: new Date(T0 + 1).toISOString() })], 0);
+    m.applyTick([machine({ lng: 0.01, lat: 0, ts: new Date(T0 + 5000).toISOString() })], 0);
     // Halfway (2.5 s of 5 s) a new fix arrives.
-    m.applyTick([machine({ lng: 0.02, lat: 0, ts: new Date(T0 + 2).toISOString() })], 2500);
+    m.applyTick([machine({ lng: 0.02, lat: 0, ts: new Date(T0 + 10_000).toISOString() })], 2500);
     expect(m.frame(2500)[0]?.lng).toBeCloseTo(0.005, 9);
   });
 
-  test('the glide length follows the measured tick interval', () => {
+  test('the glide length is the time between the machine fixes themselves', () => {
     const m = model();
     m.applySnapshot([machine()], 0);
-    for (let i = 1; i <= 6; i++) {
-      m.applyTick(
-        [machine({ lng: -84 + i * 0.001, ts: new Date(T0 + i * 2000).toISOString() })],
-        i * 2000,
-      );
+    // Fixes 2 s apart, delivered on whatever schedule: each glide lasts 2 s.
+    m.applyTick([machine({ lng: -83.999, ts: new Date(T0 + 2000).toISOString() })], 700);
+    expect(m.isAnimating(2600)).toBe(true);
+    expect(m.frame(1700)[0]?.lng).toBeCloseTo(-83.9995, 9);
+    expect(m.isAnimating(2700)).toBe(false);
+    // Clamped to [min, max]: 200 ms apart glides 1 s.
+    m.applyTick([machine({ lng: -83.998, ts: new Date(T0 + 2200).toISOString() })], 3000);
+    expect(m.isAnimating(3990)).toBe(true);
+    expect(m.isAnimating(4000)).toBe(false);
+  });
+
+  test('two publishers: a 15 s machine glides its whole 15 s, not the tick-arrival gap', () => {
+    // fleet.trucks publishes the whole fleet every 5 s, fleet.deere every 15 s about 0.2 s after
+    // every third trucks tick. The combine's fix changes only on the Deere ticks.
+    const m = model();
+    const combine = (i: number) =>
+      machine({
+        id: '00000000-0000-4000-8000-000000000002',
+        unitNo: 'C1',
+        kind: 'combine',
+        positionSource: 'deere_working',
+        lng: -84 + i * 0.003,
+        ts: new Date(T0 + i * 15_000).toISOString(),
+      });
+    const truck = (t: number) =>
+      machine({ lng: -84 + t * 1e-7, ts: new Date(T0 + t).toISOString() });
+    m.applySnapshot([truck(0), combine(0)], 0);
+    let fix = 0;
+    const lng = (unit: string, at: number) => m.frame(at).find((f) => f.unitNo === unit)?.lng;
+    for (let k = 1; k <= 9; k++) {
+      const at = k * 5000;
+      m.applyTick([truck(at), combine(fix)], at); // trucks tick: the combine's fix is unchanged
+      if (k % 3 === 0) {
+        fix++;
+        m.applyTick([truck(at), combine(fix)], at + 200); // Deere tick
+      }
     }
-    expect(m.tickIntervalMs).toBeGreaterThan(1900);
-    expect(m.tickIntervalMs).toBeLessThan(2200);
+    // The last Deere fix (fix 3) landed at 45.2 s. 10 s later the combine is still moving.
+    const start = 45_200;
+    expect(m.tickIntervalMs).toBeLessThan(5000); // the arrival estimate is skewed …
+    expect(m.isAnimating(start + 10_000)).toBe(true); // … but the combine's glide is not
+    expect(lng('C1', start)).toBeCloseTo(-84 + 2 * 0.003, 9);
+    expect(lng('C1', start + 7500)).toBeCloseTo(-84 + 2.5 * 0.003, 9);
+    expect(lng('C1', start + 15_000)).toBeCloseTo(-84 + 3 * 0.003, 9);
+    // A truck tick between two Deere ticks repeats the same combine fix and changes nothing.
+    m.applyTick([truck(50_000), combine(3)], start + 4800);
+    expect(lng('C1', start + 7500)).toBeCloseTo(-84 + 2.5 * 0.003, 9);
+  });
+
+  test('after a long gap the machine keeps its own fix interval', () => {
+    const m = model();
+    m.applySnapshot([machine()], 0);
+    m.applyTick([machine({ lng: -83.999, ts: new Date(T0 + 15_000).toISOString() })], 15_000);
+    // Idle for 10 minutes (no new fix), then working again: glide 15 s, not 30 s (max).
+    m.applyTick([machine({ lng: -83.998, ts: new Date(T0 + 615_000).toISOString() })], 615_000);
+    expect(m.isAnimating(615_000 + 14_900)).toBe(true);
+    expect(m.isAnimating(615_000 + 15_000)).toBe(false);
+  });
+
+  test('without a fix interval yet, a long gap falls back to the tick-arrival estimate', () => {
+    const m = model();
+    m.applySnapshot([machine()], 0);
+    m.applyTick([machine({ lng: -83.999, ts: new Date(T0 + 600_000).toISOString() })], 100);
+    expect(m.tickIntervalMs).toBe(5000);
+    expect(m.isAnimating(5099)).toBe(true);
+    expect(m.isAnimating(5100)).toBe(false);
   });
 
   test('an out-of-order (older) fix is ignored', () => {

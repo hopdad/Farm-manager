@@ -5,9 +5,13 @@
  * server's `stale` is only true at build time; the map owns "is it stale now").
  *
  *  - snapshot: authoritative set (machines missing from it are dropped)
- *  - tick: upsert; a fix older than the one already held is ignored (out-of-order delivery)
- *  - each new fix glides from the currently drawn position over the estimated tick interval;
- *    jumps longer than `teleportMeters` snap
+ *  - tick: upsert; a fix older than the one already held is ignored (out-of-order delivery), and
+ *    the same fix again (same `ts`, e.g. another job's full-fleet tick) leaves the glide alone
+ *  - each new fix glides from the currently drawn position over the time between this machine's
+ *    own last two fixes (two jobs publish full-fleet ticks at different cadences, so the gap
+ *    between tick arrivals says nothing about one machine); jumps longer than `teleportMeters`
+ *    snap. After a gap longer than `maxIntervalMs` (outage, idle Deere machine) the machine's
+ *    last regular fix interval is used, else the arrival estimate.
  */
 import { isMachineStale, type MachineView, type StaleThresholds } from '../../../domain/fleet';
 import {
@@ -25,7 +29,7 @@ export interface FleetModelOptions {
   staleAfterSeconds: number;
   /** FLEET_STALE_SECONDS_DEERE: Deere working-only fixes (default: staleAfterSeconds). */
   deereStaleAfterSeconds?: number;
-  /** Glide length before two ticks have been seen. */
+  /** Glide length when a machine has no regular fix interval yet and two ticks haven't been seen. */
   defaultIntervalMs?: number;
   minIntervalMs?: number;
   maxIntervalMs?: number;
@@ -39,6 +43,8 @@ interface Entry {
   view: MachineView;
   glide: Glide;
   stale: boolean;
+  /** Last gap between this machine's fixes that was within [0, maxIntervalMs], clamped; null until seen. */
+  fixIntervalMs: number | null;
 }
 
 /** One machine as drawn in a frame. */
@@ -88,7 +94,7 @@ export class FleetModel {
     this.intervalMs = this.opts.defaultIntervalMs;
   }
 
-  /** Current glide length (ms). */
+  /** Estimated gap between tick arrivals (ms): the glide length of a machine's first glide. */
   get tickIntervalMs(): number {
     return this.intervalMs;
   }
@@ -132,17 +138,28 @@ export class FleetModel {
     const stale = isMachineStale(m, this.opts.wallNow(), this.thresholds);
     const prev = this.machines.get(m.id);
     if (!prev) {
-      this.machines.set(m.id, { view: m, glide: stationary(to, now), stale });
+      this.machines.set(m.id, { view: m, glide: stationary(to, now), stale, fixIntervalMs: null });
       return;
     }
-    if (Date.parse(m.ts) < Date.parse(prev.view.ts)) return; // older fix: keep the newer one
+    const ts = Date.parse(m.ts);
+    const prevTs = Date.parse(prev.view.ts);
+    if (ts < prevTs) return; // older fix: keep the newer one
+    if (ts === prevTs) {
+      // The same fix again (the other job's tick, a snapshot): keep gliding; status may change.
+      this.machines.set(m.id, { ...prev, view: m, stale });
+      return;
+    }
+    const { minIntervalMs: min, maxIntervalMs: max } = this.opts;
+    const gap = ts - prevTs;
+    const fixIntervalMs = gap <= max ? Math.max(min, gap) : prev.fixIntervalMs;
+    const duration = gap <= max ? Math.max(min, gap) : (prev.fixIntervalMs ?? this.intervalMs);
     const from = glideAt(prev.glide, now);
     const moved = from.lng !== to.lng || from.lat !== to.lat || from.heading !== to.heading;
     const glide =
       !moved || distanceMeters(from, to) > this.opts.teleportMeters
         ? stationary(to, now)
-        : { from, to, start: now, duration: this.intervalMs };
-    this.machines.set(m.id, { view: m, glide, stale });
+        : { from, to, start: now, duration };
+    this.machines.set(m.id, { view: m, glide, stale, fixIntervalMs });
   }
 
   /** Re-evaluate staleness against the wall clock. Returns true if any machine changed. */
