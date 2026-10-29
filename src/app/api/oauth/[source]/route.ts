@@ -30,11 +30,12 @@ import {
 import { OAuthTokenStore, userGrantOrg } from '@/connectors/oauth/token-store';
 import { getPool } from '@/db/client';
 import { ADMIN_COOKIE, ADMIN_LOCKED_MESSAGE, isAdminKey } from '@/platform/auth/admin-key';
+import { limitedBytes } from '@/platform/http/limits';
 
 export const dynamic = 'force-dynamic';
 
 function page(status: number, title: string, body: string, extra: Record<string, string> = {}) {
-  return new Response(oauthPage(title, body), {
+  return limitedBytes(oauthPage(title, body), {
     status,
     headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...extra },
   });
@@ -76,7 +77,7 @@ export async function GET(
     }
     const state = newOAuthState();
     const authorize = deereAuthorizeUrl(ep, state);
-    return new Response(
+    return limitedBytes(
       oauthPage(
         'Connect John Deere',
         `<p>${ep.sim ? 'Sim mode: this opens the local stand-in, not John Deere.' : 'You will sign in at John Deere and approve this app.'}</p>

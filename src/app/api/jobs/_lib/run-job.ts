@@ -33,6 +33,7 @@ import {
 import { readClockPaused } from '../../../../db/settings';
 import { type ValidJob, validateJobDef } from '../../../../jobs/schedule';
 import type { JobContext, JobLogger, JobRegistry } from '../../../../jobs/types';
+import { limitedJson } from '../../../../platform/http/limits';
 import { createJobLogger } from './logger';
 
 export interface JobRouteDeps {
@@ -73,7 +74,7 @@ const NO_STORE = { 'Cache-Control': 'no-store' };
 const MAX_TEXT = 2_000;
 
 function json(status: number, body: JobPostBody, headers: Record<string, string> = {}): Response {
-  return Response.json(body, { status, headers: { ...NO_STORE, ...headers } });
+  return limitedJson(body, { status, headers: { ...NO_STORE, ...headers } });
 }
 
 /** Constant-time check of `Authorization: Bearer <secret>` (hashing equalizes lengths). */

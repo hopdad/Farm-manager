@@ -6,6 +6,7 @@
 import { getConfig } from '@/config';
 import { handleWebhook, isWebhookSource, MAX_WEBHOOK_BYTES } from '@/connectors/webhooks';
 import { getPool } from '@/db/client';
+import { limitedJson } from '@/platform/http/limits';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,11 +17,11 @@ export async function POST(
   const { source } = await params;
   const headers = { 'cache-control': 'no-store' };
   if (!isWebhookSource(source)) {
-    return Response.json({ error: `no webhooks for '${source}'` }, { status: 404, headers });
+    return limitedJson({ error: `no webhooks for '${source}'` }, { status: 404, headers });
   }
   const length = Number(request.headers.get('content-length') ?? 0);
   if (length > MAX_WEBHOOK_BYTES) {
-    return Response.json({ error: 'body over 4 MB' }, { status: 413, headers });
+    return limitedJson({ error: 'body over 4 MB' }, { status: 413, headers });
   }
   const cfg = getConfig();
   const mode =
@@ -37,9 +38,9 @@ export async function POST(
       headers: request.headers,
       now: new Date(),
     });
-    return Response.json(out.body, { status: out.status, headers });
+    return limitedJson(out.body, { status: out.status, headers });
   } catch (e) {
     console.error(`[api/webhooks/${source}]`, (e as Error).message);
-    return Response.json({ error: 'webhook not stored' }, { status: 500, headers });
+    return limitedJson({ error: 'webhook not stored' }, { status: 500, headers });
   }
 }

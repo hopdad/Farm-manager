@@ -15,6 +15,7 @@
  */
 import { createHash } from 'node:crypto';
 import type { Queryable } from '@/db/client';
+import { limitedBytes } from '@/platform/http/limits';
 import { isValidTile } from '@/ui/map/tile-math';
 import { isTileLayerId, TILE_LAYERS, type TileCachePolicy } from './layers';
 
@@ -42,7 +43,7 @@ export function tileCacheControl(policy: TileCachePolicy, versioned: boolean): s
 }
 
 function text(status: number, body: string): Response {
-  return new Response(body, {
+  return limitedBytes(body, {
     status,
     headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
   });
@@ -86,5 +87,5 @@ export async function handleTileRequest(
     return new Response(null, { status: 304, headers });
   }
   headers.set('content-length', String(mvt.length));
-  return new Response(new Uint8Array(mvt), { status: 200, headers });
+  return limitedBytes(new Uint8Array(mvt), { status: 200, headers }, { route: 'api/tiles' });
 }

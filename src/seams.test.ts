@@ -8,6 +8,8 @@
  *  - src/jobs/** imports no child_process and nothing from tools/gis, directly OR transitively
  *    (following relative and @/ imports through src/), and no CLI-only module
  *  - no named pg statements (`query({ name: … })`), which the transaction pooler can't keep
+ *  - every API route except the streaming ones (/api/storage, /api/realtime) builds its
+ *    responses through src/platform/http/limits.ts (the 4 MB response guard)
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -109,6 +111,24 @@ describe('seam rules', () => {
       }
     }
     expect([...new Set(bad)]).toEqual([]);
+  });
+
+  test('every non-streaming API route goes through the 4 MB response guard', () => {
+    const streaming = /^src\/app\/api\/(storage|realtime)\//;
+    const routes = files.filter(
+      (f) => /^src\/app\/api\/.+\/route\.ts$/.test(posix(f.rel)) && !streaming.test(posix(f.rel)),
+    );
+    expect(routes.length).toBeGreaterThanOrEqual(6);
+    const unguarded = routes
+      .filter(
+        (r) => ![...reachable(r.rel).keys()].map(posix).includes('src/platform/http/limits.ts'),
+      )
+      .map((r) => posix(r.rel));
+    expect(unguarded).toEqual([]);
+    const direct = routes
+      .filter((r) => /Response\.json\s*\(|new\s+Response\s*\(\s*(?!null\b)/.test(r.text))
+      .map((r) => posix(r.rel));
+    expect(direct).toEqual([]);
   });
 
   test('the import walker follows relative and @/ imports (self-check)', () => {

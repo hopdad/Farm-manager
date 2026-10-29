@@ -4,6 +4,7 @@
  */
 import { escapeHtml, oauthPage } from '@/connectors/oauth/flow';
 import { adminCookie, isAdminKey } from '@/platform/auth/admin-key';
+import { limitedBytes } from '@/platform/http/limits';
 
 const NEXT_PAGE = '/admin/connectors';
 
@@ -14,14 +15,14 @@ export function unlockResponse(
 ): Response {
   const headers = { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' };
   if (cfg.isProduction) {
-    return new Response(oauthPage('Not found', '<p>No admin unlock in production.</p>'), {
+    return limitedBytes(oauthPage('Not found', '<p>No admin unlock in production.</p>'), {
       status: 404,
       headers,
     });
   }
   const key = new URL(requestUrl).searchParams.get('key');
   if (!isAdminKey(cfg, key)) {
-    return new Response(
+    return limitedBytes(
       oauthPage(
         'Admin key not accepted',
         `<p>Open the Admin link that <code>pnpm dev</code> (or <code>pnpm pilot</code>) printed on the PC.</p>`,
@@ -29,7 +30,7 @@ export function unlockResponse(
       { status: 403, headers },
     );
   }
-  return new Response(
+  return limitedBytes(
     oauthPage(
       'Admin unlocked',
       `<p>This browser can use the admin pages now.</p><p><a href="${escapeHtml(NEXT_PAGE)}">Connectors</a></p>`,

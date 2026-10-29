@@ -7,6 +7,7 @@
 import { getConfig } from '@/config';
 import { getPool } from '@/db/client';
 import { fleetSnapshot, staleThresholdsOf } from '@/db/queries/fleet';
+import { limitedJson } from '@/platform/http/limits';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,9 +16,9 @@ export async function GET(): Promise<Response> {
   try {
     const cfg = getConfig();
     const tick = await fleetSnapshot(getPool(), new Date(), staleThresholdsOf(cfg));
-    return Response.json(tick, { headers });
+    return limitedJson(tick, { headers }, { route: 'api/fleet' });
   } catch (e) {
     console.error('[api/fleet]', (e as Error).message);
-    return Response.json({ error: 'fleet snapshot unavailable' }, { status: 503, headers });
+    return limitedJson({ error: 'fleet snapshot unavailable' }, { status: 503, headers });
   }
 }
