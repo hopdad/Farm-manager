@@ -1,8 +1,12 @@
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { defaultExportPath, UsageError as ExportUsageError, parseExportArgs } from './data-export';
-import { formatImportReport, parseImportArgs, UsageError } from './data-import';
-import { formatSeasonReport, parseImportSeasonsArgs } from './import-seasons';
+import {
+  defaultExportPath,
+  UsageError as ExportUsageError,
+  parseExportArgs,
+} from '../../scripts/data-export';
+import { formatImportReport, parseImportArgs, UsageError } from '../../scripts/data-import';
+import { formatSeasonReport, parseImportSeasonsArgs } from '../../scripts/import-seasons';
 
 describe('data:export / data:import arguments', () => {
   test('export path defaults under .data/exports with a local timestamp', () => {

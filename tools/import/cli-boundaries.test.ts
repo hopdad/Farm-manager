@@ -2,8 +2,12 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, test } from 'vitest';
-import { rectangle, shapefileFiles } from '../tools/import/testing/shapefile';
-import { parseImportBoundariesArgs, readInputFiles, UsageError } from './import-boundaries';
+import {
+  parseImportBoundariesArgs,
+  readInputFiles,
+  UsageError,
+} from '../../scripts/import-boundaries';
+import { rectangle, shapefileFiles } from './testing/shapefile';
 
 describe('parseImportBoundariesArgs', () => {
   test('defaults and options', () => {
