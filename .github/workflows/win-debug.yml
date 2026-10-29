@@ -1,0 +1,23 @@
+name: win-debug
+on:
+  push:
+    branches: [claude/m0-win-debug]
+jobs:
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: time control calls
+        run: pnpm exec tsx debug/time.mts
+      - name: failing files alone, long timeout
+        run: pnpm exec vitest run --project unit tools/vendor-sim/server.test.ts tools/dev.test.ts --reporter=verbose --testTimeout=60000
+        continue-on-error: true
+      - name: failing files alone, default timeout
+        run: pnpm exec vitest run --project unit tools/vendor-sim/server.test.ts tools/dev.test.ts --reporter=verbose
+        continue-on-error: true
