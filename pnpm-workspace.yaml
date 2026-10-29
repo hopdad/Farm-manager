@@ -1,0 +1,22 @@
+# Single-package repo: this file only carries pnpm settings (no `packages:` list).
+
+# A wrong Node fails at install (engines.node is 24.x). pnpm 12 reads this setting from
+# here, not from .npmrc (.npmrc keeps engine-strict=true for npm and older pnpm).
+engineStrict: true
+
+# pnpm 12 refuses to install when a dependency has an unreviewed build script.
+# Only esbuild needs one (tsx, drizzle-kit and vite pull it in). Anything new that
+# shows up in `pnpm ignored-builds` must be reviewed and listed here as true/false.
+allowBuilds:
+  esbuild: true
+
+# deck.gl 9.4.1 was published on Oct 28 2026, inside pnpm's minimum-release-age
+# window; the plan pins it deliberately (MapLibre 6 support). Drop these entries
+# once the versions are older than the window.
+minimumReleaseAgeExclude:
+  - '@deck.gl/core@9.4.1'
+  - '@deck.gl/extensions@9.4.1'
+  - '@deck.gl/geo-layers@9.4.1'
+  - '@deck.gl/layers@9.4.1'
+  - '@deck.gl/maplibre@9.4.1'
+  - '@deck.gl/mesh-layers@9.4.1'

@@ -1,0 +1,183 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { describe, expect, test } from 'vitest';
+import { CONFIG_KEYS, ConfigError, childEnv, parseConfig, publicConfig } from './config';
+import { runNode, tsxBin } from './lib/proc';
+
+const secret = 'a'.repeat(64);
+const base = {
+  DATABASE_URL: 'postgres://farm_app:pw@127.0.0.1:15432/postgres',
+  JOBS_SECRET: secret,
+  SESSION_SECRET: secret,
+};
+const prod = {
+  ...base,
+  APP_ENV: 'production',
+  PUBLIC_URL: 'https://farm.example.com',
+  TOKEN_ENC_KEY: 'b'.repeat(64),
+  NEXT_PUBLIC_REALTIME: 'supabase',
+  CONNECTOR_DEERE: 'live',
+  CONNECTOR_ELD: 'live',
+  CONNECTOR_WEATHER: 'live',
+};
+
+function issues(env: Record<string, string | undefined>): string[] {
+  try {
+    parseConfig(env);
+    return [];
+  } catch (e) {
+    if (e instanceof ConfigError) return e.issues;
+    throw e;
+  }
+}
+
+describe('parseConfig', () => {
+  test('defaults', () => {
+    const c = parseConfig(base, '/proj');
+    expect(c).toMatchObject({
+      APP_ENV: 'development',
+      DB_PORT: 15432,
+      DB_POOL_MAX: 10,
+      PUBLIC_URL: 'http://localhost:3000',
+      DEV_ORIGINS: [],
+      VENDOR_SIM_URL: 'http://127.0.0.1:4010',
+      CONNECTOR_DEERE: 'sim',
+      CONNECTOR_ELD: 'sim',
+      CONNECTOR_WEATHER: 'sim',
+      ELD_VENDOR: 'samsara',
+      WRITEBACK_DEERE: false,
+      NEXT_PUBLIC_REALTIME: 'sse',
+      BASEMAP_STYLE: 'protomaps-local',
+      SIM_SCENARIO: 'harvest-day',
+      SIM_SPEED: 1,
+      SIM_FROZEN_AT: null,
+      CLOCK_HOSTS: ['app', 'pc'],
+      projectDir: '/proj',
+      isProduction: false,
+      cookieSecure: false,
+    });
+  });
+
+  test('parses lists, numbers, switches and dates', () => {
+    const c = parseConfig({
+      ...base,
+      DEV_ORIGINS: '192.168.1.20, farm-pc.local,,',
+      DB_POOL_MAX: '3',
+      SIM_SPEED: '30',
+      WRITEBACK_DEERE: 'on',
+      SIM_FROZEN_AT: '2026-10-15T11:00:00Z',
+      PUBLIC_URL: 'https://192.168.1.20:3443',
+    });
+    expect(c.DEV_ORIGINS).toEqual(['192.168.1.20', 'farm-pc.local']);
+    expect(c.DB_POOL_MAX).toBe(3);
+    expect(c.SIM_SPEED).toBe(30);
+    expect(c.WRITEBACK_DEERE).toBe(true);
+    expect(c.SIM_FROZEN_AT?.toISOString()).toBe('2026-10-15T11:00:00.000Z');
+    expect(c.cookieSecure).toBe(true);
+  });
+
+  test('empty strings count as unset', () => {
+    expect(parseConfig({ ...base, DB_PORT: '', CONNECTOR_ELD: '' }).DB_PORT).toBe(15432);
+  });
+
+  test('missing secrets and bad values give readable issues', () => {
+    const list = issues({
+      DATABASE_URL: 'mysql://x',
+      CONNECTOR_DEERE: 'maybe',
+      CLOCK_HOSTS: 'app,moon',
+    });
+    expect(list.join('\n')).toMatch(/DATABASE_URL: must be a postgres:\/\/ URL/);
+    expect(list.join('\n')).toMatch(/JOBS_SECRET/);
+    expect(list.join('\n')).toMatch(/SESSION_SECRET/);
+    expect(list.join('\n')).toMatch(/CONNECTOR_DEERE/);
+    expect(list.join('\n')).toMatch(/unknown host 'moon'/);
+    expect(() => parseConfig({})).toThrow(/pnpm env:init/);
+  });
+
+  test('a valid production config passes', () => {
+    const c = parseConfig(prod);
+    expect(c.isProduction).toBe(true);
+  });
+
+  test.each([
+    ['CONNECTOR_DEERE', 'sim'],
+    ['CONNECTOR_ELD', 'replay'],
+    ['CONNECTOR_WEATHER', 'sim'],
+  ])('APP_ENV=production refuses %s=%s', (key, mode) => {
+    expect(issues({ ...prod, [key]: mode }).join('\n')).toMatch(
+      new RegExp(`${key}: '${mode}' is not allowed when APP_ENV=production`),
+    );
+  });
+
+  test('production refuses defaulted sim modes, SSE, http and a frozen sim clock', () => {
+    const list = issues({
+      ...base,
+      APP_ENV: 'production',
+      TOKEN_ENC_KEY: 'b'.repeat(64),
+      SIM_FROZEN_AT: '2026-10-15T11:00:00Z',
+    }).join('\n');
+    expect(list).toMatch(/CONNECTOR_DEERE: 'sim' is not allowed/);
+    expect(list).toMatch(/NEXT_PUBLIC_REALTIME/);
+    expect(list).toMatch(/PUBLIC_URL: must be https/);
+    expect(list).toMatch(/SIM_FROZEN_AT/);
+  });
+
+  test('production allows off and sandbox', () => {
+    expect(issues({ ...prod, CONNECTOR_DEERE: 'off', CONNECTOR_ELD: 'sandbox' })).toEqual([]);
+  });
+
+  test('publicConfig exposes only client-safe values', () => {
+    const p = publicConfig(parseConfig(base));
+    expect(Object.keys(p).sort()).toEqual([
+      'appEnv',
+      'basemapStyle',
+      'realtime',
+      'staleAfterSeconds',
+    ]);
+    expect(JSON.stringify(p)).not.toContain(secret);
+  });
+
+  test('every key is documented in docs/contracts.md', async () => {
+    const { readFileSync } = await import('node:fs');
+    const doc = readFileSync(path.join(process.cwd(), 'docs', 'contracts.md'), 'utf8');
+    const missing = CONFIG_KEYS.filter((k) => !doc.includes(`\`${k}\``));
+    expect(missing).toEqual([]);
+  });
+});
+
+describe('env files', () => {
+  test('CLI scripts pick up .env and .env.local like Next (.env.local wins, real env wins over both)', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'farm-config-'));
+    writeFileSync(
+      path.join(dir, '.env'),
+      `DB_PORT=15999\nDATABASE_URL=postgres://farm_app:fromdotenv@127.0.0.1:15999/postgres\nSIM_SPEED=5\n`,
+    );
+    writeFileSync(
+      path.join(dir, '.env.local'),
+      `DATABASE_URL=postgres://farm_app:fromlocal@127.0.0.1:15999/postgres\nJOBS_SECRET=${secret}\nSESSION_SECRET=${secret}\nSIM_SPEED=10\n`,
+    );
+    const probe = path.join(process.cwd(), 'src', 'test', 'fixtures', 'print-config.ts');
+    const r = await runNode(tsxBin(), [probe], {
+      cwd: dir,
+      // A CLI run: no NODE_ENV (Next would skip .env.local under NODE_ENV=test).
+      env: childEnv({
+        NODE_ENV: undefined,
+        APP_ENV: undefined,
+        DATABASE_URL: undefined,
+        JOBS_SECRET: undefined,
+        SESSION_SECRET: undefined,
+        SIM_SPEED: '42',
+        DB_PORT: undefined,
+      }),
+      timeoutMs: 60_000,
+    });
+    expect(r.stderr).toBe('');
+    expect(r.code).toBe(0);
+    const out = JSON.parse(r.stdout) as Record<string, unknown>;
+    expect(out.DATABASE_URL).toBe('postgres://farm_app:fromlocal@127.0.0.1:15999/postgres');
+    expect(out.DB_PORT).toBe(15999);
+    expect(out.SIM_SPEED).toBe(42);
+    expect(out.projectDir).toBe(dir);
+  }, 60_000);
+});

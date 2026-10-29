@@ -1,0 +1,13 @@
+# docker-compose.yml: the whole local infrastructure (plan §2).
+# Compose reads DB_PASSWORD and DB_PORT from .env, which `pnpm env:init` writes.
+name: farm-manager
+services:
+  db:
+    image: supabase/postgres:17.11.0.008          # re-pin to the hosted project's version at MD
+    ports: ["127.0.0.1:${DB_PORT:-15432}:5432"]   # loopback only; below Windows' reserved port ranges, clear of the Supabase CLI's 5432x ports
+    environment: { POSTGRES_PASSWORD: "${DB_PASSWORD:?run pnpm env:init (or pnpm run bootstrap) first}" }
+    extra_hosts: ["host.docker.internal:host-gateway"]   # pg_net -> Next on the host (CLOCK=pgcron)
+    volumes: ["pgdata:/var/lib/postgresql/data"]         # named volume avoids Windows bind-mount problems
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"], interval: 3s, timeout: 5s, retries: 30, start_period: 180s }
+volumes: { pgdata: {}, gis_work: {} }   # gis_work: GDAL/pmtiles scratch for `pnpm gis:*` (kept off NTFS bind mounts)
+# compose.prodlike.yml (perf tests only): cpus: 2, mem_limit: 1g, sized to the Supabase compute you pick at MD

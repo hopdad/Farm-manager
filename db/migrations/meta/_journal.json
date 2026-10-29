@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1793188800000,
+      "tag": "0000_m0_extensions_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793188860000,
+      "tag": "0001_m0_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793188920000,
+      "tag": "0002_m0_functions",
+      "breakpoints": true
+    }
+  ]
+}

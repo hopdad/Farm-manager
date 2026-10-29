@@ -1,0 +1,23 @@
+{
+  "id": "6ca6b893-75ad-4f63-970d-94bf7952be4c",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {},
+  "enums": {},
+  "schemas": {
+    "app": "app",
+    "farm": "farm",
+    "gis": "gis",
+    "ingest": "ingest"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# env files (secrets): written by `pnpm env:init`
+.env
+.env.local
+.env.*.local
+
+# local data, raw downloads, tool binaries
+.data/
+data/raw/
+.tools/
+
+# test output
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log

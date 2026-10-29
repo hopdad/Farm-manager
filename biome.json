@@ -1,0 +1,116 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!**/.next",
+      "!**/node_modules",
+      "!db/migrations/meta",
+      "!pnpm-lock.yaml",
+      "!**/*.yml",
+      "!**/*.yaml",
+      "!**/*.md",
+      "!**/*.sql"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "noProcessEnv": "error",
+        "useImportType": "error",
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "postgres": "postgres.js is banned: its pipelining breaks through the Supabase transaction pooler. Use pg (src/db/client.ts)."
+            },
+            "patterns": [
+              {
+                "group": ["@supabase/*"],
+                "message": "Only src/platform/** may import @supabase/* (plan §1 seam rule)."
+              }
+            ]
+          }
+        }
+      },
+      "suspicious": {
+        "noConsole": "off"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/config.ts", "playwright.config.ts"],
+      "linter": { "rules": { "style": { "noProcessEnv": "off" } } }
+    },
+    {
+      "includes": ["src/platform/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "postgres": "postgres.js is banned: its pipelining breaks through the Supabase transaction pooler. Use pg (src/db/client.ts)."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/jobs/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "postgres": "postgres.js is banned: its pipelining breaks through the Supabase transaction pooler. Use pg (src/db/client.ts).",
+                  "child_process": "Jobs run on Vercel: no child processes (plan §1).",
+                  "node:child_process": "Jobs run on Vercel: no child processes (plan §1).",
+                  "gdal-async": "Jobs never use GDAL; heavy GIS is CLI-only (pnpm gis:*).",
+                  "gdal": "Jobs never use GDAL; heavy GIS is CLI-only (pnpm gis:*)."
+                },
+                "patterns": [
+                  {
+                    "group": ["@supabase/*"],
+                    "message": "Only src/platform/** may import @supabase/* (plan §1 seam rule)."
+                  },
+                  {
+                    "group": ["**/tools/gis", "**/tools/gis/**", "tools/gis", "tools/gis/**"],
+                    "message": "Jobs may not import tools/gis/** (heavy GIS is CLI-only, plan §1)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
