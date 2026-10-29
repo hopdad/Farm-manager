@@ -1,4 +1,11 @@
 field,crop_year,crop,variety,planted_on,harvested_on,yield_bu_ac
-Stanwick 80,2020,soybeans,NF 2.8E4,5/12/2020,10/6/2020,57.5
-Stanwick 80,2019,corn,NF 106-22,2019-05-28,2019-11-14,168
-Vickery 80,2020,corn,NF 104-31,4/30/2020,10/21/2020,191.2
+Prospect South 80,2025,soybeans,NF 2.8E4,5/14/2025,10/2/2025,61.5
+Prospect South 80,2024,corn,NF 106-22,2024-04-29,2024-10-24,196.4
+Prospect South 80,2023,soybeans,NF 2.6E3,5/10/2023,9/28/2023,58
+Prospect South 80,2022,corn,NF 104-31,2022-05-03,2022-10-31,182.7
+Prospect South 80,2021,soybeans,NF 2.4E1,5/19/2021,10/7/2021,55.2
+Prospect North 80,2025,corn,NF 106-22,4/30/2025,10/28/2025,201.3
+Prospect North 80,2024,soybeans,NF 2.8E4,2024-05-16,2024-10-05,63.1
+Prospect North 80,2023,corn,NF 104-31,5/2/2023,11/3/2023,189
+Prospect North 80,2022,soybeans,NF 2.6E3,2022-05-21,2022-10-09,57.4
+Prospect North 80,2021,corn,NF 102-18,4/27/2021,10/26/2021,176.8

@@ -17,15 +17,22 @@ describe('parseSeasonsCsv', () => {
     const text = readFileSync(path.join(here, 'templates', 'seasons-example.csv'), 'utf8');
     const r = parseSeasonsCsv(text, 2026);
     expect(r.errors).toEqual([]);
+    expect(r.warnings).toEqual([]);
     expect(r.rows[0]).toMatchObject({
       line: 2,
-      field: 'Stanwick 80',
-      cropYear: 2020,
+      field: 'Prospect South 80',
+      cropYear: 2025,
       crop: 'soybeans',
-      plantedOn: '2020-05-12',
-      harvestedOn: '2020-10-06',
-      yieldBuAc: 57.5,
+      plantedOn: '2025-05-14',
+      harvestedOn: '2025-10-02',
+      yieldBuAc: 61.5,
     });
+    // README "M1 demo" step 5: the last 5 crop years of the two fields in
+    // boundaries-example.geojson, so the panel of each imported field lists 5 seasons.
+    const years = (field: string) => r.rows.filter((x) => x.field === field).map((x) => x.cropYear);
+    expect(years('Prospect South 80')).toEqual([2025, 2024, 2023, 2022, 2021]);
+    expect(years('Prospect North 80')).toEqual([2025, 2024, 2023, 2022, 2021]);
+    expect(r.rows).toHaveLength(10);
   });
 
   test('an Excel CSV: BOM, CRLF, "Crop Year" headers, quoted commas, blank lines', () => {
