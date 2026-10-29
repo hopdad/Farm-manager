@@ -104,8 +104,10 @@ function CodePanel({ view }: { view: EnrollCodeView }) {
             <div className={css.stack} data-testid="enroll-lan-links">
               <p className={css.muted}>
                 The link and QR code use this PC&apos;s shop-network address (an iPad or phone
-                can&apos;t open localhost). If the device can&apos;t reach it, try another of the
-                PC&apos;s addresses (the `pnpm dev` banner says which adapter is the shop network):
+                can&apos;t open localhost).
+                {view.lanUrls.length > 1
+                  ? " If the device can't reach it, try another of the PC's addresses (the `pnpm dev` banner says which adapter is the shop network):"
+                  : " If the device can't reach it, check it is on the shop Wi-Fi and that the Windows firewall lets it in (README)."}
               </p>
               {view.lanUrls.slice(1).map((u) => (
                 <a key={u} className={`${css.mono} ${own.codeLink}`} href={u}>
