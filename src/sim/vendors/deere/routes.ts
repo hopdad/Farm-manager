@@ -238,9 +238,12 @@ function token(req: SimRequest, ctx: VendorContext): SimResponse {
     return json(200, issueTokens(ctx, client.id, issued.scope), { 'cache-control': 'no-store' });
   }
   if (grant === 'refresh_token') {
-    const revoked = firstOfKind(ctx.faults, 'token_revoked');
-    if (revoked) {
-      revokeBefore(ctx, ctx.ruleStart(revoked));
+    if (firstOfKind(ctx.faults, 'token_revoked')) {
+      // Everything issued so far is gone, the presented token included (so grants minted by
+      // re-consents while the fault is on don't pile up in state.json).
+      delete ctx.state.deere.refreshTokens[form.get('refresh_token') ?? ''];
+      revokeBefore(ctx, ctx.now());
+      ctx.persist();
       return oauthError(400, 'invalid_grant', 'refresh token revoked: the user must sign in again');
     }
     const rt = form.get('refresh_token') ?? '';
@@ -255,7 +258,10 @@ function token(req: SimRequest, ctx: VendorContext): SimResponse {
   return oauthError(400, 'unsupported_grant_type', `grant_type '${grant ?? ''}' is not supported`);
 }
 
-/** token_revoked: every grant issued before the cut-off is gone for good. */
+/**
+ * token_revoked: every grant issued before the cut-off is gone for good. While the fault is on
+ * the cut-off is "now", so at most the grant of the latest re-consent exists at any time.
+ */
 function revokeBefore(ctx: VendorContext, cutoff: Date): void {
   const keep = (g: IssuedGrant) => Date.parse(g.issuedAt) >= cutoff.getTime();
   const d = ctx.state.deere;
@@ -279,9 +285,8 @@ function checkAccess(req: SimRequest, ctx: VendorContext): SimResponse | null {
   const m = h ? /^Bearer\s+(\S+)$/i.exec(h.trim()) : null;
   const tok = m?.[1];
   if (!tok) return apiError(401, 'Missing bearer token', UNAUTHORIZED);
-  const revoked = firstOfKind(ctx.faults, 'token_revoked');
-  if (revoked) {
-    revokeBefore(ctx, ctx.ruleStart(revoked));
+  if (firstOfKind(ctx.faults, 'token_revoked')) {
+    revokeBefore(ctx, ctx.now());
     ctx.counters.faults.token_revoked = (ctx.counters.faults.token_revoked ?? 0) + 1;
     return apiError(401, 'Access revoked: the user must sign in again', UNAUTHORIZED);
   }

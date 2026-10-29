@@ -6,6 +6,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import { SIM_CREDENTIALS, SIM_DEERE_HOME_ORG } from '../../sim/types';
 import { startVendorSim, type VendorSim } from '../../sim/vendors/server';
+import { memoryStateStore } from '../../sim/vendors/state';
 import { createStubSimWorld } from '../../sim/vendors/stub-world';
 import { type ConnectorConfig, type DeereEndpoints, deereEndpoints } from '../endpoints';
 import { VendorHttpError } from '../http';
@@ -182,6 +183,41 @@ describe('Deere machine locations (sim)', () => {
     wall += 10_000;
     const ok = await client.pollLocations(first.cursor);
     expect(ok.items.length).toBeGreaterThan(0);
+  });
+
+  test('token_revoked left on: re-consents do not pile up grants in the stand-in state', async () => {
+    const store = memoryStateStore();
+    const own = await startVendorSim({ createWorld: createStubSimWorld, port: 0, now, store });
+    try {
+      const client = new DeereClient({
+        endpoints: deereEndpoints('sim', { VENDOR_SIM_URL: own.url, PUBLIC_URL: 'http://x' }),
+        tokens: new MemoryTokenStore('deere', null, { now }),
+        http,
+      });
+      await client.pollLocations(null);
+      own.control.faults({
+        action: 'add',
+        rule: { id: 'rv', vendor: 'deere', kind: 'token_revoked' },
+      });
+      const live = () => {
+        const d = store.current?.deere;
+        return {
+          access: Object.keys(d?.accessTokens ?? {}).length,
+          refresh: Object.keys(d?.refreshTokens ?? {}).length,
+        };
+      };
+      for (let i = 0; i < 40; i++) {
+        wall += 15_000; // ten minutes of fleet.deere polls at the demo cadence
+        await client.pollLocations(null).catch(() => {});
+      }
+      expect(live().refresh).toBeLessThanOrEqual(1);
+      expect(live().access).toBeLessThanOrEqual(1);
+      own.control.faults({ action: 'remove', id: 'rv' });
+      wall += 15_000;
+      expect((await client.pollLocations(null)).items.length).toBeGreaterThan(0);
+    } finally {
+      await own.close();
+    }
   });
 
   test('sandbox/live never auto-connect: not connected means sign in at /api/oauth/deere', async () => {
