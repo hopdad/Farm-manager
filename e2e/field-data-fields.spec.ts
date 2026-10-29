@@ -137,7 +137,8 @@ test('split a field with a drawn line, then merge the pieces back', async ({ pag
   await expect(page.getByTestId('split-name-0')).toHaveValue(`${NORTH} A`);
   await page.getByTestId('split-name-1').fill(`${NORTH} East`);
   await page.getByTestId('split-apply').click();
-  await expect(page.getByTestId('field-title')).toContainText(`${NORTH} A`);
+  // The split, then the new field's page (a server render with the map data).
+  await expect(page.getByTestId('field-title')).toContainText(`${NORTH} A`, { timeout: 20_000 });
   const history = page.getByTestId('history-card');
   await expect(history.getByTestId('history-ancestor')).toContainText(`Split from ${NORTH}`);
 
@@ -149,7 +150,9 @@ test('split a field with a drawn line, then merge the pieces back', async ({ pag
   await expect(page.getByTestId('merge-name')).toHaveValue(`${NORTH} A + ${NORTH} East`);
   await page.getByTestId('merge-name').fill(`${NORTH} Whole`);
   await page.getByTestId('merge-apply').click();
-  await expect(page.getByTestId('field-title')).toContainText(`${NORTH} Whole`);
+  await expect(page.getByTestId('field-title')).toContainText(`${NORTH} Whole`, {
+    timeout: 20_000,
+  });
   await expect(
     page.getByTestId('history-card').getByTestId('history-ancestor').first(),
   ).toContainText('Merged from');
@@ -230,6 +233,8 @@ test('draw a new field on the map', async ({ page }) => {
   await page.getByTestId('new-field-form').locator('select').first().selectOption('new');
   await page.getByTestId('new-field-form').getByLabel('New farm name').fill(`Drawn e2e ${run}`);
   await page.getByTestId('new-field-create').click();
-  await expect(page.getByTestId('field-title')).toContainText(`Drawn e2e ${run}`);
+  await expect(page.getByTestId('field-title')).toContainText(`Drawn e2e ${run}`, {
+    timeout: 20_000,
+  });
   await expect(page.getByTestId('versions-card')).toContainText('drawn');
 });

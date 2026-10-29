@@ -221,3 +221,20 @@ describe('nameFromFileName', () => {
     expect(nameFromFileName('export/boundaries')).toBeNull();
   });
 });
+
+describe('the committed example', () => {
+  test('tools/import/templates/boundaries-example.geojson reads clean: two touching 80s', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const path = await import('node:path');
+    const file = path.join(import.meta.dirname, 'templates', 'boundaries-example.geojson');
+    const r = await parseBoundaryFiles([
+      { name: 'boundaries-example.geojson', bytes: new Uint8Array(await readFile(file)) },
+    ]);
+    expect(r.errors).toEqual([]);
+    expect(r.warnings).toEqual([]);
+    expect(r.boundaries.map((b) => [b.name, b.farmName, b.clientName])).toEqual([
+      ['Prospect South 80', 'Prospects', null],
+      ['Prospect North 80', 'Prospects', null],
+    ]);
+  });
+});

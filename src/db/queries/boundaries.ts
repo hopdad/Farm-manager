@@ -445,7 +445,7 @@ async function findOrCreateFarm(
     clientPartyId = p.rows[0]?.id ?? null;
     if (!clientPartyId) {
       warnings.push(
-        `client '${clientName}' is not a customer in the app: farm '${name}' was created as your own operation (link the customer on /admin/parties)`,
+        `client '${clientName}' is not a customer in the app, so farm '${name}' counts as your own operation (if it is custom work, link the customer to the farm on /admin/parties)`,
       );
     }
   }

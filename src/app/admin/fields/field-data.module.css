@@ -182,7 +182,8 @@
 .hint {
   position: absolute;
   left: 10px;
-  bottom: 10px;
+  /* Above MapLibre's attribution line. */
+  bottom: 40px;
   z-index: 2;
   padding: 8px 12px;
   border-radius: 10px;
