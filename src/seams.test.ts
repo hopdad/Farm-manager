@@ -131,6 +131,26 @@ describe('seam rules', () => {
     expect(direct).toEqual([]);
   });
 
+  test('only tests and the auth helpers import the auth test seam (runWithSession)', () => {
+    const seam = 'src/platform/auth/testing.ts';
+    const allowed = (rel: string) =>
+      /\.test\.tsx?$/.test(rel) ||
+      rel.startsWith('e2e/') ||
+      rel.startsWith('src/test/') ||
+      rel === seam ||
+      rel === 'src/platform/auth/server.ts';
+    const importers = files
+      .filter((f) =>
+        [...f.text.matchAll(IMPORT_RE)].some((m) => {
+          const target = resolveImport(f.rel, m[1] as string);
+          return target !== null && posix(target) === seam;
+        }),
+      )
+      .map((f) => posix(f.rel));
+    expect(importers).toContain('src/platform/auth/server.ts');
+    expect(importers.filter((rel) => !allowed(rel))).toEqual([]);
+  });
+
   test('the import walker follows relative and @/ imports (self-check)', () => {
     const graph = [...reachable(path.join('src', 'db', 'leases.ts')).keys()].map(posix);
     expect(graph).toContain('src/db/exec.ts');

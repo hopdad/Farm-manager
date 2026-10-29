@@ -22,6 +22,13 @@
       "when": 1793188920000,
       "tag": "0002_m0_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793188980000,
+      "tag": "0003_m1_see_it",
+      "breakpoints": true
     }
   ]
 }

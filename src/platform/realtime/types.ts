@@ -14,7 +14,8 @@
  *
  * Owned by the foundation stage; the realtime agent implements the client and the SSE route.
  */
-import type { FleetTick } from '../../domain/fleet';
+import type { FieldPart } from '../../domain/fields';
+import type { FleetTick, MachineStatus } from '../../domain/fleet';
 
 /** pg_notify channel the local adapter LISTENs on. */
 export const LOCAL_NOTIFY_CHANNEL = 'app_events';
@@ -50,14 +51,76 @@ export interface SyncStatusPayload {
 }
 
 /**
- * Topic catalogue: topic -> event -> payload type. Topic names are lower-case words;
- * per-entity topics use a colon (e.g. 'field:<uuid>', from M2).
- *  - 'fleet': 'tick' (one batched FleetTick per sync run), 'invalidate'
- *  - 'admin': 'clock', 'sync.status', 'invalidate'
+ * fleet/machine (M1 1a): one machine's status changed (marked down from a phone, back up).
+ * Clients patch their model at once; the next tick carries the status too.
+ */
+export interface MachineStatusPayload {
+  machineId: string;
+  status: MachineStatus;
+  downReason: string | null;
+  /** UTC ISO; null when not down. */
+  downAt: string | null;
+  /** Display name of who changed it; null for a sync. */
+  by: string | null;
+}
+
+/**
+ * fields/updated (M1): one field's data changed. Panels showing it refetch the listed parts
+ * (GET /api/fields/<id>); the map refetches field tiles when 'boundary' or 'identity' is listed
+ * (the tiles' `?v=` version changes).
+ */
+export interface FieldUpdatedPayload {
+  fieldId: string;
+  parts: FieldPart[];
+}
+
+/**
+ * weather/updated (M1 1b): a forecast issue or observations landed. Strips refetch their view
+ * (GET /api/weather/strip). Small on purpose: grid ids only.
+ */
+export interface WeatherUpdatedPayload {
+  gridIds: string[];
+  /** The newest forecast issue that landed, if any. */
+  issuedAt: string | null;
+}
+
+/**
+ * spray/assessed (M1 1b): new go/no-go verdicts for `forHour`. Listing every field id of a
+ * 500-field farm would pass the pg_notify limit: publish() then sends `invalidate` instead, and
+ * clients refetch all verdicts (that is the contract, not an error).
+ */
+export interface SprayAssessedPayload {
+  forHour: string;
+  fieldIds: string[];
+  counts: { go: number; caution: number; noGo: number };
+}
+
+/**
+ * layers/updated (M1 1d): a gis.map_layers row was added or got a new version (a gis:* build, a
+ * parcels import, a drawn tile line). The rail refetches GET /api/layers; maps re-add the layer's
+ * source with the new `?v=`.
+ */
+export interface LayerUpdatedPayload {
+  key: string;
+  version: string | null;
+}
+
+/**
+ * Topic catalogue: topic -> event -> payload type. Topic names are lower-case words (the SSE
+ * route rejects anything else); per-entity topics would use a colon (e.g. 'field:<uuid>'), but
+ * M1 keeps one topic per kind with the id in the payload. Every topic has 'invalidate'.
+ *  - 'fleet':   'tick' (one batched FleetTick per sync run), 'machine' (status change, 1a)
+ *  - 'admin':   'clock', 'sync.status'
+ *  - 'fields':  'updated' (notes, boundary, seasons, parties, … of one field; 1a/1c)
+ *  - 'weather': 'updated' (forecast/observations landed; 1b)
+ *  - 'spray':   'assessed' (new verdicts; 1b)
+ *  - 'layers':  'updated' (a map layer was rebuilt or added; 1d)
+ * Add a topic or event through the contracts (docs/contracts-m1.md §6), never ad hoc.
  */
 export interface TopicEvents {
   fleet: {
     tick: FleetTick;
+    machine: MachineStatusPayload;
     invalidate: InvalidatePayload;
   };
   admin: {
@@ -65,7 +128,33 @@ export interface TopicEvents {
     'sync.status': SyncStatusPayload;
     invalidate: InvalidatePayload;
   };
+  fields: {
+    updated: FieldUpdatedPayload;
+    invalidate: InvalidatePayload;
+  };
+  weather: {
+    updated: WeatherUpdatedPayload;
+    invalidate: InvalidatePayload;
+  };
+  spray: {
+    assessed: SprayAssessedPayload;
+    invalidate: InvalidatePayload;
+  };
+  layers: {
+    updated: LayerUpdatedPayload;
+    invalidate: InvalidatePayload;
+  };
 }
+
+/** Every topic, for subscribers that list them (the SSE `?topics=` parameter, admin pages). */
+export const TOPICS = [
+  'fleet',
+  'admin',
+  'fields',
+  'weather',
+  'spray',
+  'layers',
+] as const satisfies readonly (keyof TopicEvents)[];
 
 export type Topic = keyof TopicEvents;
 export type EventName<T extends Topic> = keyof TopicEvents[T] & string;

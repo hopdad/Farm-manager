@@ -7,6 +7,7 @@
  * Changes to this file go through the stage report, not a direct edit.
  */
 import type { DbTx } from '../db/client';
+import type { ForecastIssue, GridRef, Observation, WeatherStation } from '../domain/weather';
 import type { JobContext } from '../jobs/types';
 
 /** Lease helpers and the camelCase lease row live in src/db/leases.ts (re-exported here). */
@@ -104,7 +105,7 @@ export function externalRefKey(
 }
 
 // ---------------------------------------------------------------------------------------------
-// Ports (plan §5 "Common shape"). Only the ones M0 needs are spelled out; the rest arrive with
+// Ports (plan §5 "Common shape"). The ones M0 and M1 need are spelled out; the rest arrive with
 // their slices and follow the same `xxxSince(cursor) -> { items, cursor }` shape.
 // ---------------------------------------------------------------------------------------------
 
@@ -153,6 +154,29 @@ export interface PositionSource {
 }
 export interface VehicleStatsSource {
   statsSince(cursor: string | null): Promise<PollResult<NormalizedVehicleStat>>;
+}
+
+/**
+ * NWS forecasts and observations (1b; weather builder, src/connectors/nws/**). Units are US
+ * customary (the client converts NWS's SI). In sim mode the same client talks to the NWS
+ * stand-in (/nws on VENDOR_SIM_URL); a User-Agent with contact info is required (NWS_USER_AGENT).
+ */
+export interface ForecastSource {
+  /** `/points/{lat},{lon}` -> the grid cell and its nearest stations (cache it: farm.weather_grids). */
+  gridFor(lng: number, lat: number): Promise<{ grid: GridRef; stations: WeatherStation[] }>;
+  /** `forecastGridData` of one cell, one entry per hour, with the issue time. */
+  hourly(grid: GridRef): Promise<ForecastIssue>;
+  /** Observations of one station after `since`. */
+  observations(stationId: string, since: Date): Promise<Observation[]>;
+}
+
+/** Soil temperature (D5, 2b): manual readings first; a station or probe API later. */
+export interface SoilTempSource {
+  latest(near: { lng: number; lat: number }): Promise<{
+    tempF: number;
+    depthIn: number;
+    observedAt: string;
+  } | null>;
 }
 
 // ---------------------------------------------------------------------------------------------

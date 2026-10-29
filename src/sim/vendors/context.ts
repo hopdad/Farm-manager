@@ -71,9 +71,30 @@ export interface VendorContext {
   log(msg: string): void;
 }
 
+/**
+ * What a module's control handler gets (M1): the world and clock, and the persisted state with
+ * its per-vendor bag (`state.vendors[vendor]`; call persist() after changing it).
+ */
+export interface VendorControlContext {
+  readonly vendor: SimVendor;
+  readonly world: SimWorld;
+  now(): Date;
+  simAt(wall: Date): Date;
+  readonly state: VendorSimState;
+  persist(): void;
+  log(msg: string): void;
+}
+
 export interface VendorModule {
   vendor: SimVendor;
   handle(req: SimRequest, ctx: VendorContext): SimResponse | Promise<SimResponse>;
   /** Vendor-shaped error reply (http_error, rate_limit faults and the module's own errors). */
   error(status: number, message: string, headers?: Record<string, string>): SimResponse;
+  /**
+   * Optional control API of this vendor's simulation (M1), served at
+   * `/_control/vendor/<vendor><req.path>` behind the same loopback/Origin/JSON guard as the
+   * rest of /_control (e.g. the NWS stand-in's wind override for the spray demo). Faults never
+   * apply here. Answers JSON.
+   */
+  control?(req: SimRequest, ctx: VendorControlContext): SimResponse | Promise<SimResponse>;
 }

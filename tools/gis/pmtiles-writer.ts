@@ -18,8 +18,8 @@ const ROOT_LIMIT = 16_384;
 
 /** Matches the `pmtiles` package's Compression enum. */
 export const PmCompression = { None: 1, Gzip: 2 } as const;
-/** Matches the `pmtiles` package's TileType enum. */
-export const PmTileType = { Mvt: 1, Png: 2 } as const;
+/** Matches the `pmtiles` package's TileType enum (spec v3: 0 unknown, 1 MVT, 2 PNG, 3 JPEG, 4 WebP, 5 AVIF). */
+export const PmTileType = { Mvt: 1, Png: 2, Jpeg: 3, Webp: 4, Avif: 5 } as const;
 
 export interface PmtilesInputTile {
   z: number;

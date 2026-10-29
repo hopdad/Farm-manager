@@ -36,6 +36,7 @@ import {
   randomSuffix,
   readJournal,
   refreshTestTemplate,
+  SETTINGS_DEFAULTS,
   schemaFingerprint,
   setFarmAppLogin,
   TEST_TEMPLATE_DB,
@@ -204,7 +205,7 @@ export async function configure(target: string | undefined): Promise<void> {
       );
     }
     await applySettingsDefaults(admin);
-    log("app.settings defaults present ('clock.paused' = false)");
+    log(`app.settings defaults present (${Object.keys(SETTINGS_DEFAULTS).join(', ')})`);
   });
   const err = await farmAppCanLogin(cfg.DATABASE_URL);
   if (err) throw new Error(`farm_app cannot log in with DATABASE_URL: ${err}`);

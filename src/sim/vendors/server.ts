@@ -46,6 +46,7 @@ import {
 import {
   DEFAULT_TUNING,
   type VendorContext,
+  type VendorControlContext,
   type VendorModule,
   type VendorSimCounters,
   type VendorSimTuning,
@@ -67,6 +68,7 @@ import {
 } from './faults';
 import { json, type SimRequest, type SimResponse } from './http';
 import { motiveModule } from './motive/routes';
+import { nwsModule } from './nws/routes';
 import { samsaraModule } from './samsara/routes';
 import {
   emptyDeereOAuth,
@@ -86,6 +88,7 @@ const MODULES: Partial<Record<SimVendor, VendorModule>> = {
   samsara: samsaraModule,
   deere: deereModule,
   motive: motiveModule,
+  nws: nwsModule,
 };
 
 export interface VendorSimOptions {
@@ -113,6 +116,8 @@ export interface VendorSimOptions {
   log?: (line: string) => void;
   /** Also log every vendor request. */
   logRequests?: boolean;
+  /** Replace or add vendor modules (tests). */
+  modules?: Partial<Record<SimVendor, VendorModule>>;
 }
 
 export interface VendorSim {
@@ -247,6 +252,8 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
   // much more on a busy PC, which pushed the launcher's first /_control/scenario call past its
   // timeout. Pay it at boot instead.
   scenarioFaultRules('bad-morning', world.startsAt);
+
+  const modules: Partial<Record<SimVendor, VendorModule>> = { ...MODULES, ...opts.modules };
 
   const persist = () => {
     state.deere = pruneGrants(state.deere, now());
@@ -398,6 +405,31 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
     }
   }
 
+  // ---- per-vendor control (M1) ------------------------------------------------------------
+  async function moduleControl(
+    vendor: string,
+    path: string,
+    method: string,
+    url: URL,
+    headers: http.IncomingHttpHeaders,
+    body: string,
+  ): Promise<SimResponse> {
+    const mod = (SIM_VENDORS as readonly string[]).includes(vendor)
+      ? modules[vendor as SimVendor]
+      : undefined;
+    if (!mod?.control) return json(404, { error: `no control API for '${vendor}'` });
+    const ctx: VendorControlContext = {
+      vendor: mod.vendor,
+      world,
+      now,
+      simAt: (wall) => simAt(state.clock, wall),
+      state,
+      persist,
+      log,
+    };
+    return mod.control({ method, url, path, headers, body, seq: 0 }, ctx);
+  }
+
   // ---- vendors ---------------------------------------------------------------------------
   async function vendorRoute(
     mod: VendorModule,
@@ -528,10 +560,25 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
         contentType: req.headers['content-type'],
       });
       if (refused) return send(req, res, json(refused.status, { error: refused.error }));
+      const vendorControl = /^\/vendor\/([a-z]+)(\/.*)?$/.exec(rest);
+      if (vendorControl) {
+        return send(
+          req,
+          res,
+          await moduleControl(
+            vendorControl[1] ?? '',
+            vendorControl[2] ?? '/',
+            method,
+            url,
+            req.headers,
+            body,
+          ),
+        );
+      }
       return send(req, res, controlRoute(method, rest.replace(/\/$/, '') || '/', body));
     }
     if ((SIM_VENDORS as readonly string[]).includes(root)) {
-      const mod = MODULES[root as SimVendor];
+      const mod = modules[root as SimVendor];
       if (!mod) {
         return send(req, res, json(404, { error: `/${root} is not simulated in M0` }));
       }
@@ -547,7 +594,7 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
         res,
         json(200, {
           name: 'farm-manager vendor stand-in',
-          vendors: Object.keys(MODULES),
+          vendors: Object.keys(modules),
           control: [
             '/_control/status',
             '/_control/clock',

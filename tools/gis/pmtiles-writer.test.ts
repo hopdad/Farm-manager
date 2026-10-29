@@ -3,7 +3,7 @@
  * getZxy returns tiles already decompressed).
  */
 import { gzipSync } from 'node:zlib';
-import { PMTiles, type Source } from 'pmtiles';
+import { PMTiles, type Source, TileType } from 'pmtiles';
 import { describe, expect, test } from 'vitest';
 import { PMTILES_HEADER_BYTES, PmCompression, PmTileType, writePmtiles } from './pmtiles-writer';
 
@@ -119,5 +119,15 @@ describe('writePmtiles', () => {
     } as const;
     expect(() => writePmtiles([], opts)).toThrow('no tiles');
     expect(() => writePmtiles([tile(0, 0, 0, 'a'), tile(0, 0, 0, 'b')], opts)).toThrow('duplicate');
+  });
+});
+
+test('PmTileType matches the pmtiles package (raster archives for NAIP close-ups, 1d)', () => {
+  expect(PmTileType).toEqual({
+    Mvt: TileType.Mvt,
+    Png: TileType.Png,
+    Jpeg: TileType.Jpeg,
+    Webp: TileType.Webp,
+    Avif: TileType.Avif,
   });
 });

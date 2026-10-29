@@ -57,7 +57,8 @@ describe('schema', () => {
       }
     }
     expect(problems).toEqual([]);
-    expect(checked).toBeGreaterThanOrEqual(17);
+    // M0: 16 tables + 1 view; M1 (0003): 12 farm + 6 gis tables.
+    expect(checked).toBeGreaterThanOrEqual(35);
   });
 
   test('every geometry column has a GiST index', async () => {
@@ -82,7 +83,7 @@ describe('schema', () => {
       `select count(*)::int as n from information_schema.columns
         where table_schema = 'farm' and udt_name = 'geometry'`,
     );
-    expect(all.rows[0].n).toBeGreaterThanOrEqual(4);
+    expect(all.rows[0].n).toBeGreaterThanOrEqual(10);
   });
 
   test('geometry and tstzrange round-trip through Drizzle as GeoJSON / {from,to}', async () => {
@@ -151,6 +152,24 @@ describe('farm_app privileges', () => {
       'app.settings',
       'app.topic_seq',
       'farm.current_boundaries',
+      'farm.app_users',
+      'farm.devices',
+      'farm.geofence_visits',
+      'farm.weather_grids',
+      'farm.field_weather_grids',
+      'farm.weather_forecasts',
+      'farm.weather_observations',
+      'farm.soil_temp_readings',
+      'farm.spray_assessments',
+      'farm.field_lineage',
+      'farm.boundary_change_requests',
+      'farm.tile_lines',
+      'gis.soil_mapunits',
+      'gis.soil_polygons',
+      'gis.field_soils',
+      'gis.parcel_imports',
+      'gis.parcels',
+      'gis.map_layers',
     ]) {
       await expect(pool.query(`select count(*) from ${table}`)).resolves.toBeTruthy();
     }

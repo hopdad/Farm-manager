@@ -9,15 +9,16 @@
  *    `private, no-cache` / `public, no-cache`. A strong ETag (hash of the bytes) answers
  *    `If-None-Match` with 304.
  *  - database errors → 503 `no-store` (MapLibre retries the tile on the next render)
+ *  - private layers first run `opts.checkAccess` (the route passes requireRole('viewer')): an
+ *    AuthError becomes 401/403 `no-store` (contracts-m1 §4)
  *  - never 3xx (contracts §5)
- *
- * Private layers will check the session here once LocalAuth exists (1a); M0 has no auth.
  */
 import { createHash } from 'node:crypto';
 import type { Queryable } from '@/db/client';
+import { isAuthError } from '@/platform/auth/types';
 import { limitedBytes } from '@/platform/http/limits';
 import { isValidTile } from '@/ui/map/tile-math';
-import { isTileLayerId, TILE_LAYERS, type TileCachePolicy } from './layers';
+import { isTileLayerId, TILE_LAYERS, type TileCachePolicy, type TileLayerDef } from './layers';
 
 export const MVT_CONTENT_TYPE = 'application/vnd.mapbox-vector-tile';
 const VERSION_RE = /^[0-9A-Za-z_.-]{1,64}$/;
@@ -49,13 +50,30 @@ function text(status: number, body: string): Response {
   });
 }
 
+export interface TileRequestOptions {
+  /**
+   * Called before serving a PRIVATE layer; throw an AuthError to refuse. The route passes
+   * `() => requireRole('viewer')`; omitted (tests, tools) means no check.
+   */
+  checkAccess?: () => Promise<unknown>;
+}
+
 export async function handleTileRequest(
   request: Request,
   params: TileParams,
   ex: Queryable,
+  opts: TileRequestOptions = {},
 ): Promise<Response> {
   if (!isTileLayerId(params.layer)) return text(404, 'unknown layer');
-  const def = TILE_LAYERS[params.layer];
+  const def: TileLayerDef = TILE_LAYERS[params.layer];
+  if (def.cachePolicy === 'private' && opts.checkAccess) {
+    try {
+      await opts.checkAccess();
+    } catch (e) {
+      if (isAuthError(e)) return text(e.status, e.message);
+      throw e;
+    }
+  }
   const z = parseTileInt(params.z);
   const x = parseTileInt(params.x);
   const y = parseTileInt(params.y, true);

@@ -1,7 +1,8 @@
 # db/pending: SQL waiting to become a migration
 
-Parallel agents may not edit `db/migrations`. If your work needs a schema change, put it in
-`db/pending/<agent>.sql` and list it in your stage report; the integration step turns it into a real
+Parallel agents (M1: builders, `docs/contracts-m1.md` §2) may not edit `db/migrations`. If your
+work needs a schema change, put it in `db/pending/<agent>.sql` (M1: `<builder key>.sql`) and list
+it in your stage report; the integration step turns it into a real
 drizzle-kit migration (and updates `src/db/schema/*.ts`).
 
 Rules for a pending file:

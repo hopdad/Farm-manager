@@ -13,7 +13,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Layer } from '@deck.gl/core';
 import type { MapLibreOverlay } from '@deck.gl/maplibre';
-import type { ErrorEvent as MapErrorEvent } from 'maplibre-gl';
+import type { ErrorEvent as MapErrorEvent, Map as MapLibreMap } from 'maplibre-gl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type MapLayerMouseEvent, type MapRef, Map as MapView } from 'react-map-gl/maplibre';
 import { MACHINE_KINDS } from '../../domain/fleet';
@@ -24,7 +24,7 @@ import type { FleetFrame, FleetModel } from './fleet/model';
 import { DOWN_COLOR, KIND_COLORS, KIND_LABELS, STALE_COLOR, STALE_RING_COLOR } from './fleet/style';
 import type { FleetStatus } from './fleet/useFleet';
 import { setupMapLibre } from './maplibre';
-import { buildMapStyle, TENURE_COLORS, TENURE_LABELS } from './style';
+import { buildMapStyle, FIELD_LAYER_IDS, TENURE_COLORS, TENURE_LABELS } from './style';
 import { installMapTestApi } from './test-api';
 import type { BasemapFlavor, MapPageData, MapVariant } from './types';
 import css from './war-room-map.module.css';
@@ -40,6 +40,18 @@ export interface WarRoomMapProps {
   showLegend?: boolean;
   /** Fly to a point (e.g. a machine picked from a list); a new `nonce` repeats the flight. */
   flyTo?: { lng: number; lat: number; nonce: number } | null;
+  /**
+   * The MapLibre map once its style has loaded, and null on unmount (M1: the layer rail adds its
+   * layers with applyLayers, src/ui/map/layers/apply.ts; panels query features).
+   */
+  onMapReady?(map: MapLibreMap | null): void;
+  /** Draw the deck.gl fleet (default true; the rail's 'fleet' toggle). */
+  fleetVisible?: boolean;
+  /**
+   * A tap or click that picked no machine: the field under it (farm.fields.id from the fields
+   * tiles), or null for empty map. Machines win when both are under the finger.
+   */
+  onFieldTap?(fieldId: string | null): void;
 }
 
 const MAX_ERRORS = 50;
@@ -56,6 +68,12 @@ export default function WarRoomMap(props: WarRoomMapProps) {
   const layersRef = useRef<Layer[]>([]);
   const selectedRef = useRef(selectedId);
   selectedRef.current = selectedId;
+  const fleetVisibleRef = useRef(props.fleetVisible !== false);
+  fleetVisibleRef.current = props.fleetVisible !== false;
+  const onMapReadyRef = useRef(props.onMapReady);
+  onMapReadyRef.current = props.onMapReady;
+  const onFieldTapRef = useRef(props.onFieldTap);
+  onFieldTapRef.current = props.onFieldTap;
 
   const origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
   const mapStyle = useMemo(
@@ -77,23 +95,27 @@ export default function WarRoomMap(props: WarRoomMapProps) {
     let raf = 0;
     let drawnVersion = -1;
     let drawnSelected: string | null | undefined;
+    let drawnVisible: boolean | undefined;
     let wasAnimating = false;
     const draw = () => {
       const now = performance.now();
       const animating = fleet.isAnimating(now);
+      const visible = fleetVisibleRef.current;
       if (
         animating ||
         wasAnimating ||
         fleet.version !== drawnVersion ||
-        selectedRef.current !== drawnSelected
+        selectedRef.current !== drawnSelected ||
+        visible !== drawnVisible
       ) {
         const frames = fleet.frame(now);
-        const layers = buildFleetLayers(frames, sizes, selectedRef.current);
+        const layers = visible ? buildFleetLayers(frames, sizes, selectedRef.current) : [];
         overlay.setProps({ layers });
         framesRef.current = frames;
         layersRef.current = layers;
         drawnVersion = fleet.version;
         drawnSelected = selectedRef.current;
+        drawnVisible = visible;
       }
       wasAnimating = animating;
       raf = requestAnimationFrame(draw);
@@ -101,6 +123,13 @@ export default function WarRoomMap(props: WarRoomMapProps) {
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
   }, [overlay, fleet, sizes]);
+
+  // Hand the map to whoever composes layers on it (the rail), once loaded; null on unmount.
+  useEffect(() => {
+    if (!loaded) return;
+    onMapReadyRef.current?.(mapRef.current?.getMap() ?? null);
+    return () => onMapReadyRef.current?.(null);
+  }, [loaded]);
 
   // Test-only window.__map.
   useEffect(() => {
@@ -137,6 +166,16 @@ export default function WarRoomMap(props: WarRoomMapProps) {
       });
       const picked = info?.object as FleetFrame | undefined;
       onSelect(picked ? picked.id : null);
+      // A tap that hit no machine may be a field tap (the field panel, 1a).
+      const onFieldTap = onFieldTapRef.current;
+      if (!picked && onFieldTap) {
+        const map = mapRef.current?.getMap();
+        const hit = map?.getLayer(FIELD_LAYER_IDS.fill)
+          ? map.queryRenderedFeatures([e.point.x, e.point.y], { layers: [FIELD_LAYER_IDS.fill] })
+          : [];
+        const id = hit[0]?.properties?.id;
+        onFieldTap(typeof id === 'string' ? id : null);
+      }
     },
     [overlay, onSelect, pickRadius],
   );

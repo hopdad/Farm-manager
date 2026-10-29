@@ -9,6 +9,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
 import { childEnv, getConfig, getMigrateUrl } from '../config';
+import { defaultSprayThresholdsSetting, SPRAY_THRESHOLDS_SETTING_KEY } from '../domain/weather';
 import { drizzleKitBin, type RunResult, runNode } from '../lib/proc';
 
 export const MIGRATIONS_DIR = 'db/migrations';
@@ -20,9 +21,17 @@ export const TEST_DB_PREFIX = 'farm_test_';
 /** Schemas the app owns; db:reset drops these (plus drizzle) and nothing else. */
 export const APP_SCHEMAS = ['farm', 'gis', 'ingest', 'app'] as const;
 
-/** app.settings defaults (db:configure; also applied to the test template). */
+/**
+ * app.settings defaults (db:configure; also applied to the test template). Inserted only when
+ * the key is missing, so a value someone saved is never overwritten. Readers still treat a
+ * missing key as its default (contracts §4).
+ *  - clock.paused: the job clock (M0)
+ *  - spray.thresholds: D4 spray go/no-go thresholds, flagged isDefault until saved on
+ *    /admin/spray ("advisory, defaults pending Derrick's values"; contracts-m1 §5)
+ */
 export const SETTINGS_DEFAULTS: Record<string, unknown> = {
   'clock.paused': false,
+  [SPRAY_THRESHOLDS_SETTING_KEY]: defaultSprayThresholdsSetting(),
 };
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);

@@ -2,6 +2,9 @@
 
 Oct 29, 2026 · written by the M0 stage 1 (foundation) build · companion to `docs/build-plan.md`
 
+> **M1:** the parallel M1 build's agreements (owners, ports, migration 0003, new contracts) are in
+> [`contracts-m1.md`](contracts-m1.md); everything here still holds unless that page says otherwise.
+>
 > **Status: integrated (M0 stage 3, Oct 29, 2026).** The four branches are merged into
 > `claude/m0-foundation`; the ownership table and the "rules for shared files" in section 1 were
 > for the parallel build and no longer apply. Everything else still describes the seams. The

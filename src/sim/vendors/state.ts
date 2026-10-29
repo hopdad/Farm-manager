@@ -38,6 +38,11 @@ export interface VendorSimState {
   clock: ClockTimeline;
   faults: FaultRule[];
   deere: DeereOAuthState;
+  /**
+   * Per-vendor knobs a module's control handler keeps (M1; e.g. the NWS stand-in's wind
+   * override), keyed by vendor. Optional: older state files have none. Cleared by reset.
+   */
+  vendors?: Record<string, Record<string, unknown>>;
 }
 
 /** Where the server keeps its state between restarts. */
@@ -71,6 +76,7 @@ export const vendorSimStateSchema = z.object({
     accessTokens: z.record(z.string(), grant),
     refreshTokens: z.record(z.string(), grant),
   }),
+  vendors: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
 });
 
 export function parseVendorSimState(value: unknown): VendorSimState | null {
