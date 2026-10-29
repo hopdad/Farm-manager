@@ -176,6 +176,11 @@ describe('LocalStorage', () => {
     expect(isInside('/a/b', '/a/b/c', 'linux')).toBe(true);
     expect(isInside('/a/b', '/a/b', 'linux')).toBe(false);
     expect(isInside('/a/b', '/a/bc', 'linux')).toBe(false);
+    expect(isInside('/a/b/', '/a/b/c', 'linux')).toBe(true);
+    // Windows rules on any host: backslash separator, case-insensitive.
+    expect(isInside('C:\\a\\b', 'c:\\A\\B\\c', 'win32')).toBe(true);
+    expect(isInside('C:\\a\\b', 'C:\\a\\bc', 'win32')).toBe(false);
+    expect(isInside('C:\\a\\b', 'C:\\a\\b', 'win32')).toBe(false);
   });
 });
 

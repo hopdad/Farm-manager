@@ -24,10 +24,15 @@ export class StorageNotFoundError extends Error {
   }
 }
 
-/** Is `child` strictly inside `dir`? Both absolute; case-insensitive on Windows. */
+/**
+ * Is `child` strictly inside `dir`? Both absolute. `platform` picks the path rules (separator,
+ * case-insensitive on Windows), so the check is the same whatever OS runs it.
+ */
 export function isInside(dir: string, child: string, platform = process.platform): boolean {
-  const norm = (p: string) => (platform === 'win32' ? p.toLowerCase() : p);
-  const base = norm(dir.endsWith(path.sep) ? dir : dir + path.sep);
+  const win = platform === 'win32';
+  const sep = win ? path.win32.sep : path.posix.sep;
+  const norm = (p: string) => (win ? p.toLowerCase() : p);
+  const base = norm(dir.endsWith(sep) ? dir : dir + sep);
   return norm(child).startsWith(base) && norm(child).length > base.length;
 }
 
