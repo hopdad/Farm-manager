@@ -13,6 +13,7 @@ import type { FleetFrame } from '../map/fleet/model';
 import { KIND_COLORS, KIND_LABELS } from '../map/fleet/style';
 import { type FleetStatus, useFleet } from '../map/fleet/useFleet';
 import type { MapPageData, MapVariant } from '../map/types';
+import { SprayFieldState, WeatherStrip } from '../weather';
 import css from './board.module.css';
 import { ACTIVITY_LABELS, compassPoint, formatAge, formatClock, SOURCE_LABELS } from './format';
 import { useKiosk } from './useKiosk';
@@ -199,6 +200,8 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
             setFlyTo({ lng: m.lng, lat: m.lat, nonce: Date.now() });
           }}
         />
+        <WeatherStrip variant={variant} />
+        <SprayFieldState map={map} />
         {selected && variant === 'wall' && (
           <MachineCard m={selected} onClose={() => setSelectedId(null)} />
         )}

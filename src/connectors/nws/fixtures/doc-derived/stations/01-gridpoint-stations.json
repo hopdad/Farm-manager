@@ -1,0 +1,103 @@
+{
+  "format": 1,
+  "source": "nws",
+  "stream": "stations",
+  "kind": "doc-derived",
+  "reference": "https://api.weather.gov/openapi.json (v2.0.0) and https://www.weather.gov/documentation/services-web-api: GET /gridpoints/{wfo}/{x},{y}/stations (ObservationStationCollectionGeoJson). Values: an invented week near Adrian, MI; no real farm data.",
+  "anchor": "2026-10-29T12:00:00.000Z",
+  "shiftStepSeconds": 3600,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/gridpoints/DTX/31,40/stations"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/geo+json"
+        },
+        "body": {
+          "@context": ["https://geojson.org/geojson-ld/geojson-context.jsonld"],
+          "type": "FeatureCollection",
+          "features": [
+            {
+              "id": "https://api.weather.gov/stations/KADG",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-84.0773, 41.8676]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KADG",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 243.2
+                },
+                "stationIdentifier": "KADG",
+                "name": "Adrian, Lenawee County Airport",
+                "timeZone": "America/Detroit",
+                "forecast": "https://api.weather.gov/zones/forecast/MIZ082",
+                "county": "https://api.weather.gov/zones/county/MIC091",
+                "fireWeatherZone": "https://api.weather.gov/zones/fire/MIZ082"
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KTTF",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.4349, 41.9399]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTTF",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 187.1
+                },
+                "stationIdentifier": "KTTF",
+                "name": "Monroe, Custer Airport",
+                "timeZone": "America/Detroit",
+                "forecast": "https://api.weather.gov/zones/forecast/MIZ082",
+                "county": "https://api.weather.gov/zones/county/MIC091",
+                "fireWeatherZone": "https://api.weather.gov/zones/fire/MIZ082"
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KTOL",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.8078, 41.5868]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTOL",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 208.2
+                },
+                "stationIdentifier": "KTOL",
+                "name": "Toledo Express Airport",
+                "timeZone": "America/Detroit",
+                "forecast": "https://api.weather.gov/zones/forecast/MIZ082",
+                "county": "https://api.weather.gov/zones/county/MIC091",
+                "fireWeatherZone": "https://api.weather.gov/zones/fire/MIZ082"
+              }
+            }
+          ],
+          "observationStations": [
+            "https://api.weather.gov/stations/KADG",
+            "https://api.weather.gov/stations/KTTF",
+            "https://api.weather.gov/stations/KTOL"
+          ],
+          "pagination": {
+            "next": "https://api.weather.gov/gridpoints/DTX/31,40/stations?cursor=eyJzIjozfQ"
+          }
+        }
+      }
+    }
+  ]
+}

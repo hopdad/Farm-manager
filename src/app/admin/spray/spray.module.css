@@ -1,0 +1,109 @@
+/* /admin/spray: the D4 thresholds form, the simulated weather controls, today's verdicts. */
+
+.advisory {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid #a16207;
+  background: #3b2d0b;
+  color: #fde68a;
+  font-weight: 600;
+}
+
+.advisorySaved {
+  border-color: #2f4a3e;
+  background: #15221d;
+  color: #cfe3d6;
+  font-weight: 500;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-size: 15px;
+}
+
+.field small {
+  color: #9db3a6;
+  font-size: 12px;
+}
+
+.input {
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid #2f4a3e;
+  background: #0b1210;
+  color: #e7efe9;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slider {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.slider input[type="range"] {
+  width: 100%;
+  min-height: 48px;
+  accent-color: #22a355;
+}
+
+.windValue {
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.go,
+.caution,
+.no_go {
+  display: inline-block;
+  min-width: 72px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.go {
+  background: #14532d;
+  color: #bbf7d0;
+}
+
+.caution {
+  background: #4d3a0b;
+  color: #fde68a;
+}
+
+.no_go {
+  background: #5c1d1d;
+  color: #fecaca;
+}
+
+.reasons {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  font-size: 14px;
+}

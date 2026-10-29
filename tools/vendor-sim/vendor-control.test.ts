@@ -1,7 +1,7 @@
 /**
  * The per-vendor control extension (M1): a module's `control` handler is served at
  * /_control/vendor/<vendor>/… behind the /_control guard, keeps its knobs in the persisted
- * per-vendor bag, and the placeholder NWS module is mounted at /nws.
+ * per-vendor bag, and the NWS module is mounted at /nws.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import type { VendorModule } from '../../src/sim/vendors/context';
@@ -66,15 +66,17 @@ describe('stand-in vendor control', () => {
   });
 });
 
-describe('placeholder NWS module', () => {
+describe('NWS module', () => {
   let sim: VendorSim;
   beforeAll(async () => {
     sim = await startVendorSim({ createWorld: createStubSimWorld, port: 0 });
   });
   afterAll(() => sim.close());
 
-  test('is mounted at /nws and answers problem+json 404 until slice 1b', async () => {
-    const res = await fetch(`${sim.url}/nws/points/41.9,-84.0`);
+  test('is mounted at /nws and answers problem+json 404 outside its area (slice 1b)', async () => {
+    const res = await fetch(`${sim.url}/nws/points/10.0,-84.0`, {
+      headers: { 'user-agent': 'farm-test' },
+    });
     expect(res.status).toBe(404);
     expect(res.headers.get('content-type')).toBe('application/problem+json');
     const root = (await (await fetch(`${sim.url}/`)).json()) as { vendors: string[] };
