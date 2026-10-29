@@ -7,7 +7,7 @@ Oct 29, 2026, evening. Update this file at the end of each build session.
 | Branch | State |
 |---|---|
 | `claude/m0-foundation` | M0 done. CI green on Linux, Windows and e2e at `7f492dc`. |
-| `claude/m1-see-it` | M1 slices 1a-1d built, reviewed (36 findings fixed) and verified on an M0 upgrade. Windows and Linux CI green at `4492708`; the e2e job was still running at save time. The last commit is a **WIP** polish commit (see below). |
+| `claude/m1-see-it` | M1 slices 1a-1d built, reviewed (36 findings fixed) and verified on an M0 upgrade. CI fully green at `4492708` (Linux, Windows, e2e and e2e in replay mode). The last commit is a **WIP** polish commit (see below). |
 | `claude/m0-win-debug` | Temporary diagnostic branch. Safe to delete on GitHub. |
 
 ## In progress when saved (WIP commit on `claude/m1-see-it`)
