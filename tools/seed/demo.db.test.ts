@@ -234,6 +234,36 @@ describe('pnpm db:seed demo', () => {
     expect(mrow.rows[0]).toEqual({ h: 9999, status: 'down' });
   });
 
+  test('a landlord or customer linked in the app survives a re-seed', async () => {
+    const { pool } = t();
+    const f = farm.fields[2];
+    if (!f) throw new Error('no field');
+    const own = await pool.query<{ id: string }>(
+      `insert into farm.parties (kind, display_name, roles, source)
+       values ('org', 'River Bend Land LLC', array['landlord', 'customer']::text[], 'app')
+       returning id::text as id`,
+    );
+    const partyId = own.rows[0]?.id;
+    await pool.query(`update farm.fields set landlord_party_id = $2 where id = $1`, [
+      f.id,
+      partyId,
+    ]);
+    await pool.query(`update farm.farms set client_party_id = $2 where id = $1`, [
+      f.farmId,
+      partyId,
+    ]);
+    await seedDemo(pool, { seed: 1, eldVendor: 'samsara' });
+    const fr = await pool.query(
+      `select landlord_party_id::text as p from farm.fields where id = $1`,
+      [f.id],
+    );
+    const fa = await pool.query(`select client_party_id::text as p from farm.farms where id = $1`, [
+      f.farmId,
+    ]);
+    expect(fr.rows[0]?.p).toBe(partyId);
+    expect(fa.rows[0]?.p).toBe(partyId);
+  });
+
   test("switching ELD_VENDOR adds that vendor's refs and reports the old ones", async () => {
     const report = await seedDemo(t().pool, { seed: 1, eldVendor: 'motive' });
     expect(report.tables.external_refs.inserted).toBe(4);

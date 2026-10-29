@@ -12,8 +12,10 @@
  *
  * Idempotent: every write is an upsert that changes a row only when a seeded column differs
  * (`... where (cols) is distinct from (excluded cols)`), so a re-run writes nothing. Columns the
- * app or the syncs own are written on insert only and never overwritten: fields.active and
- * notes, boundaries' valid range and derived_stale, machines' status, engine hours and odometer.
+ * app or the syncs own are written on insert only and never overwritten: fields.active, notes
+ * and landlord_party_id, farms.client_party_id (both linked on /admin/parties or in the field
+ * editor, and kept by data:export as overlays), boundaries' valid range and derived_stale,
+ * machines' status, engine hours and odometer.
  * One transaction; any error rolls everything back.
  */
 import type pg from 'pg';
@@ -134,12 +136,11 @@ export async function seedDemo(
           `insert into farm.farms as t (id, name, client_party_id, deere_farm_id, source, source_id)
            values ($1::uuid, $2, $3::uuid, $4, $5, $6)
            on conflict (id) do update set
-             name = excluded.name, client_party_id = excluded.client_party_id,
-             deere_farm_id = excluded.deere_farm_id, source = excluded.source,
-             source_id = excluded.source_id, updated_at = now()
-           where (t.name, t.client_party_id, t.deere_farm_id, t.source, t.source_id)
-             is distinct from (excluded.name, excluded.client_party_id, excluded.deere_farm_id,
-                               excluded.source, excluded.source_id)
+             name = excluded.name, deere_farm_id = excluded.deere_farm_id,
+             source = excluded.source, source_id = excluded.source_id, updated_at = now()
+           where (t.name, t.deere_farm_id, t.source, t.source_id)
+             is distinct from (excluded.name, excluded.deere_farm_id, excluded.source,
+                               excluded.source_id)
            returning (xmax = 0) as inserted`,
           [u.id, u.name, u.clientPartyId, u.deereFarmId, DEMO_SOURCE, u.key],
         ),
@@ -157,14 +158,12 @@ export async function seedDemo(
            values ($1::uuid, $2::uuid, $3, $4, $5, $6::uuid, $7, $8, $9, $10)
            on conflict (id) do update set
              farm_id = excluded.farm_id, name = excluded.name, county_fips = excluded.county_fips,
-             tenure = excluded.tenure, landlord_party_id = excluded.landlord_party_id,
-             deere_field_id = excluded.deere_field_id, source = excluded.source,
-             source_id = excluded.source_id, updated_at = now()
-           where (t.farm_id, t.name, t.county_fips, t.tenure, t.landlord_party_id, t.deere_field_id,
-                  t.source, t.source_id)
+             tenure = excluded.tenure, deere_field_id = excluded.deere_field_id,
+             source = excluded.source, source_id = excluded.source_id, updated_at = now()
+           where (t.farm_id, t.name, t.county_fips, t.tenure, t.deere_field_id, t.source,
+                  t.source_id)
              is distinct from (excluded.farm_id, excluded.name, excluded.county_fips, excluded.tenure,
-                               excluded.landlord_party_id, excluded.deere_field_id, excluded.source,
-                               excluded.source_id)
+                               excluded.deere_field_id, excluded.source, excluded.source_id)
            returning (xmax = 0) as inserted`,
           [
             f.id,
