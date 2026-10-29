@@ -3,10 +3,10 @@
  *
  *   await runWithSession(makeSession({ role: 'driver' }), () => markDownAction(form));
  *
- * `getSession()` (./server.ts) returns the innermost override when one is active. Only code
- * running inside `fn` (same async context) sees it, so a request can never set it: it is safe
- * to leave in the production build, but import it from tests (and test helpers) only.
- * The auth builder keeps these exports when replacing server.ts.
+ * `getSession()` (./server.ts) returns the innermost override when one is active, before any
+ * cookie is read. Only code running inside `fn` (same async context) sees it, so a request can
+ * never set it: it is safe to leave in the production build, but import it from tests (and
+ * test helpers) only (src/seams.test.ts checks).
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Session } from './types';

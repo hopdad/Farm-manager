@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { E2E_STORAGE_STATE } from './e2e/global-setup';
 import { getE2eSettings } from './src/config';
 
 /**
@@ -30,8 +31,12 @@ export default defineConfig({
   workers: ci ? 2 : undefined,
   reporter: ci ? [['github'], ['html', { open: 'never' }]] : 'list',
   timeout: 60_000,
+  // Sessions (auth builder, contracts-m1 §4): every context starts as the enrolled e2e viewer
+  // kiosk; specs sign in as other roles with signInAs (e2e/support/auth.ts).
+  globalSetup: './e2e/global-setup.ts',
   use: {
     baseURL,
+    storageState: E2E_STORAGE_STATE,
     trace: 'retain-on-failure',
     launchOptions: { args: WEBGL_ARGS },
   },

@@ -1,35 +1,35 @@
 /**
- * Server auth helpers: getSession(), requireRole(min), authErrorResponse(e).
+ * Server auth helpers (docs/contracts-m1.md §4): getSession(), requireRole(min),
+ * authErrorResponse(e), for server components, route handlers and server actions.
  *
- * PLACEHOLDER (contracts stage). The auth builder replaces the implementation with LocalAuth +
- * the operator PIN layer (1a) and MUST keep these exports and their behaviour contract
- * (src/platform/auth/types.ts). Until then, so every other builder's code compiles, runs and is
- * already authorized at the right places:
- *  - a request carrying the M0 admin cookie (src/platform/auth/admin-key.ts; never valid in
- *    production) is a provisional OWNER session ("Admin key");
- *  - any other request is the provisional ANONYMOUS_VIEWER;
- *  - tests run code under a chosen session with `runWithSession` (./testing.ts).
+ * A request's session, in order:
+ *  1. a test override (`runWithSession`, ./testing.ts; tests only);
+ *  2. the M0 admin cookie (`farm_admin`, ./admin-key.ts): on the PC a valid admin cookie is a
+ *     provisional OWNER session that wins over any other identity on that browser (decided,
+ *     contracts §4). Never valid in production (`isAdminKey` is false there);
+ *  3. the provider's identity (AUTH_PROVIDER; LocalAuth's `farm_auth` cookie) plus, on a shared
+ *     device, the operator layer (`farm_op`), checked against the database on every request
+ *     (revoked devices, epoch bumps, people switched off, roles changed: ./session.ts);
+ *  4. otherwise null: signed out. `requireRole` then throws AuthError(401).
  *
- * So `requireRole('viewer')` passes for everyone now and starts answering 401 for signed-out
- * requests the day the real implementation lands; `requireRole('driver')` and above need the
- * admin cookie until then (e2e: `signInAs(context, role)` from e2e/support/auth.ts, never
- * `unlockAdmin` directly).
- *
- * Decided (docs/contracts-m1.md §4): the admin-cookie branch STAYS in the real implementation. On
- * the PC a valid `farm_admin` cookie is a provisional owner session that wins over any other
- * identity on that browser; it is never valid in production (`isAdminKey` is false there).
+ * Cached per request (React `cache`), so a page and the components it renders share one lookup.
  */
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 import { getConfig } from '../../config';
+import { getPool } from '../../db/client';
 import { limitedJson } from '../http/limits';
 import { ADMIN_COOKIE, isAdminKey } from './admin-key';
+import { getAuthProvider } from './provider';
+import { type BrowserAuth, resolveBrowserAuth } from './resolve';
 import { sessionOverride } from './testing';
-import { ANONYMOUS_VIEWER, AuthError, checkRole, type Role, type Session } from './types';
+import { AuthError, checkRole, type Role, type Session } from './types';
 
 export type { Role, Session } from './types';
 export { AuthError, isAuthError, ROLE_FOR, roleAtLeast } from './types';
 
-const ADMIN_KEY_SESSION: Readonly<Session> = Object.freeze({
+/** The admin-key holder's session (provisional owner; local PC only). */
+export const ADMIN_KEY_SESSION: Readonly<Session> = Object.freeze({
   kind: 'person',
   deviceId: null,
   appUserId: null,
@@ -40,16 +40,39 @@ const ADMIN_KEY_SESSION: Readonly<Session> = Object.freeze({
   provisional: true,
 });
 
+/** This request's full auth state (the /login page needs more than the Session). */
+export const getBrowserAuth = cache(async (): Promise<BrowserAuth & { adminKey: boolean }> => {
+  const jar = await cookies();
+  const cfg = getConfig();
+  if (isAdminKey(cfg, jar.get(ADMIN_COOKIE)?.value)) {
+    return {
+      session: { ...ADMIN_KEY_SESSION },
+      identity: null,
+      stale: false,
+      sharedDevice: null,
+      operatorSignedIn: false,
+      adminKey: true,
+    };
+  }
+  const auth = await resolveBrowserAuth({
+    provider: getAuthProvider(cfg),
+    secret: cfg.SESSION_SECRET,
+    cookies: jar,
+    ex: getPool(),
+    now: new Date(),
+  });
+  return { ...auth, adminKey: false };
+});
+
 /**
  * The request's session, or null when nobody is signed in. Server components, route handlers
- * and server actions only (it reads the request's cookies).
+ * and server actions only (it reads the request's cookies). Never throws for a bad, expired or
+ * revoked credential (null instead); a database outage does throw.
  */
 export async function getSession(): Promise<Session | null> {
   const override = sessionOverride();
   if (override !== undefined) return override;
-  const jar = await cookies();
-  if (isAdminKey(getConfig(), jar.get(ADMIN_COOKIE)?.value)) return { ...ADMIN_KEY_SESSION };
-  return { ...ANONYMOUS_VIEWER };
+  return (await getBrowserAuth()).session;
 }
 
 /**
