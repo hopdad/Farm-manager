@@ -8,5 +8,6 @@
  * The panel renders `orderTabs(FIELD_PANEL_TABS)`.
  */
 import type { FieldPanelTab } from './tabs';
+import { overviewTab } from './tabs/overview';
 
-export const FIELD_PANEL_TABS: readonly FieldPanelTab[] = [];
+export const FIELD_PANEL_TABS: readonly FieldPanelTab[] = [overviewTab];
