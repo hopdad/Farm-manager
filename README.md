@@ -50,8 +50,8 @@ To get a new slice later: `git pull`, `pnpm install`, `pnpm run bootstrap`, `pnp
 
 | Command | Does |
 |---|---|
-| `pnpm dev` | The vendor stand-in, `next dev` on all addresses (phones on the Wi-Fi can reach it) and the job clock. Each start begins the scenario day at its 07:00 start. Ctrl+C stops everything. |
-| `pnpm dev --scenario=spray-windy --speed=30` | Another scenario (`harvest-day`, `planting-day`, `spray-windy`, `breakdown`, `bad-morning`, `winter-idle`); `--speed=30` runs a farm day in about 30 minutes. `--resume` continues the saved sim day instead, `--no-clock` starts without scheduled jobs, `--port=<n>` another port. |
+| `pnpm dev` | The vendor stand-in, `next dev` on all addresses (phones on the Wi-Fi can reach it) and the job clock. Each start begins the simulated harvest day afresh at 8:30 a.m., when every machine is at work. Ctrl+C stops everything. |
+| `pnpm dev --scenario=spray-windy --speed=30` | Another scenario (`harvest-day`, `planting-day`, `spray-windy`, `breakdown`, `bad-morning`, `winter-idle`); `--speed=30` runs a farm day in about 30 minutes. `--from-start` begins harvest-day at its 7:00 a.m. start, `--resume` continues the saved sim day, `--no-clock` starts without scheduled jobs, `--port=<n>` another port. |
 | `pnpm pilot` | The production build (`next build` + `next start`) with the same stand-in and clock: the wall display and phones. `--skip-build` reuses the last build. |
 | `pnpm clock` | The job clock on its own. Its pause toggle is on `/admin/connectors`. |
 | `pnpm run bootstrap` | Re-run after `git pull`: new migrations, missing env keys, the basemap. |
@@ -86,11 +86,11 @@ To get a new slice later: `git pull`, `pnpm install`, `pnpm run bootstrap`, `pnp
    `& "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --user-data-dir=$env:LOCALAPPDATA\farm-kiosk http://localhost:3000/board`).
 2. The offline basemap with town and road labels, and about 40 demo fields coloured by tenure
    (owned, cash rent, share, custom work) around Adrian, Blissfield, Deerfield, Petersburg and
-   Dundee. The day starts at 07:00: combines C1 and C2 start harvesting within about 11 minutes,
-   the semis S1-S4 leave the shop after 20-40 minutes, and the grain carts GC1 and GC2 appear
-   once they first unload (Deere reports a machine's position only while it is working). To see
-   the whole day faster, click **30x** on `/admin/connectors`: everything is moving within two
-   minutes. Markers glide between updates (trucks every 5 s, Deere every 15 s in the demo).
+   Dundee. The simulated day opens at 8:30 a.m. in harvest-day: combines C1 and C2 harvesting,
+   the semis S1-S4 hauling to the elevators, and the grain carts GC1 and GC2 showing up each
+   time they unload a combine or dump into a truck (Deere reports a machine's position only
+   while it is working, so carts move in bursts). Markers glide between updates (trucks every
+   5 s, Deere every 15 s in the demo). **30x** on `/admin/connectors` speeds the day up.
 3. On `/admin/connectors`:
    - **Pause simulation**: every machine freezes in place and stays fresh (no stale badge).
      **Resume simulation**: they move again.
@@ -105,7 +105,8 @@ To get a new slice later: `git pull`, `pnpm install`, `pnpm run bootstrap`, `pnp
    `pnpm test`, `pnpm test:db`, `pnpm build` and `pnpm test:e2e` pass.
 
 The same demo runs as an automated test: `pnpm test:e2e e2e/m0-demo.spec.ts --project=wall`
-(about 4 minutes; it restarts harvest-day at 30x, and puts the simulation back afterwards).
+(about 4 minutes; it restarts harvest-day from 7:00 a.m. at 30x, and puts the simulation back
+afterwards).
 
 The demo tuning `pnpm env:init` writes into `.env.local` (`JOBS_DEMO_CADENCE=on`,
 `FLEET_STALE_SECONDS=60`, `FLEET_STALE_SECONDS_DEERE=900`) makes this quick. Delete those lines

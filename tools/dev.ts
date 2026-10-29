@@ -2,9 +2,11 @@
  * pnpm dev: the whole local stack in one terminal (plan §2 "Daily commands").
  *
  *   1. the vendor stand-in (tools/vendor-sim, VENDOR_SIM_URL). A stand-in this launcher starts
- *      begins the scenario day at its start (POST /_control/scenario; faults cleared; Deere grants
- *      kept), so every `pnpm dev` opens on a moving harvest morning whatever ran yesterday;
- *      --resume keeps the saved sim day instead. --speed goes through POST /_control/clock;
+ *      begins the scenario day afresh (POST /_control/scenario; faults cleared; Deere grants
+ *      kept) and, for harvest-day and breakdown, jumps to 08:30 when every machine is busy
+ *      (LAUNCH_OFFSET_MINUTES), so every `pnpm dev` opens on a moving harvest whatever ran
+ *      yesterday; --from-start begins at the scenario's start, --resume keeps the saved sim day.
+ *      --speed goes through POST /_control/clock;
  *   2. `next dev -H 0.0.0.0 --port <PUBLIC_URL's port>` (phones on the LAN can reach it);
  *   3. once GET /api/health answers 200, the job clock (tools/clock) unless --no-clock or
  *      CLOCK=pgcron;
@@ -14,6 +16,7 @@
  *   pnpm dev --no-clock                             the app (and stand-in) without scheduled jobs
  *   pnpm dev --port=3001                            another port (PUBLIC_URL follows for children)
  *   pnpm dev --resume                               continue the saved sim day (.data/vendor-sim)
+ *   pnpm dev --from-start                           harvest-day from 07:00 instead of 08:30
  *
  * Ctrl+C stops every child and its descendants on Windows and POSIX, without orphans:
  *  - POSIX: each child runs in its own process group (detached), and the group gets SIGTERM, then
@@ -61,8 +64,10 @@ export interface LaunchArgs {
   scenario?: ScenarioName;
   speed?: number;
   clock: boolean;
-  /** Keep the stand-in's saved sim day instead of restarting the scenario at its start. */
+  /** Keep the stand-in's saved sim day instead of restarting the scenario. */
   resume: boolean;
+  /** Restart at the scenario's start, not at LAUNCH_OFFSET_MINUTES into it. */
+  fromStart: boolean;
   port?: number;
   /** pilot only: reuse the existing production build. */
   skipBuild: boolean;
@@ -75,12 +80,18 @@ export function usage(mode: LaunchMode): string {
   const extra = mode === 'pilot' ? ' [--skip-build]' : '';
   return (
     `usage: pnpm ${mode} [--scenario=<${SCENARIO_NAMES.join('|')}>] [--speed=<sim seconds per second>]` +
-    ` [--resume] [--no-clock] [--port=<n>]${extra}`
+    ` [--resume | --from-start] [--no-clock] [--port=<n>]${extra}`
   );
 }
 
 export function parseLaunchArgs(argv: string[], mode: LaunchMode): LaunchArgs {
-  const out: LaunchArgs = { clock: true, resume: false, skipBuild: false, help: false };
+  const out: LaunchArgs = {
+    clock: true,
+    resume: false,
+    fromStart: false,
+    skipBuild: false,
+    help: false,
+  };
   for (const arg of argv) {
     const eq = arg.indexOf('=');
     const flag = eq === -1 ? arg : arg.slice(0, eq);
@@ -106,6 +117,9 @@ export function parseLaunchArgs(argv: string[], mode: LaunchMode): LaunchArgs {
       case '--resume':
         out.resume = true;
         break;
+      case '--from-start':
+        out.fromStart = true;
+        break;
       case '--port': {
         const n = Number(value);
         if (!Number.isInteger(n) || n < 1 || n > 65535)
@@ -125,6 +139,8 @@ export function parseLaunchArgs(argv: string[], mode: LaunchMode): LaunchArgs {
         throw new UsageError(`unknown argument '${arg}'\n${usage(mode)}`);
     }
   }
+  if (out.resume && out.fromStart)
+    throw new UsageError('--resume and --from-start exclude each other');
   return out;
 }
 
@@ -558,20 +574,50 @@ async function postControl(baseUrl: string, path: string, body: unknown): Promis
 }
 
 /**
+ * Minutes into a scenario a launch opens on, so the board is busy at once: at harvest-day's
+ * 07:00 start the combines are still driving out (Deere reports only working machines) and the
+ * semis are parked until 07:20-07:41; by 08:30 every machine is at work. Scenarios whose point
+ * is their start (bad-morning's 6 a.m. outage, planting, spraying, winter) open at the start.
+ */
+export const LAUNCH_OFFSET_MINUTES: Partial<Record<ScenarioName, number>> = {
+  'harvest-day': 90,
+  breakdown: 90,
+};
+
+const detroitClock = (iso: string) =>
+  new Date(iso).toLocaleTimeString('en-US', {
+    timeZone: 'America/Detroit',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+/**
  * Apply --scenario / --speed through the stand-in's control API. `restart` (a stand-in this
- * launcher started, without --resume): begin `restart.scenario` at its start and clear manual
- * faults, so a launch never opens on yesterday's night or a forgotten "trucks API down".
+ * launcher started, without --resume): begin `restart.scenario` afresh, `offsetMinutes` into
+ * its day, and clear manual faults, so a launch never opens on yesterday's night or a
+ * forgotten "trucks API down".
  */
 export async function applySimFlags(
   baseUrl: string,
   args: Pick<LaunchArgs, 'scenario' | 'speed'>,
   log: (m: string) => void,
-  restart?: { scenario: ScenarioName },
+  restart?: { scenario: ScenarioName; offsetMinutes?: number },
 ): Promise<void> {
   const scenario = args.scenario ?? restart?.scenario;
   if (scenario) {
-    await postControl(baseUrl, '/_control/scenario', { scenario });
-    log(`stand-in: scenario ${scenario} from its start (clock re-anchored now)`);
+    const st = (await postControl(baseUrl, '/_control/scenario', { scenario })) as {
+      startsAt?: string;
+    } | null;
+    const offset = restart?.offsetMinutes ?? 0;
+    if (offset > 0 && st?.startsAt) {
+      const simTime = new Date(Date.parse(st.startsAt) + offset * 60_000).toISOString();
+      await postControl(baseUrl, '/_control/clock', { action: 'jump', simTime });
+      log(
+        `stand-in: ${scenario} from ${detroitClock(simTime)} (${offset} min into the day; --from-start for ${detroitClock(st.startsAt)})`,
+      );
+    } else {
+      log(`stand-in: ${scenario} from its start (clock re-anchored now)`);
+    }
   }
   if (restart) {
     await postControl(baseUrl, '/_control/faults', { action: 'clear' });
@@ -732,9 +778,13 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
       say(`the vendor stand-in did not answer ${simBase}/_control/status; continuing without it`);
     } else {
       // Restart the day unless --resume, or SIM_FROZEN_AT pinned the clock at boot.
+      const restartScenario = args.scenario ?? cfg.SIM_SCENARIO;
       const restart =
         simNote === 'started' && !args.resume && !cfg.SIM_FROZEN_AT
-          ? { scenario: args.scenario ?? cfg.SIM_SCENARIO }
+          ? {
+              scenario: restartScenario,
+              offsetMinutes: args.fromStart ? 0 : (LAUNCH_OFFSET_MINUTES[restartScenario] ?? 0),
+            }
           : undefined;
       try {
         await applySimFlags(simBase, args, say, restart);

@@ -62,11 +62,14 @@ describe('parseLaunchArgs', () => {
       speed: 30,
       clock: false,
       resume: false,
+      fromStart: false,
       skipBuild: false,
       help: false,
     });
     expect(parseLaunchArgs(['--port=3001'], 'dev').port).toBe(3001);
     expect(parseLaunchArgs(['--resume'], 'pilot').resume).toBe(true);
+    expect(parseLaunchArgs(['--from-start'], 'dev').fromStart).toBe(true);
+    expect(() => parseLaunchArgs(['--resume', '--from-start'], 'dev')).toThrow(UsageError);
   });
 
   test('pilot accepts --skip-build; dev does not', () => {
@@ -113,7 +116,18 @@ describe('applySimFlags (the stand-in at launch)', () => {
       expect(st.faults.rules).toEqual([]);
       expect(st.clock.speed).toBe(30);
       expect(Date.parse(st.clock.simNow) - Date.parse(st.scenario.startsAt)).toBeLessThan(60_000);
-      expect(log.join('\n')).toMatch(/scenario harvest-day from its start/);
+      expect(log.join('\n')).toMatch(/harvest-day from its start/);
+
+      // A launch 90 minutes into the day (harvest-day opens at 08:30).
+      await applySimFlags(sim.url, {}, (m) => log.push(m), {
+        scenario: 'harvest-day',
+        offsetMinutes: 90,
+      });
+      const later = sim.status();
+      const into = Date.parse(later.clock.simNow) - Date.parse(later.scenario.startsAt);
+      expect(into).toBeGreaterThanOrEqual(90 * 60_000);
+      expect(into).toBeLessThan(91 * 60_000);
+      expect(log.at(-1)).toMatch(/harvest-day from .* \(90 min into the day; --from-start for /);
     } finally {
       await sim.close();
     }

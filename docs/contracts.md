@@ -526,8 +526,10 @@ tick arrives:**
     `webhook_reorder`, `outage`. "Trucks API down" = `{ vendor: 'samsara', kind: 'outage', label: 'trucks API down' }`.
   - Webhooks go to `${PUBLIC_URL}/api/webhooks/<source>` (not sent yet in M0).
   - Launch (stage 3): `pnpm dev` / `pnpm pilot` restart the scenario day of a stand-in they start
-    (`POST /_control/scenario`, faults cleared, Deere grants kept), unless `--resume` or
-    `SIM_FROZEN_AT`; a stand-in already running is reused as is. Bootstrap runs
+    (`POST /_control/scenario`, faults cleared, Deere grants kept) and jump `LAUNCH_OFFSET_MINUTES`
+    into it (harvest-day and breakdown: 90, i.e. 08:30, when every machine is busy;
+    `--from-start` skips the jump), unless `--resume` or `SIM_FROZEN_AT`; a stand-in already
+    running is reused as is. Bootstrap runs
     `tools/vendor-sim/connect.ts` (`pnpm vendor-sim:connect`): the Deere sim grant and an ELD token
     check, against the running stand-in or one it starts for the purpose.
 
@@ -603,7 +605,7 @@ Plan §1 *Storage* / *Basemap* and §2 step 6. Only `src/platform/**` touches th
 | Fleet | `isMachineStale`, `staleAfterFor`, `StaleThresholds`; `fleetSnapshot(ex, now, number \| StaleThresholds)`, `staleThresholdsOf(cfg)` | per-source staleness on the server and the map |
 | Settings | `src/db/settings.ts` (from `src/app/api/jobs/_lib/clock-setting.ts`) | runtime's request |
 | Next | `skipTrailingSlashRedirect: true` | runtime: a trailing slash got 308 on routes that must never answer 3xx |
-| Launch | `pnpm dev`/`pilot` restart the scenario day of a stand-in they start (`--resume` keeps it); `NEXT_TELEMETRY_DISABLED=1` for the children | a launch otherwise resumed whatever sim day (or night, or fault) the last session left |
+| Launch | `pnpm dev`/`pilot` restart the scenario day of a stand-in they start, harvest-day at 08:30 (`--from-start`, `--resume`); `NEXT_TELEMETRY_DISABLED=1` for the children | a launch otherwise resumed whatever sim day (or night, or fault) the last session left, and at 07:00 only the parked semis showed for the first 11 minutes |
 | Bootstrap | `--synthetic-basemap`; synthetic counts as missing otherwise; `tools/vendor-sim/connect.ts` | build.protomaps.com was unreachable from the build machine; the sim-connect step had no entry |
 | e2e | `playwright.config.ts`: WebGL flags in `use`, `webServer` = `pnpm pilot`; `e2e/m0-demo.spec.ts` (the M0 demo), `e2e/routes.spec.ts` | map and runtime asked for both |
 | db/pending | no builder left SQL there: no new migration | |
