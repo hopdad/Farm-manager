@@ -316,6 +316,23 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.chipStrip {
+  /* In the board's status strip (BoardScreen), after the fleet counts. */
+  position: static;
+  flex: none;
+  min-height: 52px;
+  max-width: 420px;
+  font-size: 20px;
+}
+
+.chipStrip.chipPhone {
+  min-height: 36px;
+  max-width: 30vw;
+  padding: 0 10px;
+  gap: 6px;
+  font-size: 13px;
+}
+
 .chipPhone {
   /* /m: the map's controls sit at the top right and its status badges at the top centre. */
   top: calc(var(--strip, 52px) + 62px);

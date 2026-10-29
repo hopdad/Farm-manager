@@ -1,7 +1,6 @@
 'use client';
 /**
- * Who is signed in on this screen, over the board and /m (one minimal mount in BoardScreen,
- * docs/contracts-m1.md §12). On a shared screen (the wall, a cab iPad) it is the way to the PIN
+ * Who is signed in on this screen, in the status strip of the board and /m (BoardScreen). On a shared screen (the wall, a cab iPad) it is the way to the PIN
  * pad: "Sign in" when nobody is, "Switch user" when someone is. Elsewhere it links to /login
  * (sign out). Renders nothing until it knows, and nothing for a signed-out browser.
  */
@@ -10,7 +9,14 @@ import { useEffect, useState } from 'react';
 import { type WhoAmI, whoAmIAction } from '../actions';
 import css from '../login.module.css';
 
-export function SessionChip({ variant }: { variant: 'wall' | 'phone' }) {
+export function SessionChip({
+  variant,
+  placement = 'floating',
+}: {
+  variant: 'wall' | 'phone';
+  /** 'strip': inside the board's status strip; 'floating': over the page (top right). */
+  placement?: 'floating' | 'strip';
+}) {
   const [me, setMe] = useState<WhoAmI | null>(null);
   useEffect(() => {
     let live = true;
@@ -35,7 +41,7 @@ export function SessionChip({ variant }: { variant: 'wall' | 'phone' }) {
   return (
     <Link
       href="/login"
-      className={`${css.chip} ${variant === 'phone' ? css.chipPhone : ''}`}
+      className={`${css.chip} ${variant === 'phone' ? css.chipPhone : ''} ${placement === 'strip' ? css.chipStrip : ''}`}
       data-testid="session-chip"
       data-role={me.role}
       title={`Signed in as ${me.displayName} (${me.role})`}

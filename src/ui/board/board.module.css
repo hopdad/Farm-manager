@@ -1,6 +1,7 @@
 /*
  * /board (wall, kiosk) and /m (phone). Full-screen, touch-first: no text selection, no
- * browser pinch or overscroll, no long-press callouts. Wall targets 72 px.
+ * browser pinch or overscroll, no long-press callouts. Wall targets 72 px, phone 52 px (44 px
+ * for the strip's chips). The panels' places: BoardScreen.tsx and the slots on .mapArea.
  */
 
 .screen {
@@ -40,8 +41,12 @@
 }
 
 .phoneScreen .strip {
-  gap: 12px;
+  gap: 8px;
   padding: 0 12px;
+}
+
+.phoneScreen .pill {
+  padding: 4px 10px;
 }
 
 .brand {
@@ -100,12 +105,29 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  /*
+   * Layout slots the M1 panels read (BoardScreen's header comment): the right gutter kept clear
+   * for the map controls and the tile tool, the left column of the layer rail, and the band the
+   * weather strip takes at the bottom. Panels fall back to their own values outside the board.
+   */
+  --dock-gap: 16px;
+  --dock-right: 96px;
+  --dock-left: 428px;
+  --dock-bottom: 290px;
+}
+
+.phoneMapArea {
+  --dock-gap: 10px;
+  --dock-right: 72px;
+  --dock-left: 10px;
+  --dock-bottom: 0px;
 }
 
 .card {
+  /* Wall: left of the fleet panel (460 px wide), below the map's status badges. */
   position: absolute;
-  left: 16px;
-  top: 16px;
+  right: calc(var(--dock-right) + 460px + 2 * var(--dock-gap));
+  top: calc(var(--dock-gap) + 64px);
   z-index: 3;
   min-width: 300px;
   max-width: 420px;
@@ -153,99 +175,38 @@
   font-weight: 700;
 }
 
-/* Phone bottom sheet. */
+/* Phones: the tapped machine's card, a small sheet at the bottom of the screen. */
 
-.sheet {
-  flex: none;
-  background: #101a16;
-  border-top: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 16px 16px 0 0;
-  margin-top: -16px;
-  position: relative;
-  z-index: 4;
-  display: flex;
-  flex-direction: column;
-  max-height: 32vh;
-  transition: max-height 0.2s ease;
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.sheetOpen {
-  max-height: 62vh;
-}
-
-.sheetHandle {
-  flex: none;
-  height: 52px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.grip {
-  width: 44px;
-  height: 5px;
-  border-radius: 3px;
-  background: rgb(255 255 255 / 35%);
-}
-
-.sheetBody {
-  overflow-y: auto;
-  touch-action: pan-y;
-  overscroll-behavior: contain;
-  padding: 0 12px 12px;
-  display: grid;
-  gap: 8px;
-}
-
-.sheetDetails {
+.phoneCard {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
   display: grid;
   gap: 4px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid #86efac;
+  padding: 10px 16px calc(14px + env(safe-area-inset-bottom));
+  background: #101a16;
+  border-top: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -8px 28px rgb(0 0 0 / 40%);
   font-size: 15px;
 }
 
-.row {
-  min-height: 56px;
-  display: grid;
-  grid-template-columns: 18px 64px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  padding: 0 12px;
-  border-radius: 12px;
-  border: 1px solid rgb(255 255 255 / 8%);
-  background: rgb(255 255 255 / 4%);
-  color: inherit;
-  font-size: 15px;
-  text-align: left;
-  cursor: pointer;
-  touch-action: manipulation;
+.phoneCard .cardTitle {
+  font-size: 18px;
 }
 
-.rowSelected {
-  border-color: #86efac;
+.phoneCard .cardClose {
+  width: 52px;
+  height: 52px;
+  margin: -6px -10px -6px auto;
 }
 
 .rowDot {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-}
-
-.empty {
-  padding: 16px;
-  text-align: center;
-  opacity: 0.7;
 }
 
 .loading {

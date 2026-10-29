@@ -693,7 +693,8 @@ function styles(variant: MapVariant) {
       position: 'absolute',
       right: 12,
       bottom: wall ? 40 : 28,
-      zIndex: 3,
+      // Over the weather strip and the fleet panel while drawing; under the field panel.
+      zIndex: 4,
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'flex-end',

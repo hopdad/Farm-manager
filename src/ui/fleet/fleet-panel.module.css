@@ -1,7 +1,8 @@
 /*
- * Fleet panel. Wall: a column docked on the left of the map (72 px targets, readable from across
- * the room), above the map's legend. Phone: a "Fleet" button over the map and a full-height
- * sheet. The board sets --font; the panel scales from it.
+ * Fleet panel. Wall: a column docked on the right of the map, beside the map controls and above
+ * the weather strip (the board's --dock-* slots; 72 px targets, readable from across the room);
+ * the field panel covers it while a field is open. Phone: a "Fleet" button over the map and a
+ * full-height sheet. The board sets --font; the panel scales from it.
  */
 
 .wallPanel,
@@ -18,11 +19,11 @@
 .wallPanel {
   position: absolute;
   z-index: 4;
-  left: 16px;
-  top: 16px;
+  right: var(--dock-right, 16px);
+  top: var(--dock-gap, 16px);
   width: 460px;
-  /* leaves the map legend (bottom left) visible */
-  max-height: calc(100% - 370px);
+  /* above the weather strip's band */
+  max-height: calc(100% - var(--dock-bottom, 370px) - var(--dock-gap, 16px));
   min-height: 240px;
   border-radius: 16px;
 }
@@ -53,8 +54,8 @@
 }
 
 .wallToggle {
-  left: 16px;
-  top: 16px;
+  right: var(--dock-right, 16px);
+  top: var(--dock-gap, 16px);
   min-width: 160px;
   height: 72px;
   padding: 0 24px;

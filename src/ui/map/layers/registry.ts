@@ -10,9 +10,9 @@
 import { customersLayer, fieldsLayer, fleetLayer } from './builtin';
 import { naipAoiLayer, naipLayer } from './naip';
 import { parcelsLayer } from './parcels';
-import { tileLayer } from './tile';
 import { soilsLayer } from './soils';
 import { sprayLayer } from './spray';
+import { tileLayer } from './tile';
 import type { LayerDef } from './types';
 
 export const LAYER_DEFS: readonly LayerDef[] = [

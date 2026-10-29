@@ -1,15 +1,16 @@
 /*
  * The weather strip (wall: a band along the bottom of the map; phone: a chip at the top that
  * opens a sheet), the soil temperature form and the field panel's Spray tab. Touch-first: wall
- * targets 72 px, phone 48 px. The integrator owns the final placement on /board and /m.
+ * targets 72 px, phone 48 px. Placement on /board and /m: the board's --dock-* slots (wall:
+ * between the layer rail and the map controls; phone: the chip under the Fleet button).
  */
 
 .strip {
   position: absolute;
   z-index: 3;
-  right: 16px;
+  right: var(--dock-right, 16px);
   bottom: 34px;
-  max-width: min(1400px, calc(100% - 440px));
+  max-width: min(1400px, calc(100% - var(--dock-left, 424px) - var(--dock-right, 16px)));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -153,10 +154,14 @@
 /* --- phone --------------------------------------------------------------------------------- */
 
 .chip {
+  /* Phone: top left, under the fleet panel's "Fleet" button, clear of the map controls. */
   position: absolute;
   z-index: 3;
-  right: 12px;
-  top: 64px;
+  left: var(--dock-gap, 12px);
+  top: 62px;
+  max-width: calc(100% - var(--dock-gap, 12px) - var(--dock-right, 72px));
+  overflow: hidden;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 8px;

@@ -1,18 +1,19 @@
 'use client';
 /**
  * The /board (wall) and /m (phone) screens around the war-room map: a clock/status strip, the
- * map, the selected machine's card and, on phones, a bottom sheet listing the fleet. The map is
- * client-only (next/dynamic, ssr: false); this shell renders on the server.
+ * map and the M1 panels around it (layout: BoardScreen below). The map is client-only
+ * (next/dynamic, ssr: false); this shell renders on the server.
  */
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { SessionChip } from '../../app/login/_components/SessionChip';
 import { FieldPanel } from '../fields/FieldPanel';
 import { FleetPanel } from '../fleet/FleetPanel';
-import { TileLineDrawTool } from '../map/draw/TileLineDrawTool';
+import { TileLineDrawTool, useTileDrawStore } from '../map/draw/TileLineDrawTool';
 import type { FleetFrame } from '../map/fleet/model';
 import { KIND_COLORS, KIND_LABELS } from '../map/fleet/style';
 import { type FleetStatus, useFleet } from '../map/fleet/useFleet';
+import { useLayerVisible } from '../map/layers/visibility';
 import { LayerRail, type RailMap } from '../map/rail/LayerRail';
 import type { MapPageData, MapVariant } from '../map/types';
 import { SprayFieldState, WeatherStrip } from '../weather';
@@ -36,7 +37,15 @@ function useNow(ms: number): number | null {
   return now;
 }
 
-function StatusStrip({ status, variant }: { status: FleetStatus; variant: MapVariant }) {
+function StatusStrip({
+  status,
+  variant,
+  children,
+}: {
+  status: FleetStatus;
+  variant: MapVariant;
+  children?: ReactNode;
+}) {
   const now = useNow(1000);
   const clock = now === null ? null : formatClock(new Date(now));
   const { counts, connection } = status;
@@ -69,6 +78,7 @@ function StatusStrip({ status, variant }: { status: FleetStatus; variant: MapVar
               : 'Offline'
           : null}
       </span>
+      {children}
     </header>
   );
 }
@@ -105,56 +115,48 @@ function MachineCard({ m, onClose }: { m: FleetFrame; onClose(): void }) {
   );
 }
 
-function FleetSheet(props: {
-  machines: FleetFrame[];
-  selected: FleetFrame | null;
-  onPick(m: FleetFrame): void;
-}) {
-  const [open, setOpen] = useState(false);
+/**
+ * Phones: the tapped machine's details as a small card above the map's bottom edge (the fleet
+ * list itself is the fleet panel's sheet, src/ui/fleet/FleetPanel.tsx).
+ */
+function PhoneMachineCard({ m, onClose }: { m: FleetFrame; onClose(): void }) {
   const now = useNow(5000) ?? Date.now();
   return (
-    <section className={`${css.sheet} ${open ? css.sheetOpen : ''}`} data-testid="fleet-sheet">
-      <button
-        type="button"
-        className={css.sheetHandle}
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span className={css.grip} />
-        Fleet ({props.machines.length})
-      </button>
-      <div className={css.sheetBody}>
-        {props.selected && (
-          <div className={css.sheetDetails} data-testid="machine-details">
-            <strong>
-              {props.selected.unitNo} · {KIND_LABELS[props.selected.kind]}
-            </strong>
-            <MachineDetails m={props.selected} now={now} />
-          </div>
-        )}
-        {props.machines.length === 0 && <div className={css.empty}>No machines reporting yet.</div>}
-        {props.machines.map((m) => (
-          <button
-            type="button"
-            key={m.id}
-            className={`${css.row} ${m.id === props.selected?.id ? css.rowSelected : ''}`}
-            onClick={() => props.onPick(m)}
-            data-testid="fleet-row"
-          >
-            <span className={css.rowDot} style={{ background: KIND_COLORS[m.kind] }} />
-            <strong>{m.unitNo}</strong>
-            <span>
-              {ACTIVITY_LABELS[m.activity]}
-              {m.stale ? <span className={css.staleTag}> · stale</span> : null}
-            </span>
-            <span className={css.muted}>{formatAge(m.ts, now)}</span>
-          </button>
-        ))}
+    <section
+      className={css.phoneCard}
+      data-testid="machine-details"
+      aria-label={`Machine ${m.unitNo}`}
+    >
+      <div className={css.cardTitle}>
+        <span className={css.rowDot} style={{ background: KIND_COLORS[m.kind] }} />
+        {m.unitNo}
+        <span className={css.muted}>{KIND_LABELS[m.kind]}</span>
+        <button type="button" className={css.cardClose} aria-label="Close" onClick={onClose}>
+          ×
+        </button>
       </div>
+      <MachineDetails m={m} now={now} />
     </section>
   );
 }
 
+/**
+ * The composed screen (docs/contracts-m1.md §12; the integrator owns this layout):
+ *
+ *   wall   status strip (clock, fleet counts, who is signed in) over the map. Left: the layer
+ *          rail (open by default, a button at the left edge when closed). Right, beside the map
+ *          controls: the fleet panel, replaced by the field panel while a field is open. Bottom,
+ *          between the rail and the controls: the weather strip. A tapped machine's card sits
+ *          left of the fleet panel; the tile tool (managers) bottom right.
+ *   phone  status strip with the session chip; map controls top right; the Fleet button and the
+ *          weather chip top left (each opens a full sheet); the rail's button at the left edge;
+ *          the field panel and a tapped machine's card as bottom sheets.
+ *
+ * One MapLibre map (`onMapReady`) is shared by the rail (applyLayers), the spray colours
+ * (SprayFieldState), the field panel's highlight and the tile tool. Field taps open the panel,
+ * except while a tile line is being drawn; the rail's "Machines and trucks" toggle hides the
+ * deck.gl fleet.
+ */
 export function BoardScreen({ data, variant }: { data: MapPageData; variant: MapVariant }) {
   useKiosk();
   const { model, status } = useFleet({
@@ -167,21 +169,25 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
   const [fieldId, setFieldId] = useState<string | null>(null);
   const [map, setMap] = useState<RailMap | null>(null);
   const [flyTo, setFlyTo] = useState<{ lng: number; lat: number; nonce: number } | null>(null);
+  const fleetVisible = useLayerVisible('fleet', true);
+  const drawing = useTileDrawStore((s) => s.drawing);
   const selected = status.machines.find((m) => m.id === selectedId) ?? null;
   const onSelect = useCallback((id: string | null) => setSelectedId(id), []);
-  const pick = useCallback((m: FleetFrame) => {
+  const locate = useCallback((m: { id: string; lng: number; lat: number }) => {
     setSelectedId(m.id);
     setFlyTo({ lng: m.lng, lat: m.lat, nonce: Date.now() });
   }, []);
+  const closeField = useCallback(() => setFieldId(null), []);
 
   return (
     <main
       className={`${css.screen} ${variant === 'phone' ? css.phoneScreen : ''}`}
       data-testid={variant === 'wall' ? 'board' : 'phone-board'}
     >
-      <StatusStrip status={status} variant={variant} />
-      <SessionChip variant={variant} />
-      <div className={css.mapArea}>
+      <StatusStrip status={status} variant={variant}>
+        <SessionChip variant={variant} placement="strip" />
+      </StatusStrip>
+      <div className={`${css.mapArea} ${variant === 'phone' ? css.phoneMapArea : ''}`}>
         <WarRoomMap
           data={data}
           variant={variant}
@@ -192,35 +198,30 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
           onSelect={onSelect}
           showLegend={variant === 'wall'}
           flyTo={flyTo}
-          onFieldTap={setFieldId}
+          fleetVisible={fleetVisible}
+          onFieldTap={drawing ? undefined : setFieldId}
           onMapReady={setMap}
         />
-        <FleetPanel
-          variant={variant}
-          onLocate={(m) => {
-            setSelectedId(m.id);
-            setFlyTo({ lng: m.lng, lat: m.lat, nonce: Date.now() });
-          }}
-        />
-        <WeatherStrip variant={variant} />
         <SprayFieldState map={map} />
         <LayerRail map={map} variant={variant} config={data.config} />
-        <TileLineDrawTool map={map} variant={variant} config={data.config} />
-        {selected && variant === 'wall' && (
+        <FleetPanel variant={variant} onLocate={locate} />
+        <WeatherStrip variant={variant} />
+        {selected && fleetVisible && variant === 'wall' && (
           <MachineCard m={selected} onClose={() => setSelectedId(null)} />
         )}
+        <TileLineDrawTool map={map} variant={variant} config={data.config} />
         {fieldId && (
           <FieldPanel
             fieldId={fieldId}
             variant={variant}
             config={data.config}
             map={map}
-            onClose={() => setFieldId(null)}
+            onClose={closeField}
           />
         )}
       </div>
-      {variant === 'phone' && (
-        <FleetSheet machines={status.machines} selected={selected} onPick={pick} />
+      {selected && fleetVisible && variant === 'phone' && !fieldId && (
+        <PhoneMachineCard m={selected} onClose={() => setSelectedId(null)} />
       )}
     </main>
   );

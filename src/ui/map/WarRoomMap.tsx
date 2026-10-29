@@ -21,6 +21,7 @@ import { formatDuration } from '../board/format';
 import { DeckOverlay } from './DeckOverlay';
 import { buildFleetLayers, PHONE_SIZES, WALL_SIZES } from './fleet/layers';
 import type { FleetFrame, FleetModel } from './fleet/model';
+import { machineNear } from './fleet/pick';
 import { DOWN_COLOR, KIND_COLORS, KIND_LABELS, STALE_COLOR, STALE_RING_COLOR } from './fleet/style';
 import type { FleetStatus } from './fleet/useFleet';
 import { setupMapLibre } from './maplibre';
@@ -154,16 +155,26 @@ export default function WarRoomMap(props: WarRoomMapProps) {
   }, [flyTo, loaded]);
 
   // Selection through MapLibre's click (fired for mouse clicks and touch taps alike), then a
-  // deck pick at that point: deck's own onClick only sees mouse-down picks, not taps.
+  // deck pick at that point: deck's own onClick only sees mouse-down picks, not taps. The GPU
+  // pick only runs when a machine is drawn near the tap (./fleet/pick.ts): it stalls the frame,
+  // and most taps are field taps (the field panel's < 200 ms budget, plan 1a).
   const pickRadius = variant === 'wall' ? 14 : 10;
   const onClick = useCallback(
     (e: MapLayerMouseEvent) => {
-      const info = overlay?.pickObject({
-        x: e.point.x,
-        y: e.point.y,
-        radius: pickRadius,
-        layerIds: ['fleet-halo', 'fleet-icons'],
-      });
+      const gl = mapRef.current?.getMap();
+      const reach = sizes.ringRadiusPx + pickRadius + 8;
+      const near =
+        !!gl &&
+        fleetVisibleRef.current &&
+        machineNear(framesRef.current, (ll) => gl.project(ll), e.point, reach);
+      const info = near
+        ? overlay?.pickObject({
+            x: e.point.x,
+            y: e.point.y,
+            radius: pickRadius,
+            layerIds: ['fleet-halo', 'fleet-icons'],
+          })
+        : null;
       const picked = info?.object as FleetFrame | undefined;
       onSelect(picked ? picked.id : null);
       // A tap that hit no machine may be a field tap (the field panel, 1a).
@@ -177,7 +188,7 @@ export default function WarRoomMap(props: WarRoomMapProps) {
         onFieldTap(typeof id === 'string' ? id : null);
       }
     },
-    [overlay, onSelect, pickRadius],
+    [overlay, onSelect, pickRadius, sizes],
   );
 
   const onError = useCallback((e: MapErrorEvent) => {
