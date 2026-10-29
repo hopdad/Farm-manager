@@ -42,8 +42,14 @@ export function createLocalAuth(opts: LocalAuthOptions): AuthProvider {
     signInDevice(cookies, deviceId, epoch) {
       return issue(cookies, { kind: 'device', deviceId, epoch });
     },
-    signInPerson(cookies, appUserId, epoch, deviceId) {
-      return issue(cookies, { kind: 'person', appUserId, epoch, deviceId });
+    signInPerson(cookies, appUserId, epoch, deviceId, deviceEpoch) {
+      return issue(cookies, {
+        kind: 'person',
+        appUserId,
+        epoch,
+        deviceId,
+        deviceEpoch: deviceId ? deviceEpoch : null,
+      });
     },
     async signOut(cookies) {
       cookies.delete(AUTH_COOKIE);

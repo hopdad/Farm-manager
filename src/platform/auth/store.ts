@@ -812,6 +812,8 @@ export async function redeemEnrollment(
       appUserId: d.app_user_id,
       epoch: num(user?.session_epoch),
       deviceId: d.id,
+      // The bump above signs out whichever browser held this phone before.
+      deviceEpoch: num(d.session_epoch),
     };
   });
   const deviceId = identity.kind === 'device' ? identity.deviceId : (identity.deviceId as string);

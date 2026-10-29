@@ -169,10 +169,19 @@ export type AuthProviderKind = 'local' | 'supabase';
  * the Supabase adapter maps its auth user id to them through `auth_user_id` columns inside
  * src/platform/**. `epoch` is the farm.devices / farm.app_users `session_epoch` the credential
  * was issued under: a credential whose epoch is below the row's current one is revoked.
+ * A person on their enrolled phone carries BOTH epochs: the person's (`epoch`, "sign out
+ * everywhere") and the phone's (`deviceEpoch`, bumped by revoke or by a new enrollment code
+ * redeemed on a replacement phone). `deviceEpoch` is set exactly when `deviceId` is.
  */
 export type AuthIdentity =
   | { kind: 'device'; deviceId: string; epoch: number }
-  | { kind: 'person'; appUserId: string; epoch: number; deviceId: string | null };
+  | {
+      kind: 'person';
+      appUserId: string;
+      epoch: number;
+      deviceId: string | null;
+      deviceEpoch: number | null;
+    };
 
 /** Minimal cookie access (Next's `cookies()` satisfies it; tests pass a Map-backed fake). */
 export interface CookieJar {
@@ -201,12 +210,17 @@ export interface AuthProvider {
   identify(cookies: CookieJar): Promise<AuthIdentity | null>;
   /** Issue the base credential for an enrolled device (after a valid enrollment code / magic link). */
   signInDevice(cookies: CookieJar, deviceId: string, epoch: number): Promise<void>;
-  /** Issue the base credential for a person who proved who they are (local: PIN or manager sign-in; MD: email OTP). */
+  /**
+   * Issue the base credential for a person who proved who they are (local: PIN or manager
+   * sign-in; MD: email OTP). On their enrolled phone, `deviceId` and that phone's
+   * `session_epoch` (`deviceEpoch`); elsewhere both null.
+   */
   signInPerson(
     cookies: CookieJar,
     appUserId: string,
     epoch: number,
     deviceId: string | null,
+    deviceEpoch: number | null,
   ): Promise<void>;
   /** Remove the base credential (and with it any operator layer). */
   signOut(cookies: CookieJar): Promise<void>;

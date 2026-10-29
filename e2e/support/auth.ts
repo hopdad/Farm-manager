@@ -128,7 +128,7 @@ export function e2eIdentity(role: Role): Promise<AuthIdentity> {
         role,
         pin: e2ePin(role),
       });
-      return { kind: 'person', appUserId: id, epoch, deviceId: null };
+      return { kind: 'person', appUserId: id, epoch, deviceId: null, deviceEpoch: null };
     })();
     p.catch(() => identities.delete(role));
     identities.set(role, p);

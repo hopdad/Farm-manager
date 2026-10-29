@@ -52,7 +52,7 @@ describe('LocalAuth cookie', () => {
     let now = new Date('2026-11-01T12:00:00Z');
     const p = createLocalAuth({ secret: SECRET, secure: false, now: () => now });
     const jar = new MemoryJar();
-    await p.signInPerson(jar, DEVICE, 0, null);
+    await p.signInPerson(jar, DEVICE, 0, null, null);
     now = new Date(now.getTime() + (SESSION_TTL_SECONDS.person - 60) * 1000);
     expect(await p.identify(jar)).not.toBeNull();
     now = new Date(now.getTime() + 120_000);

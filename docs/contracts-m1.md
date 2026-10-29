@@ -293,17 +293,22 @@ checkRole(session, min)                  // the pure core (types.ts)
   ```ts
   type AuthIdentity =
     | { kind: 'device'; deviceId: string; epoch: number }
-    | { kind: 'person'; appUserId: string; epoch: number; deviceId: string | null };
+    | { kind: 'person'; appUserId: string; epoch: number;
+        deviceId: string | null; deviceEpoch: number | null };
   interface AuthProvider {
     readonly kind: 'local' | 'supabase';
     identify(cookies: CookieJar): Promise<AuthIdentity | null>;
     signInDevice(cookies, deviceId, epoch): Promise<void>;
-    signInPerson(cookies, appUserId, epoch, deviceId | null): Promise<void>;
+    signInPerson(cookies, appUserId, epoch, deviceId | null, deviceEpoch | null): Promise<void>;
     signOut(cookies): Promise<void>;
   }
   ```
   `epoch` is the row's `session_epoch` at issue time: an identity whose epoch is below the row's
-  current one is revoked. Cookies: httpOnly, `SameSite=Lax`, `Secure` = `cfg.cookieSecure`
+  current one is revoked. A person on their enrolled phone carries both epochs, the person's
+  (`epoch`) and the phone's (`deviceEpoch`, set exactly when `deviceId` is), so a new code
+  redeemed on a replacement phone, or a revoke, signs the old phone out like any device
+  (review fix, Oct 29: phone cookies issued before it carry no phone epoch and are refused, so
+  such a phone needs one new code). Cookies: httpOnly, `SameSite=Lax`, `Secure` = `cfg.cookieSecure`
   (follows `PUBLIC_URL`, never `NODE_ENV`), signed with `SESSION_SECRET` (jose). Sign-in must
   work over `http://<lan-ip>` under `pnpm pilot` (plan 1a done-when).
 - **PIN hashing:** `node:crypto` scrypt with a per-user random salt, compared with

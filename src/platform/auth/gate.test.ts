@@ -67,14 +67,20 @@ describe('sliding lifetimes', () => {
   test('the base credential is re-issued once a day, same identity', async () => {
     const t = await signIdentity(
       SECRET,
-      { kind: 'person', appUserId: USER, epoch: 3, deviceId: null },
+      { kind: 'person', appUserId: USER, epoch: 3, deviceId: null, deviceEpoch: null },
       ago(SESSION_REFRESH_AFTER_SECONDS + 1),
       30 * 24 * 3600,
     );
     const d = await decideGate(input({ authCookie: t }));
     if (d.action !== 'next' || !d.refresh.auth) throw new Error('expected a refresh');
     const fresh = await verifyIdentity(SECRET, d.refresh.auth.value, NOW);
-    expect(fresh?.identity).toEqual({ kind: 'person', appUserId: USER, epoch: 3, deviceId: null });
+    expect(fresh?.identity).toEqual({
+      kind: 'person',
+      appUserId: USER,
+      epoch: 3,
+      deviceId: null,
+      deviceEpoch: null,
+    });
     expect(fresh?.times.iat).toBe(Math.floor(NOW.getTime() / 1000));
   });
 

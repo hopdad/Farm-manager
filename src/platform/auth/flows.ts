@@ -101,7 +101,7 @@ export async function signInPerson(appUserId: string, pin: string): Promise<Flow
     }
     const a = await attemptPin(getPool(), appUserId, pin, now);
     if (!a.ok) return failed(pinAttemptMessage(a, now));
-    await provider.signInPerson(jar, appUserId, a.user.sessionEpoch, null);
+    await provider.signInPerson(jar, appUserId, a.user.sessionEpoch, null, null);
     return { ok: true, home: '/board' };
   } catch (e) {
     return explain(e, 'Sign-in');
@@ -125,7 +125,13 @@ export async function enrollBrowser(rawCode: unknown): Promise<FlowResult> {
     if (identity.kind === 'device') {
       await provider.signInDevice(jar, identity.deviceId, identity.epoch);
     } else {
-      await provider.signInPerson(jar, identity.appUserId, identity.epoch, identity.deviceId);
+      await provider.signInPerson(
+        jar,
+        identity.appUserId,
+        identity.epoch,
+        identity.deviceId,
+        identity.deviceEpoch,
+      );
     }
     return { ok: true, home: homePathFor(device.kind) };
   } catch (e) {
@@ -145,7 +151,7 @@ export async function setupOwnerFlow(
       return failed('This setup link is not valid: use the one `pnpm dev` printed on the PC.');
     }
     const owner = await setupOwner(getDb(), { name, pin }, now);
-    await provider.signInPerson(jar, owner.appUserId, owner.epoch, null);
+    await provider.signInPerson(jar, owner.appUserId, owner.epoch, null, null);
     return { ok: true, home: '/admin/people' };
   } catch (e) {
     return explain(e, 'Owner setup');
@@ -162,7 +168,7 @@ export async function resetOwnerFlow(
   try {
     const { cfg, jar, provider, now } = await context();
     const owner = await resetOwner(getDb(), cfg.SESSION_SECRET, code, { ownerId, pin }, now);
-    await provider.signInPerson(jar, owner.appUserId, owner.epoch, null);
+    await provider.signInPerson(jar, owner.appUserId, owner.epoch, null, null);
     return { ok: true, home: '/admin/people' };
   } catch (e) {
     return explain(e, 'Owner reset');

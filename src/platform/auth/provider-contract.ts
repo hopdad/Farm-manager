@@ -56,19 +56,21 @@ export function authProviderContract(name: string, makeProvider: () => AuthProvi
     test('a person signed in is identified, with or without their phone', async () => {
       const p = makeProvider();
       const jar = new MemoryJar();
-      await p.signInPerson(jar, PERSON, 0, null);
+      await p.signInPerson(jar, PERSON, 0, null, null);
       expect(await p.identify(jar)).toEqual({
         kind: 'person',
         appUserId: PERSON,
         epoch: 0,
         deviceId: null,
+        deviceEpoch: null,
       });
-      await p.signInPerson(jar, PERSON, 2, DEVICE);
+      await p.signInPerson(jar, PERSON, 2, DEVICE, 5);
       expect(await p.identify(jar)).toEqual({
         kind: 'person',
         appUserId: PERSON,
         epoch: 2,
         deviceId: DEVICE,
+        deviceEpoch: 5,
       });
     });
 
@@ -77,7 +79,7 @@ export function authProviderContract(name: string, makeProvider: () => AuthProvi
       const jar = new MemoryJar();
       await p.signInDevice(jar, DEVICE, 0);
       jar.set(OPERATOR_COOKIE, 'x', { httpOnly: true, secure: false, sameSite: 'lax', path: '/' });
-      await p.signInPerson(jar, PERSON, 1, null);
+      await p.signInPerson(jar, PERSON, 1, null, null);
       expect((await p.identify(jar))?.kind).toBe('person');
       expect(jar.get(OPERATOR_COOKIE)).toBeUndefined();
     });

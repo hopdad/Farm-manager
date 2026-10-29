@@ -6,7 +6,9 @@
  *    not below farm.devices.session_epoch (re-enrolling or revoking bumps it);
  *  - person identity: the person is active and the epoch is not below
  *    farm.app_users.session_epoch ("sign out everywhere"); when it names a phone, that phone is
- *    still enrolled, not revoked, and still belongs to that person;
+ *    still enrolled, not revoked, still belongs to that person, and the credential's phone
+ *    epoch is not below farm.devices.session_epoch (a new code redeemed on a replacement
+ *    phone, or a revoke, ends the old browser's session);
  *  - operator layer (shared devices only): bound to this device, the person is active, still
  *    has a PIN, and the epoch holds. A bad operator layer falls back to the device session.
  *
@@ -93,7 +95,8 @@ export function buildSession({ identity, device, user, operator }: SessionInputs
 
   if (!user || user.id !== identity.appUserId || !userAccepts(user, identity.epoch)) return null;
   if (identity.deviceId) {
-    if (!device || device.id !== identity.deviceId || !deviceAccepts(device, null)) return null;
+    if (!device || device.id !== identity.deviceId) return null;
+    if (identity.deviceEpoch === null || !deviceAccepts(device, identity.deviceEpoch)) return null;
     if (device.appUserId !== user.id) return null;
   }
   return {

@@ -105,7 +105,7 @@ describe('device identity', () => {
 describe('person identity', () => {
   test('a person on their own browser', () => {
     const s = buildSession({
-      identity: { kind: 'person', appUserId: DANA, epoch: 1, deviceId: null },
+      identity: { kind: 'person', appUserId: DANA, epoch: 1, deviceId: null, deviceEpoch: null },
       device: null,
       user: dana,
       operator: null,
@@ -124,7 +124,7 @@ describe('person identity', () => {
 
   test('the role comes from the row (a demotion takes effect at once)', () => {
     const s = buildSession({
-      identity: { kind: 'person', appUserId: DANA, epoch: 1, deviceId: null },
+      identity: { kind: 'person', appUserId: DANA, epoch: 1, deviceId: null, deviceEpoch: null },
       device: null,
       user: { ...dana, role: 'viewer' },
       operator: null,
@@ -136,7 +136,13 @@ describe('person identity', () => {
     for (const user of [{ ...dana, active: false }, { ...dana, sessionEpoch: 2 }, null]) {
       expect(
         buildSession({
-          identity: { kind: 'person', appUserId: DANA, epoch: 1, deviceId: null },
+          identity: {
+            kind: 'person',
+            appUserId: DANA,
+            epoch: 1,
+            deviceId: null,
+            deviceEpoch: null,
+          },
           device: null,
           user,
           operator: null,
@@ -146,7 +152,13 @@ describe('person identity', () => {
   });
 
   test('on their enrolled phone: the phone must stand and still be theirs', () => {
-    const identity = { kind: 'person' as const, appUserId: DANA, epoch: 1, deviceId: PHONE };
+    const identity = {
+      kind: 'person' as const,
+      appUserId: DANA,
+      epoch: 1,
+      deviceId: PHONE,
+      deviceEpoch: 2,
+    };
     expect(buildSession({ identity, device: phone, user: dana, operator: null })).toMatchObject({
       kind: 'person',
       deviceId: PHONE,
@@ -156,9 +168,20 @@ describe('person identity', () => {
       { ...phone, revokedAt: new Date() },
       { ...phone, appUserId: EVE },
       { ...phone, appUserId: null },
+      // The phone got a new enrollment code, redeemed on a replacement phone.
+      { ...phone, sessionEpoch: 3 },
       null,
     ]) {
       expect(buildSession({ identity, device, user: dana, operator: null })).toBeNull();
     }
+    // A phone credential that lost its phone epoch never stands.
+    expect(
+      buildSession({
+        identity: { ...identity, deviceEpoch: null },
+        device: phone,
+        user: dana,
+        operator: null,
+      }),
+    ).toBeNull();
   });
 });

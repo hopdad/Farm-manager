@@ -21,19 +21,37 @@ describe('identity tokens', () => {
     });
     const p = await signIdentity(
       SECRET,
-      { kind: 'person', appUserId: B, epoch: 0, deviceId: A },
+      { kind: 'person', appUserId: B, epoch: 0, deviceId: A, deviceEpoch: 3 },
       NOW,
       3600,
     );
     const v = await verifyIdentity(SECRET, p, NOW);
-    expect(v?.identity).toEqual({ kind: 'person', appUserId: B, epoch: 0, deviceId: A });
+    expect(v?.identity).toEqual({
+      kind: 'person',
+      appUserId: B,
+      epoch: 0,
+      deviceId: A,
+      deviceEpoch: 3,
+    });
     expect(v?.times.exp).toBe(Math.floor(NOW.getTime() / 1000) + 3600);
+  });
+
+  test("a phone credential without the phone's epoch (issued before it existed) is refused", async () => {
+    const old = await new SignJWT({ k: 'p', ep: 0, dev: A })
+      .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+      .setIssuer('farm-ops')
+      .setAudience('farm:identity')
+      .setSubject(B)
+      .setIssuedAt(Math.floor(NOW.getTime() / 1000))
+      .setExpirationTime(Math.floor(NOW.getTime() / 1000) + 60)
+      .sign(sessionKey(SECRET));
+    expect(await verifyIdentity(SECRET, old, NOW)).toBeNull();
   });
 
   test('carries only ids and an epoch (no names, no roles), HS256', async () => {
     const t = await signIdentity(
       SECRET,
-      { kind: 'person', appUserId: B, epoch: 1, deviceId: null },
+      { kind: 'person', appUserId: B, epoch: 1, deviceId: null, deviceEpoch: null },
       NOW,
       60,
     );

@@ -86,8 +86,9 @@ and the owner can also simply sign in at `/login` on their own phone with name a
 ## Lost, replaced, or someone leaves
 
 - **Lost or replaced device:** Devices, **Revoke**. It is signed out on its next request. To
-  move the wall to a new PC, use **New code** on the existing device: the old browser is signed
-  out when the new one enrolls.
+  move the wall to a new PC, or a crew member to a new phone, use **New code** on the existing
+  device: the old browser (the old PC, the lost phone) is signed out when the new one enrolls.
+  (A crew phone enrolled before Oct 30, 2026 needs one **New code** after this update.)
 - **Someone leaves:** People, **Switch off** (ends all their sessions at once). **Sign out
   everywhere** ends their sessions but leaves them able to sign in again.
 

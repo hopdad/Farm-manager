@@ -3,7 +3,9 @@
  *
  *  - Identity token (cookie `farm_auth`): the provider's base credential, an `AuthIdentity`
  *    (a device, or a person optionally on their enrolled phone) plus the row's
- *    `session_epoch` at issue time. Audience `farm:identity`.
+ *    `session_epoch` at issue time (`ep`); a person on their phone also carries the phone's
+ *    epoch (`dep`), so a new enrollment code for that phone signs the old browser out.
+ *    Audience `farm:identity`.
  *  - Operator token (cookie `farm_op`): the operator layer on one shared device: the person who
  *    entered their PIN there, bound to that device id, with the person's epoch. Audience
  *    `farm:operator`, short idle lifetime (PIN_RULES.operatorIdleMinutes).
@@ -115,7 +117,11 @@ export function signIdentity(
     secret,
     AUD_IDENTITY,
     identity.appUserId,
-    { k: 'p', ep: identity.epoch, ...(identity.deviceId ? { dev: identity.deviceId } : {}) },
+    {
+      k: 'p',
+      ep: identity.epoch,
+      ...(identity.deviceId ? { dev: identity.deviceId, dep: identity.deviceEpoch } : {}),
+    },
     now,
     ttlSeconds,
   );
@@ -132,13 +138,28 @@ export async function verifyIdentity(
   const times = { iat: p.iat, exp: p.exp };
   if (p.k === 'd') return { identity: { kind: 'device', deviceId: p.sub, epoch: p.ep }, times };
   if (p.k === 'p') {
-    if (p.dev !== undefined && !isUuid(p.dev)) return null;
+    if (p.dev === undefined) {
+      return {
+        identity: {
+          kind: 'person',
+          appUserId: p.sub,
+          epoch: p.ep,
+          deviceId: null,
+          deviceEpoch: null,
+        },
+        times,
+      };
+    }
+    // A phone credential without the phone's epoch (issued before `dep` existed) is refused:
+    // it could outlive a re-enrollment of that phone.
+    if (!isUuid(p.dev) || !isEpoch(p.dep)) return null;
     return {
       identity: {
         kind: 'person',
         appUserId: p.sub,
         epoch: p.ep,
-        deviceId: (p.dev as string | undefined) ?? null,
+        deviceId: p.dev,
+        deviceEpoch: p.dep,
       },
       times,
     };

@@ -350,6 +350,7 @@ describe('devices and enrollment', () => {
       appUserId: crew.id,
       epoch: 0,
       deviceId: issued.device.id,
+      deviceEpoch: 1,
     });
 
     const mgr = await person('manager');
@@ -468,10 +469,43 @@ describe('the device session + operator PIN contract (resolveBrowserAuth)', () =
     expect(await resolve(newJar)).toMatchObject({ session: null, stale: true, sharedDevice: null });
   });
 
+  test("a personal phone given a new code signs the old phone's browser out", async () => {
+    const crew = await person('operator');
+    const issued = await createDevice(
+      t().db,
+      manager,
+      SECRET,
+      { name: uniq('Phone'), kind: 'phone', appUserId: crew.id },
+      NOW,
+    );
+    const signIn = async (code: string) => {
+      const used = await redeemEnrollment(t().db, SECRET, code, NOW);
+      if (used.identity.kind !== 'person') throw new Error('expected a person');
+      const jar = new MemoryJar();
+      const id = used.identity;
+      await provider.signInPerson(jar, id.appUserId, id.epoch, id.deviceId, id.deviceEpoch);
+      return jar;
+    };
+    const oldPhone = await signIn(issued.code);
+    expect((await resolve(oldPhone)).session).toMatchObject({
+      kind: 'person',
+      appUserId: crew.id,
+      deviceId: issued.device.id,
+    });
+
+    const again = await issueEnrollCode(t().db, manager, SECRET, issued.device.id, NOW);
+    const newPhone = await signIn(again.code);
+    expect(await resolve(oldPhone)).toMatchObject({ session: null, stale: true });
+    expect((await resolve(newPhone)).session).toMatchObject({ appUserId: crew.id });
+
+    await revokeDevice(t().db, issued.device.id, NOW);
+    expect(await resolve(newPhone)).toMatchObject({ session: null, stale: true });
+  });
+
   test('a person session follows the row: role changes apply, sign-out-everywhere ends it', async () => {
     const mgr = await person('manager');
     const jar = new MemoryJar();
-    await provider.signInPerson(jar, mgr.id, 0, null);
+    await provider.signInPerson(jar, mgr.id, 0, null, null);
     expect((await resolve(jar)).session).toMatchObject({
       kind: 'person',
       role: 'manager',
