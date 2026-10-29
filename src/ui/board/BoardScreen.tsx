@@ -7,11 +7,12 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { SessionChip } from '../../app/login/_components/SessionChip';
-import { FieldPanel, type FieldPanelMap } from '../fields/FieldPanel';
+import { FieldPanel } from '../fields/FieldPanel';
 import { FleetPanel } from '../fleet/FleetPanel';
 import type { FleetFrame } from '../map/fleet/model';
 import { KIND_COLORS, KIND_LABELS } from '../map/fleet/style';
 import { type FleetStatus, useFleet } from '../map/fleet/useFleet';
+import { LayerRail, type RailMap } from '../map/rail/LayerRail';
 import type { MapPageData, MapVariant } from '../map/types';
 import { SprayFieldState, WeatherStrip } from '../weather';
 import css from './board.module.css';
@@ -163,7 +164,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fieldId, setFieldId] = useState<string | null>(null);
-  const [map, setMap] = useState<FieldPanelMap | null>(null);
+  const [map, setMap] = useState<RailMap | null>(null);
   const [flyTo, setFlyTo] = useState<{ lng: number; lat: number; nonce: number } | null>(null);
   const selected = status.machines.find((m) => m.id === selectedId) ?? null;
   const onSelect = useCallback((id: string | null) => setSelectedId(id), []);
@@ -202,6 +203,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
         />
         <WeatherStrip variant={variant} />
         <SprayFieldState map={map} />
+        <LayerRail map={map} variant={variant} config={data.config} />
         {selected && variant === 'wall' && (
           <MachineCard m={selected} onClose={() => setSelectedId(null)} />
         )}

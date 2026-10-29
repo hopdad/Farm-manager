@@ -1,0 +1,298 @@
+/*
+ * The layer rail: a left-side column on the wall (72 px targets), a drawer on phones (52 px).
+ * Closed, it is one button at the left edge, centred like the map controls on the right.
+ * The rail itself lets map gestures through (pointer-events: none); only its controls take taps.
+ * Stacking: z-index 2, after the map in the DOM, so it covers the map's legend and badges but a
+ * tapped machine's card (z-index 3, top-left) shows on top of it.
+ */
+
+.rail {
+  position: absolute;
+  left: var(--gap);
+  top: var(--gap);
+  bottom: calc(var(--gap) + 18px);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  --target: 72px;
+  --gap: 12px;
+  --font: 20px;
+  --radius: 14px;
+  --width: 400px;
+  color: #e7efe9;
+}
+
+.phone {
+  --target: 52px;
+  --gap: 10px;
+  --font: 15px;
+  --radius: 12px;
+  --width: min(320px, calc(100vw - 96px));
+}
+
+.opener {
+  pointer-events: auto;
+  min-width: var(--target);
+  height: var(--target);
+  padding: 0 calc(var(--target) * 0.22);
+  border-radius: var(--radius);
+  border: 1px solid rgb(255 255 255 / 18%);
+  background: rgb(11 18 16 / 86%);
+  color: #f4f7f2;
+  font-size: calc(var(--font) * 0.9);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 35%);
+}
+
+.opener svg {
+  width: calc(var(--target) * 0.5);
+  height: calc(var(--target) * 0.5);
+}
+
+.opener:active,
+.item:active,
+.close:active,
+.reset:active {
+  background: rgb(34 197 94 / 35%);
+}
+
+.panel {
+  pointer-events: auto;
+  align-self: stretch;
+  width: var(--width);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #0b1210;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 50%);
+  font-size: var(--font);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 18px;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+
+.title {
+  flex: 1;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.close,
+.reset {
+  min-width: var(--target);
+  height: var(--target);
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid rgb(255 255 255 / 16%);
+  background: rgb(255 255 255 / 6%);
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.close {
+  font-size: calc(var(--target) * 0.5);
+  line-height: 1;
+}
+
+.reset {
+  padding: 0 14px;
+  font-size: calc(var(--font) * 0.75);
+}
+
+.groups {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 10px 12px 14px;
+  display: grid;
+  gap: 14px;
+}
+
+.group {
+  display: grid;
+  gap: 8px;
+}
+
+.groupTitle {
+  font-size: calc(var(--font) * 0.65);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgb(231 239 233 / 65%);
+}
+
+.entry {
+  display: grid;
+  gap: 6px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: var(--target);
+  padding: 6px 14px;
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(255 255 255 / 4%);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.itemOn {
+  border-color: rgb(134 239 172 / 70%);
+  background: rgb(34 197 94 / 16%);
+}
+
+.item:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.switch {
+  flex: none;
+  position: relative;
+  width: calc(var(--target) * 0.72);
+  height: calc(var(--target) * 0.4);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 22%);
+  transition: background 0.15s ease;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(var(--target) * 0.4 - 6px);
+  height: calc(var(--target) * 0.4 - 6px);
+  border-radius: 50%;
+  background: #f4f7f2;
+  transition: transform 0.15s ease;
+}
+
+.itemOn .switch {
+  background: #22c55e;
+}
+
+.itemOn .switch::after {
+  transform: translateX(calc(var(--target) * 0.32));
+}
+
+.itemText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.itemLabel {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.status {
+  font-size: calc(var(--font) * 0.68);
+  color: rgb(231 239 233 / 70%);
+}
+
+.statusOffline {
+  color: #fbbf24;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.statusHint {
+  color: #7dd3fc;
+}
+
+.legend {
+  display: grid;
+  gap: 4px;
+  padding: 2px 6px 4px 18px;
+  font-size: calc(var(--font) * 0.68);
+}
+
+.legendTitle {
+  font-weight: 700;
+  color: rgb(231 239 233 / 75%);
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legendNote {
+  color: rgb(231 239 233 / 55%);
+}
+
+.swatch {
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 3px;
+}
+
+.swatchLine {
+  height: 0;
+  border-top: 3px solid;
+  border-radius: 0;
+}
+
+.swatchPoint {
+  border-radius: 50%;
+}
+
+.source {
+  padding: 0 6px 0 18px;
+  font-size: calc(var(--font) * 0.62);
+  color: rgb(231 239 233 / 55%);
+}
+
+.sourceWarn {
+  color: #fbbf24;
+}
+
+.hint {
+  font-size: calc(var(--font) * 0.68);
+  color: rgb(231 239 233 / 50%);
+  padding: 0 4px;
+}
+
+.error,
+.offline {
+  margin: 10px 12px 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: calc(var(--font) * 0.72);
+}
+
+.error {
+  border-left: 4px solid #f87171;
+  background: rgb(248 113 113 / 10%);
+}
+
+.offline {
+  border-left: 4px solid #fbbf24;
+  background: rgb(251 191 36 / 10%);
+}

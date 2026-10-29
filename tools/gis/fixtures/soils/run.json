@@ -1,0 +1,157 @@
+{
+  "format": 1,
+  "source": "soils",
+  "service": "https://SDMDataAccess.sc.egov.usda.gov/Tabular/post.rest",
+  "requestFormat": "JSON+COLUMNNAME",
+  "nccpiRule": "NCCPI - National Commodity Crop Productivity Index (Ver 3.0)",
+  "areas": [
+    "MI091",
+    "MI115"
+  ],
+  "startedAt": "2026-10-29T00:00:00.000Z",
+  "finishedAt": "2026-10-29T00:00:00.000Z",
+  "complete": true,
+  "fixture": "SYNTHETIC test fixture: SDA-shaped replies with fictional keys (999…) and grid polygons around the demo fields; series attributes are typical values, not survey data. Never load it over real SSURGO (pnpm gis:soils replaces it).",
+  "files": [
+    {
+      "file": "survey.json",
+      "kind": "survey",
+      "area": null,
+      "query": "SELECT sc.areasymbol, sc.areaname, sc.saverest\nFROM sacatalog AS sc\nWHERE sc.areasymbol IN ('MI091','MI115')\nORDER BY sc.areasymbol",
+      "rows": 2,
+      "bytes": 171,
+      "sha256": "83e715a2dd19faa34a45145b3ec400c5d78d27031fc896951fe3b84df696d432",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI091.stats.json",
+      "kind": "stats",
+      "area": "MI091",
+      "query": "SELECT mu.mukey, mu.musym, mu.muname, mu.farmlndcl,\n  COUNT(p.mupolygonkey) AS polygons,\n  SUM(CAST(p.mupolygongeo.STNumPoints() AS BIGINT)) AS vertices\nFROM legend AS l\nINNER JOIN mapunit AS mu ON mu.lkey = l.lkey\nLEFT JOIN mupolygon AS p ON p.mukey = mu.mukey\nWHERE l.areasymbol = 'MI091'\nGROUP BY mu.mukey, mu.musym, mu.muname, mu.farmlndcl\nORDER BY mu.mukey",
+      "rows": 8,
+      "bytes": 842,
+      "sha256": "c031d83227bc3a80b6360b4c93d8e363e718c6ed2cd73c0728b09de04a1522eb",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI091.components.001.json",
+      "kind": "components",
+      "area": "MI091",
+      "query": "SELECT c.mukey, c.cokey, c.compname, c.comppct_r, c.majcompflag, c.compkind,\n  c.drainagecl, c.hydgrp,\n  (SELECT MAX(ci.interphr) FROM cointerp AS ci\n    WHERE ci.cokey = c.cokey AND ci.ruledepth = 0 AND ci.mrulename = 'NCCPI - National Commodity Crop Productivity Index (Ver 3.0)') AS nccpi\nFROM component AS c\nWHERE c.mukey IN ('99901001','99901002','99901003','99901004','99901005')\nORDER BY c.mukey, c.comppct_r DESC, c.cokey",
+      "rows": 10,
+      "bytes": 1021,
+      "sha256": "a20268bb8273332cd428561dc76cbf66f778b6a2fa8c8d9d58f79b968d31095a",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI091.components.002.json",
+      "kind": "components",
+      "area": "MI091",
+      "query": "SELECT c.mukey, c.cokey, c.compname, c.comppct_r, c.majcompflag, c.compkind,\n  c.drainagecl, c.hydgrp,\n  (SELECT MAX(ci.interphr) FROM cointerp AS ci\n    WHERE ci.cokey = c.cokey AND ci.ruledepth = 0 AND ci.mrulename = 'NCCPI - National Commodity Crop Productivity Index (Ver 3.0)') AS nccpi\nFROM component AS c\nWHERE c.mukey IN ('99901006','99901007','99901008')\nORDER BY c.mukey, c.comppct_r DESC, c.cokey",
+      "rows": 5,
+      "bytes": 550,
+      "sha256": "c79d63766102053f550c8641cd2f6914c321f7a9262d5c7035a092ddde8be1c6",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI091.polygons.001.json",
+      "kind": "polygons",
+      "area": "MI091",
+      "query": "SELECT p.mupolygonkey, p.mukey, p.mupolygongeo.STAsText() AS wkt\nFROM mupolygon AS p\nWHERE p.mukey IN ('99901001')\nORDER BY p.mupolygonkey",
+      "rows": 71,
+      "bytes": 16869,
+      "sha256": "752a999bbd58443a229043128028981e859a29577c8071b19ff8851f567459ef",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI091.polygons.002.json",
+      "kind": "polygons",
+      "area": "MI091",
+      "query": "SELECT p.mupolygonkey, p.mukey, p.mupolygongeo.STAsText() AS wkt\nFROM mupolygon AS p\nWHERE p.mukey IN ('99901002','99901003')\nORDER BY p.mupolygonkey",
+      "rows": 110,
+      "bytes": 26112,
+      "sha256": "ee05178ff1aa8b70b653fee37413d9d957cc31a9765a9659367a43f27e6b00cc",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI091.polygons.003.json",
+      "kind": "polygons",
+      "area": "MI091",
+      "query": "SELECT p.mupolygonkey, p.mukey, p.mupolygongeo.STAsText() AS wkt\nFROM mupolygon AS p\nWHERE p.mukey IN ('99901004','99901005','99901006','99901007')\nORDER BY p.mupolygonkey",
+      "rows": 110,
+      "bytes": 26112,
+      "sha256": "9a270583dc0e64d1940d4a22cb4ed8c0fe853b4bcce243eb2e3ee4c273eb41c8",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI091.polygons.004.json",
+      "kind": "polygons",
+      "area": "MI091",
+      "query": "SELECT p.mupolygonkey, p.mukey, p.mupolygongeo.STAsText() AS wkt\nFROM mupolygon AS p\nWHERE p.mukey IN ('99901008')\nORDER BY p.mupolygonkey",
+      "rows": 5,
+      "bytes": 1227,
+      "sha256": "ec2693dba6d583dccc255d2d5ab9f5d5c06ea5a895f13e22099c1164ee4204c6",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI115.stats.json",
+      "kind": "stats",
+      "area": "MI115",
+      "query": "SELECT mu.mukey, mu.musym, mu.muname, mu.farmlndcl,\n  COUNT(p.mupolygonkey) AS polygons,\n  SUM(CAST(p.mupolygongeo.STNumPoints() AS BIGINT)) AS vertices\nFROM legend AS l\nINNER JOIN mapunit AS mu ON mu.lkey = l.lkey\nLEFT JOIN mupolygon AS p ON p.mukey = mu.mukey\nWHERE l.areasymbol = 'MI115'\nGROUP BY mu.mukey, mu.musym, mu.muname, mu.farmlndcl\nORDER BY mu.mukey",
+      "rows": 6,
+      "bytes": 678,
+      "sha256": "2a990f8e014bdba6172446be534143dd67e16c72905ac3a7997b192a93b315b4",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI115.components.001.json",
+      "kind": "components",
+      "area": "MI115",
+      "query": "SELECT c.mukey, c.cokey, c.compname, c.comppct_r, c.majcompflag, c.compkind,\n  c.drainagecl, c.hydgrp,\n  (SELECT MAX(ci.interphr) FROM cointerp AS ci\n    WHERE ci.cokey = c.cokey AND ci.ruledepth = 0 AND ci.mrulename = 'NCCPI - National Commodity Crop Productivity Index (Ver 3.0)') AS nccpi\nFROM component AS c\nWHERE c.mukey IN ('99902001','99902002','99902003','99902004','99902005')\nORDER BY c.mukey, c.comppct_r DESC, c.cokey",
+      "rows": 7,
+      "bytes": 751,
+      "sha256": "b28afd979d0a30335ec0949e7e3696ca2bce01f2766da2aa6a210e1db0ae9bc8",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI115.components.002.json",
+      "kind": "components",
+      "area": "MI115",
+      "query": "SELECT c.mukey, c.cokey, c.compname, c.comppct_r, c.majcompflag, c.compkind,\n  c.drainagecl, c.hydgrp,\n  (SELECT MAX(ci.interphr) FROM cointerp AS ci\n    WHERE ci.cokey = c.cokey AND ci.ruledepth = 0 AND ci.mrulename = 'NCCPI - National Commodity Crop Productivity Index (Ver 3.0)') AS nccpi\nFROM component AS c\nWHERE c.mukey IN ('99902006')\nORDER BY c.mukey, c.comppct_r DESC, c.cokey",
+      "rows": 1,
+      "bytes": 196,
+      "sha256": "897aec2078f949615fbeb28c7a09ab7b40236265c6b74e0fa5447021e9741914",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI115.polygons.001.json",
+      "kind": "polygons",
+      "area": "MI115",
+      "query": "SELECT p.mupolygonkey, p.mukey, p.mupolygongeo.STAsText() AS wkt\nFROM mupolygon AS p\nWHERE p.mukey IN ('99902001')\nORDER BY p.mupolygonkey",
+      "rows": 78,
+      "bytes": 18528,
+      "sha256": "4592cc38803e96e38d277af703dcebfac4a89121052eba7641d430b042a2c475",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI115.polygons.002.json",
+      "kind": "polygons",
+      "area": "MI115",
+      "query": "SELECT p.mupolygonkey, p.mukey, p.mupolygongeo.STAsText() AS wkt\nFROM mupolygon AS p\nWHERE p.mukey IN ('99902002','99902003')\nORDER BY p.mupolygonkey",
+      "rows": 112,
+      "bytes": 26586,
+      "sha256": "46dfaa1b46cd4bdf54ceeff134cf60fef48268a438f9e706ace82552d578ebf2",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    },
+    {
+      "file": "MI115.polygons.003.json",
+      "kind": "polygons",
+      "area": "MI115",
+      "query": "SELECT p.mupolygonkey, p.mukey, p.mupolygongeo.STAsText() AS wkt\nFROM mupolygon AS p\nWHERE p.mukey IN ('99902004','99902005','99902006')\nORDER BY p.mupolygonkey",
+      "rows": 119,
+      "bytes": 28245,
+      "sha256": "683a51326e5cc4154b75e603831f0cc2fe6e145ad28e6003d34873272c5b3494",
+      "fetchedAt": "2026-10-29T00:00:00.000Z"
+    }
+  ]
+}
