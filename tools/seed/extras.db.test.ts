@@ -30,9 +30,7 @@ describe('seedDemoExtras', () => {
         where p.display_name = 'Amy Kovach'`,
     );
     expect(amy.rows[0]?.role).toBe('manager');
-    expect(await verifyPin(demoPin(SECRET, 'crew-amy'), amy.rows[0]?.pin_hash ?? null)).toBe(
-      true,
-    );
+    expect(await verifyPin(demoPin(SECRET, 'crew-amy'), amy.rows[0]?.pin_hash ?? null)).toBe(true);
 
     // Every demo field has soils summing to 100 % and at least one parcel.
     const soils = await pool.query<{ n: number }>(
@@ -48,7 +46,9 @@ describe('seedDemoExtras', () => {
            on extensions.ST_Intersects(p.geom, b.geom)`,
     );
     expect(parcels.rows[0]?.n).toBe(40);
-    const naip = await pool.query(`select kind, cache_policy from gis.map_layers where key = 'naip'`);
+    const naip = await pool.query(
+      `select kind, cache_policy from gis.map_layers where key = 'naip'`,
+    );
     expect(naip.rows[0]).toEqual({ kind: 'xyz', cache_policy: 'public' });
 
     const lines = await formatExtrasReport(pool, r, SECRET);

@@ -45,9 +45,9 @@ import {
   withClient,
   withMaintenance,
 } from '../src/db/admin';
+import { createPool } from '../src/db/client';
 import { type PortProbe, probePort, reservedPortHint } from '../src/lib/ports';
 import { isMainModule, runNode, tsxBin } from '../src/lib/proc';
-import { createPool } from '../src/db/client';
 import { adminUnlockUrl } from '../src/platform/auth/admin-key';
 import { authBannerLines } from '../src/platform/auth/banner';
 import { configure, migrate, pending, up } from './db';

@@ -14,7 +14,7 @@
  * The tool draws on the map with its own sources and layers, prefixed `draw:tile:` (never
  * `layer:`, so the rail's applyLayers leaves them alone), and re-adds them after a style reload.
  * While it is drawing, `useTileDrawStore().drawing` is true: the board should not open the field
- * panel for those taps (the integrator wires that to WarRoomMap's onFieldTap).
+ * panel for those taps (BoardScreen passes no onFieldTap to WarRoomMap while drawing).
  */
 import type {
   GeoJSONSource,

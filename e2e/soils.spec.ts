@@ -188,15 +188,7 @@ test('the Soils tab shows the map units of a demo field', async ({ page }, testI
   if (!p) throw new Error('map not ready');
   await page.touchscreen.tap(p.x, p.y);
 
-  const panel = page.getByTestId('field-panel');
-  const opened = await panel
-    .waitFor({ state: 'visible', timeout: 5_000 })
-    .then(() => true)
-    .catch(() => false);
-  test.skip(
-    !opened,
-    'the field panel (m1/field-panel) is not mounted in this build; the Soils tab is covered by src/ui/fields/tabs/soils.test.ts until the integrator wires onFieldTap',
-  );
+  await expect(page.getByTestId('field-panel')).toBeVisible();
 
   await page.getByTestId('field-tab-soils').click();
   const rows = page.getByTestId('field-soils-row');

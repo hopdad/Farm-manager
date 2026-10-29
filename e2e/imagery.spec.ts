@@ -5,9 +5,9 @@
  *    would) lands once, a different body is 409, a forged URL 403; the private object is served
  *    only through a signed GET (unsigned 404, private no-store);
  *  - parcels: the private parcels tiles cover the demo fields (synthetic fixture, D7, loaded
- *    first on a local database that has none), owner names only for managers once the tiles
- *    route picks the owners variant, the parcels layer from the rail and the Parcels tab when
- *    those are mounted (the integrator wires the rail and the field panel);
+ *    first on a local database that has none), owner names in the tiles only for managers (the
+ *    tiles route serves the owners variant by role), the parcels layer from the rail and the
+ *    Parcels tab of the field panel;
  *  - tile lines: a manager draws a line on a field with the Tile tool; a second manager's board
  *    sees it appear (realtime) and a viewer's private tile_lines tiles carry it; a viewer has no
  *    Tile tool.
@@ -173,19 +173,12 @@ test.describe('parcels', () => {
     }
   });
 
-  test('the parcels layer from the rail (when the rail is mounted)', async ({
-    page,
-    context,
-  }, testInfo) => {
+  test('the parcels layer from the rail', async ({ page, context }, testInfo) => {
     test.skip(testInfo.project.name !== 'wall', 'wall only');
     await signInAs(context);
     await page.goto('/board');
     await waitForMap(page);
     const toggle = page.getByTestId('layer-rail-toggle');
-    test.skip(
-      (await toggle.count()) === 0 && (await page.getByTestId('layer-rail').count()) === 0,
-      'the layer rail (m1/soils) is not mounted in this build; the parcels def is covered by src/ui/map/layers/parcels.test.ts',
-    );
     const f = fields[0] as DemoField;
     await page.evaluate((c) => window.__map?.jumpTo({ center: c, zoom: 14 }), [f.lng, f.lat] as [
       number,
@@ -206,7 +199,7 @@ test.describe('parcels', () => {
       .toBeGreaterThan(0);
   });
 
-  test('the Parcels tab (when the field panel is mounted)', async ({ page, context }, testInfo) => {
+  test('the Parcels tab shows a manager the owners', async ({ page, context }, testInfo) => {
     test.skip(testInfo.project.name !== 'wall', 'wall only');
     await signInAs(context, 'manager');
     await page.goto('/board');
@@ -223,15 +216,7 @@ test.describe('parcels', () => {
     ]);
     if (!p) throw new Error('map not ready');
     await page.touchscreen.tap(p.x, p.y);
-    const opened = await page
-      .getByTestId('field-panel')
-      .waitFor({ state: 'visible', timeout: 5_000 })
-      .then(() => true)
-      .catch(() => false);
-    test.skip(
-      !opened,
-      'the field panel (m1/field-panel) is not mounted in this build; the Parcels tab is covered by src/ui/fields/tabs/parcels.test.ts',
-    );
+    await expect(page.getByTestId('field-panel')).toBeVisible();
     await page.getByTestId('field-tab-parcels').click();
     await expect(page.getByTestId('field-parcel').first()).toBeVisible();
     await expect(page.getByTestId('field-parcel-owner').first()).not.toHaveText(
@@ -266,7 +251,8 @@ async function quietField(page: Page): Promise<DemoField> {
 async function openBoardAt(page: Page, f: DemoField): Promise<void> {
   if (!(await page.evaluate(() => window.__map?.loaded() === true).catch(() => false))) {
     await page.goto('/board');
-    await waitForMap(page);
+    // Software WebGL on a busy machine (the whole suite drawing maps) can take a while.
+    await waitForMap(page, 90_000);
   }
   await page.evaluate((c) => window.__map?.jumpTo({ center: c, zoom: 15.5 }), [f.lng, f.lat] as [
     number,
@@ -296,7 +282,7 @@ test.describe('tile lines', () => {
     browser,
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'wall', 'the draw tool is exercised on the wall');
-    test.setTimeout(150_000); // three boards with WebGL in software
+    test.setTimeout(240_000); // three boards with WebGL in software
     const drawer = await browser.newContext({
       viewport: { width: 1920, height: 1080 },
       hasTouch: true,
@@ -321,7 +307,8 @@ test.describe('tile lines', () => {
       await page.goto('/board');
       await waitForMap(page);
       const f = await quietField(page);
-      await Promise.all([openBoardAt(page, f), openBoardAt(other, f), openBoardAt(view, f)]);
+      // One at a time: three software-WebGL boards starting together starve each other.
+      for (const p of [page, other, view]) await openBoardAt(p, f);
 
       // The viewer has no Tile tool (the API says canEdit: false).
       await expect(page.getByTestId('tile-tool-toggle')).toBeVisible();

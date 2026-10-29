@@ -3,8 +3,8 @@
  * honest"). api.weather.gov was unreachable from the build machine (Oct 29, 2026: 403 at the
  * proxy), so the client, the stand-in and the replay fixtures follow the OpenAPI document
  * (https://api.weather.gov/openapi.json, v2.0.0) and the documentation page
- * (https://www.weather.gov/documentation/services-web-api). The integrator appends these to
- * the admin list (src/connectors/doc-derived.ts, DOC_DERIVED). A recorded response
+ * (https://www.weather.gov/documentation/services-web-api). They are appended to the admin list
+ * (src/connectors/doc-derived.ts, DOC_DERIVED). A recorded response
  * (`pnpm connectors:record nws`, 1f) or one run with CONNECTOR_WEATHER=live on the PC removes
  * entries.
  */

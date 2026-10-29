@@ -1,6 +1,6 @@
 /**
- * What the launchers print about sign-in (`pnpm run bootstrap`, `pnpm dev`, `pnpm pilot`; the
- * integrator calls `authBannerLines` there, and `pnpm auth:links` prints the same):
+ * What the launchers print about sign-in (`pnpm run bootstrap`, `pnpm dev` and `pnpm pilot` call
+ * `authBannerLines` from scripts/bootstrap.ts and tools/dev.ts; `pnpm auth:links` prints the same):
  *
  *  - until the farm's owner exists: the one-time OWNER SETUP link (derived from SESSION_SECRET,
  *    so every launcher prints the same link; it stops working once the owner is set up);

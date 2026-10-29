@@ -9,7 +9,7 @@
  *  - role too low: { ok: false } so the page can say who is signed in and what it needs (403
  *    semantics without an error page; nothing private is rendered).
  *
- * `/board` and `/m` call `requirePageSession(path)` (integrator: one line each) so a revoked
+ * `/board` and `/m` call `requirePageSession(path)` (one line each) so a revoked
  * wall lands on the enrollment screen instead of an empty map.
  */
 import { redirect } from 'next/navigation';
