@@ -137,7 +137,7 @@
 }
 
 .advisory {
-  font-size: 12px;
+  font-size: max(12px, 0.7em);
   color: #fde68a;
 }
 
@@ -299,10 +299,11 @@
   grid-template-columns: 64px 96px 1fr;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  /* The tab's size (20 px on the wall), not a fixed small one. */
+  font-size: 1em;
 }
 
 .muted {
   opacity: 0.7;
-  font-size: 14px;
+  font-size: 0.85em;
 }

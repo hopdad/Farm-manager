@@ -102,7 +102,9 @@ describe('groupOf / groupMachines', () => {
     expect(g.moving.map((r) => r.machine.unitNo)).toEqual(['C1']);
     expect(g.idle.map((r) => r.machine.unitNo)).toEqual(['S2']);
     expect(g.down.map((r) => r.machine.unitNo)).toEqual(['S3']);
-    expect(g.stale.map((r) => r.machine.unitNo)).toEqual(['S4', 'D1']);
+    expect(g.stale.map((r) => r.machine.unitNo)).toEqual(['S4']);
+    // Never reported: its own group, not a stale alarm (the map doesn't count it either).
+    expect(g.unplaced.map((r) => [r.machine.unitNo, r.stale])).toEqual([['D1', false]]);
   });
 
   test('down wins over stale, and the row still says it is stale', () => {

@@ -22,13 +22,20 @@ import type { SeasonRow } from '../../../domain/fields';
 import { ROLE_FOR, roleAtLeast } from '../../../platform/auth/types';
 import { type FieldPanelTab, type FieldPanelTabProps, TAB_ORDER } from '../tabs';
 
+// Sizes relative to the panel's type (22 px on the wall, 16 px on phones): the History tab reads
+// from across the room like the Overview.
 const S = {
   section: { margin: '0 0 16px' } satisfies CSSProperties,
-  h: { margin: '0 0 8px', fontSize: 15, fontWeight: 600, opacity: 0.85 } satisfies CSSProperties,
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 15 } satisfies CSSProperties,
+  h: {
+    margin: '0 0 8px',
+    fontSize: '0.8em',
+    fontWeight: 600,
+    opacity: 0.85,
+  } satisfies CSSProperties,
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: '1em' } satisfies CSSProperties,
   th: {
     textAlign: 'left',
-    fontSize: 12,
+    fontSize: '0.75em',
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
     opacity: 0.7,
@@ -42,7 +49,7 @@ const S = {
     whiteSpace: 'nowrap',
     verticalAlign: 'middle',
   } satisfies CSSProperties,
-  muted: { opacity: 0.7, fontSize: 14 } satisfies CSSProperties,
+  muted: { opacity: 0.7, fontSize: '0.85em' } satisfies CSSProperties,
   error: { color: '#fca5a5' } satisfies CSSProperties,
   ok: { color: '#86efac' } satisfies CSSProperties,
   form: {
@@ -54,7 +61,7 @@ const S = {
     borderRadius: 12,
     border: '1px solid rgb(255 255 255 / 15%)',
   } satisfies CSSProperties,
-  label: { display: 'grid', gap: 4, fontSize: 13, opacity: 0.9 } satisfies CSSProperties,
+  label: { display: 'grid', gap: 4, fontSize: '0.85em', opacity: 0.9 } satisfies CSSProperties,
   input: {
     minHeight: 44,
     padding: '0 10px',
@@ -62,7 +69,8 @@ const S = {
     border: '1px solid rgb(255 255 255 / 20%)',
     background: 'rgb(0 0 0 / 25%)',
     color: 'inherit',
-    fontSize: 16,
+    // 16 px at least: iOS zooms the page into smaller inputs.
+    fontSize: 'max(16px, 1em)',
     boxSizing: 'border-box',
     width: '100%',
   } satisfies CSSProperties,

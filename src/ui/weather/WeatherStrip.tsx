@@ -251,7 +251,12 @@ export function WeatherStrip({ variant }: { variant: 'wall' | 'phone' }) {
 
   if (!strip) {
     return variant === 'wall' ? (
-      <div className={css.strip} data-testid="weather-strip" data-state="loading">
+      <div
+        className={css.strip}
+        data-testid="weather-strip"
+        data-state="loading"
+        data-dock="bottom"
+      >
         <div className={css.block}>
           <span className={css.label}>Weather</span>
           <span className={css.small}>{error ? `unavailable (${error})` : 'loading…'}</span>
@@ -312,6 +317,7 @@ export function WeatherStrip({ variant }: { variant: 'wall' | 'phone' }) {
       data-testid="weather-strip"
       data-state="ready"
       data-issued-at={strip.issuedAt ?? ''}
+      data-dock="bottom"
     >
       <div className={css.stripRow}>
         <NowBlock strip={strip} now={now} notUpdatedSince={notUpdatedSince} />

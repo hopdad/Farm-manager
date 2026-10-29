@@ -31,6 +31,11 @@
   --width: min(320px, calc(100vw - 96px));
 }
 
+/* Phones: the open drawer goes over the floating Fleet button (4) and weather chip (3). */
+.phone.railOpen {
+  z-index: 6;
+}
+
 .opener {
   pointer-events: auto;
   min-width: var(--target);

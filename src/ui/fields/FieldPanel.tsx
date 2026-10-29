@@ -299,6 +299,7 @@ export function FieldPanel({ fieldId, variant, onClose, config, map = null }: Fi
       role="dialog"
       aria-modal="false"
       aria-labelledby={titleId}
+      data-dock="right"
       {...data}
     >
       {header}
@@ -418,6 +419,7 @@ function Sheet(props: {
       aria-modal="false"
       aria-labelledby={props.labelledBy}
       data-snap={snap}
+      data-dock="bottom"
       {...props.data}
     >
       <div

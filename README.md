@@ -90,7 +90,8 @@ after.
    only you know: you are the owner. After that `pnpm dev` prints where to sign in instead.
 2. **The wall display:** on **/admin/devices** add a *Wall display*; open the link (or scan the
    QR code) on the wall's browser once. Start it as a kiosk:
-   `& "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --user-data-dir=$env:LOCALAPPDATA\farm-kiosk http://localhost:3000/board`.
+   `& "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --force-device-scale-factor=2 --user-data-dir=$env:LOCALAPPDATA\farm-kiosk http://localhost:3000/board`
+   (the board is laid out for 1920 x 1080 CSS px: `2` for a 4K panel, `1` for a 1080p one).
    Anyone at the wall taps the name chip (top right) to sign in with their PIN.
 3. **Cab iPads, truck iPads, crew phones:** the same page; a phone is added *for* a person and
    signs in as them. Step by step: [`docs/kiosk.md`](docs/kiosk.md).

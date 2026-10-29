@@ -2,9 +2,12 @@
  * deck.gl layers for the fleet (drawn interleaved inside MapLibre, above the basemap labels):
  * a dark disc with a coloured ring (the touch target), a heading arrow tinted by kind, and the
  * unit number. Built fresh each animation frame from FleetModel.frame(); ~50 machines is cheap.
+ * Machines that sit together on screen share one label ("C1 · GC1 · S4", ./labels.ts) so unit
+ * numbers never print on top of each other.
  */
 import type { Layer } from '@deck.gl/core';
 import { IconLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
+import type { LabelGroup } from './labels';
 import type { FleetFrame } from './model';
 import { HALO_FILL, hexToRgba, ICON_ATLAS, ICON_MAPPING, markerLook } from './style';
 
@@ -34,11 +37,27 @@ export const FLEET_LAYER_IDS = ['fleet-halo', 'fleet-icons', 'fleet-labels'] as 
 const halo = hexToRgba(HALO_FILL, 220);
 const white: [number, number, number, number] = [255, 255, 255, 255];
 
+/** Distance (CSS px) under which two machines share a label: rings that touch or overlap. */
+export const labelGroupRadiusPx = (sizes: FleetLayerSizes): number => sizes.ringRadiusPx * 2.2;
+
+/**
+ * `labels`: the label groups (./labels.ts groupLabels, from the map's projection); default one
+ * label per machine.
+ */
 export function buildFleetLayers(
   frames: FleetFrame[],
   sizes: FleetLayerSizes,
   selectedId: string | null,
+  labels?: readonly LabelGroup[],
 ): Layer[] {
+  const groups: readonly LabelGroup[] =
+    labels ??
+    frames.map((f) => ({
+      anchor: f,
+      members: [f],
+      text: markerLook(f).label,
+      allStale: f.stale,
+    }));
   return [
     new ScatterplotLayer<FleetFrame>({
       id: 'fleet-halo',
@@ -68,17 +87,19 @@ export function buildFleetLayers(
       getAngle: (f) => -f.heading,
       getColor: (f) => markerLook(f).icon,
     }),
-    new TextLayer<FleetFrame>({
+    new TextLayer<LabelGroup>({
       id: 'fleet-labels',
-      data: frames,
-      getPosition: (f) => [f.lng, f.lat],
-      getText: (f) => markerLook(f).label,
+      data: groups,
+      getPosition: (g) => [g.anchor.lng, g.anchor.lat],
+      getText: (g) => g.text,
       getSize: sizes.labelPx,
-      getPixelOffset: (f) => [
+      getPixelOffset: (g) => [
         0,
-        f.id === selectedId ? sizes.labelOffsetPx + sizes.ringRadiusPx * 0.4 : sizes.labelOffsetPx,
+        g.anchor.id === selectedId
+          ? sizes.labelOffsetPx + sizes.ringRadiusPx * 0.4
+          : sizes.labelOffsetPx,
       ],
-      getColor: (f) => (f.stale ? markerLook(f).ring : white),
+      getColor: (g) => (g.allStale ? markerLook(g.anchor).ring : white),
       fontFamily: 'system-ui, "Segoe UI", Roboto, sans-serif',
       fontWeight: 700,
       fontSettings: { sdf: true },

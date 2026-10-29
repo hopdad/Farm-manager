@@ -48,6 +48,8 @@ export interface LayerRailProps {
   flavor?: BasemapFlavor;
   /** The defs to offer (tests); default LAYER_DEFS. */
   defs?: readonly LayerDef[];
+  /** The rail opened or closed (the board shows the map's own legend only while it is closed). */
+  onOpenChange?(open: boolean): void;
 }
 
 /** Everything applyLayers needs besides the map. */
@@ -187,6 +189,7 @@ export function LayerRail({
   config = DEFAULT_CONFIG,
   flavor,
   defs = LAYER_DEFS,
+  onOpenChange,
 }: LayerRailProps) {
   const effectiveFlavor: BasemapFlavor = flavor ?? (variant === 'wall' ? 'dark' : 'light');
   const [rows, setRows] = useState<ResolvedMapLayer[]>([]);
@@ -210,6 +213,9 @@ export function LayerRail({
     if (!hydrated) return;
     saveRailPrefs(browserStorage(), variant, { overrides, open });
   }, [hydrated, variant, overrides, open]);
+  useEffect(() => {
+    onOpenChange?.(open);
+  }, [open, onOpenChange]);
 
   // The registry, live.
   useEffect(() => {
@@ -277,7 +283,7 @@ export function LayerRail({
 
   return (
     <div
-      className={`${css.rail} ${variant === 'phone' ? css.phone : ''}`}
+      className={`${css.rail} ${variant === 'phone' ? css.phone : ''} ${open ? css.railOpen : ''}`}
       data-testid="layer-rail-root"
     >
       {!open && (
@@ -309,6 +315,7 @@ export function LayerRail({
           className={css.panel}
           aria-label="Map layers"
           data-testid="layer-rail"
+          data-dock={variant === 'wall' ? 'left' : undefined}
         >
           <header className={css.header}>
             <span className={css.title}>Layers</span>

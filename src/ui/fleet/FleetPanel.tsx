@@ -166,13 +166,20 @@ export function FleetPanel({ variant, onLocate }: FleetPanelProps) {
   );
   const cancel = useCallback(() => setEditing(null), []);
 
-  const summary = `${groups.down.length} down · ${groups.stale.length} stale`;
+  // Counted like the status strip (machines on the map); those that never reported apart.
+  const onMap = state.machines.length - groups.unplaced.length;
+  const summary = [
+    `${onMap} on the map`,
+    `${groups.down.length} down`,
+    `${groups.stale.length} stale`,
+    ...(groups.unplaced.length ? [`${groups.unplaced.length} no position`] : []),
+  ].join(' · ');
   const body = (
     <>
       <header className={css.header}>
         <h2 className={css.title}>Fleet</h2>
         <span className={css.summary} data-testid="fleet-panel-summary">
-          {state.machines.length} · {summary}
+          {summary}
         </span>
         <button
           type="button"
@@ -221,6 +228,7 @@ export function FleetPanel({ variant, onLocate }: FleetPanelProps) {
           className={variant === 'wall' ? css.wallPanel : css.phonePanel}
           data-testid="fleet-panel"
           data-variant={variant}
+          data-dock={variant === 'wall' ? 'right' : undefined}
           aria-label="Fleet"
         >
           {body}

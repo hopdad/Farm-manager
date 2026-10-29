@@ -20,7 +20,12 @@ import {
 import type { MachineStatusPayload } from '../../platform/realtime/types';
 import type { FleetPanelData, PanelMachine } from './contract';
 
-export const FLEET_GROUPS = ['moving', 'idle', 'down', 'stale'] as const;
+/**
+ * `unplaced`: never reported a position (an implement or a drone nobody tracks). Not stale (a
+ * stale fix is an alarm: a tracker that stopped), and not on the map, so it isn't counted as
+ * stale anywhere: the wall's stale counts and the map's agree.
+ */
+export const FLEET_GROUPS = ['moving', 'idle', 'down', 'stale', 'unplaced'] as const;
 export type FleetGroup = (typeof FLEET_GROUPS)[number];
 
 export const GROUP_LABELS: Record<FleetGroup, string> = {
@@ -28,6 +33,7 @@ export const GROUP_LABELS: Record<FleetGroup, string> = {
   idle: 'Idle',
   down: 'Down',
   stale: 'Stale',
+  unplaced: 'No position yet',
 };
 
 /** The position-source badge: short text on the row, the long form as its title. */
@@ -176,13 +182,14 @@ export function groupOf(
   thresholds: StaleThresholds,
 ): { group: FleetGroup; stale: boolean } {
   const stale =
-    m.position === null ||
+    m.position !== null &&
     isMachineStale(
       { ts: m.position.ts, positionSource: m.position.positionSource },
       now,
       thresholds,
     );
   if (m.status === 'down') return { group: 'down', stale };
+  if (m.position === null) return { group: 'unplaced', stale };
   if (stale) return { group: 'stale', stale };
   const a = m.position?.activity;
   return { group: a === 'working' || a === 'transport' ? 'moving' : 'idle', stale };
@@ -194,7 +201,13 @@ export function groupMachines(
   now: Date,
   thresholds: StaleThresholds,
 ): Record<FleetGroup, PanelRow[]> {
-  const out: Record<FleetGroup, PanelRow[]> = { moving: [], idle: [], down: [], stale: [] };
+  const out: Record<FleetGroup, PanelRow[]> = {
+    moving: [],
+    idle: [],
+    down: [],
+    stale: [],
+    unplaced: [],
+  };
   for (const machine of machines) {
     const { group, stale } = groupOf(machine, now, thresholds);
     out[group].push({ machine, group, stale });

@@ -52,8 +52,15 @@ in that browser only, never in production).
 3. From then on start the wall in kiosk mode with the same profile:
 
    ```powershell
-   & "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --user-data-dir=$env:LOCALAPPDATA\farm-kiosk http://localhost:3000/board
+   & "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --force-device-scale-factor=2 --user-data-dir=$env:LOCALAPPDATA\farm-kiosk http://localhost:3000/board
    ```
+
+   **The board is laid out for 1920 x 1080 CSS pixels** (type you can read across the room,
+   the panels clear of the fields). `--force-device-scale-factor` pins that whatever Windows
+   display scaling says: **2** for a 4K panel (3840 wide), **1** for a 1080p panel. Without it,
+   a 4K TV at 100 % scaling shows 3840 CSS px (tiny type) and one at 300 % only 1280 (the
+   panels cover the fields). The board shows a *Display scaling* badge when the width is far
+   from 1920.
 
    The enrollment stays in that profile (renewed every day the board is used). The full kiosk
    flags, start-on-boot and the stale-reload watchdog arrive with the 1g kiosk runbook.

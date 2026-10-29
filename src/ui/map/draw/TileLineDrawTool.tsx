@@ -154,9 +154,11 @@ export interface TileLineDrawToolProps {
   map: MapLibreMap | null;
   variant: MapVariant;
   config: Pick<PublicConfig, 'appEnv' | 'realtime'>;
+  /** The tool opened (the board closes the field panel, which would cover it). */
+  onOpen?(): void;
 }
 
-export function TileLineDrawTool({ map, variant, config }: TileLineDrawToolProps) {
+export function TileLineDrawTool({ map, variant, config, onOpen }: TileLineDrawToolProps) {
   const [canEdit, setCanEdit] = useState(false);
   const [lines, setLines] = useState<TileLineView[]>([]);
   const [truncated, setTruncated] = useState(false);
@@ -167,6 +169,11 @@ export function TileLineDrawTool({ map, variant, config }: TileLineDrawToolProps
   modeRef.current = mode;
   const setDrawing = useTileDrawStore((s) => s.set);
   const open = mode.kind !== 'closed';
+  const onOpenRef = useRef(onOpen);
+  onOpenRef.current = onOpen;
+  useEffect(() => {
+    if (open) onOpenRef.current?.();
+  }, [open]);
 
   // ---- data ------------------------------------------------------------------------------
   const load = useCallback(async () => {

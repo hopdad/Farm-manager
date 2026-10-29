@@ -19,7 +19,9 @@ import { type MapLayerMouseEvent, type MapRef, Map as MapView } from 'react-map-
 import { MACHINE_KINDS } from '../../domain/fleet';
 import { formatDuration } from '../board/format';
 import { DeckOverlay } from './DeckOverlay';
-import { buildFleetLayers, PHONE_SIZES, WALL_SIZES } from './fleet/layers';
+import { BASE_FIT_PADDING, dockInsets, measureDocked } from './fit';
+import { groupLabels } from './fleet/labels';
+import { buildFleetLayers, labelGroupRadiusPx, PHONE_SIZES, WALL_SIZES } from './fleet/layers';
 import type { FleetFrame, FleetModel } from './fleet/model';
 import { machineNear } from './fleet/pick';
 import { insideGrown, metersPerCssPixel, redrawIntervalMs } from './fleet/redraw';
@@ -62,6 +64,7 @@ export default function WarRoomMap(props: WarRoomMapProps) {
   const { data, variant, flavor, fleet, fleetStatus, selectedId, onSelect } = props;
   const maplib = useMemo(() => setupMapLibre(), []);
   const mapRef = useRef<MapRef>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const compassRef = useRef<SVGSVGElement>(null);
   const [overlay, setOverlay] = useState<MapLibreOverlay | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -86,8 +89,9 @@ export default function WarRoomMap(props: WarRoomMapProps) {
         glyphsPath: data.glyphsPath,
         fields: data.fields,
         flavor,
+        variant,
       }),
-    [origin, data.basemap, data.glyphsPath, data.fields, flavor],
+    [origin, data.basemap, data.glyphsPath, data.fields, flavor, variant],
   );
   const sizes = variant === 'wall' ? WALL_SIZES : PHONE_SIZES;
 
@@ -102,6 +106,8 @@ export default function WarRoomMap(props: WarRoomMapProps) {
     let drawnVisible: boolean | undefined;
     let wasAnimating = false;
     let drawnAt = Number.NEGATIVE_INFINITY;
+    // Labels group by screen distance (./fleet/labels.ts): re-group when the zoom moves.
+    let drawnZoom = Number.NaN;
     const glideInterval = (now: number): number => {
       const map = mapRef.current?.getMap();
       if (!map) return 0;
@@ -121,23 +127,35 @@ export default function WarRoomMap(props: WarRoomMapProps) {
       const now = performance.now();
       const animating = fleet.isAnimating(now);
       const visible = fleetVisibleRef.current;
+      const gl = mapRef.current?.getMap();
+      const zoom = gl?.getZoom() ?? Number.NaN;
       const changed =
         fleet.version !== drawnVersion ||
         selectedRef.current !== drawnSelected ||
-        visible !== drawnVisible;
+        visible !== drawnVisible ||
+        (visible && Math.abs(zoom - drawnZoom) > 0.05);
       if (
         changed ||
         (wasAnimating && !animating) ||
         (animating && now - drawnAt >= glideInterval(now))
       ) {
         const frames = fleet.frame(now);
-        const layers = visible ? buildFleetLayers(frames, sizes, selectedRef.current) : [];
+        const labels = gl
+          ? groupLabels(
+              frames,
+              (lng, lat) => gl.project([lng, lat]),
+              labelGroupRadiusPx(sizes),
+              selectedRef.current,
+            )
+          : undefined;
+        const layers = visible ? buildFleetLayers(frames, sizes, selectedRef.current, labels) : [];
         overlay.setProps({ layers });
         framesRef.current = frames;
         layersRef.current = layers;
         drawnVersion = fleet.version;
         drawnSelected = selectedRef.current;
         drawnVisible = visible;
+        drawnZoom = zoom;
         drawnAt = now;
       }
       wasAnimating = animating;
@@ -146,6 +164,34 @@ export default function WarRoomMap(props: WarRoomMapProps) {
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
   }, [overlay, fleet, sizes]);
+
+  // The padding that keeps fields out from under the panels around the map (./fit.ts): the
+  // rail, the fleet or field panel and the weather strip mark themselves with data-dock.
+  const fitPadding = useCallback(() => {
+    const root = rootRef.current;
+    if (!root) return BASE_FIT_PADDING[variant];
+    const r = root.getBoundingClientRect();
+    return dockInsets(
+      { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+      measureDocked(root.parentElement ?? root),
+      BASE_FIT_PADDING[variant],
+      variant === 'wall' ? 16 : 10,
+    );
+  }, [variant]);
+
+  // The first view: once the panels are on screen, fit the fields again clear of them (once).
+  const firstFitRef = useRef(false);
+  const initialBounds = data.initialBounds;
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!loaded || !m || firstFitRef.current) return;
+    firstFitRef.current = true;
+    m.fitBounds(initialBounds as [number, number, number, number], {
+      padding: fitPadding(),
+      maxZoom: 15,
+      duration: 0,
+    });
+  }, [loaded, initialBounds, fitPadding]);
 
   // Hand the map to whoever composes layers on it (the rail), once loaded; null on unmount.
   useEffect(() => {
@@ -227,7 +273,7 @@ export default function WarRoomMap(props: WarRoomMapProps) {
   const map = () => mapRef.current;
   const home = () =>
     map()?.fitBounds(data.initialBounds as [number, number, number, number], {
-      padding: variant === 'wall' ? 80 : 32,
+      padding: fitPadding(),
       maxZoom: 15,
       bearing: 0,
       duration: 600,
@@ -237,6 +283,7 @@ export default function WarRoomMap(props: WarRoomMapProps) {
 
   return (
     <div
+      ref={rootRef}
       className={`${css.root} ${variant === 'phone' ? css.phone : ''}`}
       data-testid="war-room-map"
     >
@@ -246,7 +293,7 @@ export default function WarRoomMap(props: WarRoomMapProps) {
         mapStyle={mapStyle}
         initialViewState={{
           bounds: data.initialBounds as [number, number, number, number],
-          fitBoundsOptions: { padding: variant === 'wall' ? 80 : 32, maxZoom: 15 },
+          fitBoundsOptions: { padding: BASE_FIT_PADDING[variant], maxZoom: 15 },
         }}
         style={{ position: 'absolute', inset: 0 }}
         minZoom={5}

@@ -92,9 +92,11 @@ test('the wall panel groups machines with a source badge and age; a tap centres 
     await expect(row).toHaveAttribute('data-group', /^(moving|idle|stale)$/);
     await expect(row.getByTestId('fleet-source-badge')).toHaveText(/^(ELD|Deere|Cab|Manual)$/);
     await expect(row.getByTestId('fleet-age')).toHaveText(/^Seen /);
-    // Every group heading the panel shows is one of the four.
+    // Every group heading the panel shows is one of the five.
     for (const g of await panel.locator('section[data-group]').all()) {
-      expect(['moving', 'idle', 'down', 'stale']).toContain(await g.getAttribute('data-group'));
+      expect(['moving', 'idle', 'down', 'stale', 'unplaced']).toContain(
+        await g.getAttribute('data-group'),
+      );
     }
     // A viewer gets no Down buttons, and the server refuses one anyway.
     await expect(wall.getByTestId('fleet-mark-down')).toHaveCount(0);

@@ -28,7 +28,8 @@
   z-index: 5;
   top: 12px;
   right: 96px;
-  bottom: 12px;
+  /* Above the weather strip (the board's bottom slot), like the fleet panel: the strip stays whole. */
+  bottom: calc(var(--dock-bottom, 0px) + var(--dock-gap, 12px));
   width: min(660px, calc(100% - 140px));
   border-radius: 20px;
 }
