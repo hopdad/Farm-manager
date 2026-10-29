@@ -404,6 +404,13 @@ export default function BoundaryEditor(props: EditorProps) {
     return r;
   }, []);
 
+  /** A server action that never answered (network, the 1 MB body limit, a restart). */
+  const failed = (e: unknown) =>
+    setResult({
+      ok: false,
+      message: `The server could not be reached (${(e as Error).message}). Try again.`,
+    });
+
   const reset = () => {
     setShape(initialShape);
     setSelected(null);
@@ -439,6 +446,8 @@ export default function BoundaryEditor(props: EditorProps) {
         setNote('');
         router.refresh();
       }
+    } catch (e) {
+      failed(e);
     } finally {
       setBusy(false);
     }
@@ -454,6 +463,8 @@ export default function BoundaryEditor(props: EditorProps) {
         setPieces(r.data);
         setNames(r.data.map((_, i) => `${field.name} ${String.fromCharCode(65 + i)}`));
       }
+    } catch (e) {
+      failed(e);
     } finally {
       setBusy(false);
     }
@@ -472,6 +483,8 @@ export default function BoundaryEditor(props: EditorProps) {
         }),
       );
       if (r.ok && r.data?.childIds[0]) router.push(`/admin/fields/${r.data.childIds[0]}`);
+    } catch (e) {
+      failed(e);
     } finally {
       setBusy(false);
     }
@@ -490,6 +503,8 @@ export default function BoundaryEditor(props: EditorProps) {
       } else {
         setPieces([]);
       }
+    } catch (e) {
+      failed(e);
     } finally {
       setBusy(false);
     }
@@ -503,6 +518,8 @@ export default function BoundaryEditor(props: EditorProps) {
         await mergeAction({ fieldId: field.id, otherId, name: names[0] ?? '', effectiveOn }),
       );
       if (r.ok && r.data) router.push(`/admin/fields/${r.data.childId}`);
+    } catch (e) {
+      failed(e);
     } finally {
       setBusy(false);
     }
@@ -532,6 +549,8 @@ export default function BoundaryEditor(props: EditorProps) {
         }),
       );
       if (r.ok && r.data) router.push(`/admin/fields/${r.data.fieldId}`);
+    } catch (e) {
+      failed(e);
     } finally {
       setBusy(false);
     }

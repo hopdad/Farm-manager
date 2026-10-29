@@ -49,11 +49,20 @@ export function FileImport({
   };
   const run = (action: ImportAction, after?: () => void) =>
     start(async () => {
-      const r = await action(formData());
-      setResult(r);
-      if (r.ok && r.data?.applied) {
-        after?.();
-        router.refresh();
+      try {
+        const r = await action(formData());
+        setResult(r);
+        if (r.ok && r.data?.applied) {
+          after?.();
+          router.refresh();
+        }
+      } catch (e) {
+        // Next refuses action bodies over 1 MB before our code runs.
+        setResult({
+          ok: false,
+          at: Date.now(),
+          message: `The upload did not go through (${(e as Error).message}). Files over 1 MB: use the command line (pnpm import:boundaries / import:seasons).`,
+        });
       }
     });
   const choose = (list: FileList | null) => {

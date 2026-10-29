@@ -188,12 +188,16 @@ export function HistoryTab({ fieldId, detail, variant, role, onChanged }: FieldP
 
   const load = useCallback(() => {
     start(async () => {
-      const r = await loadFieldHistoryAction(fieldId);
-      if (r.ok && r.data) {
-        setHistory(r.data);
-        setLoadError(null);
-      } else {
-        setLoadError(r.message);
+      try {
+        const r = await loadFieldHistoryAction(fieldId);
+        if (r.ok && r.data) {
+          setHistory(r.data);
+          setLoadError(null);
+        } else {
+          setLoadError(r.message);
+        }
+      } catch {
+        setLoadError('Could not load the history (no connection?)');
       }
     });
   }, [fieldId]);
@@ -220,33 +224,27 @@ export function HistoryTab({ fieldId, detail, variant, role, onChanged }: FieldP
     return y;
   };
 
+  /** Run a save or delete; on success close the form, tell the panel, reload the history. */
+  const write = (action: () => Promise<{ ok: boolean; message: string }>) =>
+    start(async () => {
+      try {
+        const r = await action();
+        setMessage({ ok: r.ok, text: r.message });
+        if (!r.ok) return;
+        setForm(null);
+        onChanged(['seasons']);
+        const h = await loadFieldHistoryAction(fieldId);
+        if (h.ok && h.data) setHistory(h.data);
+      } catch {
+        setMessage({ ok: false, text: 'Not saved: the server could not be reached. Try again.' });
+      }
+    });
   const save = () =>
     form &&
-    start(async () => {
-      const r = await saveSeasonAction({
-        fieldId,
-        originalCropYear: form.original,
-        values: form.values,
-      });
-      setMessage({ ok: r.ok, text: r.message });
-      if (r.ok) {
-        setForm(null);
-        onChanged(['seasons']);
-        const h = await loadFieldHistoryAction(fieldId);
-        if (h.ok && h.data) setHistory(h.data);
-      }
-    });
-  const remove = (year: number) =>
-    start(async () => {
-      const r = await deleteSeasonAction({ fieldId, cropYear: year });
-      setMessage({ ok: r.ok, text: r.message });
-      if (r.ok) {
-        setForm(null);
-        onChanged(['seasons']);
-        const h = await loadFieldHistoryAction(fieldId);
-        if (h.ok && h.data) setHistory(h.data);
-      }
-    });
+    write(() =>
+      saveSeasonAction({ fieldId, originalCropYear: form.original, values: form.values }),
+    );
+  const remove = (year: number) => write(() => deleteSeasonAction({ fieldId, cropYear: year }));
   const set = (k: keyof SeasonFormValues) => (e: { target: { value: string } }) =>
     setForm((f) => (f ? { ...f, values: { ...f.values, [k]: e.target.value } } : f));
 

@@ -12,6 +12,8 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
+import { getConfig } from '../src/config';
+import { assertLocalUrl } from '../src/db/admin';
 import { createPool } from '../src/db/client';
 import { isMainModule } from '../src/lib/proc';
 import { ExportFormatError, type ImportReport, importData } from '../tools/import/data-transfer';
@@ -96,6 +98,8 @@ async function main(): Promise<void> {
   } catch (e) {
     throw new ExportFormatError(`${args.file} is not JSON (${(e as Error).message})`);
   }
+  // --target local means this PC's database (production arrives at MD with its own target).
+  assertLocalUrl(getConfig().DATABASE_URL, 'data:import --target local');
   const pool = createPool({ max: 2, applicationName: 'farm-import' });
   try {
     const report = await importData(pool, doc, { dryRun: args.dryRun, partial: args.partial });
