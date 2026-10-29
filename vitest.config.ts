@@ -18,6 +18,9 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
+          // The Windows CI runner is several times slower under the full parallel suite; tests
+          // that start servers or child processes went past the 5 s default there.
+          testTimeout: process.platform === 'win32' ? 30_000 : 5_000,
           include: ['src/**/*.test.ts', 'scripts/**/*.test.ts', 'tools/**/*.test.ts'],
           exclude: ['**/*.db.test.ts', '**/node_modules/**'],
         },

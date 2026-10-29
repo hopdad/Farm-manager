@@ -243,6 +243,10 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
     log(`frozen at sim ${opts.frozenAt.toISOString()} (SIM_FROZEN_AT)`);
   }
   let scenarioRules = scenarioFaultRules(world.scenario, world.startsAt);
+  // The first America/Detroit lookup costs about 0.5 s on Windows (measured on a CI runner) and
+  // much more on a busy PC, which pushed the launcher's first /_control/scenario call past its
+  // timeout. Pay it at boot instead.
+  scenarioFaultRules('bad-morning', world.startsAt);
 
   const persist = () => {
     state.deere = pruneGrants(state.deere, now());
