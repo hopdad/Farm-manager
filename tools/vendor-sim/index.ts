@@ -21,6 +21,7 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { getConfig } from '../../src/config';
+import { reservedPortHint } from '../../src/lib/ports';
 import { createSimWorld } from '../../src/sim/index';
 import { SCENARIO_NAMES, type ScenarioName } from '../../src/sim/types';
 import { startVendorSim } from '../../src/sim/vendors/server';
@@ -92,6 +93,8 @@ async function main(): Promise<void> {
   } catch (e) {
     const err = e as NodeJS.ErrnoException;
     if (err.code === 'EADDRINUSE') fail(`port ${port} is in use (another stand-in running?)`);
+    if (err.code === 'EACCES')
+      fail(reservedPortHint(port, 'VENDOR_SIM_URL in .env.local, or --port'));
     fail(`${err.message}\n  (--stub-world serves a small test world instead)`);
   }
 

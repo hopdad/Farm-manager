@@ -43,6 +43,7 @@ import {
   withClient,
   withMaintenance,
 } from '../src/db/admin';
+import { type PortProbe, probePort, reservedPortHint } from '../src/lib/ports';
 import { isMainModule, runNode, tsxBin } from '../src/lib/proc';
 import { adminUnlockUrl } from '../src/platform/auth/admin-key';
 import { configure, migrate, pending, up } from './db';
@@ -231,9 +232,12 @@ export interface BootstrapDeps {
   dbContainer(projectDir: string): Promise<{ id: string; health: string }>;
   /** Names of this project's pgdata volumes. */
   pgdataVolumes(): Promise<string[]>;
-  portInUse(port: number): Promise<boolean>;
+  /** Can a server listen on host:port? (src/lib/ports.ts: connect, then bind.) */
+  probePort(port: number, host: string): Promise<PortProbe>;
   /** Does this project's app answer /api/health on that port? */
   isOurApp(port: number): Promise<boolean>;
+  /** Does the vendor stand-in answer GET <origin>/_control/status? */
+  isStandIn(origin: string): Promise<boolean>;
   /** Run a Node entry point under tsx in the project (stdio inherited). */
   runTsx(entry: string, args: string[]): Promise<number>;
   /** Run `tsx scripts/db.ts check`, capturing its output. */
@@ -242,18 +246,14 @@ export interface BootstrapDeps {
   database?: (a: DbStepArgs) => Promise<boolean>;
 }
 
-async function realPortInUse(port: number): Promise<boolean> {
-  const net = await import('node:net');
-  return new Promise((resolve) => {
-    const s = net.connect({ port, host: '127.0.0.1' });
-    const done = (v: boolean) => {
-      s.destroy();
-      resolve(v);
-    };
-    s.setTimeout(1_000, () => done(false));
-    s.once('connect', () => done(true));
-    s.once('error', () => done(false));
-  });
+async function realIsStandIn(origin: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${origin}/_control/status`, { signal: AbortSignal.timeout(3_000) });
+    const body = (await res.json()) as { clock?: unknown };
+    return res.ok && typeof body.clock === 'object' && body.clock !== null;
+  } catch {
+    return false;
+  }
 }
 
 async function realIsOurApp(port: number): Promise<boolean> {
@@ -281,8 +281,9 @@ export function realDeps(projectDir = process.cwd()): BootstrapDeps {
       return { id, health: id ? await containerHealth(id) : 'missing' };
     },
     pgdataVolumes: () => projectVolumes('pgdata'),
-    portInUse: realPortInUse,
+    probePort: (port, host) => probePort(port, host),
     isOurApp: realIsOurApp,
+    isStandIn: realIsStandIn,
     runTsx: async (entry, args) => {
       const r = await runNode(tsxBin(), [entry, ...args], { cwd: projectDir, stdio: 'inherit' });
       return r.code;
@@ -413,40 +414,95 @@ export async function bootstrap(flags: BootstrapFlags, d: BootstrapDeps): Promis
   const ourDbUp =
     container.id !== '' && ['healthy', 'starting', 'running'].includes(container.health);
   const portChecks: CheckResult[] = [];
-  if (await d.portInUse(appPort)) {
+  /** A port the server can't bind for another reason than "in use". */
+  const cannotListen = (name: string, port: number, p: PortProbe, setting: string): CheckResult =>
+    p.state === 'reserved'
+      ? {
+          name,
+          status: 'FAIL',
+          detail:
+            d.platform === 'win32'
+              ? 'reserved by Windows (excluded port range)'
+              : 'cannot listen (EACCES)',
+          fix: `${reservedPortHint(port, setting, d.platform)}.`,
+        }
+      : {
+          name,
+          status: 'FAIL',
+          detail: `cannot listen (${p.code ?? 'error'})`,
+          fix: `Pick another port (${setting}).`,
+        };
+  // Next listens on every address (phones on the LAN reach it), so check it that way.
+  const appName = `port ${appPort} (Next)`;
+  const app = await d.probePort(appPort, '0.0.0.0');
+  if (app.state === 'in_use') {
     portChecks.push(
       (await d.isOurApp(appPort))
         ? {
-            name: `port ${appPort} (Next)`,
+            name: appName,
             status: 'PASS',
             detail: "in use by this project's app (pnpm dev running)",
           }
         : {
-            name: `port ${appPort} (Next)`,
+            name: appName,
             status: 'FAIL',
             detail: 'in use by another program',
             fix: `Close it, or set PUBLIC_URL=http://localhost:<free port> in .env.local.`,
           },
     );
-  } else portChecks.push({ name: `port ${appPort} (Next)`, status: 'PASS', detail: 'free' });
+  } else if (app.state === 'free')
+    portChecks.push({ name: appName, status: 'PASS', detail: 'free' });
+  else portChecks.push(cannotListen(appName, appPort, app, 'PUBLIC_URL in .env.local'));
   if (!external) {
-    if (await d.portInUse(dbPort)) {
+    // Docker publishes the database on 127.0.0.1 only.
+    const dbName = `port ${dbPort} (DB_PORT)`;
+    const db = await d.probePort(dbPort, '127.0.0.1');
+    if (db.state === 'in_use') {
       portChecks.push(
         ourDbUp
-          ? {
-              name: `port ${dbPort} (DB_PORT)`,
-              status: 'PASS',
-              detail: "held by this project's database container",
-            }
+          ? { name: dbName, status: 'PASS', detail: "held by this project's database container" }
           : {
-              name: `port ${dbPort} (DB_PORT)`,
+              name: dbName,
               status: 'FAIL',
               detail: 'in use by another program (another Postgres?)',
               fix: 'Stop it, or set DB_PORT in .env (and the port in both database URLs in .env.local).',
             },
       );
-    } else portChecks.push({ name: `port ${dbPort} (DB_PORT)`, status: 'PASS', detail: 'free' });
+    } else if (db.state === 'free')
+      portChecks.push({ name: dbName, status: 'PASS', detail: 'free' });
+    else {
+      portChecks.push(
+        cannotListen(dbName, dbPort, db, 'DB_PORT in .env and both database URLs in .env.local'),
+      );
+    }
   }
+  // The vendor stand-in (loopback only).
+  const simUrl = new URL(
+    cfg?.VENDOR_SIM_URL ?? report.envLocal.VENDOR_SIM_URL ?? 'http://127.0.0.1:4010',
+  );
+  const simPort = Number(simUrl.port) || 80;
+  const simHost =
+    simUrl.hostname === 'localhost' ? '127.0.0.1' : simUrl.hostname.replace(/^\[|\]$/g, '');
+  const simName = `port ${simPort} (vendor stand-in)`;
+  const sim = await d.probePort(simPort, simHost);
+  if (sim.state === 'in_use') {
+    portChecks.push(
+      (await d.isStandIn(simUrl.origin))
+        ? {
+            name: simName,
+            status: 'PASS',
+            detail: 'in use by the vendor stand-in (pnpm dev running)',
+          }
+        : {
+            name: simName,
+            status: 'FAIL',
+            detail: 'in use by another program',
+            fix: 'Close it, or set VENDOR_SIM_URL=http://127.0.0.1:<free port> in .env.local.',
+          },
+    );
+  } else if (sim.state === 'free')
+    portChecks.push({ name: simName, status: 'PASS', detail: 'free' });
+  else portChecks.push(cannotListen(simName, simPort, sim, 'VENDOR_SIM_URL in .env.local'));
   for (const c of portChecks) showCheck(c);
   if (portChecks.some((c) => c.status === 'FAIL'))
     return fail(out, 'free the ports above and run bootstrap again');
@@ -788,6 +844,9 @@ function summary(port: number, cfg: Config | null, platform: NodeJS.Platform): s
     `  ${platform === 'win32' ? 'Windows firewall' : 'Firewall (Windows PC)'}: set the shop Wi-Fi profile to Private and allow Node.js on private networks`,
     '    when prompted, or once in an admin PowerShell:',
     `    New-NetFirewallRule -DisplayName 'farm-ops dev' -Direction Inbound -Protocol TCP -LocalPort ${port},3443 -Profile Private -Action Allow`,
+    '    If you dismissed the Windows prompt, it created Block rules for Node.js that beat any Allow',
+    '    rule; remove them first (admin PowerShell):',
+    "    Get-NetFirewallRule | Where-Object { $_.Name -like '*Query User*' -and $_.Name -like '*node.exe*' -and $_.Action -eq 'Block' } | Remove-NetFirewallRule",
   ];
   return lines;
 }

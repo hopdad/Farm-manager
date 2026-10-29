@@ -37,6 +37,7 @@ import net from 'node:net';
 import path from 'node:path';
 import { devOriginCandidates, privateIPv4Candidates } from '../scripts/env';
 import { type Config, childEnv, getConfig } from '../src/config';
+import { bindError, probePort, reservedPortHint } from '../src/lib/ports';
 import { isMainModule, tsxBin } from '../src/lib/proc';
 import { adminUnlockUrl } from '../src/platform/auth/admin-key';
 import {
@@ -540,6 +541,12 @@ export class Supervisor {
 // Readiness and the stand-in
 // ---------------------------------------------------------------------------------------------
 
+/** The address the stand-in at `origin` listens on (localhost → 127.0.0.1; IPv6 unbracketed). */
+function simHost(origin: string): string {
+  const h = new URL(origin).hostname;
+  return h === 'localhost' ? '127.0.0.1' : h.replace(/^\[|\]$/g, '');
+}
+
 /** Is something accepting connections on host:port? */
 export function portInUse(port: number, host = '127.0.0.1', timeoutMs = 1_000): Promise<boolean> {
   return new Promise((resolve) => {
@@ -806,12 +813,23 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
     ...(process.stdout.isTTY ? { FORCE_COLOR: '1' } : {}),
   });
 
-  if (await portInUse(port)) {
+  // Next listens on every address: check the port the same way (a connect probe misses a port
+  // held on another address, and a Windows excluded port range).
+  const appProbe = await probePort(port, '0.0.0.0');
+  if (appProbe.state === 'in_use') {
     const h = await getHealth(appBase, 3_000);
     say(
       h
         ? `Farm Ops is already running on port ${port} (another pnpm dev or pnpm pilot?). Stop it first.`
         : `port ${port} is in use by another program. Stop it, or use --port=<n>.`,
+    );
+    return 1;
+  }
+  if (appProbe.state !== 'free') {
+    say(
+      appProbe.state === 'reserved'
+        ? `${reservedPortHint(port, 'PUBLIC_URL in .env.local, or --port=<n>')}.`
+        : `cannot listen on port ${port} (${appProbe.code}); use --port=<n>.`,
     );
     return 1;
   }
@@ -840,6 +858,9 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
     }
     say(`vendor stand-in already running at ${simBase}; reusing it`);
     simNote = 'reused';
+  } else if ((await bindError(simPort, simHost(simBase))) === 'EACCES') {
+    say(`${reservedPortHint(simPort, 'VENDOR_SIM_URL in .env.local')}.`);
+    return 1;
   } else if (!existsSync(path.join(dir, VENDOR_SIM_ENTRY))) {
     say(
       `vendor stand-in not found (${VENDOR_SIM_ENTRY.split(path.sep).join('/')} is missing from this checkout); ` +

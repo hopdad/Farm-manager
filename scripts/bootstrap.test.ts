@@ -45,8 +45,9 @@ function fakeDeps(
     }),
     dbContainer: async () => ({ id: '', health: 'missing' }),
     pgdataVolumes: async () => [],
-    portInUse: async () => false,
+    probePort: async () => ({ state: 'free' }),
     isOurApp: async () => false,
+    isStandIn: async () => false,
     runTsx: async () => {
       throw new Error('nothing may run in this test');
     },
@@ -237,7 +238,7 @@ describe('bootstrap runs (injected dependencies)', () => {
       projectDir: dir,
       loadConfig: () => ({ ok: true, config: cfg }),
       dockerAvailable: async () => ({ ok: true, version: '29.0.0' }),
-      portInUse: async (port) => port === 3104,
+      probePort: async (port) => ({ state: port === 3104 ? 'in_use' : 'free' }),
     });
     expect(await bootstrap(DRY, busy)).toBe(1);
     expect(busy.lines.join('\n')).toMatch(/FAIL\s+port 3104 \(Next\)\s+in use by another program/);
@@ -247,8 +248,9 @@ describe('bootstrap runs (injected dependencies)', () => {
       loadConfig: () => ({ ok: true, config: cfg }),
       dockerAvailable: async () => ({ ok: true, version: '29.0.0' }),
       dbContainer: async () => ({ id: 'abc', health: 'healthy' }),
-      portInUse: async () => true,
+      probePort: async () => ({ state: 'in_use' }),
       isOurApp: async () => true,
+      isStandIn: async () => true,
     });
     expect(await bootstrap(DRY, ours)).toBe(0);
     const text = ours.lines.join('\n');
@@ -256,7 +258,23 @@ describe('bootstrap runs (injected dependencies)', () => {
     expect(text).toMatch(
       /PASS\s+port 15432 \(DB_PORT\)\s+held by this project's database container/,
     );
+    expect(text).toMatch(/PASS\s+port 4010 \(vendor stand-in\)\s+in use by the vendor stand-in/);
     expect(text).toMatch(/TODO\s+database\s+would run docker compose up -d db/);
+
+    // Windows excluded port ranges: connect says free, bind says EACCES.
+    const reserved = fakeDeps({
+      projectDir: dir,
+      loadConfig: () => ({ ok: true, config: cfg }),
+      dockerAvailable: async () => ({ ok: true, version: '29.0.0' }),
+      probePort: async (port) =>
+        port === 3104 || port === 4010 ? { state: 'reserved', code: 'EACCES' } : { state: 'free' },
+    });
+    expect(await bootstrap(DRY, reserved)).toBe(1);
+    const why = reserved.lines.join('\n');
+    expect(why).toMatch(/FAIL\s+port 3104 \(Next\)\s+reserved by Windows \(excluded port range\)/);
+    expect(why).toMatch(/FAIL\s+port 4010 \(vendor stand-in\)\s+reserved by Windows/);
+    expect(why).toContain('netsh interface ipv4 show excludedportrange protocol=tcp');
+    expect(why).toContain('VENDOR_SIM_URL in .env.local');
   });
 });
 
