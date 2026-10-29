@@ -317,16 +317,21 @@
 }
 
 .chipStrip {
-  /* In the board's status strip (BoardScreen), after the fleet counts. */
+  /* In the board's status strip (BoardScreen), after the fleet counts: the strip's full height
+     (72 px on the wall), the only way to sign in at the wall. */
   position: static;
   flex: none;
-  min-height: 52px;
+  align-self: stretch;
+  min-height: var(--strip, 72px);
+  border-radius: 0;
   max-width: 420px;
   font-size: 20px;
 }
 
 .chipStrip.chipPhone {
-  min-height: 36px;
+  min-height: 44px;
+  align-self: center;
+  border-radius: 999px;
   max-width: 30vw;
   padding: 0 10px;
   gap: 6px;
@@ -351,4 +356,10 @@
 .chipAction {
   color: #86efac;
   font-weight: 650;
+}
+
+/* /login on the wall: 72 px targets, like the board (plan: wall targets 72 px). */
+.wall .button,
+.wall .input {
+  min-height: 72px;
 }

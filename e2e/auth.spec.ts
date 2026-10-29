@@ -95,10 +95,17 @@ test('a manager enrolls a wall; the wall opens the board; revoking signs it out'
     const panel = admin.getByTestId('enroll-code-panel');
     await expect(panel).toContainText(name);
     await expect(panel.getByTestId('enroll-qr')).toBeVisible();
-    const link = (await panel.getByTestId('enroll-link').getAttribute('href')) as string;
+    const shown = new URL((await panel.getByTestId('enroll-link').getAttribute('href')) as string);
     const code = (await panel.getByTestId('enroll-code').textContent()) as string;
     expect(code).toMatch(/^[0-9A-Z]{5}-[0-9A-Z]{5}$/);
-    expect(new URL(link).pathname).toBe('/enroll');
+    expect(shown.pathname).toBe('/enroll');
+    // On the PC itself the QR link carries the PC's LAN address (a scanned localhost opens the
+    // iPad itself); the localhost link is listed as "on this PC".
+    if (await panel.getByTestId('enroll-lan-links').isVisible()) {
+      expect(shown.hostname).not.toMatch(/^(localhost|127\.)/);
+    }
+    // This test's wall browser uses the base URL (its cookies are checked there).
+    const link = new URL(`${shown.pathname}${shown.search}`, baseURL).toString();
 
     // On the wall: opening the link shows what it enrolls; the button spends the code.
     const screen = await wall.newPage();
@@ -157,7 +164,11 @@ test('on a shared device people sign in with their PIN and switch user', async (
   await chip.click();
   await expect(page.getByTestId('operator-current')).toContainText(dana.name, { timeout: 15_000 });
   await page.getByTestId('switch-user').click();
-  await expect(page.getByTestId('pin-names')).toBeVisible();
+  // Back on the device's own screen (the wall shows the board, not the PIN pad).
+  await expect(page).toHaveURL(new RegExp(`${home()}$`));
+  await expect(chip).toContainText('Sign in');
+  await chip.click();
+  await expect(page.getByTestId('pin-names')).toBeVisible({ timeout: 15_000 });
   await pickAndEnterPin(page, eli.id, eli.pin);
   await expect(page).toHaveURL(new RegExp(`${home()}$`));
   await expect(chip).toContainText(eli.name);

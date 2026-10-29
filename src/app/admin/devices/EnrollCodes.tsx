@@ -35,18 +35,24 @@ function CodePanel({ view }: { view: EnrollCodeView }) {
             Works once, until {detroitTime(view.expiresAt)}. For the wall, open it in the kiosk
             browser profile (docs/kiosk.md).
           </p>
-          {view.lanUrls.length > 0 && (
-            <div className={css.stack}>
+          {view.localUrl && (
+            <div className={css.stack} data-testid="enroll-lan-links">
               <p className={css.muted}>
-                This browser uses localhost, which an iPad can&apos;t reach. On the shop Wi-Fi use
-                the PC&apos;s address (the `pnpm dev` banner says which adapter is the shop
-                network):
+                The link and QR code use this PC&apos;s shop-network address (an iPad or phone
+                can&apos;t open localhost). If the device can&apos;t reach it, try another of the
+                PC&apos;s addresses (the `pnpm dev` banner says which adapter is the shop network):
               </p>
-              {view.lanUrls.map((u) => (
-                <span key={u} className={`${css.mono} ${own.codeLink}`}>
+              {view.lanUrls.slice(1).map((u) => (
+                <a key={u} className={`${css.mono} ${own.codeLink}`} href={u}>
                   {u}
-                </span>
+                </a>
               ))}
+              <p className={css.muted}>
+                On this PC:{' '}
+                <a className={css.mono} href={view.localUrl}>
+                  {view.localUrl}
+                </a>
+              </p>
             </div>
           )}
         </div>

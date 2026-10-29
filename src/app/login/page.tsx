@@ -17,6 +17,7 @@ import { DEVICE_KIND_LABELS, PERSON_SIGN_IN_MIN_ROLE, safeNextPath } from '@/pla
 import { getBrowserAuth } from '@/platform/auth/server';
 import { listPickablePeople, realOwnerExists } from '@/platform/auth/store';
 import { ROLE_FOR, roleAtLeast } from '@/platform/auth/types';
+import { IdleReturn } from './_components/IdleReturn';
 import { PinPad, type PinPerson } from './_components/PinPad';
 import {
   operatorSignInAction,
@@ -83,8 +84,13 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
   // --- an enrolled shared device: the operator PIN pad ---------------------------------------
   if (auth.sharedDevice && session) {
     const device = auth.sharedDevice;
+    const deviceHome = next ?? (device.kind === 'wall' ? '/board' : '/m');
     return (
-      <main className={css.page} data-testid="login-shared">
+      <main
+        className={`${css.page} ${device.kind === 'wall' ? css.wall : ''}`}
+        data-testid="login-shared"
+      >
+        <IdleReturn href={deviceHome} />
         <span className={css.brand}>Farm Ops</span>
         <h1 className={css.title}>{device.name}</h1>
         <p className={css.lead}>
@@ -121,10 +127,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
               emptyText="Nobody has a PIN yet: a manager sets PINs on /admin/people."
             />
             <div className={css.row}>
-              <Link
-                className={css.button}
-                href={next ?? (device.kind === 'wall' ? '/board' : '/m')}
-              >
+              <Link className={css.button} href={deviceHome}>
                 Continue without signing in
               </Link>
             </div>
@@ -210,6 +213,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
           <h2>Managers: sign in</h2>
           <p className={css.muted}>
             On your own phone or computer: pick your name, enter your PIN.
+          </p>
+          <p className={css.muted} data-testid="crew-hint">
+            Crew: ask a manager to add your phone on Devices, then open the code here.
           </p>
           <PinPad
             people={managers}

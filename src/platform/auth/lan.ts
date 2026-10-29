@@ -27,3 +27,45 @@ export function privateAddresses(
   }
   return [...new Set(out)];
 }
+
+/**
+ * Shop-network addresses, most likely first: home and shop routers hand out 192.168.x.x, then
+ * 10.x.x.x; 172.16-31.x.x is where Docker Desktop and WSL put their virtual adapters.
+ */
+export function rankLanAddresses(addresses: readonly string[]): string[] {
+  const rank = (a: string) => (a.startsWith('192.168.') ? 0 : a.startsWith('10.') ? 1 : 2);
+  return addresses
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => rank(x.a) - rank(y.a) || x.i - y.i)
+    .map((x) => x.a);
+}
+
+export interface EnrollLinks {
+  /** The link the QR code and the main link carry: one the device can open. */
+  url: string;
+  /** The same link on localhost, when the manager is on the PC itself ("on this PC"). */
+  localUrl: string | null;
+  /** Every shop-network link (the first is `url`), when the manager is on the PC itself. */
+  lanUrls: string[];
+}
+
+/**
+ * The enrollment links for a code, from the origin the manager's browser used. On the PC itself
+ * (localhost) the QR code must carry a LAN address: an iPad or phone that scans
+ * http://localhost:3000 opens itself.
+ */
+export function enrollLinks(
+  origin: string,
+  path: string,
+  addresses: readonly string[],
+): EnrollLinks {
+  const u = new URL(origin);
+  const own = `${u.origin}${path}`;
+  if (!isLoopbackHost(u.hostname) || addresses.length === 0) {
+    return { url: own, localUrl: null, lanUrls: [] };
+  }
+  const lanUrls = rankLanAddresses(addresses).map(
+    (ip) => `${u.protocol}//${ip}${u.port ? `:${u.port}` : ''}${path}`,
+  );
+  return { url: lanUrls[0] as string, localUrl: own, lanUrls };
+}

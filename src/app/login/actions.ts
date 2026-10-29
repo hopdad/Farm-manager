@@ -16,7 +16,7 @@ import {
   signOutBrowser,
   signOutOperator,
 } from '@/platform/auth/flows';
-import { safeNextPath } from '@/platform/auth/policy';
+import { homePathFor, safeNextPath } from '@/platform/auth/policy';
 import { getBrowserAuth } from '@/platform/auth/server';
 import type { Role } from '@/platform/auth/types';
 
@@ -54,10 +54,14 @@ export async function personSignInAction(
   redirect(safeNextPath(field(form, 'next')) ?? r.home);
 }
 
-/** "Switch user": the operator leaves; the shared device shows the PIN pad again. */
+/**
+ * "Switch user": the operator leaves and the shared device goes back to its own screen (the
+ * wall to the board, an iPad to /m), not to the PIN pad: the next person taps the name chip.
+ */
 export async function switchUserAction(): Promise<void> {
+  const auth = await getBrowserAuth();
   await signOutOperator();
-  redirect('/login');
+  redirect(homePathFor(auth.sharedDevice?.kind));
 }
 
 /** Sign this browser out (a device must then be enrolled again). */

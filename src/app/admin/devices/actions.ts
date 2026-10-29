@@ -11,7 +11,7 @@ import { getConfig } from '@/config';
 import { getDb } from '@/db/client';
 import type { DeviceKind } from '@/domain/farm';
 import { formatEnrollCode } from '@/platform/auth/codes';
-import { isLoopbackHost, privateAddresses } from '@/platform/auth/lan';
+import { enrollLinks, privateAddresses } from '@/platform/auth/lan';
 import { DEFAULT_DEVICE_ROLE, isDeviceKind } from '@/platform/auth/policy';
 import { qrSvgPath } from '@/platform/auth/qr';
 import { requireRole } from '@/platform/auth/server';
@@ -33,9 +33,14 @@ export interface EnrollCodeView {
   kind: DeviceKind;
   /** K7QD2-M9XPA */
   code: string;
-  /** The link as this browser reached the app (scan or open it on the device). */
+  /**
+   * The link the device opens (and the QR code carries): as this browser reached the app, or,
+   * when this browser is on the PC itself (localhost), the PC's most likely shop-network address.
+   */
   url: string;
-  /** The same link on the PC's LAN addresses, when this browser used localhost. */
+  /** The localhost link ("on this PC"), when this browser used localhost. */
+  localUrl: string | null;
+  /** The link on each of the PC's LAN addresses, when this browser used localhost. */
   lanUrls: string[];
   qr: { size: number; path: string };
   expiresAt: string;
@@ -87,19 +92,14 @@ async function requestOrigin(): Promise<{ origin: string; host: string; port: st
 }
 
 async function codeView(issued: IssuedCode): Promise<EnrollCodeView> {
-  const { origin, host, port } = await requestOrigin();
-  const link = (base: string) => `${base}/enroll?code=${issued.code}`;
-  const url = link(origin);
-  const proto = new URL(origin).protocol;
+  const { origin } = await requestOrigin();
+  const links = enrollLinks(origin, `/enroll?code=${issued.code}`, privateAddresses());
   return {
     deviceName: issued.device.name,
     kind: issued.device.kind,
     code: formatEnrollCode(issued.code),
-    url,
-    lanUrls: isLoopbackHost(host)
-      ? privateAddresses().map((ip) => link(`${proto}//${ip}${port ? `:${port}` : ''}`))
-      : [],
-    qr: qrSvgPath(url),
+    ...links,
+    qr: qrSvgPath(links.url),
     expiresAt: issued.expiresAt.toISOString(),
   };
 }

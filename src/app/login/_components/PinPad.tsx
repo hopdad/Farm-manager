@@ -63,12 +63,10 @@ export function PinPad({
   initialPersonId?: string | null;
 }) {
   const [state, formAction] = useActionState(action, null);
+  // Nobody is picked until they tap their name (or the link names them): a lone manager's name
+  // must not sit pre-selected on a signed-out page, where every wrong PIN counts against them.
   const [pickedId, setPickedId] = useState<string | null>(
-    people.length === 1
-      ? (people[0]?.id ?? null)
-      : people.some((p) => p.id === initialPersonId)
-        ? (initialPersonId ?? null)
-        : null,
+    people.some((p) => p.id === initialPersonId) ? (initialPersonId ?? null) : null,
   );
   const [pin, setPin] = useState('');
   const input = useRef<HTMLInputElement>(null);
@@ -126,19 +124,17 @@ export function PinPad({
         <span className={css.picked} data-testid="pin-picked">
           {picked.displayName}
         </span>
-        {people.length > 1 && (
-          <a
-            href={loginHref(next, null)}
-            className={css.button}
-            onClick={(e) => {
-              e.preventDefault();
-              setPickedId(null);
-              setPin('');
-            }}
-          >
-            Not you?
-          </a>
-        )}
+        <a
+          href={loginHref(next, null)}
+          className={css.button}
+          onClick={(e) => {
+            e.preventDefault();
+            setPickedId(null);
+            setPin('');
+          }}
+        >
+          Not you?
+        </a>
       </div>
       <input type="hidden" name="appUserId" value={picked.id} />
       {next && <input type="hidden" name="next" value={next} />}
