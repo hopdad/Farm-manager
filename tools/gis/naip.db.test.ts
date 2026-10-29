@@ -62,7 +62,7 @@ async function row(key: string) {
 }
 
 describe('gis:naip (fixture transport)', () => {
-  test('the online layer row: xyz, public, the exportImage template; it resolves for the rail', async () => {
+  test('the online layer row: xyz, public, the cached tile template; it resolves for the rail', async () => {
     await writeOnlineRow(t().pool);
     const r = await row('naip');
     expect(r).toMatchObject({
@@ -71,9 +71,10 @@ describe('gis:naip (fixture transport)', () => {
       version: null,
       meta: { onlineOnly: true },
     });
-    expect(String(r?.url_or_key)).toContain(
-      '/USGSNAIPImagery/ImageServer/exportImage?bbox={bbox-epsg-3857}',
+    expect(String(r?.url_or_key)).toBe(
+      'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',
     );
+    expect(r).toMatchObject({ minzoom: 11, maxzoom: 16 });
     const resolved = resolveLayers(
       [naipLayer],
       [

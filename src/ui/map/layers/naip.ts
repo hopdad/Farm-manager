@@ -3,13 +3,13 @@
  * docs/contracts-m1.md §7.3). Owner: imagery. Two layers, both written into gis.map_layers by
  * `pnpm gis:naip` (tools/gis/naip.ts):
  *
- *  - `naip` (ONLINE ONLY): USDA NAIP natural colour, 0.6 m, drawn straight from the USGS National
- *    Map image service (`USGSNAIPImagery/ImageServer/exportImage`, one 256 px Web Mercator image
- *    per tile through MapLibre's `{bbox-epsg-3857}` placeholder). Needs the internet: with it
- *    unplugged the rail shows the layer as "offline" (plan 1d done-when) and nothing else breaks.
- *  - `naip_aoi` (works offline): the same imagery, prebuilt for the area of interest (your fields
- *    plus a mile) into a raster PMTiles in the `tiles` bucket (`naip/aoi.<sha8>.pmtiles`), read
- *    with HTTP range requests like the basemap.
+ *  - `naip` (ONLINE ONLY): the USGS National Map's cached imagery basemap (`USGSImageryOnly`
+ *    MapServer tiles, NAIP-based across the US; plan §5), cached to z16 and over-zoomed above.
+ *    Needs the internet: with it unplugged the rail shows the layer as "offline" (plan 1d
+ *    done-when) and nothing else breaks.
+ *  - `naip_aoi` (works offline): NAIP 0.6 m close-ups from the NAIP image service's exportImage,
+ *    prebuilt for the area of interest (your fields plus a mile, z12-17) into a raster PMTiles in
+ *    the `tiles` bucket (`naip/aoi.<sha8>.pmtiles`), read with HTTP range requests like the basemap.
  *
  * Both are public-domain data (cache policy public) and sit under the field fills.
  */

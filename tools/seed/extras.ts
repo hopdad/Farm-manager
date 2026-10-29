@@ -108,9 +108,12 @@ export async function seedDemoExtras(pool: pg.Pool, opts: ExtrasOptions): Promis
   const people = await seedDemoPeople(pool, opts.secret);
   const soils = await seedSoils(pool, opts);
   const parcels = await seedParcels(pool, opts);
+  // A row written before the online layer moved to the cached tile service (it pointed at the
+  // ImageServer's exportImage) is rewritten too; otherwise a gis:naip row is kept as it is.
   const hasNaip = await scalar<boolean>(
     pool,
-    `select exists (select 1 from gis.map_layers where key = 'naip') as v`,
+    `select exists (select 1 from gis.map_layers where key = 'naip'
+                      and url_or_key not like '%/ImageServer/exportImage%') as v`,
   );
   if (!hasNaip) await writeOnlineRow(pool);
   return { people, soils, parcels, naip: { action: hasNaip ? 'kept' : 'online-row' } };

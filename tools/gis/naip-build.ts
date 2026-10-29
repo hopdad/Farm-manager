@@ -38,6 +38,9 @@ import { newRunDir, rawRelative, rawRoot, recordDownloads, sha256Hex } from './n
 import {
   isJpeg,
   NAIP_IMAGE_SERVER,
+  NAIP_ONLINE_MAXZOOM,
+  NAIP_ONLINE_SERVICE,
+  naipExportTemplate,
   naipExportUrl,
   naipOnlineTemplate,
   tilePath,
@@ -61,18 +64,22 @@ export type NaipLog = (msg: string) => void;
 // 1. the online layer
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * The `naip` registry row: the cached USGSImageryOnly tiles (plan §5; ./naip-tiles.ts), source
+ * zooms 11-16 (MapLibre over-zooms above the cache). `service`: another cached map service.
+ */
 export async function writeOnlineRow(
   pool: pg.Pool,
-  opts: { server?: string; vintage?: string } = {},
+  opts: { service?: string; vintage?: string } = {},
 ): Promise<void> {
-  const server = opts.server ?? NAIP_IMAGE_SERVER;
+  const service = opts.service ?? NAIP_ONLINE_SERVICE;
   const c = await pool.connect();
   try {
     await c.query('begin');
     await c.query(
       `insert into gis.map_layers (key, kind, url_or_key, version, cache_policy, minzoom, maxzoom,
                                    attribution, legend, source_vintage, built_at, default_visible, meta)
-       values ('naip', 'xyz', $1, null, 'public', 11, 19, $2, null, $3, now(), false, $4::jsonb)
+       values ('naip', 'xyz', $1, null, 'public', 11, $5, $2, null, $3, now(), false, $4::jsonb)
        on conflict (key) do update
           set kind = excluded.kind, url_or_key = excluded.url_or_key, version = excluded.version,
               cache_policy = excluded.cache_policy, minzoom = excluded.minzoom,
@@ -80,10 +87,11 @@ export async function writeOnlineRow(
               source_vintage = excluded.source_vintage, built_at = excluded.built_at,
               meta = excluded.meta, updated_at = now()`,
       [
-        naipOnlineTemplate(server),
+        naipOnlineTemplate(service),
         NAIP_ATTRIBUTION,
         opts.vintage ?? 'NAIP, latest USGS mosaic',
-        JSON.stringify({ onlineOnly: true, service: server }),
+        JSON.stringify({ onlineOnly: true, service }),
+        NAIP_ONLINE_MAXZOOM,
       ],
     );
     await publish('layers', 'updated', { key: 'naip', version: null }, c);
@@ -311,7 +319,7 @@ export async function fetchRun(o: FetchRunOptions): Promise<{ dir: string; index
     {
       source: NAIP_SOURCE,
       path: rawRelative(root, path.join(dir, RUN_INDEX_FILE)),
-      url: o.fixture ? `fixture:${naipOnlineTemplate(server)}` : naipOnlineTemplate(server),
+      url: o.fixture ? `fixture:${naipExportTemplate(server)}` : naipExportTemplate(server),
       method: 'GET',
       requestSha256: null,
       fetchedAt: index.finishedAt,

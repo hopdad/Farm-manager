@@ -7,6 +7,7 @@ import { NAIP_FIXTURE_JPEG, naipFixtureFetch } from './naip-fixture';
 import {
   isJpeg,
   NAIP_IMAGE_SERVER,
+  naipExportTemplate,
   naipExportUrl,
   naipOnlineTemplate,
   tileBounds3857,
@@ -55,10 +56,19 @@ describe('tile bounds and requests', () => {
     expect((bbox[2] as number) - (bbox[0] as number)).toBeCloseTo(1222.99, 1); // z15 tile width in m
   });
 
-  test('the online template lets MapLibre fill the bbox', () => {
-    expect(naipOnlineTemplate()).toContain('bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857');
-    expect(naipOnlineTemplate('https://x.example/ImageServer')).toMatch(
+  test('the export template lets MapLibre or the AOI download fill the bbox', () => {
+    expect(naipExportTemplate()).toContain('bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857');
+    expect(naipExportTemplate('https://x.example/ImageServer')).toMatch(
       /^https:\/\/x\.example\/ImageServer\/exportImage\?/,
+    );
+  });
+
+  test('the online layer reads the cached USGSImageryOnly tiles (plan §5)', () => {
+    expect(naipOnlineTemplate()).toBe(
+      'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',
+    );
+    expect(naipOnlineTemplate('https://x.example/MapServer/')).toBe(
+      'https://x.example/MapServer/tile/{z}/{y}/{x}',
     );
   });
 });
