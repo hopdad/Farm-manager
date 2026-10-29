@@ -60,6 +60,23 @@ export function isGliding(g: Glide, now: number): boolean {
   return glideProgress(g, now) < 1;
 }
 
+/**
+ * How fast a glide moves (constant over its length): ground speed in m/s and turn rate in deg/s,
+ * the short way round. Both 0 once it has arrived (or for a stationary glide).
+ */
+export function glideRates(
+  g: Glide,
+  now: number,
+): { metersPerSecond: number; degreesPerSecond: number } {
+  if (!isGliding(g, now) || g.duration <= 0) return { metersPerSecond: 0, degreesPerSecond: 0 };
+  const seconds = g.duration / 1000;
+  const turn = Math.abs(((((g.to.heading - g.from.heading) % 360) + 540) % 360) - 180);
+  return {
+    metersPerSecond: distanceMeters(g.from, g.to) / seconds,
+    degreesPerSecond: turn / seconds,
+  };
+}
+
 /** A glide that is already at `fix` (no movement). */
 export function stationary(fix: Fix, now: number): Glide {
   return { from: fix, to: fix, start: now, duration: 0 };

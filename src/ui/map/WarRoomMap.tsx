@@ -22,6 +22,7 @@ import { DeckOverlay } from './DeckOverlay';
 import { buildFleetLayers, PHONE_SIZES, WALL_SIZES } from './fleet/layers';
 import type { FleetFrame, FleetModel } from './fleet/model';
 import { machineNear } from './fleet/pick';
+import { insideGrown, metersPerCssPixel, redrawIntervalMs } from './fleet/redraw';
 import { DOWN_COLOR, KIND_COLORS, KIND_LABELS, STALE_COLOR, STALE_RING_COLOR } from './fleet/style';
 import type { FleetStatus } from './fleet/useFleet';
 import { setupMapLibre } from './maplibre';
@@ -90,7 +91,9 @@ export default function WarRoomMap(props: WarRoomMapProps) {
   );
   const sizes = variant === 'wall' ? WALL_SIZES : PHONE_SIZES;
 
-  // Fleet render loop: rebuild deck layers while machines glide or after any change.
+  // Fleet render loop: rebuild deck layers after any change (a new fix, the selection, the rail's
+  // toggle) on the next frame, and while machines glide as often as the motion on screen is
+  // visible (./fleet/redraw.ts: each frame repaints the whole map), plus once when they arrive.
   useEffect(() => {
     if (!overlay) return;
     let raf = 0;
@@ -98,16 +101,34 @@ export default function WarRoomMap(props: WarRoomMapProps) {
     let drawnSelected: string | null | undefined;
     let drawnVisible: boolean | undefined;
     let wasAnimating = false;
+    let drawnAt = Number.NEGATIVE_INFINITY;
+    const glideInterval = (now: number): number => {
+      const map = mapRef.current?.getMap();
+      if (!map) return 0;
+      const b = map.getBounds();
+      const inView = insideGrown(
+        { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() },
+        0.1,
+      );
+      return redrawIntervalMs(
+        fleet.motion(now, inView),
+        metersPerCssPixel(map.getCenter().lat, map.getZoom()),
+        window.devicePixelRatio,
+        sizes.ringRadiusPx,
+      );
+    };
     const draw = () => {
       const now = performance.now();
       const animating = fleet.isAnimating(now);
       const visible = fleetVisibleRef.current;
-      if (
-        animating ||
-        wasAnimating ||
+      const changed =
         fleet.version !== drawnVersion ||
         selectedRef.current !== drawnSelected ||
-        visible !== drawnVisible
+        visible !== drawnVisible;
+      if (
+        changed ||
+        (wasAnimating && !animating) ||
+        (animating && now - drawnAt >= glideInterval(now))
       ) {
         const frames = fleet.frame(now);
         const layers = visible ? buildFleetLayers(frames, sizes, selectedRef.current) : [];
@@ -117,6 +138,7 @@ export default function WarRoomMap(props: WarRoomMapProps) {
         drawnVersion = fleet.version;
         drawnSelected = selectedRef.current;
         drawnVisible = visible;
+        drawnAt = now;
       }
       wasAnimating = animating;
       raf = requestAnimationFrame(draw);

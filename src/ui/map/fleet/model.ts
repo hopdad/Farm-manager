@@ -20,10 +20,12 @@ import {
   type Fix,
   type Glide,
   glideAt,
+  glideRates,
   isGliding,
   nextIntervalEstimate,
   stationary,
 } from './glide';
+import { type FleetMotion, NO_MOTION } from './redraw';
 
 export interface FleetModelOptions {
   /** FLEET_STALE_SECONDS: ELD, cab-device and manual fixes. */
@@ -186,6 +188,27 @@ export class FleetModel {
   isAnimating(now: number): boolean {
     for (const e of this.machines.values()) if (isGliding(e.glide, now)) return true;
     return false;
+  }
+
+  /**
+   * The fastest glide at `now` among machines whose glide starts or ends where `inView` says
+   * (default: all): its ground speed and its turn rate (WarRoomMap paces its frames by it,
+   * ./redraw.ts). NO_MOTION when nothing in view is gliding.
+   */
+  motion(now: number, inView: (lng: number, lat: number) => boolean = () => true): FleetMotion {
+    let metersPerSecond = 0;
+    let degreesPerSecond = 0;
+    for (const e of this.machines.values()) {
+      const g = e.glide;
+      if (!isGliding(g, now)) continue;
+      if (!inView(g.from.lng, g.from.lat) && !inView(g.to.lng, g.to.lat)) continue;
+      const r = glideRates(g, now);
+      metersPerSecond = Math.max(metersPerSecond, r.metersPerSecond);
+      degreesPerSecond = Math.max(degreesPerSecond, r.degreesPerSecond);
+    }
+    return metersPerSecond === 0 && degreesPerSecond === 0
+      ? NO_MOTION
+      : { metersPerSecond, degreesPerSecond };
   }
 
   /** Every machine at `now`, sorted by unit number (stable draw order). */

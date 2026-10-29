@@ -694,7 +694,12 @@ are gone. What the integration settled, where the builders' reports asked:
 - **Board layout (§12):** `src/ui/board/BoardScreen.tsx` composes everything around one map;
   panels read `--dock-right/left/bottom/gap` from `.mapArea`. Field taps are ignored while a tile
   line is drawn; the rail's fleet toggle drives `fleetVisible`. WarRoomMap only runs deck.gl's
-  GPU pick when a machine is drawn near the tap (`src/ui/map/fleet/pick.ts`).
+  GPU pick when a machine is drawn near the tap (`src/ui/map/fleet/pick.ts`), and paces the
+  gliding fleet's frames (`src/ui/map/fleet/redraw.ts`): every deck frame repaints the whole map,
+  so while machines glide it redraws once the fastest machine on screen has moved or turned about
+  half a device pixel (at most a second apart), instead of every animation frame. New fixes,
+  selection and the fleet toggle still draw on the next frame; `window.__map.fleet()` returns
+  the frame last drawn.
 - **Jobs (§13):** a job may name its `connector`; `JOBS_DEMO_CADENCE` applies only while that
   connector is sim, replay or off, and the config no longer refuses it next to a live connector.
   `weather.nws` drops its cached grid cells when the weather source changes
