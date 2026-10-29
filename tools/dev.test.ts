@@ -1,4 +1,11 @@
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -9,7 +16,10 @@ import { createStubSimWorld } from '../src/sim/vendors/stub-world';
 import {
   applySimFlags,
   appPort,
+  clearDevCacheAfterBuild,
+  DEV_LAUNCH_MARKER,
   descendantsOf,
+  markDevLaunch,
   originsDrift,
   parseLaunchArgs,
   phoneUrls,
@@ -131,6 +141,31 @@ describe('applySimFlags (the stand-in at launch)', () => {
     } finally {
       await sim.close();
     }
+  });
+});
+
+describe('next dev cache after a production build', () => {
+  test('cleared only when a build ran since the last pnpm dev start', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'farm-next-'));
+    const next = path.join(dir, '.next');
+    // No build, or no dev cache: nothing to do.
+    expect(clearDevCacheAfterBuild(dir)).toBe(false);
+    mkdirSync(path.join(next, 'dev', 'cache'), { recursive: true });
+    expect(clearDevCacheAfterBuild(dir)).toBe(false);
+    // A build with no recorded dev start: cleared.
+    writeFileSync(path.join(next, 'BUILD_ID'), 'x');
+    expect(clearDevCacheAfterBuild(dir)).toBe(true);
+    expect(existsSync(path.join(next, 'dev'))).toBe(false);
+    expect(existsSync(path.join(next, 'BUILD_ID'))).toBe(true);
+    // pnpm dev ran after the build: kept.
+    markDevLaunch(dir);
+    expect(existsSync(path.join(next, 'dev', DEV_LAUNCH_MARKER))).toBe(true);
+    const t = Date.now() / 1000;
+    utimesSync(path.join(next, 'BUILD_ID'), t - 60, t - 60);
+    expect(clearDevCacheAfterBuild(dir)).toBe(false);
+    // A newer build: cleared again.
+    utimesSync(path.join(next, 'BUILD_ID'), t + 60, t + 60);
+    expect(clearDevCacheAfterBuild(dir)).toBe(true);
   });
 });
 

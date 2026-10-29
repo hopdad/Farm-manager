@@ -125,7 +125,7 @@ for the plan's defaults (trucks every 30 s, stale after 10 minutes).
 | `running scripts is disabled on this system` | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, then open a new PowerShell. |
 | Wrong Node version at `pnpm install` | Install Node 24 (see Prerequisites), open a new PowerShell, `pnpm install`. |
 | The board shows "Fleet unavailable" or nothing moves | Is `pnpm dev` still running, and is the job clock running on `/admin/connectors` (not paused)? The simulation may be paused there too. |
-| A page keeps reloading under `pnpm dev` | A `next dev` hot-reload glitch seen once while testing: stop `pnpm dev` (Ctrl+C) and start it again, or use `pnpm pilot`. |
+| A page keeps reloading under `pnpm dev` | A Next 16 dev-cache glitch after `pnpm pilot` built the app; `pnpm dev` now clears `.next\dev` itself when a production build ran since its last start. If it still happens: Ctrl+C, `Remove-Item -Recurse -Force .next\dev`, `pnpm dev`. |
 
 ## Where things are
 

@@ -29,7 +29,7 @@
  * `pnpm pilot` (tools/pilot.ts) reuses this launcher with `next build` + `next start`.
  */
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import net from 'node:net';
 import path from 'node:path';
@@ -630,6 +630,39 @@ export async function applySimFlags(
 }
 
 // ---------------------------------------------------------------------------------------------
+// next dev's cache
+// ---------------------------------------------------------------------------------------------
+
+/** Written into .next/dev at each `pnpm dev` start; compared with .next/BUILD_ID. */
+export const DEV_LAUNCH_MARKER = '.farm-dev-launch';
+
+/**
+ * Next 16.4.3 / Turbopack: after `next build` and `next start` (pnpm pilot) on changed code, the
+ * first `next dev` session can put a page that uses server actions (/admin/*) into a reload
+ * loop for half a minute ("HMR hash mismatch" on every load). Starting with a fresh .next/dev
+ * cache avoids it, so the launcher clears that cache when a production build ran since the last
+ * `pnpm dev` start. Returns true when it cleared it. Never touches the production build.
+ */
+export function clearDevCacheAfterBuild(projectDir: string): boolean {
+  const nextDir = path.join(projectDir, '.next');
+  const buildId = path.join(nextDir, 'BUILD_ID');
+  const devDir = path.join(nextDir, 'dev');
+  if (!existsSync(buildId) || !existsSync(devDir)) return false;
+  const marker = path.join(devDir, DEV_LAUNCH_MARKER);
+  const lastDev = existsSync(marker) ? statSync(marker).mtimeMs : 0;
+  if (statSync(buildId).mtimeMs <= lastDev) return false;
+  rmSync(devDir, { recursive: true, force: true });
+  return true;
+}
+
+/** Record this `pnpm dev` start (see clearDevCacheAfterBuild). */
+export function markDevLaunch(projectDir: string): void {
+  const devDir = path.join(projectDir, '.next', 'dev');
+  mkdirSync(devDir, { recursive: true });
+  writeFileSync(path.join(devDir, DEV_LAUNCH_MARKER), `${new Date().toISOString()}\n`);
+}
+
+// ---------------------------------------------------------------------------------------------
 // URLs
 // ---------------------------------------------------------------------------------------------
 
@@ -812,6 +845,16 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
       await sup.shutdown(`next build failed (code ${code})`, code || 1);
       return sup.done;
     }
+  } else if (!prod) {
+    try {
+      if (clearDevCacheAfterBuild(dir)) {
+        say(
+          'a production build ran since the last pnpm dev: starting next dev with a fresh .next/dev cache',
+        );
+      }
+    } catch (e) {
+      say(`could not clear .next/dev (${(e as Error).message}); continuing`);
+    }
   } else if (prod && !existsSync(path.join(dir, '.next', 'BUILD_ID'))) {
     say('--skip-build: no production build in .next; run without --skip-build');
     await sup.shutdown('no build', 1);
@@ -849,6 +892,13 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
     },
   );
   if (!health || sup.stopping) return sup.done;
+  if (!prod) {
+    try {
+      markDevLaunch(dir);
+    } catch {
+      // only an optimisation for the next launch
+    }
+  }
 
   let clockNote: string;
   if (!args.clock) clockNote = 'off (--no-clock)';
