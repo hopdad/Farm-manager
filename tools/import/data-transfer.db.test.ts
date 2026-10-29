@@ -249,4 +249,43 @@ describe('data:export / data:import', () => {
     );
     expect(TABLES.map((s) => s.table)).toContain('farm.field_boundaries');
   });
+
+  test('a reading by a person who is not in the database comes back without that link', async () => {
+    const { pool, admin } = t();
+    // A demo crew member's sign-in (seeded again by db:reset) and a test sign-in (not).
+    const crew = await pool.query<{ id: string }>(
+      `select id::text from farm.parties where source = 'demo' and 'crew' = any(roles) limit 1`,
+    );
+    const userId = '0f9d3c1e-5b7a-5c2d-8e4f-6a1b2c3d4e5f';
+    await admin.query(
+      `insert into farm.app_users (id, party_id, role, source, source_id)
+       values ($1::uuid, $2::uuid, 'driver', 'e2e', 'user:driver')`,
+      [userId, crew.rows[0]?.id],
+    );
+    await pool.query(
+      `insert into farm.soil_temp_readings (observed_at, temp_f, source, entered_by)
+       values (now(), 51.5, 'manual', $1::uuid)`,
+      [userId],
+    );
+    const doc = await exportData(pool);
+    const reading = doc.tables['farm.soil_temp_readings']?.find((r) => r.temp_f === 51.5);
+    expect(reading?.entered_by).toBe(userId);
+
+    await resetAndResync(admin, pool);
+    const r = await importData(pool, doc);
+    expect(r.errors, JSON.stringify(r.errors)).toEqual([]);
+    expect(r.written).toBe(true);
+    expect(r.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          table: 'farm.soil_temp_readings',
+          message: expect.stringMatching(/entered_by: the person .* is not in this database/),
+        }),
+      ]),
+    );
+    const back = await pool.query<{ entered_by: string | null }>(
+      `select entered_by::text from farm.soil_temp_readings where temp_f = 51.5`,
+    );
+    expect(back.rows).toEqual([{ entered_by: null }]);
+  });
 });

@@ -20,7 +20,7 @@ import {
 import { getConfig } from '../src/config';
 import type { SprayMapResponse, WeatherStripPayload } from '../src/ui/weather/contract';
 import type {} from '../src/ui/weather/SprayFieldState';
-import { signInAs } from './support/auth';
+import { e2ePool, e2eUserId, signInAs } from './support/auth';
 import { blockExternalHosts, mapPathFor, WEBGL_ARGS, waitForMap } from './support/map';
 
 test.use({ launchOptions: { args: WEBGL_ARGS } });
@@ -230,8 +230,16 @@ test.describe('soil temperature from a phone', () => {
     await page.getByTestId('soil-temp-depth').selectOption('4');
     await page.getByTestId('soil-temp-save').click();
     await expect(page.getByTestId('soil-temp-message')).toHaveText('Saved 48°');
-    await expect(page.getByTestId('weather-soil')).toContainText('48°', { timeout: 15_000 });
-    await expect(page.getByTestId('weather-soil')).toContainText(/4 in · (just now|\d+ min ago)/);
+    try {
+      await expect(page.getByTestId('weather-soil')).toContainText('48°', { timeout: 15_000 });
+      await expect(page.getByTestId('weather-soil')).toContainText(/4 in · (just now|\d+ min ago)/);
+    } finally {
+      // A test reading never stays in the dev database (it would travel with data:export).
+      await e2ePool().query(
+        `delete from farm.soil_temp_readings where entered_by = $1::uuid and temp_f = 47.6`,
+        [e2eUserId('driver')],
+      );
+    }
   });
 
   test('a viewer is refused, on the page and by the server', async ({ browser }, testInfo) => {

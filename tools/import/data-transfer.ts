@@ -41,6 +41,8 @@ export interface ExportDoc {
   overlays: Record<string, Row[]>;
 }
 
+type ActorTable = 'farm.app_users' | 'farm.devices';
+
 interface TableSpec {
   table: string;
   /** Key column (upsert target). */
@@ -57,6 +59,13 @@ interface TableSpec {
   deferred?: string[];
   /** Exported for people reading the file; recomputed by the database on import. */
   exportOnly?: string[];
+  /**
+   * Who did it: columns pointing at a sign-in or a device (`farm.app_users` / `farm.devices`).
+   * Only your own sign-ins (source app) travel in the file; the demo crew comes back with the
+   * seed under the same ids. A row whose person or device is not in the target database (a test
+   * sign-in, a removed device) is still imported, without that link, and the report says so.
+   */
+  actors?: Record<string, ActorTable>;
   /** Export order (stable files diff well). */
   orderBy: string;
 }
@@ -126,6 +135,7 @@ export const TABLES: readonly TableSpec[] = [
       'source_id',
       ...STAMPS,
     ],
+    actors: { app_user_id: 'farm.app_users', created_by: 'farm.app_users' },
     orderBy: 't.created_at, t.id',
   },
   {
@@ -155,6 +165,7 @@ export const TABLES: readonly TableSpec[] = [
       'source_id',
       ...STAMPS,
     ],
+    actors: { notes_updated_by: 'farm.app_users' },
     orderBy: 't.created_at, t.id',
   },
   {
@@ -200,6 +211,7 @@ export const TABLES: readonly TableSpec[] = [
       'created_by',
       'created_at',
     ],
+    actors: { created_by: 'farm.app_users' },
     orderBy: 't.effective_on, t.created_at, t.id',
   },
   {
@@ -216,6 +228,7 @@ export const TABLES: readonly TableSpec[] = [
       'resolved_by',
       'resolution',
     ],
+    actors: { requested_by: 'farm.app_users', resolved_by: 'farm.app_users' },
     geometry: ['proposed_geom'],
     orderBy: 't.requested_at, t.id',
   },
@@ -241,6 +254,7 @@ export const TABLES: readonly TableSpec[] = [
       'source_id',
       ...STAMPS,
     ],
+    actors: { down_by: 'farm.app_users' },
     orderBy: 't.created_at, t.id',
   },
   {
@@ -278,6 +292,7 @@ export const TABLES: readonly TableSpec[] = [
       'note',
       'created_at',
     ],
+    actors: { entered_by: 'farm.app_users', device_id: 'farm.devices' },
     geometry: ['geom'],
     orderBy: 't.observed_at, t.id',
   },
@@ -301,6 +316,7 @@ export const TABLES: readonly TableSpec[] = [
       'created_by',
       ...STAMPS,
     ],
+    actors: { created_by: 'farm.app_users' },
     geometry: ['geom'],
     orderBy: 't.created_at, t.id',
   },
@@ -321,6 +337,8 @@ interface OverlaySpec {
   where: string;
   /** column -> SQL that is true when the column holds a hand-entered value. */
   columns: Record<string, string>;
+  /** As TableSpec.actors. */
+  actors?: Record<string, ActorTable>;
 }
 
 const OWN_PARTY = (col: string) =>
@@ -339,6 +357,7 @@ export const OVERLAYS: readonly OverlaySpec[] = [
       tenure: `t.source = 'deere'`,
       county_fips: `t.source = 'deere'`,
     },
+    actors: { notes_updated_by: 'farm.app_users' },
   },
   {
     table: 'farm.farms',
@@ -573,6 +592,34 @@ async function makeRoomForSeason(c: pg.PoolClient, row: Row): Promise<void> {
   );
 }
 
+/**
+ * The row with every actor link whose person or device is not in this database set to null
+ * (TableSpec.actors), plus a warning per dropped link. Everything else is left as it is.
+ */
+async function withKnownActors(
+  c: pg.PoolClient,
+  table: string,
+  actors: Record<string, ActorTable> | undefined,
+  row: Row,
+  warnings: ImportProblem[],
+): Promise<Row> {
+  if (!actors) return row;
+  let out = row;
+  for (const [col, target] of Object.entries(actors)) {
+    const id = row[col];
+    if (typeof id !== 'string') continue;
+    const found = await c.query(`select 1 from ${target} where id = $1::uuid`, [id]);
+    if (found.rowCount) continue;
+    out = { ...out, [col]: null };
+    warnings.push({
+      table,
+      id: String(row.id ?? row.key ?? '?'),
+      message: `${col}: ${target === 'farm.devices' ? 'the device' : 'the person'} ${id} is not in this database (a test sign-in or a removed one); imported without that link`,
+    });
+  }
+  return out;
+}
+
 const emptyCounts = (): ImportCounts => ({ inserted: 0, updated: 0, unchanged: 0, failed: 0 });
 
 function describePgError(e: unknown): string {
@@ -606,9 +653,11 @@ export async function importData(
     for (const s of TABLES) {
       const rows = doc.tables[s.table] ?? [];
       const status: (keyof ImportCounts)[] = [];
-      for (const row of rows) {
+      for (const original of rows) {
         await c.query('savepoint r');
+        let row = original;
         try {
+          row = await withKnownActors(c, s.table, s.actors, original, report.warnings);
           if (s.table === 'farm.field_boundaries') await makeRoomForBoundary(c, row);
           if (s.table === 'farm.field_seasons') await makeRoomForSeason(c, row);
           const r = await c.query<{ inserted: boolean }>(upsertSql(s, row), [JSON.stringify(row)]);
@@ -654,11 +703,13 @@ export async function importData(
       const rows = doc.overlays[o.table] ?? [];
       const counts = emptyCounts();
       report.overlays[o.table] = counts;
-      for (const row of rows) {
-        const cols = Object.keys(row).filter((k) => k !== 'id' && k in o.columns);
+      for (const original of rows) {
+        const cols = Object.keys(original).filter((k) => k !== 'id' && k in o.columns);
         if (!cols.length) continue;
         await c.query('savepoint r');
+        let row = original;
         try {
+          row = await withKnownActors(c, o.table, o.actors, original, report.warnings);
           const exists = await c.query(`select 1 from ${o.table} where id = $1`, [row.id]);
           if (!exists.rowCount) {
             report.warnings.push({
