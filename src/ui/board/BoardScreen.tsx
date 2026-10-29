@@ -10,6 +10,7 @@ import type { FleetFrame } from '../map/fleet/model';
 import { KIND_COLORS, KIND_LABELS } from '../map/fleet/style';
 import { type FleetStatus, useFleet } from '../map/fleet/useFleet';
 import type { MapPageData, MapVariant } from '../map/types';
+import { SprayFieldState, WeatherStrip } from '../weather';
 import css from './board.module.css';
 import { ACTIVITY_LABELS, compassPoint, formatAge, formatClock, SOURCE_LABELS } from './format';
 import { useKiosk } from './useKiosk';
@@ -159,6 +160,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [flyTo, setFlyTo] = useState<{ lng: number; lat: number; nonce: number } | null>(null);
+  const [map, setMap] = useState<Parameters<typeof SprayFieldState>[0]['map']>(null);
   const selected = status.machines.find((m) => m.id === selectedId) ?? null;
   const onSelect = useCallback((id: string | null) => setSelectedId(id), []);
   const pick = useCallback((m: FleetFrame) => {
@@ -183,7 +185,10 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
           onSelect={onSelect}
           showLegend={variant === 'wall'}
           flyTo={flyTo}
+          onMapReady={setMap}
         />
+        <WeatherStrip variant={variant} />
+        <SprayFieldState map={map} />
         {selected && variant === 'wall' && (
           <MachineCard m={selected} onClose={() => setSelectedId(null)} />
         )}

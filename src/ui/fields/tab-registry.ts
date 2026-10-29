@@ -7,6 +7,7 @@
  *
  * The panel renders `orderTabs(FIELD_PANEL_TABS)`.
  */
+import { weatherTab } from '../weather/FieldWeatherTab';
 import type { FieldPanelTab } from './tabs';
 
-export const FIELD_PANEL_TABS: readonly FieldPanelTab[] = [];
+export const FIELD_PANEL_TABS: readonly FieldPanelTab[] = [weatherTab];

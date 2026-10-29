@@ -1,0 +1,2081 @@
+{
+  "format": 1,
+  "source": "nws",
+  "stream": "observations",
+  "kind": "doc-derived",
+  "reference": "https://api.weather.gov/openapi.json (v2.0.0) and https://www.weather.gov/documentation/services-web-api: GET /stations/{stationId}/observations (ObservationCollectionGeoJson, QuantitativeValue). Values: an invented week near Adrian, MI; no real farm data.",
+  "anchor": "2026-10-29T12:00:00.000Z",
+  "shiftStepSeconds": 3600,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/stations/KADG/observations"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/geo+json"
+        },
+        "body": {
+          "@context": ["https://geojson.org/geojson-ld/geojson-context.jsonld"],
+          "type": "FeatureCollection",
+          "features": [
+            {
+              "id": "https://api.weather.gov/stations/KADG/observations/2026-10-29T11:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-84.0773, 41.8676]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KADG/observations/2026-10-29T11:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 243.2
+                },
+                "station": "https://api.weather.gov/stations/KADG",
+                "stationId": "KADG",
+                "stationName": "Adrian, Lenawee County Airport",
+                "timestamp": "2026-10-29T11:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 8.3,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.9,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 260,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 11.16,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 22.32,
+                  "qualityControl": "V"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": 0,
+                  "qualityControl": "V"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 73.9,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KADG/observations/2026-10-29T10:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-84.0773, 41.8676]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KADG/observations/2026-10-29T10:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 243.2
+                },
+                "station": "https://api.weather.gov/stations/KADG",
+                "stationId": "KADG",
+                "stationName": "Adrian, Lenawee County Airport",
+                "timestamp": "2026-10-29T10:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 6.7,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.9,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 240,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 7.56,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": 0,
+                  "qualityControl": "V"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 82.3,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KADG/observations/2026-10-29T09:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-84.0773, 41.8676]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KADG/observations/2026-10-29T09:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 243.2
+                },
+                "station": "https://api.weather.gov/stations/KADG",
+                "stationId": "KADG",
+                "stationName": "Adrian, Lenawee County Airport",
+                "timestamp": "2026-10-29T09:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 5,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.3,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 200,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 5.4,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 89,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KADG/observations/2026-10-29T08:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-84.0773, 41.8676]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KADG/observations/2026-10-29T08:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 243.2
+                },
+                "station": "https://api.weather.gov/stations/KADG",
+                "stationId": "KADG",
+                "stationName": "Adrian, Lenawee County Airport",
+                "timestamp": "2026-10-29T08:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 4.4,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.3,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 0,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 92.7,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KADG/observations/2026-10-29T07:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-84.0773, 41.8676]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KADG/observations/2026-10-29T07:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 243.2
+                },
+                "station": "https://api.weather.gov/stations/KADG",
+                "stationId": "KADG",
+                "stationName": "Adrian, Lenawee County Airport",
+                "timestamp": "2026-10-29T07:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 4.4,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.9,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 180,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 3.6,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 96.6,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KADG/observations/2026-10-29T06:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-84.0773, 41.8676]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KADG/observations/2026-10-29T06:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 243.2
+                },
+                "station": "https://api.weather.gov/stations/KADG",
+                "stationId": "KADG",
+                "stationName": "Adrian, Lenawee County Airport",
+                "timestamp": "2026-10-29T06:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 5,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.9,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 170,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 5.4,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 92.8,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/stations/KTTF/observations"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/geo+json"
+        },
+        "body": {
+          "@context": ["https://geojson.org/geojson-ld/geojson-context.jsonld"],
+          "type": "FeatureCollection",
+          "features": [
+            {
+              "id": "https://api.weather.gov/stations/KTTF/observations/2026-10-29T11:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.4349, 41.9399]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTTF/observations/2026-10-29T11:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 187.1
+                },
+                "station": "https://api.weather.gov/stations/KTTF",
+                "stationId": "KTTF",
+                "stationName": "Monroe, Custer Airport",
+                "timestamp": "2026-10-29T11:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 8.3,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.9,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 260,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 11.16,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 22.32,
+                  "qualityControl": "V"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": 0,
+                  "qualityControl": "V"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 73.9,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KTTF/observations/2026-10-29T10:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.4349, 41.9399]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTTF/observations/2026-10-29T10:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 187.1
+                },
+                "station": "https://api.weather.gov/stations/KTTF",
+                "stationId": "KTTF",
+                "stationName": "Monroe, Custer Airport",
+                "timestamp": "2026-10-29T10:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 6.7,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.9,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 240,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 7.56,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": 0,
+                  "qualityControl": "V"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 82.3,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KTTF/observations/2026-10-29T09:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.4349, 41.9399]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTTF/observations/2026-10-29T09:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 187.1
+                },
+                "station": "https://api.weather.gov/stations/KTTF",
+                "stationId": "KTTF",
+                "stationName": "Monroe, Custer Airport",
+                "timestamp": "2026-10-29T09:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 5,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.3,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 200,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 5.4,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 89,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KTTF/observations/2026-10-29T08:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.4349, 41.9399]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTTF/observations/2026-10-29T08:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 187.1
+                },
+                "station": "https://api.weather.gov/stations/KTTF",
+                "stationId": "KTTF",
+                "stationName": "Monroe, Custer Airport",
+                "timestamp": "2026-10-29T08:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 4.4,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.3,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 0,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 92.7,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KTTF/observations/2026-10-29T07:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.4349, 41.9399]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTTF/observations/2026-10-29T07:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 187.1
+                },
+                "station": "https://api.weather.gov/stations/KTTF",
+                "stationId": "KTTF",
+                "stationName": "Monroe, Custer Airport",
+                "timestamp": "2026-10-29T07:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 4.4,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.9,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 180,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 3.6,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 96.6,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KTTF/observations/2026-10-29T06:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.4349, 41.9399]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTTF/observations/2026-10-29T06:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 187.1
+                },
+                "station": "https://api.weather.gov/stations/KTTF",
+                "stationId": "KTTF",
+                "stationName": "Monroe, Custer Airport",
+                "timestamp": "2026-10-29T06:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 5,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.9,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 170,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 5.4,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 92.8,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/stations/KTOL/observations"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/geo+json"
+        },
+        "body": {
+          "@context": ["https://geojson.org/geojson-ld/geojson-context.jsonld"],
+          "type": "FeatureCollection",
+          "features": [
+            {
+              "id": "https://api.weather.gov/stations/KTOL/observations/2026-10-29T11:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.8078, 41.5868]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTOL/observations/2026-10-29T11:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 208.2
+                },
+                "station": "https://api.weather.gov/stations/KTOL",
+                "stationId": "KTOL",
+                "stationName": "Toledo Express Airport",
+                "timestamp": "2026-10-29T11:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 8.3,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.9,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 260,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 11.16,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 22.32,
+                  "qualityControl": "V"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": 0,
+                  "qualityControl": "V"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 73.9,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KTOL/observations/2026-10-29T10:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.8078, 41.5868]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTOL/observations/2026-10-29T10:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 208.2
+                },
+                "station": "https://api.weather.gov/stations/KTOL",
+                "stationId": "KTOL",
+                "stationName": "Toledo Express Airport",
+                "timestamp": "2026-10-29T10:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 6.7,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.9,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 240,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 7.56,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": 0,
+                  "qualityControl": "V"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 82.3,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KTOL/observations/2026-10-29T09:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.8078, 41.5868]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTOL/observations/2026-10-29T09:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 208.2
+                },
+                "station": "https://api.weather.gov/stations/KTOL",
+                "stationId": "KTOL",
+                "stationName": "Toledo Express Airport",
+                "timestamp": "2026-10-29T09:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 5,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.3,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 200,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 5.4,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 89,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KTOL/observations/2026-10-29T08:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.8078, 41.5868]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTOL/observations/2026-10-29T08:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 208.2
+                },
+                "station": "https://api.weather.gov/stations/KTOL",
+                "stationId": "KTOL",
+                "stationName": "Toledo Express Airport",
+                "timestamp": "2026-10-29T08:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 4.4,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.3,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 0,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 92.7,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KTOL/observations/2026-10-29T07:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.8078, 41.5868]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTOL/observations/2026-10-29T07:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 208.2
+                },
+                "station": "https://api.weather.gov/stations/KTOL",
+                "stationId": "KTOL",
+                "stationName": "Toledo Express Airport",
+                "timestamp": "2026-10-29T07:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 4.4,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.9,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 180,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 3.6,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 96.6,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "https://api.weather.gov/stations/KTOL/observations/2026-10-29T06:53:00+00:00",
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-83.8078, 41.5868]
+              },
+              "properties": {
+                "@id": "https://api.weather.gov/stations/KTOL/observations/2026-10-29T06:53:00+00:00",
+                "@type": "wx:ObservationStation",
+                "elevation": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 208.2
+                },
+                "station": "https://api.weather.gov/stations/KTOL",
+                "stationId": "KTOL",
+                "stationName": "Toledo Express Airport",
+                "timestamp": "2026-10-29T06:53:00+00:00",
+                "rawMessage": "",
+                "textDescription": "Clear",
+                "presentWeather": [],
+                "temperature": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 5,
+                  "qualityControl": "V"
+                },
+                "dewpoint": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": 3.9,
+                  "qualityControl": "V"
+                },
+                "windDirection": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 170,
+                  "qualityControl": "V"
+                },
+                "windSpeed": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": 5.4,
+                  "qualityControl": "V"
+                },
+                "windGust": {
+                  "unitCode": "wmoUnit:km_h-1",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "barometricPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": 102030,
+                  "qualityControl": "V"
+                },
+                "seaLevelPressure": {
+                  "unitCode": "wmoUnit:Pa",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "visibility": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 16090,
+                  "qualityControl": "V"
+                },
+                "maxTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "minTemperatureLast24Hours": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "precipitationLastHour": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast3Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "precipitationLast6Hours": {
+                  "unitCode": "wmoUnit:mm",
+                  "value": null,
+                  "qualityControl": "Z"
+                },
+                "relativeHumidity": {
+                  "unitCode": "wmoUnit:percent",
+                  "value": 92.8,
+                  "qualityControl": "V"
+                },
+                "windChill": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "heatIndex": {
+                  "unitCode": "wmoUnit:degC",
+                  "value": null,
+                  "qualityControl": "V"
+                },
+                "cloudLayers": [
+                  {
+                    "base": {
+                      "unitCode": "wmoUnit:m",
+                      "value": 3660
+                    },
+                    "amount": "FEW"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

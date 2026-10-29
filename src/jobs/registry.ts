@@ -15,6 +15,7 @@
  */
 import { runFleetDeere, runFleetTrucks, TRUCKS_BUDGET_MS } from './fleet';
 import type { JobRegistry } from './types';
+import { runWeatherNws } from './weather';
 
 export const jobs = {
   'fleet.trucks': {
@@ -24,6 +25,7 @@ export const jobs = {
     run: runFleetTrucks,
   },
   'fleet.deere': { cron: '*/2 * * * *', demoEvery: '15 seconds', run: runFleetDeere },
+  'weather.nws': { cron: '*/30 * * * *', demoEvery: '30 seconds', run: runWeatherNws },
 } satisfies JobRegistry;
 
 /** The registry as a plain lookup table: `registry[name]` is `JobDef | undefined`. */

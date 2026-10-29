@@ -1,0 +1,69 @@
+{
+  "format": 1,
+  "source": "nws",
+  "stream": "points",
+  "kind": "doc-derived",
+  "reference": "https://api.weather.gov/openapi.json (v2.0.0) and https://www.weather.gov/documentation/services-web-api: GET /points/{latitude},{longitude} (PointGeoJson). Values: an invented week near Adrian, MI; no real farm data.",
+  "anchor": "2026-10-29T12:00:00.000Z",
+  "shiftStepSeconds": 3600,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/points/41.9,-84.03"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/geo+json"
+        },
+        "body": {
+          "@context": ["https://geojson.org/geojson-ld/geojson-context.jsonld"],
+          "id": "https://api.weather.gov/points/41.9,-84.03",
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [-84.03, 41.9]
+          },
+          "properties": {
+            "@id": "https://api.weather.gov/points/41.9,-84.03",
+            "@type": "wx:Point",
+            "cwa": "DTX",
+            "forecastOffice": "https://api.weather.gov/offices/DTX",
+            "gridId": "DTX",
+            "gridX": 31,
+            "gridY": 40,
+            "forecast": "https://api.weather.gov/gridpoints/DTX/31,40/forecast",
+            "forecastHourly": "https://api.weather.gov/gridpoints/DTX/31,40/forecast/hourly",
+            "forecastGridData": "https://api.weather.gov/gridpoints/DTX/31,40",
+            "observationStations": "https://api.weather.gov/gridpoints/DTX/31,40/stations",
+            "relativeLocation": {
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [-84.037, 41.8975]
+              },
+              "properties": {
+                "city": "Adrian",
+                "state": "MI",
+                "distance": {
+                  "unitCode": "wmoUnit:m",
+                  "value": 610.4
+                },
+                "bearing": {
+                  "unitCode": "wmoUnit:degree_(angle)",
+                  "value": 101
+                }
+              }
+            },
+            "forecastZone": "https://api.weather.gov/zones/forecast/MIZ082",
+            "county": "https://api.weather.gov/zones/county/MIC091",
+            "fireWeatherZone": "https://api.weather.gov/zones/fire/MIZ082",
+            "timeZone": "America/Detroit",
+            "radarStation": "KDTX"
+          }
+        }
+      }
+    }
+  ]
+}

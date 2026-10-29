@@ -10,6 +10,7 @@ describe('job registry', () => {
     expect(valid.map((j) => [j.name, j.schedule, j.host])).toEqual([
       ['fleet.trucks', { kind: 'every', seconds: 30 }, 'app'],
       ['fleet.deere', { kind: 'cron', expr: '*/2 * * * *' }, 'app'],
+      ['weather.nws', { kind: 'cron', expr: '*/30 * * * *' }, 'app'],
     ]);
   });
 
@@ -18,6 +19,7 @@ describe('job registry', () => {
     expect(valid.map((j) => [j.name, j.demoSchedule])).toEqual([
       ['fleet.trucks', { kind: 'every', seconds: 5 }],
       ['fleet.deere', { kind: 'every', seconds: 15 }],
+      ['weather.nws', { kind: 'every', seconds: 30 }],
     ]);
   });
 
