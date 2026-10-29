@@ -4,6 +4,8 @@
  * observation, the latest soil temperature reading, and the spray verdicts. The strip itself is
  * assembled by the pure `buildWeatherStrip` (src/ui/weather/strip-model.ts).
  */
+
+import { withStaleness } from '../../domain/spray';
 import type {
   GridRef,
   HourlyForecast,
@@ -39,7 +41,7 @@ export interface StripData {
   hours: HourlyForecast[];
   now: Observation | null;
   soilTemp: SoilTempRow | null;
-  /** Current hour's verdict per field (newest row each). */
+  /** Current hour's verdict per field (newest row each, with staleness applied at `now`). */
   verdicts: SprayVerdict[];
   /** The reference field's verdict per hour (the cell's largest field). */
   referenceVerdicts: Map<string, SprayVerdict>;
@@ -133,7 +135,8 @@ export async function loadStripData(ex: Executor, now: Date): Promise<StripData>
     hours: [],
     now: null,
     soilTemp,
-    verdicts: [...verdicts.values()].map((v) => v.verdict),
+    // As shown now (forecast_stale once the issue is old), so the strip and the map agree.
+    verdicts: [...verdicts.values()].map((v) => withStaleness(v, now).verdict),
     referenceVerdicts: new Map(),
     referenceField: null,
   };
@@ -179,7 +182,9 @@ export async function loadStripData(ex: Executor, now: Date): Promise<StripData>
       forHour,
       new Date(Date.parse(forHour) + STRIP_HOURS * HOUR_MS).toISOString(),
     );
-    out.referenceVerdicts = new Map(views.map((v) => [v.forHour, v.verdict] as const));
+    out.referenceVerdicts = new Map(
+      views.map((v) => [v.forHour, withStaleness(v, now).verdict] as const),
+    );
   }
   return out;
 }

@@ -314,6 +314,14 @@ describe('fieldDetail', () => {
       verdict: 'caution',
       reasons: [
         { code: 'wind_caution', verdict: 'caution', message: 'Wind 9 mph', value: 9, threshold: 8 },
+        // The 12:00 issue is 145 min old at the read: shown with forecast_stale, as on the map.
+        {
+          code: 'forecast_stale',
+          verdict: 'caution',
+          message: 'Forecast is 2 h old',
+          value: 145,
+          threshold: 120,
+        },
       ],
       rulesVersion: 'v0-b',
       forecastIssuedAt: '2026-10-29T12:00:00.000Z',

@@ -22,6 +22,7 @@ import {
   type FieldSummary,
 } from '../../domain/fields';
 import { summarizeFieldSoils } from '../../domain/soils';
+import { withStaleness } from '../../domain/spray';
 import { publish } from '../../platform/realtime/publish';
 import type { Db, DbTx } from '../client';
 import { type Executor, exec } from '../exec';
@@ -213,7 +214,11 @@ export async function fieldDetail(
   if (!isUuid(fieldId)) return null;
   const r = await exec<{ detail: unknown }>(ex, FIELD_DETAIL_SQL, [fieldId, now.toISOString()]);
   const row = r.rows[0];
-  return row ? toFieldDetail(parseJson<RawFieldDetail>(row.detail)) : null;
+  if (!row) return null;
+  const detail = toFieldDetail(parseJson<RawFieldDetail>(row.detail));
+  // The stored verdict as shown now: an old forecast adds forecast_stale (caution), exactly as
+  // GET /api/weather/spray and the map do (src/domain/spray.ts withStaleness).
+  return detail.spray ? { ...detail, spray: withStaleness(detail.spray, now) } : detail;
 }
 
 export type SaveNotesResult =
