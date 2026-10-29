@@ -1,0 +1,133 @@
+/**
+ * What the layer rail shows (pure; unit-tested): the resolved layers (../layers/types.ts) grouped
+ * in rail order (LAYER_GROUPS: fields, soils, elevation and drainage, imagery, tile maps,
+ * parcels, live fleet, custom-work customers), each with its toggle state and a status line:
+ *
+ *  - loading:  the registry hasn't answered yet (a built layer can't be drawn without its row)
+ *  - missing:  not built yet: the def's build hint ("Run pnpm gis:soils …"); not toggleable
+ *  - mismatch: the registry row's cache policy disagrees with the code: never drawn
+ *  - offline:  an online-only layer (kind 'online', offline: false) while the browser is offline
+ *              or its tiles are failing (internet down behind a working LAN): still toggleable,
+ *              shown as "offline" (plan 1d done-when)
+ *  - ready
+ * plus a zoom hint when an "on" layer only draws further in (soils from z10), the layer's
+ * legend while it is on, and where its data comes from (survey vintage, or the synthetic fixture).
+ * A group nobody has built a layer for yet says what will fill it.
+ */
+import type { LayerLegend } from '../../../domain/map-layers';
+import {
+  LAYER_GROUP_LABELS,
+  LAYER_GROUPS,
+  type LayerGroup,
+  type ResolvedLayer,
+} from '../layers/types';
+import { isLayerVisible } from '../layers/visibility';
+
+export type RailItemStatus = 'ready' | 'loading' | 'missing' | 'mismatch' | 'offline';
+
+export interface RailItem {
+  key: string;
+  label: string;
+  on: boolean;
+  /** The default it falls back to after a reset. */
+  defaultVisible: boolean;
+  toggleable: boolean;
+  status: RailItemStatus;
+  /** Status line under the label (null when ready). */
+  message: string | null;
+  /** "Zoom in to see it" when on but the map is out of its zooms. */
+  zoomHint: string | null;
+  /** Legend while on. */
+  legend: LayerLegend | null;
+  /** Data source line (survey vintage), or the synthetic-fixture warning. */
+  source: string | null;
+  synthetic: boolean;
+}
+
+export interface RailGroup {
+  group: LayerGroup;
+  label: string;
+  items: RailItem[];
+  /** For a group with no layers yet. */
+  hint: string | null;
+}
+
+/** What fills the groups other builders' slices bring (shown until their layers exist). */
+export const GROUP_HINTS: Partial<Record<LayerGroup, string>> = {
+  terrain: 'Hillshade, slope and flow paths arrive with the lidar (pnpm gis:dem).',
+  imagery: 'Aerial photos: pnpm gis:naip.',
+  tile: 'Tile maps: pnpm import:tile <file>, or draw them.',
+  parcels: 'Parcels and owners: pnpm gis:parcels <file>.',
+};
+
+export interface RailModelInput {
+  resolved: readonly ResolvedLayer[];
+  overrides: Readonly<Record<string, boolean>>;
+  /** GET /api/layers has answered at least once. */
+  loaded: boolean;
+  /** navigator.onLine. */
+  online: boolean;
+  /** Layer keys whose tiles are failing right now. */
+  failing: ReadonlySet<string>;
+  /** Current map zoom (null before the map exists). */
+  zoom: number | null;
+}
+
+function itemOf(r: ResolvedLayer, input: RailModelInput): RailItem {
+  const { def, row } = r;
+  const on = isLayerVisible(input.overrides, def.key, r.defaultVisible);
+  const needsRow = def.render === 'maplibre' && def.requiresRow;
+  const onlineOnly = def.kind === 'online' || !def.offline;
+  let status: RailItemStatus = 'ready';
+  let message: string | null = null;
+  if (needsRow && !input.loaded && !row) {
+    status = 'loading';
+    message = 'Loading…';
+  } else if (r.status === 'missing') {
+    status = 'missing';
+    message = def.render === 'maplibre' && def.buildHint ? def.buildHint : 'Not built yet';
+  } else if (r.status === 'mismatch') {
+    status = 'mismatch';
+    message = `Not shown: the registry marks it ${row?.cachePolicy ?? '?'}, the app expects ${def.cachePolicy}`;
+  } else if (onlineOnly && (!input.online || input.failing.has(def.key))) {
+    status = 'offline';
+    message = 'Offline: needs the internet';
+  }
+  let zoomHint: string | null = null;
+  if (on && status === 'ready' && def.render === 'maplibre' && input.zoom !== null) {
+    const minzoom = row?.minzoom ?? def.minzoom;
+    if (input.zoom < minzoom - 1e-6) zoomHint = `Zoom in to see it (from zoom ${minzoom})`;
+  }
+  const synthetic = row?.meta.fixture === true;
+  return {
+    key: def.key,
+    label: def.label,
+    on,
+    defaultVisible: r.defaultVisible,
+    toggleable: status === 'ready' || status === 'offline',
+    status,
+    message,
+    zoomHint,
+    legend: on && (status === 'ready' || status === 'offline') ? r.legend : null,
+    source: synthetic ? 'Synthetic test fixture, not survey data' : (row?.sourceVintage ?? null),
+    synthetic,
+  };
+}
+
+export function railModel(input: RailModelInput): RailGroup[] {
+  return LAYER_GROUPS.map((group) => {
+    const items = input.resolved.filter((r) => r.def.group === group).map((r) => itemOf(r, input));
+    return {
+      group,
+      label: LAYER_GROUP_LABELS[group],
+      items,
+      hint: items.length === 0 ? (GROUP_HINTS[group] ?? 'Nothing here yet.') : null,
+    };
+  });
+}
+
+/** `layer:<key>` or `layer:<key>:…` → key (map error events name the source). */
+export function layerKeyOfSource(sourceId: string | undefined | null): string | null {
+  const m = /^layer:([a-z][a-z0-9_]{0,62})(?::|$)/.exec(sourceId ?? '');
+  return m?.[1] ?? null;
+}

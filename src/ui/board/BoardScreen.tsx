@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { FleetFrame } from '../map/fleet/model';
 import { KIND_COLORS, KIND_LABELS } from '../map/fleet/style';
 import { type FleetStatus, useFleet } from '../map/fleet/useFleet';
+import { LayerRail, type RailMap } from '../map/rail/LayerRail';
 import type { MapPageData, MapVariant } from '../map/types';
 import css from './board.module.css';
 import { ACTIVITY_LABELS, compassPoint, formatAge, formatClock, SOURCE_LABELS } from './format';
@@ -158,6 +159,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
     deereStaleAfterSeconds: data.config.deereStaleAfterSeconds,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [map, setMap] = useState<RailMap | null>(null);
   const [flyTo, setFlyTo] = useState<{ lng: number; lat: number; nonce: number } | null>(null);
   const selected = status.machines.find((m) => m.id === selectedId) ?? null;
   const onSelect = useCallback((id: string | null) => setSelectedId(id), []);
@@ -183,7 +185,9 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
           onSelect={onSelect}
           showLegend={variant === 'wall'}
           flyTo={flyTo}
+          onMapReady={setMap}
         />
+        <LayerRail map={map} variant={variant} config={data.config} />
         {selected && variant === 'wall' && (
           <MachineCard m={selected} onClose={() => setSelectedId(null)} />
         )}

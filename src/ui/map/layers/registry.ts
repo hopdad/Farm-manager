@@ -8,6 +8,12 @@
  * The rail shows `resolveLayers(LAYER_DEFS, rows)`.
  */
 import { customersLayer, fieldsLayer, fleetLayer } from './builtin';
+import { soilsLayer } from './soils';
 import type { LayerDef } from './types';
 
-export const LAYER_DEFS: readonly LayerDef[] = [fieldsLayer, fleetLayer, customersLayer];
+export const LAYER_DEFS: readonly LayerDef[] = [
+  fieldsLayer,
+  fleetLayer,
+  customersLayer,
+  soilsLayer,
+];
