@@ -576,7 +576,10 @@ Plan §1 *Storage* / *Basemap* and §2 step 6. Only `src/platform/**` touches th
   `local:synthetic…`, `pnpm gis:basemap --synthetic`) counts as missing, so a plain bootstrap
   fetches the real extract; `pnpm run bootstrap --synthetic-basemap` installs or accepts the
   synthetic one instead (CI, machines that can't reach build.protomaps.com). With `--no-docker`
-  bootstrap cannot build a basemap (it needs `protomaps/go-pmtiles`) and says so.
+  bootstrap cannot build a basemap (it needs `protomaps/go-pmtiles`) and says so. **(M1 polish)**
+  When the fetch fails (or `--no-docker`) and a synthetic basemap is already installed, a plain
+  bootstrap keeps it with a `WARN offline basemap kept …` line and goes on (it never exits non-zero
+  for it); only a PC with no basemap at all stops with "offline basemap missing".
 
 ---
 
