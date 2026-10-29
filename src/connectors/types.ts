@@ -86,7 +86,9 @@ export function externalRef(
   }
   if (!externalId) throw new Error(`externalRef: empty external id (${source}/${kind})`);
   if (source === 'deere' && !sourceOrg) {
-    throw new Error(`externalRef: Deere refs need the Deere org id as sourceOrg (${kind} ${externalId})`);
+    throw new Error(
+      `externalRef: Deere refs need the Deere org id as sourceOrg (${kind} ${externalId})`,
+    );
   }
   return { source, kind, externalId, sourceOrg };
 }
@@ -169,10 +171,27 @@ export interface VehicleStatsSource {
 //      map (pure) -> upsert through ingest.external_refs (src/db/external-refs.ts) with
 //      deterministic ids -> mark processed. A failure increments attempts; at maxAttempts the
 //      event becomes 'dead'. Stop taking new events after ctx.deadline.
-//   5. releaseLease(ctx.pool, lease, { ok, error, nextRunAt }) (Retry-After / backoff -> nextRunAt).
-//   6. afterRun (e.g. publish ONE batched fleet.tick), only when claimed.
+//   5. releaseLease(ctx.pool, lease, { ok, error, nextRunAt }).
+//   6. afterRun (e.g. publish ONE batched fleet.tick) whenever the lease was claimed, ok or not.
 // Nothing here ever claims the job row, and the route never claims a stream row.
 // A crash at any point re-runs safely; one huge payload can't stall the cursor.
+//
+// FAILURES (so the "trucks API down -> trucks go stale with a badge" demo works end to end):
+//  - Before the claim (steps 0-1) runSyncStep lets database errors throw; nothing is held.
+//  - After the claim it NEVER throws for a poll, landing or lease-lost failure. It catches the
+//    error, releases with `{ ok: false, error, nextRunAt }` and returns
+//    `{ claimed: true, ok: false, error, ... }`. `nextRunAt` = now + `retryAfterSeconds` when
+//    the thrown error carries that numeric property (429/503 Retry-After), else null (the job's
+//    own cadence is the backoff). Lease lost (advanceCursor false) = `error: 'lease lost'`.
+//  - Per-event map/upsert failures are NOT step failures: they count attempts / `dead`, ok stays
+//    true.
+//  - afterRun runs AFTER releaseLease whenever claimed (also when ok is false), so the board keeps
+//    getting ticks (with `stale` recomputed) during a vendor outage. If afterRun throws, the
+//    error is logged and returned as `ok: false, error: 'afterRun: <message>'` (the stream's
+//    sync_state already holds the poll outcome).
+//  - The job turns the result into its JobResult with `syncStepJobResult()` below: skipped ->
+//    `{ items: 0, note }`, !ok -> throws SyncStepError (the route records ok=false in
+//    ingest.job_runs), else `{ items: processed, note? }`.
 // ---------------------------------------------------------------------------------------------
 
 /** One raw item as fetched, before mapping. Landed verbatim in ingest.raw_events.payload. */
@@ -207,22 +226,70 @@ export interface SyncStepSpec<TRaw = unknown, TNorm = unknown> {
   map(raw: TRaw, ctx: SyncContext): TNorm[];
   /** Upsert one normalized item inside the per-event transaction. */
   upsert(tx: DbTx, item: TNorm, ctx: SyncContext): Promise<void>;
-  /** Optional hook after a successful run (e.g. publish one batched fleet.tick). */
+  /**
+   * Optional hook, called after releaseLease whenever the lease was claimed, whether the poll
+   * succeeded or not (check `result.ok`). Typical use: publish ONE batched fleet.tick built from
+   * farm.machine_state with `stale` recomputed, so an outage shows up on the board.
+   * Not called when nothing was claimed (skipped).
+   */
   afterRun?(result: SyncStepResult, ctx: SyncContext): Promise<void>;
 }
 
 export interface SyncStepResult {
   /** False when another runner held the lease, the stream is 'off', or it isn't due yet. */
   claimed: boolean;
+  /**
+   * False only when claimed and the step failed: poll threw, landing failed, the lease was lost,
+   * or afterRun threw. True when skipped (nothing failed) and when only individual events failed
+   * (those count in `dead` / attempts).
+   */
+  ok: boolean;
+  /** Short reason when !ok (no secrets): the poll/landing error message, 'lease lost', 'afterRun: …'. */
+  error?: string;
   /** Why nothing ran when !claimed: 'off' or 'lease held elsewhere' (use it as JobResult.note). */
   skipped?: 'off' | 'lease held elsewhere';
-  /** Raw events newly inserted this run (duplicates by sha256 don't count). */
+  /** Raw events newly inserted this run (duplicates by sha256 don't count); 0 if landing failed. */
   landed: number;
   /** Raw events processed this run (including ones landed by earlier runs). */
   processed: number;
   /** Raw events that crossed maxAttempts this run. */
   dead: number;
+  /** The stream's cursor after this run (unchanged when the poll or landing failed). */
   cursor: string | null;
+}
+
+/** Thrown by `syncStepJobResult` for a failed step, so the jobs route records ok=false. */
+export class SyncStepError extends Error {
+  readonly result: SyncStepResult;
+  constructor(result: SyncStepResult) {
+    super(result.error ?? 'sync step failed');
+    this.name = 'SyncStepError';
+    this.result = result;
+  }
+}
+
+/**
+ * SyncStepResult -> JobResult, the same way in every job:
+ *   skipped           -> { items: 0, note: 'off' | 'lease held elsewhere' }
+ *   claimed, !ok      -> throws SyncStepError(result) (ingest.job_runs gets ok=false + the error)
+ *   claimed, ok       -> { items: processed, note: '<n> dead-lettered' when dead > 0 }
+ */
+export function syncStepJobResult(r: SyncStepResult): { items: number; note?: string } {
+  if (!r.claimed) return { items: 0, note: r.skipped ?? 'not claimed' };
+  if (!r.ok) throw new SyncStepError(r);
+  return r.dead > 0
+    ? { items: r.processed, note: `${r.dead} dead-lettered` }
+    : { items: r.processed };
+}
+
+/**
+ * Release time after a failed poll: now + `retryAfterSeconds` when the error carries that
+ * numeric property (vendor 429/503 Retry-After), else null (due again at the next tick).
+ */
+export function retryAfterFrom(err: unknown, now: Date): Date | null {
+  const s = (err as { retryAfterSeconds?: unknown } | null)?.retryAfterSeconds;
+  if (typeof s !== 'number' || !Number.isFinite(s) || s <= 0) return null;
+  return new Date(now.getTime() + Math.ceil(s) * 1000);
 }
 
 /**

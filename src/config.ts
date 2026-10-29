@@ -301,6 +301,39 @@ export function tryGetMigrateUrl(): string | undefined {
   return v ? postgresUrl.parse(v) : undefined;
 }
 
+/** Settings for playwright.config.ts (test tooling, not app config). */
+export interface E2eSettings {
+  /** E2E_BASE_URL, else PUBLIC_URL (so a parallel agent's own port is used), else localhost:3000. */
+  baseURL: string;
+  /** CI is set to anything but '', '0' or 'false' (GitHub Actions sets CI=true). */
+  ci: boolean;
+}
+
+/** Pure: E2E settings from an env-like object. Throws ConfigError only for a malformed E2E_BASE_URL. */
+export function parseE2eSettings(env: EnvLike): E2eSettings {
+  const explicit = env.E2E_BASE_URL?.trim();
+  let baseURL = 'http://localhost:3000';
+  if (explicit) {
+    const r = httpUrl.safeParse(explicit);
+    if (!r.success) throw new ConfigError(['E2E_BASE_URL: must be an http(s) URL']);
+    baseURL = r.data;
+  } else {
+    const pub = httpUrl.safeParse(env.PUBLIC_URL?.trim());
+    if (pub.success) baseURL = pub.data;
+  }
+  const ciRaw = (env.CI ?? '').trim().toLowerCase();
+  return { baseURL, ci: ciRaw !== '' && ciRaw !== '0' && ciRaw !== 'false' };
+}
+
+/**
+ * For playwright.config.ts: loads the env files like everything else (so .env.development.local
+ * overrides apply) and never needs the app's secrets, so it works in a fresh clone.
+ */
+export function getE2eSettings(): E2eSettings {
+  loadEnvFiles(process.cwd());
+  return parseE2eSettings(process.env);
+}
+
 /** Client-safe subset. Server components pass it to client components as props. */
 export interface PublicConfig {
   appEnv: AppEnv;

@@ -7,7 +7,7 @@
  * All helpers take a pg Pool/PoolClient or a Drizzle db/tx (src/db/exec.ts), so they work in a
  * sync step's per-event `tx` and in the seed's transaction alike.
  */
-import type { ExternalRef, ExternalRefKind, ConnectorSource } from '../connectors/types';
+import type { ConnectorSource, ExternalRef, ExternalRefKind } from '../connectors/types';
 import { type Executor, exec } from './exec';
 
 /**

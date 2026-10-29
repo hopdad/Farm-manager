@@ -19,7 +19,12 @@ import type { FleetTick } from '../../domain/fleet';
 /** pg_notify channel the local adapter LISTENs on. */
 export const LOCAL_NOTIFY_CHANNEL = 'app_events';
 
-/** Keep payloads under pg_notify's 8000-byte limit (and cheap on Supabase). */
+/**
+ * Keep payloads under pg_notify's limit (it rejects 8000 bytes or more) and cheap on Supabase.
+ * Measured on the exact NOTIFY text Postgres builds (publish.ts `messageBytes`/`notifyText`:
+ * jsonb text output with its extra spaces, plus the topic/event wrapper and a 16-digit seq).
+ * A FleetTick fits about 20 machines (21 compact ones); M0 runs about 11.
+ */
 export const MAX_PAYLOAD_BYTES = 7_500;
 
 /** Sent instead of an oversized payload, or when a server change can't be expressed as a delta. */
@@ -66,13 +71,33 @@ export type Topic = keyof TopicEvents;
 export type EventName<T extends Topic> = keyof TopicEvents[T] & string;
 export type PayloadOf<T extends Topic, E extends EventName<T>> = TopicEvents[T][E];
 
-/** What a subscriber receives. `payload` excludes `seq` (it is lifted out). */
+/** A loosely typed message (untyped transports, logs). Subscribers get `TopicMessage<T>`. */
 export interface RealtimeEvent<P = unknown> {
   event: string;
   payload: P;
   /** Per-topic sequence number from app.topic_seq (strictly increasing per topic). */
   seq: number;
 }
+
+/**
+ * What a subscriber to topic T receives: a union discriminated on `event`, so narrowing on
+ * `evt.event` narrows `evt.payload` (no casts):
+ *
+ *   client.subscribe('fleet', (evt) => {
+ *     if (evt.event === 'tick') draw(evt.payload.machines);   // payload: FleetTick
+ *   }, { onResync: refetch });
+ *
+ * `payload` excludes `seq` (the client lifts it out). The client handles 'invalidate' itself by
+ * calling onResync, and still passes it on.
+ */
+export type TopicMessage<T extends Topic> = {
+  [E in EventName<T>]: {
+    event: E;
+    payload: TopicEvents[T][E];
+    /** Per-topic sequence number from app.topic_seq (strictly increasing per topic). */
+    seq: number;
+  };
+}[EventName<T>];
 
 /** Raw local message as delivered on pg_notify('app_events'): payload includes `seq`. */
 export interface NotifyMessage {
@@ -90,7 +115,7 @@ export interface SubscribeOptions {
 export interface RealtimeClient {
   subscribe<T extends Topic>(
     topic: T,
-    onEvent: (evt: RealtimeEvent<TopicEvents[T][EventName<T>]>) => void,
+    onEvent: (evt: TopicMessage<T>) => void,
     opts: SubscribeOptions,
   ): () => void;
 }

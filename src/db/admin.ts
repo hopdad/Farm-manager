@@ -64,9 +64,19 @@ export async function withClient<T>(url: string, fn: (c: pg.Client) => Promise<T
   }
 }
 
-/** Run `fn` as postgres on the maintenance database (DATABASE_URL_MIGRATE). */
+/** Run `fn` as postgres on the database DATABASE_URL_MIGRATE names (often `farm_dev_<agent>`). */
 export function withAdmin<T>(fn: (c: pg.Client) => Promise<T>): Promise<T> {
   return withClient(getMigrateUrl(), fn);
+}
+
+/**
+ * Run `fn` as postgres on the server's `postgres` maintenance database, whatever database
+ * DATABASE_URL_MIGRATE names. Server-wide coordination (the template lock) must happen here:
+ * advisory locks are per database, so two agents whose URLs name different databases would
+ * otherwise not exclude each other.
+ */
+export function withMaintenance<T>(fn: (c: pg.Client) => Promise<T>): Promise<T> {
+  return withClient(withDatabase(getMigrateUrl(), 'postgres'), fn);
 }
 
 const ident = (name: string) => pg.escapeIdentifier(name);
@@ -83,14 +93,20 @@ export async function databaseExists(admin: pg.Client, name: string): Promise<bo
 /** Advisory lock key shared by every template clone/refresh on this server. */
 const TEMPLATE_LOCK_KEY = 0x6661726d; // 'farm'
 
-/** Hold the template lock (session-level, on the admin connection) while running `fn`. */
-export async function withTemplateLock<T>(admin: pg.Client, fn: () => Promise<T>): Promise<T> {
-  await admin.query('select pg_advisory_lock($1)', [TEMPLATE_LOCK_KEY]);
-  try {
-    return await fn();
-  } finally {
-    await admin.query('select pg_advisory_unlock($1)', [TEMPLATE_LOCK_KEY]);
-  }
+/**
+ * Hold the server-wide template lock while running `fn` with a postgres connection to the
+ * `postgres` maintenance database (the lock lives there, so every checkout and every agent
+ * shares it, whatever its DATABASE_URL_MIGRATE). Session-level: released when `fn` settles.
+ */
+export function withTemplateLock<T>(fn: (admin: pg.Client) => Promise<T>): Promise<T> {
+  return withMaintenance(async (admin) => {
+    await admin.query('select pg_advisory_lock($1)', [TEMPLATE_LOCK_KEY]);
+    try {
+      return await fn(admin);
+    } finally {
+      await admin.query('select pg_advisory_unlock($1)', [TEMPLATE_LOCK_KEY]).catch(() => {});
+    }
+  });
 }
 
 export async function createDatabase(
@@ -324,6 +340,10 @@ export async function applyPendingSql(client: pg.Client): Promise<string[]> {
 // ---------------------------------------------------------------------------------------------
 
 const TEMPLATE_COMMENT_PREFIX = 'farm-manager test template; migrations ';
+/** Comment stamped on every per-file test database: `<prefix><ISO creation time>`. */
+export const TEST_DB_COMMENT_PREFIX = 'farm-manager test db; created ';
+/** dropStaleTestDatabases leaves test databases younger than this alone (a file may still be starting). */
+export const STALE_TEST_DB_MS = 60 * 60 * 1000;
 
 /** Is farm_test_template present and migrated with the current migrations? */
 export async function testTemplateIsCurrent(admin: pg.Client): Promise<boolean> {
@@ -335,15 +355,24 @@ export async function testTemplateIsCurrent(admin: pg.Client): Promise<boolean> 
   return r.rows[0].comment === `${TEMPLATE_COMMENT_PREFIX}${migrationsHash()}`;
 }
 
+export interface RefreshTemplateOptions {
+  /** Rebuild even when the template is current. */
+  force?: boolean;
+  log?: (msg: string) => void;
+}
+
 /**
- * (Re)create farm_test_template: drop, create, drizzle-kit migrate, settings defaults, then
- * stamp it with the migrations hash. Holds the template lock so clones never see it half-built.
+ * Make farm_test_template current: under the server-wide template lock, check its migrations
+ * stamp and, if stale or missing (or `force`), drop, create, drizzle-kit migrate, apply settings
+ * defaults and stamp it. Concurrent callers (two `pnpm test:db` runs, several agents) rebuild
+ * at most once; clones never see a half-built template.
  */
 export async function refreshTestTemplate(
-  admin: pg.Client,
-  log: (msg: string) => void = () => {},
-): Promise<void> {
-  await withTemplateLock(admin, async () => {
+  opts: RefreshTemplateOptions = {},
+): Promise<'current' | 'rebuilt'> {
+  const log = opts.log ?? (() => {});
+  return withTemplateLock(async (admin) => {
+    if (!opts.force && (await testTemplateIsCurrent(admin))) return 'current';
     log(`dropping ${TEST_TEMPLATE_DB} (if present)`);
     await dropDatabase(admin, TEST_TEMPLATE_DB);
     await createDatabase(admin, TEST_TEMPLATE_DB);
@@ -356,18 +385,68 @@ export async function refreshTestTemplate(
         `${TEMPLATE_COMMENT_PREFIX}${migrationsHash()}`,
       )}`,
     );
+    return 'rebuilt';
   });
 }
 
-/** Drop leftover per-file test databases (farm_test_*, not the template) nobody is connected to. */
-export async function dropStaleTestDatabases(admin: pg.Client): Promise<string[]> {
-  const r = await admin.query(
-    `select d.datname from pg_database d
-      where d.datname like $1 and d.datname <> $2
-        and not exists (select 1 from pg_stat_activity a where a.datname = d.datname)`,
-    [`${TEST_DB_PREFIX}%`, TEST_TEMPLATE_DB],
+/** Stamp a farm_test_* database with its creation time (see dropStaleTestDatabases). */
+async function stampTestDatabase(admin: pg.Client, name: string): Promise<void> {
+  await admin.query(
+    `comment on database ${ident(name)} is ${admin.escapeLiteral(
+      `${TEST_DB_COMMENT_PREFIX}${new Date().toISOString()}`,
+    )}`,
   );
-  const names = r.rows.map((row) => row.datname as string);
-  for (const name of names) await dropDatabase(admin, name);
-  return names;
+}
+
+/**
+ * Clone farm_test_template into `name` (under the template lock) and stamp the clone with its
+ * creation time, so dropStaleTestDatabases never drops a database that is still being set up.
+ */
+export async function cloneTestTemplate(name: string): Promise<void> {
+  await withTemplateLock(async (admin) => {
+    if (!(await databaseExists(admin, TEST_TEMPLATE_DB))) {
+      throw new Error(`${TEST_TEMPLATE_DB} is missing: run \`pnpm db:test-template\``);
+    }
+    await createDatabase(admin, name, { template: TEST_TEMPLATE_DB });
+    await stampTestDatabase(admin, name);
+  });
+}
+
+/** An EMPTY stamped test database (e.g. migrations-from-zero tests), via the maintenance DB. */
+export async function createEmptyTestDatabase(name: string): Promise<void> {
+  await withMaintenance(async (admin) => {
+    await createDatabase(admin, name);
+    await stampTestDatabase(admin, name);
+  });
+}
+
+/** Drop a throwaway database via the maintenance DB (never the one DATABASE_URL_MIGRATE names). */
+export function dropThrowawayDatabase(name: string): Promise<void> {
+  return withMaintenance((admin) => dropDatabase(admin, name));
+}
+
+/**
+ * Drop leftover per-file test databases (farm_test_*, not the template): nobody connected and
+ * created more than STALE_TEST_DB_MS ago (or unstamped). Runs under the template lock.
+ */
+export async function dropStaleTestDatabases(now: Date = new Date()): Promise<string[]> {
+  return withTemplateLock(async (admin) => {
+    const r = await admin.query(
+      `select d.datname, shobj_description(d.oid, 'pg_database') as comment
+         from pg_database d
+        where d.datname like $1 and d.datname <> $2
+          and not exists (select 1 from pg_stat_activity a where a.datname = d.datname)`,
+      [`${TEST_DB_PREFIX.replace(/_/g, '\\_')}%`, TEST_TEMPLATE_DB],
+    );
+    const dropped: string[] = [];
+    for (const row of r.rows as { datname: string; comment: string | null }[]) {
+      const created = row.comment?.startsWith(TEST_DB_COMMENT_PREFIX)
+        ? Date.parse(row.comment.slice(TEST_DB_COMMENT_PREFIX.length))
+        : Number.NaN;
+      if (Number.isFinite(created) && now.getTime() - created < STALE_TEST_DB_MS) continue;
+      await dropDatabase(admin, row.datname);
+      dropped.push(row.datname);
+    }
+    return dropped;
+  });
 }

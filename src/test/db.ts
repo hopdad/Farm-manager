@@ -1,7 +1,7 @@
 /**
  * DB test harness. Each *.db.test.ts file gets its own database, cloned from the migrated
- * farm_test_template (CREATE DATABASE ... TEMPLATE: fast, no migrations per file), named
- * `farm_test_<file>_<6 hex>`, and dropped after the file.
+ * farm_test_template (CREATE DATABASE ... TEMPLATE: fast, no migrations per file) under the
+ * server-wide template lock, named `farm_test_<file>_<6 hex>`, and dropped after the file.
  *
  *   import { setupTestDb } from '@/test/db';
  *   const t = setupTestDb(import.meta.url);
@@ -17,15 +17,11 @@ import { afterAll, beforeAll } from 'vitest';
 import { getConfig, getMigrateUrl } from '../config';
 import {
   applyPendingSql,
-  createDatabase,
-  databaseExists,
-  dropDatabase,
-  TEST_TEMPLATE_DB,
+  cloneTestTemplate,
+  dropThrowawayDatabase,
   testDatabaseName,
-  withAdmin,
   withClient,
   withDatabase,
-  withTemplateLock,
 } from '../db/admin';
 import { createDb, type Db } from '../db/client';
 
@@ -52,20 +48,14 @@ export interface TestDb {
 export async function createTestDb(label: string): Promise<TestDb> {
   const cfg = getConfig();
   const name = testDatabaseName(label);
-  await withAdmin(async (admin) => {
-    await withTemplateLock(admin, async () => {
-      if (!(await databaseExists(admin, TEST_TEMPLATE_DB))) {
-        throw new Error(`${TEST_TEMPLATE_DB} is missing: run \`pnpm db:test-template\``);
-      }
-      await createDatabase(admin, name, { template: TEST_TEMPLATE_DB });
-    });
-  });
+  // Under the server-wide template lock (on the `postgres` maintenance database).
+  await cloneTestTemplate(name);
   const adminUrl = withDatabase(getMigrateUrl(), name);
   const appUrl = withDatabase(cfg.DATABASE_URL, name);
   try {
     await withClient(adminUrl, (c) => applyPendingSql(c));
   } catch (e) {
-    await withAdmin((admin) => dropDatabase(admin, name));
+    await dropThrowawayDatabase(name);
     throw e;
   }
   const pool = new pg.Pool({ connectionString: appUrl, max: 12, application_name: 'farm-test' });
@@ -89,7 +79,7 @@ export async function createTestDb(label: string): Promise<TestDb> {
       if (dropped) return;
       dropped = true;
       await Promise.allSettled([pool.end(), admin.end()]);
-      await withAdmin((a) => dropDatabase(a, name));
+      await dropThrowawayDatabase(name);
     },
   };
 }

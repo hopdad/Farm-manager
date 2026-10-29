@@ -30,8 +30,8 @@ comment on schema ingest is 'Sync plumbing: external refs, sync state and leases
 --> statement-breakpoint
 comment on schema app is 'Runtime settings, realtime sequence numbers and shared SQL functions.';
 --> statement-breakpoint
--- farm_app: a NOLOGIN group role. Roles are cluster-wide, so this must be idempotent and safe
--- when two databases migrate at once. `pnpm db:configure` turns on LOGIN and sets the password
+-- farm_app: a NOLOGIN group role. Roles are cluster-wide, so this must be idempotent and must
+-- not fail when two databases on a fresh cluster migrate at once (parallel CI jobs, agents). `pnpm db:configure` turns on LOGIN and sets the password
 -- (locally from .env.local; in production by hand). Never put a password in a migration.
 do $$
 begin
@@ -46,8 +46,10 @@ end
 $$;
 --> statement-breakpoint
 -- PostGIS lives in `extensions`, so farm_app's search_path must include it (same as postgres's).
--- Written only when different: concurrent ALTER ROLE ... SET from another database's migration
--- would otherwise fail with "tuple concurrently updated".
+-- Written only when missing. pg_db_role_setting is a shared catalog: when two databases on a
+-- fresh cluster migrate at once, both see no setting (the other's write is uncommitted) and
+-- the loser's ALTER ROLE fails with a unique violation or "tuple concurrently updated"
+-- (internal_error). The winner wrote the same value, so the loser can ignore it.
 do $$
 begin
   if not exists (
@@ -58,7 +60,11 @@ begin
        and s.setdatabase = 0
        and 'search_path="$user", public, extensions' = any (s.setconfig)
   ) then
-    alter role farm_app set search_path = "$user", public, extensions;
+    begin
+      alter role farm_app set search_path = "$user", public, extensions;
+    exception when unique_violation or internal_error then
+      null; -- set concurrently by another database's migration (same value)
+    end;
   end if;
 end
 $$;

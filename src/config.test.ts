@@ -2,7 +2,14 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { CONFIG_KEYS, ConfigError, childEnv, parseConfig, publicConfig } from './config';
+import {
+  CONFIG_KEYS,
+  ConfigError,
+  childEnv,
+  parseConfig,
+  parseE2eSettings,
+  publicConfig,
+} from './config';
 import { runNode, tsxBin } from './lib/proc';
 
 const secret = 'a'.repeat(64);
@@ -143,6 +150,45 @@ describe('parseConfig', () => {
     const doc = readFileSync(path.join(process.cwd(), 'docs', 'contracts.md'), 'utf8');
     const missing = CONFIG_KEYS.filter((k) => !doc.includes(`\`${k}\``));
     expect(missing).toEqual([]);
+  });
+});
+
+describe('parseE2eSettings (playwright.config.ts)', () => {
+  test('defaults to localhost:3000 and not-CI, with no other config needed', () => {
+    expect(parseE2eSettings({})).toEqual({ baseURL: 'http://localhost:3000', ci: false });
+  });
+
+  test('E2E_BASE_URL wins over PUBLIC_URL; PUBLIC_URL wins over the default', () => {
+    expect(
+      parseE2eSettings({ E2E_BASE_URL: 'http://127.0.0.1:3100', PUBLIC_URL: 'http://x:3101' }),
+    ).toMatchObject({ baseURL: 'http://127.0.0.1:3100' });
+    expect(parseE2eSettings({ PUBLIC_URL: 'http://localhost:3101' })).toMatchObject({
+      baseURL: 'http://localhost:3101',
+    });
+    expect(parseE2eSettings({ PUBLIC_URL: 'not a url' })).toMatchObject({
+      baseURL: 'http://localhost:3000',
+    });
+  });
+
+  test('CI is true for any value except empty, 0 and false', () => {
+    expect(parseE2eSettings({ CI: 'true' }).ci).toBe(true);
+    expect(parseE2eSettings({ CI: '1' }).ci).toBe(true);
+    expect(parseE2eSettings({ CI: 'false' }).ci).toBe(false);
+    expect(parseE2eSettings({ CI: 'FALSE' }).ci).toBe(false);
+    expect(parseE2eSettings({ CI: '0' }).ci).toBe(false);
+    expect(parseE2eSettings({ CI: '' }).ci).toBe(false);
+  });
+
+  test('a malformed E2E_BASE_URL is a readable ConfigError', () => {
+    expect(() => parseE2eSettings({ E2E_BASE_URL: 'localhost:3000' })).toThrow(ConfigError);
+    expect(() => parseE2eSettings({ E2E_BASE_URL: 'ftp://x' })).toThrow(/E2E_BASE_URL/);
+  });
+
+  test('E2E keys are documented in docs/contracts.md', async () => {
+    const { readFileSync } = await import('node:fs');
+    const doc = readFileSync(path.join(process.cwd(), 'docs', 'contracts.md'), 'utf8');
+    expect(doc).toContain('`E2E_BASE_URL`');
+    expect(doc).toContain('`CI`');
   });
 });
 

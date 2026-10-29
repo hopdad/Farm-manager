@@ -32,7 +32,7 @@ export const externalRefs = ingest.table(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     source: text('source').notNull(),
-    /** 'field' | 'farm' | 'machine' | 'party' | 'boundary' | 'operation' | … */
+    /** EXTERNAL_REF_KINDS (src/connectors/types.ts); build keys with externalRef(). */
     kind: text('kind').notNull(),
     externalId: text('external_id').notNull(),
     sourceOrg: text('source_org').notNull().default(''),
@@ -52,9 +52,9 @@ export const externalRefs = ingest.table(
 );
 
 /**
- * One row per (source, stream): mode, cursor and the lease. Claim with
- * `select * from app.claim_due(source, stream, lease_seconds)`; create rows with
- * `select app.ensure_stream(source, stream, mode)`.
+ * One row per (source, stream): mode, cursor and the lease. Use src/db/leases.ts (ensureStream,
+ * claimDue, advanceCursor, releaseLease) rather than calling app.claim_due & co. directly.
+ * Job-level leases live here too, as rows ('job', <job name>).
  */
 export const syncState = ingest.table(
   'sync_state',

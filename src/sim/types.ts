@@ -35,7 +35,7 @@
  * the source_org it looks up. M0 machines all live in SIM_DEERE_HOME_ORG.
  */
 import type { MultiPolygon, Polygon } from 'geojson';
-import type { EldVendor, ExternalRef } from '../connectors/types';
+import { type EldVendor, type ExternalRef, externalRef as ref } from '../connectors/types';
 import type { PartyKind, PartyRole, Tenure } from '../domain/farm';
 import type { Activity, MachineKind } from '../domain/fleet';
 
@@ -201,20 +201,12 @@ export interface SimExternalRefRow {
 export function simExternalRefs(farm: SimFarm, eldVendor: EldVendor): SimExternalRefRow[] {
   const orgOfFarm = new Map(farm.farms.map((u) => [u.id, u.deereOrgId]));
   const rows: SimExternalRefRow[] = [];
-  const ref = (
-    source: ExternalRef['source'],
-    kind: ExternalRef['kind'],
-    externalId: string,
-    sourceOrg: string,
-  ): ExternalRef => {
-    if (!externalId) throw new Error(`simExternalRefs: empty ${source}/${kind} id`);
-    if (source === 'deere' && !sourceOrg) {
-      throw new Error(`simExternalRefs: Deere ${kind} ${externalId} has no org`);
-    }
-    return { source, kind, externalId, sourceOrg };
-  };
   for (const u of farm.farms) {
-    rows.push({ ref: ref('deere', 'farm', u.deereFarmId, u.deereOrgId), entityId: u.id, entity: 'farm' });
+    rows.push({
+      ref: ref('deere', 'farm', u.deereFarmId, u.deereOrgId),
+      entityId: u.id,
+      entity: 'farm',
+    });
   }
   for (const f of farm.fields) {
     const org = orgOfFarm.get(f.farmId);
@@ -242,7 +234,11 @@ export function simExternalRefs(farm: SimFarm, eldVendor: EldVendor): SimExterna
       });
     }
     if (m.vendorIds.eld) {
-      rows.push({ ref: ref(eldVendor, 'machine', m.vendorIds.eld, ''), entityId: m.id, entity: 'machine' });
+      rows.push({
+        ref: ref(eldVendor, 'machine', m.vendorIds.eld, ''),
+        entityId: m.id,
+        entity: 'machine',
+      });
     }
   }
   return rows;

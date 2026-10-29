@@ -6,13 +6,12 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { getMigrateUrl } from '../src/config';
 import {
   appliedMigrationCount,
-  createDatabase,
+  createEmptyTestDatabase,
   drizzleKitMigrate,
-  dropDatabase,
+  dropThrowawayDatabase,
   readJournal,
   schemaFingerprint,
   testDatabaseName,
-  withAdmin,
   withClient,
   withDatabase,
 } from '../src/db/admin';
@@ -21,10 +20,10 @@ const name = testDatabaseName('migrations_from_zero');
 const url = withDatabase(getMigrateUrl(), name);
 
 beforeAll(async () => {
-  await withAdmin((a) => createDatabase(a, name));
+  await createEmptyTestDatabase(name);
 });
 afterAll(async () => {
-  await withAdmin((a) => dropDatabase(a, name));
+  await dropThrowawayDatabase(name);
 });
 
 describe('migrations', () => {

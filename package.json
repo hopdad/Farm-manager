@@ -14,6 +14,7 @@
     "start": "next start",
     "pilot": "tsx tools/pilot.ts",
     "clock": "tsx tools/clock/index.ts",
+    "jobs:emit-cron": "tsx scripts/jobs-emit-cron.ts",
     "vendor-sim": "tsx tools/vendor-sim/index.ts",
     "bootstrap": "tsx scripts/bootstrap.ts",
     "env:init": "tsx scripts/env.ts",

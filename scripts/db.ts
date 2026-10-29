@@ -9,7 +9,7 @@
  *   pnpm db:reset            drop farm, gis, ingest, app, drizzle; migrate; configure; seed demo
  *   pnpm db:nuke             remove the container and its pgdata volume; up + migrate + configure
  *   pnpm db:lint             migrate a brand-new database twice (2nd run must be a no-op), drop it
- *   pnpm db:test-template    (re)create the migrated farm_test_template that DB tests clone
+ *   pnpm db:test-template    make farm_test_template (the DB tests' clone source) current; --force rebuilds
  *   pnpm db:pending          apply db/pending/*.sql (parallel agents' SQL) to the dev database
  */
 import { existsSync, readFileSync } from 'node:fs';
@@ -42,8 +42,9 @@ import {
   withAdmin,
   withClient,
   withDatabase,
+  withMaintenance,
 } from '../src/db/admin';
-import { runNode, tsxBin } from '../src/lib/proc';
+import { isMainModule, runNode, tsxBin } from '../src/lib/proc';
 import {
   compose,
   containerHealth,
@@ -63,7 +64,7 @@ class UsageError extends Error {}
 // up / down / nuke
 // ---------------------------------------------------------------------------------------------
 
-async function requireDocker(): Promise<void> {
+export async function requireDocker(): Promise<void> {
   const d = await dockerAvailable();
   if (!d.ok) {
     throw new Error(
@@ -80,7 +81,7 @@ function requireEnvFile(): void {
   }
 }
 
-async function waitHealthy(timeoutMs = 300_000): Promise<void> {
+export async function waitHealthy(timeoutMs = 300_000): Promise<void> {
   const cfg = getConfig();
   const started = Date.now();
   let lastPrint = 0;
@@ -126,7 +127,7 @@ async function waitHealthy(timeoutMs = 300_000): Promise<void> {
   }
 }
 
-async function up(): Promise<void> {
+export async function up(): Promise<void> {
   await requireDocker();
   requireEnvFile();
   const code = await compose(getConfig().projectDir, ['up', '-d', DB_SERVICE]);
@@ -134,14 +135,14 @@ async function up(): Promise<void> {
   await waitHealthy();
 }
 
-async function down(): Promise<void> {
+export async function down(): Promise<void> {
   await requireDocker();
   const code = await compose(getConfig().projectDir, ['down']);
   if (code !== 0) throw new Error('docker compose down failed');
   log('stopped; data kept in the pgdata volume');
 }
 
-async function nuke(): Promise<void> {
+export async function nuke(): Promise<void> {
   assertLocalUrl(getMigrateUrl(), 'db:nuke');
   await requireDocker();
   requireEnvFile();
@@ -161,7 +162,7 @@ async function nuke(): Promise<void> {
 // migrate / configure / reset / pending
 // ---------------------------------------------------------------------------------------------
 
-async function migrate(): Promise<void> {
+export async function migrate(): Promise<void> {
   const url = getMigrateUrl();
   const name = databaseOf(url);
   // A per-agent / per-developer database (farm_dev_<name>) on the local server is created on
@@ -181,7 +182,7 @@ async function migrate(): Promise<void> {
     throw new Error(`drizzle-kit migrate failed: ${await explainMigrateFailure(url)}`);
 }
 
-async function configure(target: string | undefined): Promise<void> {
+export async function configure(target: string | undefined): Promise<void> {
   if (target === 'prod') {
     throw new UsageError(
       'db:configure prod arrives at milestone MD (realtime.messages policies, Vault secrets, cron.schedule).',
@@ -210,7 +211,7 @@ async function configure(target: string | undefined): Promise<void> {
   log('farm_app login OK');
 }
 
-async function reset(): Promise<void> {
+export async function reset(): Promise<void> {
   const cfg = getConfig();
   const url = getMigrateUrl();
   assertLocalUrl(url, 'db:reset');
@@ -233,7 +234,7 @@ async function reset(): Promise<void> {
   }
 }
 
-async function pending(): Promise<void> {
+export async function pending(): Promise<void> {
   assertLocalUrl(getMigrateUrl(), 'db:pending');
   const files = await withAdmin((admin) => applyPendingSql(admin));
   if (!files.length) log('no db/pending/*.sql files');
@@ -262,7 +263,7 @@ const POSTGIS_NEWER_THAN_3_3 = [
   'st_linesubstring_m',
 ];
 
-async function lint(): Promise<void> {
+export async function lint(): Promise<void> {
   const problems: string[] = [];
   const dir = path.join(getConfig().projectDir, MIGRATIONS_DIR);
   for (const e of readJournal()) {
@@ -279,7 +280,7 @@ async function lint(): Promise<void> {
 
   const name = `farm_lint_${randomSuffix()}`;
   const url = withDatabase(getMigrateUrl(), name);
-  await withAdmin((admin) => createDatabase(admin, name));
+  await withMaintenance((admin) => createDatabase(admin, name));
   log(`created ${name}`);
   try {
     const first = await drizzleKitMigrate(url);
@@ -303,7 +304,7 @@ async function lint(): Promise<void> {
     if (a.n !== b.n) problems.push('second run applied migrations again');
     if (a.fp !== b.fp) problems.push('second run changed the schema');
   } finally {
-    await withAdmin((admin) => dropDatabase(admin, name));
+    await withMaintenance((admin) => dropDatabase(admin, name));
     log(`dropped ${name}`);
   }
   if (problems.length) {
@@ -313,13 +314,16 @@ async function lint(): Promise<void> {
   log('db:lint PASS: migrations apply from zero, the second run is a no-op, PostGIS <= 3.3');
 }
 
-async function testTemplate(): Promise<void> {
-  await withAdmin(async (admin) => {
-    await refreshTestTemplate(admin, log);
-    const dropped = await dropStaleTestDatabases(admin);
-    if (dropped.length) log(`dropped ${dropped.length} leftover test database(s)`);
-  });
-  log(`${TEST_TEMPLATE_DB} is migrated and current`);
+export async function testTemplate(args: string[]): Promise<void> {
+  const force = args.includes('--force');
+  const state = await refreshTestTemplate({ force, log });
+  const dropped = await dropStaleTestDatabases();
+  if (dropped.length) log(`dropped ${dropped.length} leftover test database(s)`);
+  log(
+    state === 'rebuilt'
+      ? `${TEST_TEMPLATE_DB} rebuilt: migrated and current`
+      : `${TEST_TEMPLATE_DB} already current (pass --force to rebuild anyway)`,
+  );
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -333,7 +337,7 @@ interface CheckRow {
   detail: string;
 }
 
-async function check(): Promise<void> {
+export async function check(): Promise<void> {
   const rows: CheckRow[] = [];
   const add = (check: string, ok: boolean | 'warn', detail: string) =>
     rows.push({ check, status: ok === 'warn' ? 'WARN' : ok ? 'PASS' : 'FAIL', detail });
@@ -386,27 +390,39 @@ async function check(): Promise<void> {
         missing.length ? `missing ${missing.join(', ')}` : 'listed',
       );
 
-      // Creatable in `postgres` (inside a rolled-back transaction: changes nothing).
-      for (const [ext, clause] of [
-        ['postgis', 'with schema extensions'],
-        ['btree_gist', 'with schema extensions'],
-        ['pg_cron', ''],
-        ['pg_net', 'with schema extensions'],
+      // Creatable in `postgres`. Once migrations/db:configure have created an extension there,
+      // `create extension if not exists` would prove nothing, so report it as present (with its
+      // version and schema); otherwise really create it inside a rolled-back transaction.
+      const extInfo = async (ext: string) => {
+        const iv = await c.query(
+          `select extversion, extnamespace::regnamespace::text as ns from pg_extension where extname = $1`,
+          [ext],
+        );
+        return iv.rows[0] as { extversion: string; ns: string } | undefined;
+      };
+      for (const [ext, clause, schema] of [
+        ['postgis', 'with schema extensions', 'extensions'],
+        ['btree_gist', 'with schema extensions', 'extensions'],
+        ['pg_cron', '', 'pg_catalog'],
+        ['pg_net', 'with schema extensions', 'extensions'],
       ] as const) {
+        const label = `${ext} in postgres`;
+        const present = await extInfo(ext);
+        if (present) {
+          add(
+            label,
+            present.ns === schema,
+            `present: ${present.extversion} in ${present.ns}${present.ns === schema ? '' : ` (expected ${schema})`} (created by migrations/configure)`,
+          );
+          continue;
+        }
         try {
           await c.query('begin');
-          await c.query(`create extension if not exists ${ext} ${clause}`);
-          const iv = await c.query(
-            `select extversion, extnamespace::regnamespace::text as ns from pg_extension where extname = $1`,
-            [ext],
-          );
-          add(
-            `${ext} creatable in postgres`,
-            true,
-            `${iv.rows[0]?.extversion} in ${iv.rows[0]?.ns}`,
-          );
+          await c.query(`create extension ${ext} ${clause}`);
+          const iv = await extInfo(ext);
+          add(label, true, `creatable: ${iv?.extversion} in ${iv?.ns} (rolled back)`);
         } catch (e) {
-          add(`${ext} creatable in postgres`, false, (e as Error).message);
+          add(label, false, `create failed: ${(e as Error).message}`);
         } finally {
           await c.query('rollback').catch(() => {});
         }
@@ -419,7 +435,7 @@ async function check(): Promise<void> {
   // A brand-new database: create schema extensions + postgis + btree_gist, versions, EPSG codes.
   const name = `farm_check_${randomSuffix()}`;
   try {
-    await withAdmin((admin) => createDatabase(admin, name));
+    await withMaintenance((admin) => createDatabase(admin, name));
     try {
       await withClient(withDatabase(url, name), async (c) => {
         await c.query('create schema if not exists extensions');
@@ -443,7 +459,7 @@ async function check(): Promise<void> {
         add('EPSG 3078, 5070, 3857 present', srids.length === 3, srids.join(', ') || 'none');
       });
     } finally {
-      await withAdmin((admin) => dropDatabase(admin, name));
+      await withMaintenance((admin) => dropDatabase(admin, name));
     }
   } catch (e) {
     add('postgis + btree_gist creatable in a new database', false, (e as Error).message);
@@ -476,13 +492,15 @@ async function check(): Promise<void> {
       add('farm_app can log in (DATABASE_URL)', err === null, err ?? 'ok');
       if (err === null) {
         await withClient(cfg.DATABASE_URL, async (app) => {
+          // Unqualified on purpose: this resolves only through farm_app's search_path.
           const sp = await app.query(
-            `select current_setting('search_path') as sp, extensions.postgis_lib_version() as v`,
+            `select current_setting('search_path') as sp, postgis_lib_version() as v,
+                    ST_SRID(ST_SetSRID(ST_MakePoint(-84.04, 41.9), 4326)) as srid`,
           );
           add(
             'farm_app sees PostGIS via search_path',
-            true,
-            `${sp.rows[0].sp}; postgis ${sp.rows[0].v}`,
+            sp.rows[0].srid === 4326,
+            `${sp.rows[0].sp}; unqualified postgis_lib_version() = ${sp.rows[0].v}`,
           );
         }).catch((e: Error) => add('farm_app sees PostGIS via search_path', false, e.message));
       }
@@ -505,7 +523,7 @@ async function check(): Promise<void> {
 
 // ---------------------------------------------------------------------------------------------
 
-const commands: Record<string, (args: string[]) => Promise<void>> = {
+export const commands: Record<string, (args: string[]) => Promise<void>> = {
   up: () => up(),
   down: () => down(),
   migrate: () => migrate(),
@@ -514,7 +532,7 @@ const commands: Record<string, (args: string[]) => Promise<void>> = {
   reset: () => reset(),
   nuke: () => nuke(),
   lint: () => lint(),
-  'test-template': () => testTemplate(),
+  'test-template': (args) => testTemplate(args),
   pending: () => pending(),
 };
 
@@ -534,4 +552,4 @@ async function main(): Promise<void> {
   }
 }
 
-await main();
+if (isMainModule(import.meta.url)) await main();

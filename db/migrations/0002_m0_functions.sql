@@ -5,8 +5,10 @@
 -- Broadcast channels); the local image doesn't, so it falls back to pg_notify('app_events'),
 -- which the local SSE route LISTENs on. Every message carries a per-topic `seq`.
 -- Payloads stay under ~8 KB (pg_notify's limit); the TS wrapper sends `invalidate` instead.
+-- SECURITY DEFINER (owner: postgres) because the Supabase image's `postgres` database has a
+-- `realtime` schema that farm_app can't see, and to_regprocedure() on it raises 42501.
 create or replace function app.publish(p_topic text, p_event text, p_payload jsonb)
-returns void language plpgsql as $$
+returns void language plpgsql security definer set search_path = pg_catalog, pg_temp as $$
 declare v_seq bigint;
 begin
   insert into app.topic_seq as t (topic, seq) values (p_topic, 1)
@@ -20,6 +22,10 @@ begin
       json_build_object('topic',p_topic,'event',p_event,'payload',p_payload)::text); -- your PC
   end if;
 end $$;
+--> statement-breakpoint
+revoke execute on function app.publish(text, text, jsonb) from public;
+--> statement-breakpoint
+grant execute on function app.publish(text, text, jsonb) to farm_app;
 --> statement-breakpoint
 comment on function app.publish(text, text, jsonb) is
   'Publish {topic, event, payload+seq}: realtime.send on Supabase, pg_notify(''app_events'') locally.';
@@ -35,7 +41,10 @@ as $$
   insert into ingest.sync_state (source, stream, mode)
   values (p_source, p_stream, p_mode)
   on conflict (source, stream) do update
-    set mode = excluded.mode, updated_at = now()
+    -- A cursor belongs to one mode (the stand-in's cursor means nothing to the real vendor),
+    -- so a mode change starts the stream over.
+    set mode = excluded.mode, cursor = null, lease_until = null, lease_token = null,
+        updated_at = now()
     where ingest.sync_state.mode is distinct from excluded.mode;
 $$;
 --> statement-breakpoint

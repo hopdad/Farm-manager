@@ -61,7 +61,7 @@
   },
   "overrides": [
     {
-      "includes": ["src/config.ts", "playwright.config.ts"],
+      "includes": ["src/config.ts"],
       "linter": { "rules": { "style": { "noProcessEnv": "off" } } }
     },
     {
@@ -104,6 +104,32 @@
                   {
                     "group": ["**/tools/gis", "**/tools/gis/**", "tools/gis", "tools/gis/**"],
                     "message": "Jobs may not import tools/gis/** (heavy GIS is CLI-only, plan §1)."
+                  },
+                  {
+                    "group": [
+                      "**/tools",
+                      "**/tools/**",
+                      "tools",
+                      "tools/**",
+                      "**/scripts",
+                      "**/scripts/**",
+                      "scripts",
+                      "scripts/**"
+                    ],
+                    "message": "Jobs may not import CLI code from tools/** or scripts/** (they spawn processes; plan §1)."
+                  },
+                  {
+                    "group": [
+                      "**/lib/proc",
+                      "**/lib/proc.*",
+                      "@/lib/proc",
+                      "**/db/admin",
+                      "**/db/admin.*",
+                      "@/db/admin",
+                      "**/test/**",
+                      "@/test/**"
+                    ],
+                    "message": "Jobs may not import src/lib/proc, src/db/admin or src/test (they spawn child processes or are CLI/test-only)."
                   }
                 ]
               }

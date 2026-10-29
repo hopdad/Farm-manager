@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { FleetTick, MachineView } from '../../domain/fleet';
-import { messageBytes, publish } from './publish';
+import { messageBytes, notifyText, pgJsonbText, publish } from './publish';
 import { MAX_PAYLOAD_BYTES } from './types';
 
 function fakeExecutor() {
@@ -57,6 +57,67 @@ describe('publish()', () => {
       event: 'tick',
       reason: 'too_large',
     });
+  });
+
+  test('measures the NOTIFY text Postgres builds, not JSON.stringify', () => {
+    // Recorded from the pinned image:
+    // select json_build_object('topic','fleet','event','tick','payload',
+    //   '{"a":[1,2,{"b":null}],"s":"x\\ny","e":1e-7,"big":1e21,"u":"é"}'::jsonb || jsonb_build_object('seq',5))::text
+    const pg =
+      '{"topic" : "fleet", "event" : "tick", "payload" : {"a": [1, 2, {"b": null}], "e": 0.0000001, "s": "x\\\\ny", "u": "é", "big": 1000000000000000000000, "seq": 5}}';
+    const ours = notifyText(
+      'fleet',
+      'tick',
+      { a: [1, 2, { b: null }], s: 'x\\ny', e: 1e-7, big: 1e21, u: 'é' },
+      5,
+    );
+    expect(Buffer.byteLength(ours)).toBe(Buffer.byteLength(pg));
+    expect(pgJsonbText({})).toBe('{}');
+    expect(pgJsonbText([])).toBe('[]');
+    expect(pgJsonbText({ a: {} })).toBe('{"a": {}}');
+    expect(pgJsonbText(1.5e-7)).toBe('0.00000015');
+    expect(pgJsonbText(-1.2345e25)).toBe('-12345000000000000000000000');
+    expect(pgJsonbText(-0)).toBe('0');
+  });
+
+  test('drops undefined like the JSON we send, and budgets a 16-digit seq', () => {
+    const withUndef = { paused: true, extra: undefined } as unknown as { paused: boolean };
+    expect(notifyText('admin', 'clock', withUndef, 1)).toBe(
+      '{"topic" : "admin", "event" : "clock", "payload" : {"paused": true, "seq": 1}}',
+    );
+    expect(messageBytes('admin', 'clock', { paused: true })).toBe(
+      Buffer.byteLength(notifyText('admin', 'clock', { paused: true }, 2 ** 53)),
+    );
+  });
+
+  test('a tick whose JSON.stringify size is under the limit can still be too large', async () => {
+    const tick: FleetTick = { ts: 'x', machines: Array.from({ length: 21 }, (_, i) => machine(i)) };
+    let pad = 0;
+    // Grow the tick until JSON.stringify says ~7,450 bytes (what the old estimate measured).
+    while (
+      Buffer.byteLength(
+        JSON.stringify({ topic: 'fleet', event: 'tick', payload: { ...tick, seq: 2 ** 53 } }),
+      ) < 7_450
+    ) {
+      pad++;
+      tick.ts = 'x'.repeat(pad);
+    }
+    expect(messageBytes('fleet', 'tick', tick)).toBeGreaterThan(MAX_PAYLOAD_BYTES);
+    const r = await publish('fleet', 'tick', tick, fakeExecutor());
+    expect(r.event).toBe('invalidate');
+  });
+
+  test('accepts a Drizzle db/tx (anything with execute) as the executor', async () => {
+    const executed: unknown[] = [];
+    const drizzleLike = {
+      execute: async (q: unknown) => {
+        executed.push(q);
+        return { rows: [], rowCount: 0 };
+      },
+    };
+    const r = await publish('admin', 'clock', { paused: true }, drizzleLike as never);
+    expect(r.event).toBe('clock');
+    expect(executed).toHaveLength(1);
   });
 
   test('rejects non-object payloads', async () => {

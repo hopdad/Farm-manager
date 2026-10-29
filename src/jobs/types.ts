@@ -2,16 +2,29 @@
  * Scheduled-job contract (plan §1). One registry (src/jobs/registry.ts) feeds the local clock
  * (tools/clock), the shop-PC worker and the Supabase Cron SQL (`pnpm jobs:emit-cron`).
  *
- * Every job is an idempotent HTTP call: POST /api/jobs/<name> with `Authorization: Bearer
- * JOBS_SECRET` -> check the secret -> claim a lease (app.claim_due) -> answer 202 -> do the work
- * in Next's `after()` within `budgetMs` -> advance the cursor. Jobs keep no session state.
+ * Every job is an idempotent HTTP call. POST /api/jobs/<name> (runtime agent) does, in order:
+ *   1. `Authorization: Bearer <JOBS_SECRET>` (constant-time compare) else 401; unknown name 404.
+ *   2. app.settings 'clock.paused' = true -> 202 { skipped: 'paused' } (claims nothing).
+ *   3. Claim the JOB lease on the row (source 'job', stream <name>) with src/db/leases.ts:
+ *        await ensureStream(pool, JOB_LEASE_SOURCE, name, JOB_LEASE_MODE);
+ *        const lease = await claimDue(pool, JOB_LEASE_SOURCE, name, jobLeaseSeconds(budgetMs));
+ *      null -> 202 { skipped: 'busy' } (a run of this job is still in flight).
+ *   4. 202 { accepted: true, name }.
+ *   5. In Next's `after()`: build the JobContext (deadline = start + budgetMs; `signal` aborts at
+ *      the deadline), `await def.run(ctx)`, catch any throw as a failure, then
+ *      `releaseLease(pool, lease, { ok, error })` and insert ONE ingest.job_runs row
+ *      (job, host, started_at, finished_at, ok, items, note, error).
+ * The route never touches a connector's (source, stream) row. Inside run(), runSyncStep claims
+ * the STREAM lease (src/connectors/types.ts); when that is held elsewhere the job returns
+ * `{ items: 0, note: 'lease held elsewhere' }`. Two levels, two rows, so they never collide.
  *
  * Schedules are UTC. `every` accepts only '1-59 seconds' (pg_cron's only interval form);
  * anything a minute or longer is a 5-field cron string. src/jobs/schedule.ts validates both;
  * the clock and jobs:emit-cron must call `validateRegistry` before using a registry.
  *
- * Rules for job code (lint-enforced where possible): no child_process, nothing from tools/gis/**,
- * nothing GDAL-backed; never read process.env (use getConfig()).
+ * Rules for job code (lint-enforced where possible): no child_process (also not transitively,
+ * e.g. via src/lib/proc.ts or src/db/admin.ts), nothing from tools/** or scripts/**, nothing
+ * GDAL-backed; never read process.env (use getConfig()).
  *
  * Owned by the foundation stage; changes go through the stage report.
  */
