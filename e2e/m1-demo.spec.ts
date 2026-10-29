@@ -407,6 +407,11 @@ test('1c: imported boundaries and seasons reach the board; a tap shows soils, la
   const pool = e2ePool();
   const ctx = await wallContext(browser);
   try {
+    // The wall is already showing the board (a kiosk never reloads): the import must reach it.
+    const page = await openBoard(ctx);
+    const [lng, lat] = farm.inside[0];
+    await jumpTo(page, [lng + 0.0012, lat], 16);
+
     // pnpm import:boundaries <file> --farm "..." --county 26091
     await cli(path.join('scripts', 'import-boundaries.ts'), [
       farm.file,
@@ -449,10 +454,8 @@ test('1c: imported boundaries and seasons reach the board; a tap shows soils, la
     expect(ids.rows).toHaveLength(2);
     const west = ids.rows.find((r) => r.name === farm.names[0]) as { id: string };
 
-    // The board: both imported fields drawn; tapping the west one opens it.
-    const page = await openBoard(ctx);
-    const [lng, lat] = farm.inside[0];
-    await jumpTo(page, [lng + 0.0012, lat], 16);
+    // The open board draws both imported fields without a reload (fields/updated → the field
+    // tiles' new ?v=); tapping the west one opens it.
     await expect
       .poll(
         () =>
