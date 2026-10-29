@@ -178,7 +178,7 @@ describe('bootstrap runs (injected dependencies)', () => {
     expect(text).toMatch(/WARN\s+Docker running/);
     expect(text).toMatch(/TODO\s+\.env \+ \.env\.local\s+would add DB_PASSWORD, DB_PORT/);
     expect(text).toMatch(/TODO\s+database\s+would start it/);
-    expect(text).toMatch(/SKIP\s+demo seed\s+scripts\/seed\.ts not built yet/);
+    expect(text).toMatch(/SKIP\s+demo seed\s+scripts\/seed\.ts missing from this checkout/);
     expect(text).toMatch(/SKIP\s+offline basemap/);
     expect(text).toMatch(/Dry run complete: nothing was changed\./);
     expect(text).toMatch(/New-NetFirewallRule -DisplayName 'farm-ops dev' .*-LocalPort 3000,3443/);

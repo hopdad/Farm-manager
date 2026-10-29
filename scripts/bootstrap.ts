@@ -300,7 +300,7 @@ export function realDeps(projectDir = process.cwd()): BootstrapDeps {
 // The run
 // ---------------------------------------------------------------------------------------------
 
-/** Optional builders other stages own; bootstrap runs them when their entry exists. */
+/** Builders bootstrap runs when their entry exists (seed, basemap, sim connect). */
 export const SEED_ENTRY = path.join('scripts', 'seed.ts');
 export const BASEMAP_ENTRY = path.join('tools', 'gis', 'basemap.ts');
 export const SIM_CONNECT_ENTRY = path.join('tools', 'vendor-sim', 'connect.ts');
@@ -484,7 +484,7 @@ export async function bootstrap(flags: BootstrapFlags, d: BootstrapDeps): Promis
   const has = (entry: string) => existsSync(path.join(d.projectDir, entry));
   try {
     if (!has(SEED_ENTRY)) {
-      line('SKIP', 'demo seed', `${posix(SEED_ENTRY)} not built yet (sim stage)`);
+      line('SKIP', 'demo seed', `${posix(SEED_ENTRY)} missing from this checkout`);
     } else if (dry || !cfg) {
       line('TODO', 'demo seed', `would run ${posix(SEED_ENTRY)} demo (idempotent)`);
     } else {
@@ -508,7 +508,7 @@ export async function bootstrap(flags: BootstrapFlags, d: BootstrapDeps): Promis
       line(
         'SKIP',
         'offline basemap',
-        `${bm.detail}; ${posix(BASEMAP_ENTRY)} not built yet (map stage)`,
+        `${bm.detail}; ${posix(BASEMAP_ENTRY)} missing from this checkout`,
       );
     } else if (dry) {
       line('TODO', 'offline basemap', `${bm.detail}: would run ${basemapCmd}`);
@@ -538,7 +538,7 @@ export async function bootstrap(flags: BootstrapFlags, d: BootstrapDeps): Promis
       line(
         'SKIP',
         'sim connector tokens',
-        `${posix(SIM_CONNECT_ENTRY)} not provided (vendors stage)`,
+        `${posix(SIM_CONNECT_ENTRY)} missing from this checkout`,
       );
     } else if (dry || !cfg) {
       line('TODO', 'sim connector tokens', `would run ${posix(SIM_CONNECT_ENTRY)}`);

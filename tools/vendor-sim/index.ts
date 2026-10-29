@@ -92,9 +92,7 @@ async function main(): Promise<void> {
   } catch (e) {
     const err = e as NodeJS.ErrnoException;
     if (err.code === 'EADDRINUSE') fail(`port ${port} is in use (another stand-in running?)`);
-    fail(
-      `${err.message}\n  (until the simulator lands, run with --stub-world for a small test world)`,
-    );
+    fail(`${err.message}\n  (--stub-world serves a small test world instead)`);
   }
 
   console.log(

@@ -782,7 +782,7 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
     simNote = 'reused';
   } else if (!existsSync(path.join(dir, VENDOR_SIM_ENTRY))) {
     say(
-      `vendor stand-in not found (${VENDOR_SIM_ENTRY.split(path.sep).join('/')} arrives with the vendors stage); ` +
+      `vendor stand-in not found (${VENDOR_SIM_ENTRY.split(path.sep).join('/')} is missing from this checkout); ` +
         'starting without it: sim-mode connectors will fail until it exists.',
     );
     simNote = 'missing';
