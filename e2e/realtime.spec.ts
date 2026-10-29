@@ -3,14 +3,17 @@
  * next start"). Two isolated contexts open /admin/realtime; a test event sent from one
  * (server action -> app.publish -> pg_notify -> LISTEN -> SSE) reaches both within 2 s with the
  * same per-topic seq; dropping the server's LISTEN connection makes both resync and keep
- * receiving. UI only, so it also runs against a remote E2E_BASE_URL.
+ * receiving. UI only, so it also runs against a remote E2E_BASE_URL that shares this checkout's
+ * SESSION_SECRET (the admin cookie, e2e/support/admin.ts).
  */
 import { type Browser, type BrowserContext, expect, type Page, test } from '@playwright/test';
+import { unlockAdmin } from './support/admin';
 
 async function twoMonitors(
   browser: Browser,
 ): Promise<{ contexts: BrowserContext[]; pages: Page[] }> {
   const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
+  await Promise.all(contexts.map((c) => unlockAdmin(c)));
   const pages = await Promise.all(contexts.map((c) => c.newPage()));
   await Promise.all(
     pages.map(async (p) => {

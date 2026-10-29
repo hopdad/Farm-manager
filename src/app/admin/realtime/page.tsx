@@ -10,7 +10,9 @@ import { getRealtimeHub } from '@/platform/realtime/hub';
 import { parseTopics } from '@/platform/realtime/sse';
 import type { Topic } from '@/platform/realtime/types';
 import { ActionForm, NoticeProvider, SubmitButton } from '../_components/controls';
+import { Locked } from '../_components/Locked';
 import { RealtimeMonitor } from '../_components/RealtimeMonitor';
+import { adminUnlocked } from '../_lib/guard';
 import css from '../admin.module.css';
 import { dropListenAction, sendTestEventAction } from './actions';
 
@@ -22,6 +24,7 @@ export default async function RealtimePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  if (!(await adminUnlocked())) return <Locked />;
   const sp = await searchParams;
   const raw = typeof sp.topics === 'string' ? sp.topics : 'admin,fleet';
   const parsed = parseTopics(raw);

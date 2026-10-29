@@ -15,6 +15,8 @@ import { registry } from '@/jobs/registry';
 import { SCENARIO_NAMES, type SimStatus } from '@/sim/types';
 import { ActionForm, NoticeProvider, SubmitButton } from '../_components/controls';
 import { LiveRefresh } from '../_components/LiveRefresh';
+import { Locked } from '../_components/Locked';
+import { adminUnlocked } from '../_lib/guard';
 import css from '../admin.module.css';
 import { ago, detroitTime, short } from '../format';
 import {
@@ -458,6 +460,7 @@ function DeadCard({ snap, now }: { snap: ConnectorsSnapshot; now: Date }) {
 }
 
 export default async function ConnectorsPage() {
+  if (!(await adminUnlocked())) return <Locked />;
   const cfg = getConfig();
   const now = new Date();
   let snap: ConnectorsSnapshot | null = null;

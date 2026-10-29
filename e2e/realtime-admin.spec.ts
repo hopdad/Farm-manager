@@ -4,6 +4,7 @@
  * Runs once (wall project): it changes shared state.
  */
 import { expect, test } from '@playwright/test';
+import { unlockAdmin } from './support/admin';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -11,6 +12,8 @@ test('pausing the job clock reaches another context within 2 s', async ({ browse
   test.skip(info.project.name !== 'wall', 'toggles shared state: run it once');
   const admin = await browser.newContext({ hasTouch: true });
   const watcher = await browser.newContext();
+  await unlockAdmin(admin);
+  await unlockAdmin(watcher);
   try {
     const page = await admin.newPage();
     const monitor = await watcher.newPage();

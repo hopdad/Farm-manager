@@ -10,7 +10,9 @@
  * In sim mode the authorize URL is the stand-in's "Sign in to Deere (simulated)" page; the
  * redirect URI is `${PUBLIC_URL}/api/oauth/deere` (register it with Deere for sandbox/live).
  * The fleet.deere job doesn't need this in sim mode (it connects unattended), but this is the
- * path a real account takes.
+ * path a real account takes. Outside sim mode starting the flow needs the admin cookie
+ * (src/platform/auth/admin-key.ts): someone on the shop Wi-Fi must not be able to link another
+ * Deere account over the farm's grant. The callback is bound to that start by the state cookie.
  */
 import { getConfig } from '@/config';
 import { deereAuthorizeUrl, exchangeDeereCode, newOAuthState } from '@/connectors/deere/oauth';
@@ -27,6 +29,7 @@ import {
 } from '@/connectors/oauth/flow';
 import { OAuthTokenStore, userGrantOrg } from '@/connectors/oauth/token-store';
 import { getPool } from '@/db/client';
+import { ADMIN_COOKIE, ADMIN_LOCKED_MESSAGE, isAdminKey } from '@/platform/auth/admin-key';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,6 +71,9 @@ export async function GET(
   }
 
   if (!code) {
+    if (!ep.sim && !isAdminKey(cfg, readCookie(request.headers.get('cookie'), ADMIN_COOKIE))) {
+      return page(403, 'Admin is locked', `<p>${escapeHtml(ADMIN_LOCKED_MESSAGE)}.</p>`);
+    }
     const state = newOAuthState();
     const authorize = deereAuthorizeUrl(ep, state);
     return new Response(

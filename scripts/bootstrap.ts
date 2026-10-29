@@ -44,6 +44,7 @@ import {
   withMaintenance,
 } from '../src/db/admin';
 import { isMainModule, runNode, tsxBin } from '../src/lib/proc';
+import { adminUnlockUrl } from '../src/platform/auth/admin-key';
 import { configure, migrate, pending, up } from './db';
 import {
   describeReport,
@@ -774,6 +775,9 @@ function summary(port: number, cfg: Config | null, platform: NodeJS.Platform): s
     '  Start everything:   pnpm dev        (app + clock + vendor stand-in; Ctrl+C stops all)',
     `  Board:              http://localhost:${port}/board`,
     `  Sync health:        http://localhost:${port}/admin/connectors   (clock + simulation controls)`,
+    cfg
+      ? `  Unlock admin once:  ${adminUnlockUrl(`http://localhost:${port}`, cfg.SESSION_SECRET)}`
+      : '  Unlock admin once:  open the Admin link `pnpm dev` prints (on this PC)',
     '  Phones on the same Wi-Fi (pick the adapter of your shop network):',
     ...origins.map(
       (o) => `    http://${o}:${port}/m${adapters.has(o) ? `   (${adapters.get(o)})` : ''}`,

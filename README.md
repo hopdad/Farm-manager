@@ -77,7 +77,10 @@ To get a new slice later: `git pull`, `pnpm install`, `pnpm run bootstrap`, `pnp
 - `http://localhost:3000/board`: the war room (wall display, touch: pan, pinch, rotate).
 - `http://<pc-ip>:3000/m`: the phone view (bootstrap and `pnpm dev` print the exact URLs).
 - `http://localhost:3000/admin/connectors`: sync health, the job clock, and the simulation
-  controls (pause, speed, scenario, fault toggles). No sign-in in M0 (slice 1a adds it).
+  controls (pause, speed, scenario, fault toggles). No sign-in in M0 (slice 1a adds it), so the
+  admin pages are locked until you open the **Admin** link `pnpm dev` (or `pnpm pilot`) prints,
+  `http://localhost:3000/admin/unlock?key=…`, once in that browser on the PC. Phones and other
+  computers on the Wi-Fi can open `/board` and `/m` but not the admin pages.
 - `http://<pc-ip>:3000/api/health`: phone check; it should show `"ok":true`.
 
 ## M0 demo (what to look at)
@@ -91,7 +94,8 @@ To get a new slice later: `git pull`, `pnpm install`, `pnpm run bootstrap`, `pnp
    time they unload a combine or dump into a truck (Deere reports a machine's position only
    while it is working, so carts move in bursts). Markers glide between updates (trucks every
    5 s, Deere every 15 s in the demo). **30x** on `/admin/connectors` speeds the day up.
-3. On `/admin/connectors`:
+3. On `/admin/connectors` (first open the **Admin** link `pnpm dev` printed; it unlocks the admin
+   pages in that browser):
    - **Pause simulation**: every machine freezes in place and stays fresh (no stale badge).
      **Resume simulation**: they move again.
    - **trucks API down**: within about a minute the four semis turn grey and the board shows
@@ -124,6 +128,7 @@ for the plan's defaults (trucks every 30 s, stale after 10 minutes).
 | `offline basemap missing, run pnpm gis:basemap` | The Protomaps download failed. Check the internet connection and run `pnpm gis:basemap`. Behind a corporate proxy: `$env:NODE_USE_ENV_PROXY=1`, then `pnpm gis:basemap`. To carry on without it: `pnpm run bootstrap --synthetic-basemap` installs a small made-up test basemap (the board badges it; a later plain bootstrap replaces it). |
 | `running scripts is disabled on this system` | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, then open a new PowerShell. |
 | Wrong Node version at `pnpm install` | Install Node 24 (see Prerequisites), open a new PowerShell, `pnpm install`. |
+| `/admin/connectors` says "Admin is locked" | Open the **Admin** link (`http://localhost:3000/admin/unlock?key=…`) that `pnpm dev` or `pnpm pilot` printed, in the same browser. `pnpm run bootstrap` prints it too. |
 | The board shows "Fleet unavailable" or nothing moves | Is `pnpm dev` still running, and is the job clock running on `/admin/connectors` (not paused)? The simulation may be paused there too. |
 | A page keeps reloading under `pnpm dev` | A Next 16 dev-cache glitch after `pnpm pilot` built the app; `pnpm dev` now clears `.next\dev` itself when a production build ran since its last start. If it still happens: Ctrl+C, `Remove-Item -Recurse -Force .next\dev`, `pnpm dev`. |
 

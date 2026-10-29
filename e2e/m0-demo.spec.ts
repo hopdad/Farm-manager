@@ -27,6 +27,7 @@ import {
 } from '@playwright/test';
 import { getConfig, getE2eSettings } from '../src/config';
 import type { FleetFrame } from '../src/ui/map/fleet/model';
+import { unlockAdmin } from './support/admin';
 import { blockExternalHosts, mapIdle, waitForMap } from './support/map';
 
 test.describe.configure({ mode: 'serial' });
@@ -137,6 +138,7 @@ const opened: Opened[] = [];
 test.beforeAll(async ({ browser }) => {
   if (!isWall()) return;
   adminCtx = await browser.newContext({ hasTouch: true });
+  await unlockAdmin(adminCtx, BASE_URL);
   adminPage = await adminCtx.newPage();
   await blockExternalHosts(adminPage, BASE_URL);
   await admin(adminPage);

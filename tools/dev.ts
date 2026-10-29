@@ -36,6 +36,7 @@ import path from 'node:path';
 import { devOriginCandidates, privateIPv4Candidates } from '../scripts/env';
 import { type Config, childEnv, getConfig } from '../src/config';
 import { isMainModule, tsxBin } from '../src/lib/proc';
+import { adminUnlockUrl } from '../src/platform/auth/admin-key';
 import {
   type ClockControlRequest,
   SCENARIO_NAMES,
@@ -925,7 +926,8 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
   const lines = [
     `Farm Ops is running (${prod ? 'production build, next start' : 'next dev'})`,
     `  Board     http://localhost:${port}/board`,
-    `  Admin     http://localhost:${port}/admin/connectors`,
+    `  Admin     ${adminUnlockUrl(`http://localhost:${port}`, cfg.SESSION_SECRET)}`,
+    '            (this PC only: it unlocks /admin/* in that browser)',
     '  Phones on the same Wi-Fi:',
     ...phoneUrls(origins, port).map((p) => `    ${p.url.padEnd(34)} (${p.note})`),
     `  Phone check  http://<pc-ip>:${port}/api/health`,

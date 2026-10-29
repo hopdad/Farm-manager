@@ -3,7 +3,8 @@
  * Server actions behind /admin/connectors. They run on the PC, so they can reach the stand-in's
  * loopback-only control API, and they write app.settings as farm_app.
  * Every action returns an ActionResult for useActionState (no throws to the client).
- * M0 has no sign-in (slice 1a adds manager sessions); sim controls refuse in production.
+ * M0 has no sign-in (slice 1a adds manager sessions): every action needs the admin cookie
+ * (`assertAdmin`, src/platform/auth/admin-key.ts); sim controls refuse in production.
  */
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -11,6 +12,7 @@ import { getConfig } from '@/config';
 import { getDb } from '@/db/client';
 import { SCENARIO_NAMES } from '@/sim/types';
 import { setClockPaused } from '../../../db/settings';
+import { assertAdmin } from '../_lib/guard';
 import { type ActionResult, actionResult as result } from '../action-result';
 import { faultPresets, simClock, simFaults, simReset, simScenario } from './sim-control';
 
@@ -18,6 +20,7 @@ const PATH = '/admin/connectors';
 
 async function attempt(fn: () => Promise<string>): Promise<ActionResult> {
   try {
+    await assertAdmin();
     const message = await fn();
     revalidatePath(PATH);
     return result(true, message);
