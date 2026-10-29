@@ -11,6 +11,8 @@
  *      deere_working → working; inside an elevator geofence below 5 mph → queued;
  *      >= 3 mph → transport; else idle.
  *  - `upsertVehicleStat()`: engine hours / odometer (never decreasing) and fuel.
+ *  - `fleetPanelMachines()` / `setMachineStatus()`: the fleet panel (M1 1a) and marking a
+ *    machine down or back up (publishes `fleet`/`machine` + `fleet`/`invalidate`).
  */
 
 import type { NormalizedPosition, NormalizedVehicleStat } from '../../connectors/types';
@@ -21,6 +23,10 @@ import {
   normalizeHeading,
   type StaleThresholds,
 } from '../../domain/fleet';
+import { publish } from '../../platform/realtime/publish';
+import type { MachineStatusPayload } from '../../platform/realtime/types';
+import type { PanelMachine, PanelPlace, PanelPosition } from '../../ui/fleet/contract';
+import type { Db } from '../client';
 import { type Executor, exec, toDate } from '../exec';
 
 /** Speeds (mph) behind the derived activity. */
@@ -190,4 +196,184 @@ export async function upsertVehicleStat(
       [machineId, s.fuelPct],
     );
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The fleet panel (M1 1a): every machine with its down state and the geofence it is in, and
+// marking a machine down / back up from a phone.
+// ---------------------------------------------------------------------------------------------
+
+interface PanelRow {
+  id: string;
+  unit_no: string;
+  kind: PanelMachine['kind'];
+  make: string | null;
+  model: string | null;
+  status: PanelMachine['status'];
+  down_reason: string | null;
+  down_at: Date | string | null;
+  down_by: string | null;
+  lng: number | null;
+  lat: number | null;
+  heading: number | null;
+  speed_mph: number | null;
+  activity: PanelPosition['activity'] | null;
+  position_source: PanelPosition['positionSource'] | null;
+  ts: Date | string | null;
+  field_id: string | null;
+  field_name: string | null;
+  place_id: string | null;
+  place_name: string | null;
+  place_kind: PanelPlace['kind'] | null;
+  place_since: Date | string | null;
+}
+
+const isoOrNull = (v: unknown) => toDate(v)?.toISOString() ?? null;
+
+/**
+ * Every machine that isn't retired (with or without a fix), ordered by unit number: its latest
+ * fix, its down state (who marked it down: the person's display name, when the session had one)
+ * and the geofence it is in (its open visit; a yard, the shop or bins win over a field entrance).
+ */
+export async function fleetPanelMachines(ex: Executor): Promise<PanelMachine[]> {
+  const r = await exec<PanelRow>(
+    ex,
+    `select m.id::text as id, m.unit_no, m.kind, m.make, m.model, m.status, m.down_reason,
+            m.down_at, dp.display_name as down_by,
+            extensions.ST_X(s.geom) as lng, extensions.ST_Y(s.geom) as lat,
+            s.heading, s.speed_mph, s.activity, s.position_source, s.ts,
+            s.current_field_id::text as field_id, f.name as field_name,
+            v.geofence_id::text as place_id, v.name as place_name, v.kind as place_kind,
+            v.entered_at as place_since
+       from farm.machines m
+       left join farm.machine_state s on s.machine_id = m.id
+       left join farm.fields f on f.id = s.current_field_id
+       left join farm.app_users u on u.id = m.down_by
+       left join farm.parties dp on dp.id = u.party_id
+       left join lateral (
+         select gv.geofence_id, gv.entered_at, g.name, g.kind
+           from farm.geofence_visits gv
+           join farm.geofences g on g.id = gv.geofence_id
+          where gv.machine_id = m.id and gv.exited_at is null
+          order by (g.kind = 'field_entrance'), gv.entered_at desc, g.id
+          limit 1
+       ) v on true
+      where m.status <> 'retired'
+      order by m.unit_no, m.id`,
+  );
+  return r.rows.map((row) => ({
+    id: row.id,
+    unitNo: row.unit_no,
+    kind: row.kind,
+    make: row.make,
+    model: row.model,
+    status: row.status,
+    downReason: row.down_reason,
+    downAt: isoOrNull(row.down_at),
+    downBy: row.down_by,
+    position:
+      row.ts === null || row.lng === null || row.lat === null || row.activity === null
+        ? null
+        : {
+            lng: round6(Number(row.lng)),
+            lat: round6(Number(row.lat)),
+            heading: round1(normalizeHeading(row.heading)) % 360,
+            speedMph: round1(Math.max(0, Number(row.speed_mph ?? 0))),
+            activity: row.activity,
+            positionSource: row.position_source ?? 'manual',
+            ts: (toDate(row.ts) as Date).toISOString(),
+            fieldId: row.field_id,
+            fieldName: row.field_name,
+          },
+    place:
+      row.place_id === null || row.place_kind === null || row.place_since === null
+        ? null
+        : {
+            geofenceId: row.place_id,
+            name: row.place_name ?? '',
+            kind: row.place_kind,
+            since: (toDate(row.place_since) as Date).toISOString(),
+          },
+  }));
+}
+
+export interface SetMachineStatusInput {
+  machineId: string;
+  status: 'down' | 'active';
+  /** Required (non-empty) when going down; ignored otherwise. */
+  reason?: string | null;
+  /** farm.app_users.id of the person (null for a device or the admin key). */
+  appUserId: string | null;
+  /** Display name for the realtime payload ("Dana", "Shop wall", "Admin key"). */
+  byName: string | null;
+}
+
+export type SetMachineStatusOutcome =
+  | { status: 'saved'; changed: boolean; result: MachineStatusPayload }
+  | { status: 'not_found' }
+  | { status: 'retired' };
+
+/**
+ * Mark a machine down (with a reason) or back up, in ONE transaction that also publishes
+ * `fleet`/`machine` and then `fleet`/`invalidate` { event: 'machine', reason: 'changed' }
+ * (contracts-m1 §6), so the wall's map refetches GET /api/fleet within the 2 s target. Marking
+ * a machine that is already down again keeps `down_at` (down since) and updates the reason.
+ * Nothing is published when nothing changed.
+ */
+export async function setMachineStatus(
+  db: Db,
+  input: SetMachineStatusInput,
+): Promise<SetMachineStatusOutcome> {
+  const down = input.status === 'down';
+  const reason = down ? (input.reason ?? '').trim() : null;
+  if (down && !reason) throw new RangeError('setMachineStatus: a down machine needs a reason');
+  return db.transaction(async (tx) => {
+    const cur = await exec<{ status: PanelMachine['status']; down_reason: string | null }>(
+      tx,
+      'select status, down_reason from farm.machines where id = $1::uuid for update',
+      [input.machineId],
+    );
+    const before = cur.rows[0];
+    if (!before) return { status: 'not_found' } as const;
+    if (before.status === 'retired') return { status: 'retired' } as const;
+    const changed = before.status !== input.status || (down && before.down_reason !== reason);
+    const r = await exec<{
+      status: 'active' | 'down';
+      down_reason: string | null;
+      down_at: unknown;
+    }>(
+      tx,
+      `update farm.machines m
+          set status = $2,
+              down_reason = $3,
+              down_at = case when $2 = 'down' then
+                          case when m.status = 'down' then coalesce(m.down_at, now()) else now() end
+                        end,
+              down_by = case when $2 = 'down' then
+                          case when m.status = 'down' and $4::uuid is null then m.down_by
+                               else $4::uuid end
+                        end,
+              updated_at = now()
+        where m.id = $1::uuid
+        returning m.status, m.down_reason, m.down_at`,
+      [input.machineId, input.status, reason, input.appUserId],
+    );
+    const row = r.rows[0] as {
+      status: 'active' | 'down';
+      down_reason: string | null;
+      down_at: unknown;
+    };
+    const result: MachineStatusPayload = {
+      machineId: input.machineId,
+      status: row.status,
+      downReason: row.down_reason,
+      downAt: isoOrNull(row.down_at),
+      by: input.byName,
+    };
+    if (changed) {
+      await publish('fleet', 'machine', result, tx);
+      await publish('fleet', 'invalidate', { event: 'machine', reason: 'changed' }, tx);
+    }
+    return { status: 'saved', changed, result } as const;
+  });
 }
