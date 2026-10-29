@@ -7,6 +7,12 @@
  * Confirmed (Oct 29, 2026, from Samsara's official SDK @samsarahq/samsara 14.11): Samsara
  * `/fleet/vehicles/locations/feed` and `/fleet/vehicles/stats/feed` paths, `after` /
  * `endCursor` / `hasNextPage` paging, location and stat field names, error body.
+ *
+ * Read from Deere's published OpenAPI documents (developer.deere.com dev-docs; the portal's raw
+ * specs as mirrored in ProductOfAmerica/deere-sdk specs/raw, fetched by that project Oct 19,
+ * 2026) and recorded sandbox responses in RealmFive/my_john_deere_api (1a, for the replay
+ * fixtures): the breadcrumb, field, boundary, field-operation, measurement and flag shapes in
+ * src/connectors/deere/schemas.ts. Still to confirm against OUR sandbox org (below).
  */
 import type { ConnectorSource } from './types';
 
@@ -36,10 +42,24 @@ export const DOC_DERIVED: readonly DocDerivedItem[] = [
   },
   {
     source: 'deere',
-    what: 'GET /platform/machines/{id}/breadcrumbs?startDate&endDate',
+    what: 'GET /platform/machines/{principalId}/breadcrumbs?startDate&endDate',
     confirm:
-      'path, field names (point.lat/lon, eventTimestamp, speed unit, heading, machineState), page size',
-    file: 'src/connectors/deere/schemas.ts',
+      'shapes are from the Machine Locations OpenAPI (speed {valueAsDouble, unit km1hr-1}, heading {valueAsInteger}, machineState {value}); confirm units as our org sends them, page size, whether startDate/endDate are inclusive (the client filters to its window), and move the stand-in to these shapes',
+    file: 'src/connectors/deere/schemas.ts, src/sim/vendors/deere/routes.ts',
+  },
+  {
+    source: 'deere',
+    what: 'GET /platform/organizations/{orgId}/fields, /boundaries, /fields/{fieldId}/boundaries, /fields/{fieldId}/fieldOperations, /fieldOperations/{id}/measurementTypes, /organizations/{orgId}/flags',
+    confirm:
+      'documented paths and shapes used by the replay fixtures (1a) and the 1f syncs: confirm with `pnpm connectors:record` (embed parameters, paging sizes, unit ids, flag geometry string vs object)',
+    file: 'src/connectors/deere/schemas.ts, src/connectors/deere/fixtures/build.ts',
+  },
+  {
+    source: 'deere',
+    what: 'GET /platform/fieldOperations/{operationId}/boundary (operation coverage)',
+    confirm:
+      'Deere answers 400 when the field already has an active boundary; confirm, and read coverage from the shapefile (GET /fieldOps/{id}?shapeType=Polygon) at 1f where it does',
+    file: 'src/connectors/deere/client.ts',
   },
   {
     source: 'deere',

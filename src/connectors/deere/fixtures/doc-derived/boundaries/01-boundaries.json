@@ -1,0 +1,4095 @@
+{
+  "format": 1,
+  "source": "deere",
+  "stream": "boundaries",
+  "kind": "doc-derived",
+  "reference": "https://developer.deere.com/dev-docs/boundaries (GET /organizations/{orgId}/boundaries, /organizations/{orgId}/fields/{fieldId}/boundaries, Boundary multipolygons/rings/points). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "basePath": "/platform",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-customer-1/boundaries"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/boundaries"
+            }
+          ],
+          "total": 5,
+          "values": [
+            {
+              "@type": "Boundary",
+              "id": "7a74fd8f-ba96-5aff-9509-d643556475c2",
+              "name": "Halvorsen Redfield 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 30.82,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 30.82,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.845004,
+                          "lon": -83.734358
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.845004,
+                          "lon": -83.729605
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.852077,
+                          "lon": -83.729605
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.852077,
+                          "lon": -83.734358
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.845004,
+                          "lon": -83.734358
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.852077,
+                  "lon": -83.734358
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.845004,
+                  "lon": -83.729605
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/658ef263-f082-5c18-ba62-b7201b69aebc/boundaries/7a74fd8f-ba96-5aff-9509-d643556475c2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/658ef263-f082-5c18-ba62-b7201b69aebc"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "1aa1ae71-e82f-51d0-85fb-116157d8427b",
+              "name": "Halvorsen Iverson 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.93,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.93,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.924596,
+                          "lon": -83.748903
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.924596,
+                          "lon": -83.744284
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.931669,
+                          "lon": -83.744284
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.931669,
+                          "lon": -83.748903
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.924596,
+                          "lon": -83.748903
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.931669,
+                  "lon": -83.748903
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.924596,
+                  "lon": -83.744284
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/1ad4195f-5136-5223-9354-1629af21ae94/boundaries/1aa1ae71-e82f-51d0-85fb-116157d8427b"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/1ad4195f-5136-5223-9354-1629af21ae94"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "58f9adcd-0130-576a-a3af-8e532fed927a",
+              "name": "Halvorsen Iverson 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.34,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.34,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.924596,
+                          "lon": -83.743922
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.924596,
+                          "lon": -83.734454
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.931669,
+                          "lon": -83.734454
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.931669,
+                          "lon": -83.743922
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.924596,
+                          "lon": -83.743922
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.931669,
+                  "lon": -83.743922
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.924596,
+                  "lon": -83.734454
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/48f84647-1387-5b1a-872d-c1415c47567f/boundaries/58f9adcd-0130-576a-a3af-8e532fed927a"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/48f84647-1387-5b1a-872d-c1415c47567f"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "58c4c202-8b56-5d81-86fb-c96d86842008",
+              "name": "Halvorsen Wexley 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.35,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.35,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.910107,
+                          "lon": -83.773146
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.910107,
+                          "lon": -83.763678
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.91718,
+                          "lon": -83.763678
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.91718,
+                          "lon": -83.773146
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.910107,
+                          "lon": -83.773146
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.91718,
+                  "lon": -83.773146
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.910107,
+                  "lon": -83.763678
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/903599de-1cac-5557-9c39-07ca36e13b91/boundaries/58c4c202-8b56-5d81-86fb-c96d86842008"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/903599de-1cac-5557-9c39-07ca36e13b91"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "7af3d442-b42f-5e2a-8dd8-f7aa3be63fa8",
+              "name": "Halvorsen Kingsley 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.39,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.39,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.873982,
+                          "lon": -83.705134
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.873982,
+                          "lon": -83.695665
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.881056,
+                          "lon": -83.695665
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.881056,
+                          "lon": -83.705134
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.873982,
+                          "lon": -83.705134
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.881056,
+                  "lon": -83.705134
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.873982,
+                  "lon": -83.695665
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/0966130f-e67d-5fcc-bcd2-78e178c55ccd/boundaries/7af3d442-b42f-5e2a-8dd8-f7aa3be63fa8"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/0966130f-e67d-5fcc-bcd2-78e178c55ccd"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-customer-2/boundaries"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/boundaries"
+            }
+          ],
+          "total": 3,
+          "values": [
+            {
+              "@type": "Boundary",
+              "id": "3388968a-4434-59c0-a9f7-31b467239deb",
+              "name": "Juniper Hill Jennings 160 (shared)",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.35,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.35,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.910107,
+                          "lon": -83.734358
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.910107,
+                          "lon": -83.724889
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.91718,
+                          "lon": -83.724889
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.91718,
+                          "lon": -83.734358
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.910107,
+                          "lon": -83.734358
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.91718,
+                  "lon": -83.734358
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.910107,
+                  "lon": -83.724889
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/d9746527-5c09-5ec6-bada-9708ac4db099/boundaries/3388968a-4434-59c0-a9f7-31b467239deb"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/d9746527-5c09-5ec6-bada-9708ac4db099"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "4e24f701-fa7f-51c5-b190-12074bdb10b8",
+              "name": "Juniper Hill Jennings North 160 (shared)",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.29,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.29,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.968064,
+                          "lon": -83.724528
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.968064,
+                          "lon": -83.71506
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.975137,
+                          "lon": -83.71506
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.975137,
+                          "lon": -83.724528
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.968064,
+                          "lon": -83.724528
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.975137,
+                  "lon": -83.724528
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.968064,
+                  "lon": -83.71506
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/fa48631f-77b3-53d7-ac2a-e10545731ce8/boundaries/4e24f701-fa7f-51c5-b190-12074bdb10b8"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/fa48631f-77b3-53d7-ac2a-e10545731ce8"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "af677dae-f889-53ee-b4c1-3107eb85a5a2",
+              "name": "Juniper Hill Ambrose 160 (shared)",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.31,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.31,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.946429,
+                          "lon": -83.734357
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.946429,
+                          "lon": -83.724889
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.953502,
+                          "lon": -83.724889
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.953502,
+                          "lon": -83.734357
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.946429,
+                          "lon": -83.734357
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.953502,
+                  "lon": -83.734357
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.946429,
+                  "lon": -83.724889
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/eb459e68-53d9-5153-a757-80910d53ff29/boundaries/af677dae-f889-53ee-b4c1-3107eb85a5a2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/eb459e68-53d9-5153-a757-80910d53ff29"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-home/boundaries"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/boundaries"
+            }
+          ],
+          "total": 35,
+          "values": [
+            {
+              "@type": "Boundary",
+              "id": "dfb9c7e6-549e-5b78-bb77-7ed501442382",
+              "name": "Abernath South 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.4,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.4,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.859493,
+                          "lon": -84.083455
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.859493,
+                          "lon": -84.073986
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.866567,
+                          "lon": -84.073986
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.866567,
+                          "lon": -84.083455
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.859493,
+                          "lon": -84.083455
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.866567,
+                  "lon": -84.083455
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.859493,
+                  "lon": -84.073986
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a/boundaries/dfb9c7e6-549e-5b78-bb77-7ed501442382"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "9a4c0550-69d8-5e01-834f-8058dd96e6ae",
+              "name": "Stanwick 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.96,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.96,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.852149,
+                          "lon": -84.059212
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.852149,
+                          "lon": -84.054592
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.859223,
+                          "lon": -84.054592
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.859223,
+                          "lon": -84.059212
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.852149,
+                          "lon": -84.059212
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.859223,
+                  "lon": -84.059212
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.852149,
+                  "lon": -84.054592
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/fc44cfae-ebce-589c-b08c-635d9bf603bd/boundaries/9a4c0550-69d8-5e01-834f-8058dd96e6ae"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/fc44cfae-ebce-589c-b08c-635d9bf603bd"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "d82a3fc0-771f-5765-a011-3b38e89293e3",
+              "name": "Stanwick North 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 30.82,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 30.82,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.848527,
+                          "lon": -84.025272
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.848527,
+                          "lon": -84.015803
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.852077,
+                          "lon": -84.015803
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.852077,
+                          "lon": -84.025272
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.848527,
+                          "lon": -84.025272
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.852077,
+                  "lon": -84.025272
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.848527,
+                  "lon": -84.015803
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/50c1c8b6-401d-5b72-bbaf-9dfeaba691a7/boundaries/d82a3fc0-771f-5765-a011-3b38e89293e3"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/50c1c8b6-401d-5b72-bbaf-9dfeaba691a7"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "3d6033fd-5f2e-5c31-a0e5-3930a8c4b5a7",
+              "name": "Abernath West 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 30.79,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 30.79,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.924596,
+                          "lon": -84.025272
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.924596,
+                          "lon": -84.02052
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.931669,
+                          "lon": -84.02052
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.931669,
+                          "lon": -84.025272
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.924596,
+                          "lon": -84.025272
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.931669,
+                  "lon": -84.025272
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.924596,
+                  "lon": -84.02052
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/663fcf42-b673-5695-ac10-7c2287763789/boundaries/3d6033fd-5f2e-5c31-a0e5-3930a8c4b5a7"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/663fcf42-b673-5695-ac10-7c2287763789"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "ecf366c9-48ba-5fb2-b89e-c20609bd9e5c",
+              "name": "Westerholt 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 30.8,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 30.8,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.891995,
+                          "lon": -83.976654
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.891995,
+                          "lon": -83.967185
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.895545,
+                          "lon": -83.967185
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.895545,
+                          "lon": -83.976654
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.891995,
+                          "lon": -83.976654
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.895545,
+                  "lon": -83.976654
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.891995,
+                  "lon": -83.967185
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c5690a91-79a8-59d6-b960-cb2ae2ef09c1/boundaries/ecf366c9-48ba-5fb2-b89e-c20609bd9e5c"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c5690a91-79a8-59d6-b960-cb2ae2ef09c1"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "0cf45e7b-f398-5c19-8391-10b4799c9ae4",
+              "name": "Vickery 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.94,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.94,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.902961,
+                          "lon": -84.093019
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.902961,
+                          "lon": -84.0884
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.910034,
+                          "lon": -84.0884
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.910034,
+                          "lon": -84.093019
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.902961,
+                          "lon": -84.093019
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.910034,
+                  "lon": -84.093019
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.902961,
+                  "lon": -84.0884
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/53873dc3-eb23-54d2-89f8-185c9a6d2362/boundaries/0cf45e7b-f398-5c19-8391-10b4799c9ae4"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/53873dc3-eb23-54d2-89f8-185c9a6d2362"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "5ea68798-a5b1-55a4-b4dd-58d3cdf2978d",
+              "name": "Tillotson 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.34,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.34,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.91745,
+                          "lon": -83.976653
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.91745,
+                          "lon": -83.967185
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.924524,
+                          "lon": -83.967185
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.924524,
+                          "lon": -83.976653
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.91745,
+                          "lon": -83.976653
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.924524,
+                  "lon": -83.976653
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.91745,
+                  "lon": -83.967185
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b7dae8a8-95a4-5792-a1e1-4aca66eb9993/boundaries/5ea68798-a5b1-55a4-b4dd-58d3cdf2978d"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b7dae8a8-95a4-5792-a1e1-4aca66eb9993"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "f02339d5-16ca-5ed8-a7cb-ad00ed9c8568",
+              "name": "Abernath East 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.92,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.92,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.939085,
+                          "lon": -84.020423
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.939085,
+                          "lon": -84.015804
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.946159,
+                          "lon": -84.015804
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.946159,
+                          "lon": -84.020423
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.939085,
+                          "lon": -84.020423
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.946159,
+                  "lon": -84.020423
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.939085,
+                  "lon": -84.015804
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/a09641b6-c3f0-55db-af84-b33b64f1ff85/boundaries/f02339d5-16ca-5ed8-a7cb-ad00ed9c8568"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/a09641b6-c3f0-55db-af84-b33b64f1ff85"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "bd9d5d39-86af-581b-97cb-1aa9fc59c0e8",
+              "name": "Bellamy 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 30.81,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 30.81,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.881128,
+                          "lon": -83.889512
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.881128,
+                          "lon": -83.880044
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.884678,
+                          "lon": -83.880044
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.884678,
+                          "lon": -83.889512
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.881128,
+                          "lon": -83.889512
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.884678,
+                  "lon": -83.889512
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.881128,
+                  "lon": -83.880044
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/508a8383-12d4-54d9-97bb-d709ee5e2878/boundaries/bd9d5d39-86af-581b-97cb-1aa9fc59c0e8"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/508a8383-12d4-54d9-97bb-d709ee5e2878"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "986a3fbb-d681-598f-888d-d1fa68057a8d",
+              "name": "Hollinger North 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.39,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.39,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.866639,
+                          "lon": -83.850723
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.866639,
+                          "lon": -83.841255
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.873712,
+                          "lon": -83.841255
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.873712,
+                          "lon": -83.850723
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.866639,
+                          "lon": -83.850723
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.873712,
+                  "lon": -83.850723
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.866639,
+                  "lon": -83.841255
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7/boundaries/986a3fbb-d681-598f-888d-d1fa68057a8d"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "815798d4-f4bc-5efd-ad16-f48f11e4f97b",
+              "name": "Oakmont 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.46,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.46,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.794192,
+                          "lon": -83.8215
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.794192,
+                          "lon": -83.812031
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.801266,
+                          "lon": -83.812031
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.801266,
+                          "lon": -83.8215
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.794192,
+                          "lon": -83.8215
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.801266,
+                  "lon": -83.8215
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.794192,
+                  "lon": -83.812031
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/8d806424-7cfb-5c25-a76b-d2591118bc29/boundaries/815798d4-f4bc-5efd-ad16-f48f11e4f97b"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/8d806424-7cfb-5c25-a76b-d2591118bc29"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "e1fbd8a4-e9cf-5b41-8cb4-eece2da38898",
+              "name": "Feltner 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.99,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.99,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.787047,
+                          "lon": -83.908906
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.787047,
+                          "lon": -83.899438
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.790498,
+                          "lon": -83.899438
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.790498,
+                          "lon": -83.908906
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.787047,
+                          "lon": -83.908906
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.790498,
+                  "lon": -83.908906
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.787047,
+                  "lon": -83.899438
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/1128d48b-b257-597b-8db3-458b1c571b51/boundaries/e1fbd8a4-e9cf-5b41-8cb4-eece2da38898"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/1128d48b-b257-597b-8db3-458b1c571b51"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "a9f85cc6-985b-5f83-b2f9-a113841d01e7",
+              "name": "Hollinger Quarry 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.44,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.44,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.823171,
+                          "lon": -83.937865
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.823171,
+                          "lon": -83.928397
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.830244,
+                          "lon": -83.928397
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.830244,
+                          "lon": -83.937865
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.823171,
+                          "lon": -83.937865
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.830244,
+                  "lon": -83.937865
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.823171,
+                  "lon": -83.928397
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9f158e5e-88f2-5e83-8def-90e705851293/boundaries/a9f85cc6-985b-5f83-b2f9-a113841d01e7"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9f158e5e-88f2-5e83-8def-90e705851293"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "a816678e-21d3-5c84-a1d1-8a6bcfcf3dfb",
+              "name": "Brenner West 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.97,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.97,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.830515,
+                          "lon": -83.821499
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.830515,
+                          "lon": -83.81688
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.837588,
+                          "lon": -83.81688
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.837588,
+                          "lon": -83.821499
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.830515,
+                          "lon": -83.821499
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.837588,
+                  "lon": -83.821499
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.830515,
+                  "lon": -83.81688
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d/boundaries/a816678e-21d3-5c84-a1d1-8a6bcfcf3dfb"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "23a36719-c86e-5ac5-90c4-668f25f7d688",
+              "name": "Brenner South 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.43,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.43,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.830515,
+                          "lon": -83.937865
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.830515,
+                          "lon": -83.928397
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.837588,
+                          "lon": -83.928397
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.837588,
+                          "lon": -83.937865
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.830515,
+                          "lon": -83.937865
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.837588,
+                  "lon": -83.937865
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.830515,
+                  "lon": -83.928397
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/479c7862-1877-52ed-9157-a2cdcfeab7b4/boundaries/23a36719-c86e-5ac5-90c4-668f25f7d688"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/479c7862-1877-52ed-9157-a2cdcfeab7b4"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "4a2c2aec-0e8c-5452-864e-e2c650901e37",
+              "name": "Hollinger South 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.41,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.41,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.845004,
+                          "lon": -83.918471
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.845004,
+                          "lon": -83.909002
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.852077,
+                          "lon": -83.909002
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.852077,
+                          "lon": -83.918471
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.845004,
+                          "lon": -83.918471
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.852077,
+                  "lon": -83.918471
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.845004,
+                  "lon": -83.909002
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c3e198b0-af6a-53da-a2a2-fa293ca5f9d8/boundaries/4a2c2aec-0e8c-5452-864e-e2c650901e37"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c3e198b0-af6a-53da-a2a2-fa293ca5f9d8"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "a37e07f1-cbe4-5f58-a2a8-c86d9d3299ea",
+              "name": "Lindqvist South 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 30.79,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 30.79,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.910107,
+                          "lon": -83.821499
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.910107,
+                          "lon": -83.812031
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.913657,
+                          "lon": -83.812031
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.913657,
+                          "lon": -83.821499
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.910107,
+                          "lon": -83.821499
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.913657,
+                  "lon": -83.821499
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.910107,
+                  "lon": -83.812031
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/86a8630d-19f7-5665-95fe-f1ff098b3f62/boundaries/a37e07f1-cbe4-5f58-a2a8-c86d9d3299ea"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/86a8630d-19f7-5665-95fe-f1ff098b3f62"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "3931c48f-fa06-54d3-b605-8e93e77ff74a",
+              "name": "Gilchrist 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.92,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.92,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.931939,
+                          "lon": -83.782711
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.931939,
+                          "lon": -83.773243
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.935391,
+                          "lon": -83.773243
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.935391,
+                          "lon": -83.782711
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.931939,
+                          "lon": -83.782711
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.935391,
+                  "lon": -83.782711
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.931939,
+                  "lon": -83.773243
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/012a06b2-fcb9-5382-89de-e4c7440ae5c1/boundaries/3931c48f-fa06-54d3-b605-8e93e77ff74a"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/012a06b2-fcb9-5382-89de-e4c7440ae5c1"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "750541c3-c93b-52bb-8d3b-4689e725663f",
+              "name": "Lindqvist North 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.36,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.36,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.895617,
+                          "lon": -83.860288
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.895617,
+                          "lon": -83.85082
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.902691,
+                          "lon": -83.85082
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.902691,
+                          "lon": -83.860288
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.895617,
+                          "lon": -83.860288
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.902691,
+                  "lon": -83.860288
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.895617,
+                  "lon": -83.85082
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/f90b28ac-ba51-5c1a-931d-2c6aa1098f62/boundaries/750541c3-c93b-52bb-8d3b-4689e725663f"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/f90b28ac-ba51-5c1a-931d-2c6aa1098f62"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "7cfb291a-5b64-54df-8c5b-f3dfcd69657c",
+              "name": "Juniper Hill Yardley 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.34,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.34,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.924596,
+                          "lon": -83.763316
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.924596,
+                          "lon": -83.753848
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.931669,
+                          "lon": -83.753848
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.931669,
+                          "lon": -83.763316
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.924596,
+                          "lon": -83.763316
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.931669,
+                  "lon": -83.763316
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.924596,
+                  "lon": -83.753848
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/cd1fa4cb-de29-5513-9134-6725acb3a1bf/boundaries/7cfb291a-5b64-54df-8c5b-f3dfcd69657c"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/cd1fa4cb-de29-5513-9134-6725acb3a1bf"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "97942d84-44ba-5a3a-a1ae-44fb30be2f3e",
+              "name": "Juniper Hill Jennings 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.35,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.35,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.910107,
+                          "lon": -83.734358
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.910107,
+                          "lon": -83.724889
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.91718,
+                          "lon": -83.724889
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.91718,
+                          "lon": -83.734358
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.910107,
+                          "lon": -83.734358
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.91718,
+                  "lon": -83.734358
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.910107,
+                  "lon": -83.724889
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9acdf590-7691-59db-b5e9-ef242911134a/boundaries/97942d84-44ba-5a3a-a1ae-44fb30be2f3e"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9acdf590-7691-59db-b5e9-ef242911134a"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "8971279b-ae57-51ed-9297-c5d4c389c25a",
+              "name": "Kowalczyk 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.95,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.95,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.870261,
+                          "lon": -83.743922
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.870261,
+                          "lon": -83.734454
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.873712,
+                          "lon": -83.734454
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.873712,
+                          "lon": -83.743922
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.870261,
+                          "lon": -83.743922
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.873712,
+                  "lon": -83.743922
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.870261,
+                  "lon": -83.734454
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d6f0b3ac-95df-5fdf-a60c-a915b57db010/boundaries/8971279b-ae57-51ed-9297-c5d4c389c25a"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d6f0b3ac-95df-5fdf-a60c-a915b57db010"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "fe76dd2c-a0d5-50a6-9834-34b0b6cbca89",
+              "name": "Wojcikow East 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.95,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.95,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.881128,
+                          "lon": -83.710115
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.881128,
+                          "lon": -83.705495
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.888202,
+                          "lon": -83.705495
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.888202,
+                          "lon": -83.710115
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.881128,
+                          "lon": -83.710115
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.888202,
+                  "lon": -83.710115
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.881128,
+                  "lon": -83.705495
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b0948e12-8ee9-5ef3-8b14-40e019a71437/boundaries/fe76dd2c-a0d5-50a6-9834-34b0b6cbca89"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b0948e12-8ee9-5ef3-8b14-40e019a71437"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "a695d052-4d6b-544b-954f-fba19deb09c2",
+              "name": "Juniper Hill Upham 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.38,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.38,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.881128,
+                          "lon": -83.763316
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.881128,
+                          "lon": -83.753848
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.888202,
+                          "lon": -83.753848
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.888202,
+                          "lon": -83.763316
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.881128,
+                          "lon": -83.763316
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.888202,
+                  "lon": -83.763316
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.881128,
+                  "lon": -83.753848
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8/boundaries/a695d052-4d6b-544b-954f-fba19deb09c2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "450d6b40-b512-5434-9489-f3633604181c",
+              "name": "Wojcikow North 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.39,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.39,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.866639,
+                          "lon": -83.753752
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.866639,
+                          "lon": -83.744284
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.873712,
+                          "lon": -83.744284
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.873712,
+                          "lon": -83.753752
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.866639,
+                          "lon": -83.753752
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.873712,
+                  "lon": -83.753752
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.866639,
+                  "lon": -83.744284
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/596ae9b6-fb81-5dea-93e4-04d60aa8dbb4/boundaries/450d6b40-b512-5434-9489-f3633604181c"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/596ae9b6-fb81-5dea-93e4-04d60aa8dbb4"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "4ca732af-f08d-5afa-97a0-0f07993dc850",
+              "name": "Juniper Hill Fairbanks 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.94,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.94,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.888472,
+                          "lon": -83.802105
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.888472,
+                          "lon": -83.792637
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.891923,
+                          "lon": -83.792637
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.891923,
+                          "lon": -83.802105
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.888472,
+                          "lon": -83.802105
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.891923,
+                  "lon": -83.802105
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.888472,
+                  "lon": -83.792637
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0/boundaries/4ca732af-f08d-5afa-97a0-0f07993dc850"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "e81e4eae-8544-51b6-bb6a-69598f152b66",
+              "name": "Wojcikow Iverson 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.96,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.96,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.855772,
+                          "lon": -83.743922
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.855772,
+                          "lon": -83.734454
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.859223,
+                          "lon": -83.734454
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.859223,
+                          "lon": -83.743922
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.855772,
+                          "lon": -83.743922
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.859223,
+                  "lon": -83.743922
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.855772,
+                  "lon": -83.734454
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/ff4181b5-d93e-5b92-80c6-c97437779584/boundaries/e81e4eae-8544-51b6-bb6a-69598f152b66"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/ff4181b5-d93e-5b92-80c6-c97437779584"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "d8f08dda-cba3-58aa-b6be-a67f40e7ff9d",
+              "name": "Petrakis East 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.9,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.9,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.975407,
+                          "lon": -83.632537
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.975407,
+                          "lon": -83.627918
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.982481,
+                          "lon": -83.627918
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.982481,
+                          "lon": -83.632537
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.975407,
+                          "lon": -83.632537
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.982481,
+                  "lon": -83.632537
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.975407,
+                  "lon": -83.627918
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5abd5098-830b-5518-9880-2005d14eb520/boundaries/d8f08dda-cba3-58aa-b6be-a67f40e7ff9d"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5abd5098-830b-5518-9880-2005d14eb520"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "82d559f5-f283-5a65-a17f-85c06738d661",
+              "name": "Lockwood 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.33,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.33,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.931939,
+                          "lon": -83.695569
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.931939,
+                          "lon": -83.686101
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.939013,
+                          "lon": -83.686101
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.939013,
+                          "lon": -83.695569
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.931939,
+                          "lon": -83.695569
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.939013,
+                  "lon": -83.695569
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.931939,
+                  "lon": -83.686101
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/468ee580-a8a0-5ab4-b7c5-e92a5b1942b4/boundaries/82d559f5-f283-5a65-a17f-85c06738d661"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/468ee580-a8a0-5ab4-b7c5-e92a5b1942b4"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "a59d8eec-ca55-52bb-8ae6-8f6c8f0c13a7",
+              "name": "Juniper Hill Jennings North 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.29,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.29,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.968064,
+                          "lon": -83.724528
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.968064,
+                          "lon": -83.71506
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.975137,
+                          "lon": -83.71506
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.975137,
+                          "lon": -83.724528
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.968064,
+                          "lon": -83.724528
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.975137,
+                  "lon": -83.724528
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.968064,
+                  "lon": -83.71506
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d779de22-b3e1-559c-ac0d-47a08ec3aec7/boundaries/a59d8eec-ca55-52bb-8ae6-8f6c8f0c13a7"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d779de22-b3e1-559c-ac0d-47a08ec3aec7"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "821e8e27-3c55-5ae8-bb06-93cdfc1c3955",
+              "name": "Calder 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.29,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.29,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.975407,
+                          "lon": -83.598597
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.975407,
+                          "lon": -83.58913
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.982481,
+                          "lon": -83.58913
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.982481,
+                          "lon": -83.598597
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.975407,
+                          "lon": -83.598597
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.982481,
+                  "lon": -83.598597
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.975407,
+                  "lon": -83.58913
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/47659609-25ca-59be-a26f-aa2fe44cc2be/boundaries/821e8e27-3c55-5ae8-bb06-93cdfc1c3955"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/47659609-25ca-59be-a26f-aa2fe44cc2be"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "30d3c02a-57c8-51d1-9109-faf8dd979513",
+              "name": "Brambleton North 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.92,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.92,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.942707,
+                          "lon": -83.637386
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.942707,
+                          "lon": -83.627918
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.946159,
+                          "lon": -83.627918
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.946159,
+                          "lon": -83.637386
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.942707,
+                          "lon": -83.637386
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.946159,
+                  "lon": -83.637386
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.942707,
+                  "lon": -83.627918
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/65bc89d8-1cf4-5b30-8723-869028055093/boundaries/30d3c02a-57c8-51d1-9109-faf8dd979513"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/65bc89d8-1cf4-5b30-8723-869028055093"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "5bd117fc-f3a6-5149-940a-30f2975f38d6",
+              "name": "Petrakis West 80",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.9,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 29.9,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.975407,
+                          "lon": -83.705133
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.975407,
+                          "lon": -83.700514
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.982481,
+                          "lon": -83.700514
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.982481,
+                          "lon": -83.705133
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.975407,
+                          "lon": -83.705133
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.982481,
+                  "lon": -83.705133
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.975407,
+                  "lon": -83.700514
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/28a822ab-1923-5b62-ad82-f5f731d7c0f3/boundaries/5bd117fc-f3a6-5149-940a-30f2975f38d6"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/28a822ab-1923-5b62-ad82-f5f731d7c0f3"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "f851bcdc-4984-50cd-9bf4-411201fadfd4",
+              "name": "Brambleton Kingsley 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.31,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.31,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.953574,
+                          "lon": -83.705133
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.953574,
+                          "lon": -83.695665
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.960648,
+                          "lon": -83.695665
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.960648,
+                          "lon": -83.705133
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.953574,
+                          "lon": -83.705133
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.960648,
+                  "lon": -83.705133
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.953574,
+                  "lon": -83.695665
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/eb75c5f8-c600-55e7-ab7c-7ad503e4e31b/boundaries/f851bcdc-4984-50cd-9bf4-411201fadfd4"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/eb75c5f8-c600-55e7-ab7c-7ad503e4e31b"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            },
+            {
+              "@type": "Boundary",
+              "id": "95fb8977-81e9-5034-a605-58afccb80996",
+              "name": "Juniper Hill Ambrose 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.31,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.31,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.946429,
+                          "lon": -83.734357
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.946429,
+                          "lon": -83.724889
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.953502,
+                          "lon": -83.724889
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.953502,
+                          "lon": -83.734357
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.946429,
+                          "lon": -83.734357
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.953502,
+                  "lon": -83.734357
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.946429,
+                  "lon": -83.724889
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5046eb7d-85b2-5790-9b13-6c9310f8754a/boundaries/95fb8977-81e9-5034-a605-58afccb80996"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5046eb7d-85b2-5790-9b13-6c9310f8754a"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a/boundaries"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a/boundaries"
+            }
+          ],
+          "total": 1,
+          "values": [
+            {
+              "@type": "Boundary",
+              "id": "dfb9c7e6-549e-5b78-bb77-7ed501442382",
+              "name": "Abernath South 160",
+              "sourceType": "HandDrawn",
+              "createdTime": "2026-03-02T15:40:11Z",
+              "modifiedTime": "2026-03-02T15:41:15.205Z",
+              "area": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.4,
+                "unit": "ha"
+              },
+              "workableArea": {
+                "@type": "MeasurementAsDouble",
+                "valueAsDouble": 61.4,
+                "unit": "ha"
+              },
+              "multipolygons": [
+                {
+                  "@type": "Polygon",
+                  "rings": [
+                    {
+                      "@type": "Ring",
+                      "points": [
+                        {
+                          "@type": "Point",
+                          "lat": 41.859493,
+                          "lon": -84.083455
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.859493,
+                          "lon": -84.073986
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.866567,
+                          "lon": -84.073986
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.866567,
+                          "lon": -84.083455
+                        },
+                        {
+                          "@type": "Point",
+                          "lat": 41.859493,
+                          "lon": -84.083455
+                        }
+                      ],
+                      "type": "exterior",
+                      "passable": true
+                    }
+                  ]
+                }
+              ],
+              "extent": {
+                "@type": "Extent",
+                "topLeft": {
+                  "@type": "Point",
+                  "lat": 41.866567,
+                  "lon": -84.083455
+                },
+                "bottomRight": {
+                  "@type": "Point",
+                  "lat": 41.859493,
+                  "lon": -84.073986
+                }
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a/boundaries/dfb9c7e6-549e-5b78-bb77-7ed501442382"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a"
+                }
+              ],
+              "active": true,
+              "irrigated": false,
+              "archived": false,
+              "signalType": "dtiSignalTypeRTK"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

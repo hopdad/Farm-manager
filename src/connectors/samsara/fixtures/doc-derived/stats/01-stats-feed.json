@@ -1,0 +1,134 @@
+{
+  "format": 1,
+  "source": "samsara",
+  "stream": "stats",
+  "kind": "doc-derived",
+  "reference": "https://developers.samsara.com/reference/getvehiclestatsfeed (GET /fleet/vehicles/stats/feed?types=obdEngineSeconds,fuelPercents,obdOdometerMeters&after=); shapes as in @samsarahq/samsara 14.11 (VehicleStatsListResponse). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fleet/vehicles/stats/feed",
+        "query": {
+          "after": "replay-stats-0001"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "pagination": {
+            "endCursor": "replay-stats-0001",
+            "hasNextPage": false
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fleet/vehicles/stats/feed"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "281474977545313",
+              "name": "S1",
+              "obdEngineSeconds": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 44149176
+                }
+              ],
+              "fuelPercents": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 62
+                }
+              ],
+              "obdOdometerMeters": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 711665076
+                }
+              ]
+            },
+            {
+              "id": "281474976985156",
+              "name": "S2",
+              "obdEngineSeconds": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 57216755
+                }
+              ],
+              "fuelPercents": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 74
+                }
+              ],
+              "obdOdometerMeters": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 915396213
+                }
+              ]
+            },
+            {
+              "id": "281474976831855",
+              "name": "S3",
+              "obdEngineSeconds": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 64596337
+                }
+              ],
+              "fuelPercents": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 77
+                }
+              ],
+              "obdOdometerMeters": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 1032153751
+                }
+              ]
+            },
+            {
+              "id": "281474977403556",
+              "name": "S4",
+              "obdEngineSeconds": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 73271916
+                }
+              ],
+              "fuelPercents": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 57
+                }
+              ],
+              "obdOdometerMeters": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 1178169930
+                }
+              ]
+            }
+          ],
+          "pagination": {
+            "endCursor": "replay-stats-0001",
+            "hasNextPage": false
+          }
+        }
+      }
+    }
+  ]
+}

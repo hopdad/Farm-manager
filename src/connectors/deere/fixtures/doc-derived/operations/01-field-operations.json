@@ -1,0 +1,1599 @@
+{
+  "format": 1,
+  "source": "deere",
+  "stream": "operations",
+  "kind": "doc-derived",
+  "reference": "https://developer.deere.com/dev-docs/field-operations (GET /organizations/{orgId}/fields/{fieldId}/fieldOperations, /fieldOperations/{id}/measurementTypes); https://developer.deere.com/dev-docs/boundaries (GET /fieldOperations/{operationId}/boundary: coverage). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-16T09:00:00.000Z",
+  "basePath": "/platform",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7/fieldOperations"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7/fieldOperations"
+            }
+          ],
+          "total": 2,
+          "values": [
+            {
+              "@type": "FieldOperation",
+              "fieldOperationType": "harvest",
+              "adaptMachineType": "combine",
+              "cropSeason": "2026",
+              "cropName": "CORN_WET",
+              "modifiedTime": "2026-10-15T19:38:59.121Z",
+              "startDate": "2026-10-15T11:10:52.875Z",
+              "endDate": "2026-10-15T19:38:59.121Z",
+              "fieldOperationMachines": [
+                {
+                  "@type": "FieldOperationMachine",
+                  "erid": "fa547698-9385-5434-b356-bc0e8cbfce60",
+                  "machineId": 8348986,
+                  "vin": "SIM-C1-2024",
+                  "operators": []
+                }
+              ],
+              "id": "cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOmhhcnZlc3Q6MjAyNg",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "organization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOmhhcnZlc3Q6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "measurementTypes",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOmhhcnZlc3Q6MjAyNg/measurementTypes"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "shapeFileAsync",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOps/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOmhhcnZlc3Q6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundary",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOmhhcnZlc3Q6MjAyNg/boundary"
+                }
+              ]
+            },
+            {
+              "@type": "FieldOperation",
+              "fieldOperationType": "seeding",
+              "adaptMachineType": "planter",
+              "cropSeason": "2026",
+              "cropName": "CORN_WET",
+              "modifiedTime": "2026-05-06T19:47:30.000Z",
+              "startDate": "2026-05-06T13:12:00.000Z",
+              "endDate": "2026-05-06T19:47:30.000Z",
+              "fieldOperationMachines": [
+                {
+                  "@type": "FieldOperationMachine",
+                  "erid": "29d37850-e016-53a3-93c9-96ac23689d50",
+                  "machineId": 6272546,
+                  "vin": "SIM-P1-2020",
+                  "operators": []
+                }
+              ],
+              "id": "cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOnNlZWRpbmc6MjAyNg",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "organization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOnNlZWRpbmc6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "measurementTypes",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOnNlZWRpbmc6MjAyNg/measurementTypes"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "shapeFileAsync",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOps/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOnNlZWRpbmc6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundary",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOnNlZWRpbmc6MjAyNg/boundary"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d/fieldOperations"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d/fieldOperations"
+            }
+          ],
+          "total": 2,
+          "values": [
+            {
+              "@type": "FieldOperation",
+              "fieldOperationType": "harvest",
+              "adaptMachineType": "combine",
+              "cropSeason": "2026",
+              "cropName": "CORN_WET",
+              "modifiedTime": "2026-10-15T23:34:33.265Z",
+              "startDate": "2026-10-15T19:59:56.653Z",
+              "endDate": "2026-10-15T23:34:33.265Z",
+              "fieldOperationMachines": [
+                {
+                  "@type": "FieldOperationMachine",
+                  "erid": "e27fc909-1502-5922-be8b-dea356e4ccb5",
+                  "machineId": 8348986,
+                  "vin": "SIM-C1-2024",
+                  "operators": []
+                }
+              ],
+              "id": "cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OmhhcnZlc3Q6MjAyNg",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "organization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OmhhcnZlc3Q6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "measurementTypes",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OmhhcnZlc3Q6MjAyNg/measurementTypes"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "shapeFileAsync",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOps/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OmhhcnZlc3Q6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundary",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OmhhcnZlc3Q6MjAyNg/boundary"
+                }
+              ]
+            },
+            {
+              "@type": "FieldOperation",
+              "fieldOperationType": "seeding",
+              "adaptMachineType": "planter",
+              "cropSeason": "2026",
+              "cropName": "CORN_WET",
+              "modifiedTime": "2026-05-06T19:47:30.000Z",
+              "startDate": "2026-05-06T13:12:00.000Z",
+              "endDate": "2026-05-06T19:47:30.000Z",
+              "fieldOperationMachines": [
+                {
+                  "@type": "FieldOperationMachine",
+                  "erid": "eda92b8c-567c-53c7-ad34-ab80b965b8d0",
+                  "machineId": 6272546,
+                  "vin": "SIM-P1-2020",
+                  "operators": []
+                }
+              ],
+              "id": "cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OnNlZWRpbmc6MjAyNg",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "organization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OnNlZWRpbmc6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "measurementTypes",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OnNlZWRpbmc6MjAyNg/measurementTypes"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "shapeFileAsync",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOps/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OnNlZWRpbmc6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundary",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OnNlZWRpbmc6MjAyNg/boundary"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8/fieldOperations"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8/fieldOperations"
+            }
+          ],
+          "total": 2,
+          "values": [
+            {
+              "@type": "FieldOperation",
+              "fieldOperationType": "harvest",
+              "adaptMachineType": "combine",
+              "cropSeason": "2026",
+              "cropName": "CORN_WET",
+              "modifiedTime": "2026-10-16T00:34:28.123Z",
+              "startDate": "2026-10-15T16:34:37.094Z",
+              "endDate": "2026-10-16T00:34:28.123Z",
+              "fieldOperationMachines": [
+                {
+                  "@type": "FieldOperationMachine",
+                  "erid": "3880e6e2-6ca3-54aa-b879-abefb58cf468",
+                  "machineId": 4034635,
+                  "vin": "SIM-C2-2021",
+                  "operators": []
+                }
+              ],
+              "id": "cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OmhhcnZlc3Q6MjAyNg",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "organization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OmhhcnZlc3Q6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "measurementTypes",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OmhhcnZlc3Q6MjAyNg/measurementTypes"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "shapeFileAsync",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOps/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OmhhcnZlc3Q6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundary",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OmhhcnZlc3Q6MjAyNg/boundary"
+                }
+              ]
+            },
+            {
+              "@type": "FieldOperation",
+              "fieldOperationType": "seeding",
+              "adaptMachineType": "planter",
+              "cropSeason": "2026",
+              "cropName": "CORN_WET",
+              "modifiedTime": "2026-05-06T19:47:30.000Z",
+              "startDate": "2026-05-06T13:12:00.000Z",
+              "endDate": "2026-05-06T19:47:30.000Z",
+              "fieldOperationMachines": [
+                {
+                  "@type": "FieldOperationMachine",
+                  "erid": "70a7617b-d228-5e8c-8e44-df1419dec615",
+                  "machineId": 6272546,
+                  "vin": "SIM-P1-2020",
+                  "operators": []
+                }
+              ],
+              "id": "cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OnNlZWRpbmc6MjAyNg",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "organization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OnNlZWRpbmc6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "measurementTypes",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OnNlZWRpbmc6MjAyNg/measurementTypes"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "shapeFileAsync",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOps/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OnNlZWRpbmc6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundary",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OnNlZWRpbmc6MjAyNg/boundary"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0/fieldOperations"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0/fieldOperations"
+            }
+          ],
+          "total": 2,
+          "values": [
+            {
+              "@type": "FieldOperation",
+              "fieldOperationType": "harvest",
+              "adaptMachineType": "combine",
+              "cropSeason": "2026",
+              "cropName": "CORN_WET",
+              "modifiedTime": "2026-10-15T16:19:44.273Z",
+              "startDate": "2026-10-15T11:10:21.803Z",
+              "endDate": "2026-10-15T16:19:44.273Z",
+              "fieldOperationMachines": [
+                {
+                  "@type": "FieldOperationMachine",
+                  "erid": "b6e3c88e-8e5d-51c4-8845-b449db3eaf7c",
+                  "machineId": 4034635,
+                  "vin": "SIM-C2-2021",
+                  "operators": []
+                }
+              ],
+              "id": "cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OmhhcnZlc3Q6MjAyNg",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "organization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OmhhcnZlc3Q6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "measurementTypes",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OmhhcnZlc3Q6MjAyNg/measurementTypes"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "shapeFileAsync",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOps/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OmhhcnZlc3Q6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundary",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OmhhcnZlc3Q6MjAyNg/boundary"
+                }
+              ]
+            },
+            {
+              "@type": "FieldOperation",
+              "fieldOperationType": "seeding",
+              "adaptMachineType": "planter",
+              "cropSeason": "2026",
+              "cropName": "CORN_WET",
+              "modifiedTime": "2026-05-06T19:47:30.000Z",
+              "startDate": "2026-05-06T13:12:00.000Z",
+              "endDate": "2026-05-06T19:47:30.000Z",
+              "fieldOperationMachines": [
+                {
+                  "@type": "FieldOperationMachine",
+                  "erid": "4eb07313-2698-5a45-bf57-f8a1fd684fb9",
+                  "machineId": 6272546,
+                  "vin": "SIM-P1-2020",
+                  "operators": []
+                }
+              ],
+              "id": "cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OnNlZWRpbmc6MjAyNg",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "organization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OnNlZWRpbmc6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "measurementTypes",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OnNlZWRpbmc6MjAyNg/measurementTypes"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "shapeFileAsync",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOps/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OnNlZWRpbmc6MjAyNg"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundary",
+                  "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OnNlZWRpbmc6MjAyNg/boundary"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOmhhcnZlc3Q6MjAyNg/measurementTypes"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOmhhcnZlc3Q6MjAyNg/measurementTypes"
+            }
+          ],
+          "total": 2,
+          "values": [
+            {
+              "@type": "FieldOperationMeasurement",
+              "measurementName": "HarvestYieldResult",
+              "measurementCategory": "Result",
+              "area": {
+                "@type": "EventMeasurement",
+                "value": 150.8,
+                "unitId": "ac"
+              },
+              "yield": {
+                "@type": "EventMeasurement",
+                "value": 27551.2,
+                "unitId": "bu"
+              },
+              "averageYield": {
+                "@type": "EventMeasurement",
+                "value": 182.7,
+                "unitId": "bu1ac-1"
+              },
+              "averageMoisture": {
+                "@type": "EventMeasurement",
+                "value": 18.4,
+                "unitId": "prcnt"
+              }
+            },
+            {
+              "@type": "FieldOperationMeasurement",
+              "measurementName": "HarvestMoistureResult",
+              "measurementCategory": "Result",
+              "area": {
+                "@type": "EventMeasurement",
+                "value": 150.8,
+                "unitId": "ac"
+              },
+              "averageMoisture": {
+                "@type": "EventMeasurement",
+                "value": 18.4,
+                "unitId": "prcnt"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOmhhcnZlc3Q6MjAyNg/boundary"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "@type": "Boundary",
+          "name": "Hollinger North 160 harvest 2026 worked area",
+          "sourceType": "Auto",
+          "createdTime": "2026-03-02T15:40:11Z",
+          "modifiedTime": "2026-03-02T15:41:15.205Z",
+          "area": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 61.16,
+            "unit": "ha"
+          },
+          "workableArea": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 61.16,
+            "unit": "ha"
+          },
+          "multipolygons": [
+            {
+              "@type": "Polygon",
+              "rings": [
+                {
+                  "@type": "Ring",
+                  "points": [
+                    {
+                      "@type": "Point",
+                      "lat": 41.866652,
+                      "lon": -83.850723
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.866652,
+                      "lon": -83.841255
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.873699,
+                      "lon": -83.841255
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.873699,
+                      "lon": -83.850723
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.866652,
+                      "lon": -83.850723
+                    }
+                  ],
+                  "type": "exterior",
+                  "passable": true
+                }
+              ]
+            }
+          ],
+          "extent": {
+            "@type": "Extent",
+            "topLeft": {
+              "@type": "Point",
+              "lat": 41.873699,
+              "lon": -83.850723
+            },
+            "bottomRight": {
+              "@type": "Point",
+              "lat": 41.866652,
+              "lon": -83.841255
+            }
+          },
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "fieldOperation",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOmhhcnZlc3Q6MjAyNg"
+            }
+          ],
+          "active": false,
+          "irrigated": false,
+          "archived": false,
+          "signalType": "dtiSignalTypeRTK"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOnNlZWRpbmc6MjAyNg/measurementTypes"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOnNlZWRpbmc6MjAyNg/measurementTypes"
+            }
+          ],
+          "total": 1,
+          "values": [
+            {
+              "@type": "FieldOperationMeasurement",
+              "measurementName": "SeedingRateResult",
+              "measurementCategory": "Result",
+              "area": {
+                "@type": "EventMeasurement",
+                "value": 152.4,
+                "unitId": "ac"
+              },
+              "averageMaterial": {
+                "@type": "EventMeasurement",
+                "value": 34000,
+                "unitId": "seeds1ac-1"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOnNlZWRpbmc6MjAyNg/boundary"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "@type": "Boundary",
+          "name": "Hollinger North 160 seeding 2026 worked area",
+          "sourceType": "Auto",
+          "createdTime": "2026-03-02T15:40:11Z",
+          "modifiedTime": "2026-03-02T15:41:15.205Z",
+          "area": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 61.39,
+            "unit": "ha"
+          },
+          "workableArea": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 61.39,
+            "unit": "ha"
+          },
+          "multipolygons": [
+            {
+              "@type": "Polygon",
+              "rings": [
+                {
+                  "@type": "Ring",
+                  "points": [
+                    {
+                      "@type": "Point",
+                      "lat": 41.866639,
+                      "lon": -83.850723
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.866639,
+                      "lon": -83.841255
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.873712,
+                      "lon": -83.841255
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.873712,
+                      "lon": -83.850723
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.866639,
+                      "lon": -83.850723
+                    }
+                  ],
+                  "type": "exterior",
+                  "passable": true
+                }
+              ]
+            }
+          ],
+          "extent": {
+            "@type": "Extent",
+            "topLeft": {
+              "@type": "Point",
+              "lat": 41.873712,
+              "lon": -83.850723
+            },
+            "bottomRight": {
+              "@type": "Point",
+              "lat": 41.866639,
+              "lon": -83.841255
+            }
+          },
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "fieldOperation",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC0yOnNlZWRpbmc6MjAyNg"
+            }
+          ],
+          "active": false,
+          "irrigated": false,
+          "archived": false,
+          "signalType": "dtiSignalTypeRTK"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OmhhcnZlc3Q6MjAyNg/measurementTypes"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OmhhcnZlc3Q6MjAyNg/measurementTypes"
+            }
+          ],
+          "total": 2,
+          "values": [
+            {
+              "@type": "FieldOperationMeasurement",
+              "measurementName": "HarvestYieldResult",
+              "measurementCategory": "Result",
+              "area": {
+                "@type": "EventMeasurement",
+                "value": 74.3,
+                "unitId": "ac"
+              },
+              "yield": {
+                "@type": "EventMeasurement",
+                "value": 12099.8,
+                "unitId": "bu"
+              },
+              "averageYield": {
+                "@type": "EventMeasurement",
+                "value": 162.85,
+                "unitId": "bu1ac-1"
+              },
+              "averageMoisture": {
+                "@type": "EventMeasurement",
+                "value": 18.4,
+                "unitId": "prcnt"
+              }
+            },
+            {
+              "@type": "FieldOperationMeasurement",
+              "measurementName": "HarvestMoistureResult",
+              "measurementCategory": "Result",
+              "area": {
+                "@type": "EventMeasurement",
+                "value": 74.3,
+                "unitId": "ac"
+              },
+              "averageMoisture": {
+                "@type": "EventMeasurement",
+                "value": 18.4,
+                "unitId": "prcnt"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OmhhcnZlc3Q6MjAyNg/boundary"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "@type": "Boundary",
+          "name": "Brenner West 80 harvest 2026 worked area",
+          "sourceType": "Auto",
+          "createdTime": "2026-03-02T15:40:11Z",
+          "modifiedTime": "2026-03-02T15:41:15.205Z",
+          "area": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 29.85,
+            "unit": "ha"
+          },
+          "workableArea": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 29.85,
+            "unit": "ha"
+          },
+          "multipolygons": [
+            {
+              "@type": "Polygon",
+              "rings": [
+                {
+                  "@type": "Ring",
+                  "points": [
+                    {
+                      "@type": "Point",
+                      "lat": 41.830528,
+                      "lon": -83.821499
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.830528,
+                      "lon": -83.81688
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.837575,
+                      "lon": -83.81688
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.837575,
+                      "lon": -83.821499
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.830528,
+                      "lon": -83.821499
+                    }
+                  ],
+                  "type": "exterior",
+                  "passable": true
+                }
+              ]
+            }
+          ],
+          "extent": {
+            "@type": "Extent",
+            "topLeft": {
+              "@type": "Point",
+              "lat": 41.837575,
+              "lon": -83.821499
+            },
+            "bottomRight": {
+              "@type": "Point",
+              "lat": 41.830528,
+              "lon": -83.81688
+            }
+          },
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "fieldOperation",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OmhhcnZlc3Q6MjAyNg"
+            }
+          ],
+          "active": false,
+          "irrigated": false,
+          "archived": false,
+          "signalType": "dtiSignalTypeRTK"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OnNlZWRpbmc6MjAyNg/measurementTypes"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OnNlZWRpbmc6MjAyNg/measurementTypes"
+            }
+          ],
+          "total": 1,
+          "values": [
+            {
+              "@type": "FieldOperationMeasurement",
+              "measurementName": "SeedingRateResult",
+              "measurementCategory": "Result",
+              "area": {
+                "@type": "EventMeasurement",
+                "value": 74.4,
+                "unitId": "ac"
+              },
+              "averageMaterial": {
+                "@type": "EventMeasurement",
+                "value": 34000,
+                "unitId": "seeds1ac-1"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OnNlZWRpbmc6MjAyNg/boundary"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "@type": "Boundary",
+          "name": "Brenner West 80 seeding 2026 worked area",
+          "sourceType": "Auto",
+          "createdTime": "2026-03-02T15:40:11Z",
+          "modifiedTime": "2026-03-02T15:41:15.205Z",
+          "area": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 29.97,
+            "unit": "ha"
+          },
+          "workableArea": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 29.97,
+            "unit": "ha"
+          },
+          "multipolygons": [
+            {
+              "@type": "Polygon",
+              "rings": [
+                {
+                  "@type": "Ring",
+                  "points": [
+                    {
+                      "@type": "Point",
+                      "lat": 41.830515,
+                      "lon": -83.821499
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.830515,
+                      "lon": -83.81688
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.837588,
+                      "lon": -83.81688
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.837588,
+                      "lon": -83.821499
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.830515,
+                      "lon": -83.821499
+                    }
+                  ],
+                  "type": "exterior",
+                  "passable": true
+                }
+              ]
+            }
+          ],
+          "extent": {
+            "@type": "Extent",
+            "topLeft": {
+              "@type": "Point",
+              "lat": 41.837588,
+              "lon": -83.821499
+            },
+            "bottomRight": {
+              "@type": "Point",
+              "lat": 41.830515,
+              "lon": -83.81688
+            }
+          },
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "fieldOperation",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtYmxpc3NmaWVsZC02OnNlZWRpbmc6MjAyNg"
+            }
+          ],
+          "active": false,
+          "irrigated": false,
+          "archived": false,
+          "signalType": "dtiSignalTypeRTK"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OmhhcnZlc3Q6MjAyNg/measurementTypes"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OmhhcnZlc3Q6MjAyNg/measurementTypes"
+            }
+          ],
+          "total": 2,
+          "values": [
+            {
+              "@type": "FieldOperationMeasurement",
+              "measurementName": "HarvestYieldResult",
+              "measurementCategory": "Result",
+              "area": {
+                "@type": "EventMeasurement",
+                "value": 117.1,
+                "unitId": "ac"
+              },
+              "yield": {
+                "@type": "EventMeasurement",
+                "value": 20280.5,
+                "unitId": "bu"
+              },
+              "averageYield": {
+                "@type": "EventMeasurement",
+                "value": 173.19,
+                "unitId": "bu1ac-1"
+              },
+              "averageMoisture": {
+                "@type": "EventMeasurement",
+                "value": 18.4,
+                "unitId": "prcnt"
+              }
+            },
+            {
+              "@type": "FieldOperationMeasurement",
+              "measurementName": "HarvestMoistureResult",
+              "measurementCategory": "Result",
+              "area": {
+                "@type": "EventMeasurement",
+                "value": 117.1,
+                "unitId": "ac"
+              },
+              "averageMoisture": {
+                "@type": "EventMeasurement",
+                "value": 18.4,
+                "unitId": "prcnt"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OmhhcnZlc3Q6MjAyNg/boundary"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "@type": "Boundary",
+          "name": "Juniper Hill Upham 160 harvest 2026 worked area",
+          "sourceType": "Auto",
+          "createdTime": "2026-03-02T15:40:11Z",
+          "modifiedTime": "2026-03-02T15:41:15.205Z",
+          "area": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 47.69,
+            "unit": "ha"
+          },
+          "workableArea": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 47.69,
+            "unit": "ha"
+          },
+          "multipolygons": [
+            {
+              "@type": "Polygon",
+              "rings": [
+                {
+                  "@type": "Ring",
+                  "points": [
+                    {
+                      "@type": "Point",
+                      "lat": 41.881141,
+                      "lon": -83.763316
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.881141,
+                      "lon": -83.755932
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.888188,
+                      "lon": -83.755932
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.888188,
+                      "lon": -83.763316
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.881141,
+                      "lon": -83.763316
+                    }
+                  ],
+                  "type": "exterior",
+                  "passable": true
+                }
+              ]
+            }
+          ],
+          "extent": {
+            "@type": "Extent",
+            "topLeft": {
+              "@type": "Point",
+              "lat": 41.888188,
+              "lon": -83.763316
+            },
+            "bottomRight": {
+              "@type": "Point",
+              "lat": 41.881141,
+              "lon": -83.755932
+            }
+          },
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "fieldOperation",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OmhhcnZlc3Q6MjAyNg"
+            }
+          ],
+          "active": false,
+          "irrigated": false,
+          "archived": false,
+          "signalType": "dtiSignalTypeRTK"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OnNlZWRpbmc6MjAyNg/measurementTypes"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OnNlZWRpbmc6MjAyNg/measurementTypes"
+            }
+          ],
+          "total": 1,
+          "values": [
+            {
+              "@type": "FieldOperationMeasurement",
+              "measurementName": "SeedingRateResult",
+              "measurementCategory": "Result",
+              "area": {
+                "@type": "EventMeasurement",
+                "value": 152.3,
+                "unitId": "ac"
+              },
+              "averageMaterial": {
+                "@type": "EventMeasurement",
+                "value": 34000,
+                "unitId": "seeds1ac-1"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OnNlZWRpbmc6MjAyNg/boundary"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "@type": "Boundary",
+          "name": "Juniper Hill Upham 160 seeding 2026 worked area",
+          "sourceType": "Auto",
+          "createdTime": "2026-03-02T15:40:11Z",
+          "modifiedTime": "2026-03-02T15:41:15.205Z",
+          "area": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 61.38,
+            "unit": "ha"
+          },
+          "workableArea": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 61.38,
+            "unit": "ha"
+          },
+          "multipolygons": [
+            {
+              "@type": "Polygon",
+              "rings": [
+                {
+                  "@type": "Ring",
+                  "points": [
+                    {
+                      "@type": "Point",
+                      "lat": 41.881128,
+                      "lon": -83.763316
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.881128,
+                      "lon": -83.753848
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.888202,
+                      "lon": -83.753848
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.888202,
+                      "lon": -83.763316
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.881128,
+                      "lon": -83.763316
+                    }
+                  ],
+                  "type": "exterior",
+                  "passable": true
+                }
+              ]
+            }
+          ],
+          "extent": {
+            "@type": "Extent",
+            "topLeft": {
+              "@type": "Point",
+              "lat": 41.888202,
+              "lon": -83.763316
+            },
+            "bottomRight": {
+              "@type": "Point",
+              "lat": 41.881128,
+              "lon": -83.753848
+            }
+          },
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "fieldOperation",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy01OnNlZWRpbmc6MjAyNg"
+            }
+          ],
+          "active": false,
+          "irrigated": false,
+          "archived": false,
+          "signalType": "dtiSignalTypeRTK"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OmhhcnZlc3Q6MjAyNg/measurementTypes"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OmhhcnZlc3Q6MjAyNg/measurementTypes"
+            }
+          ],
+          "total": 2,
+          "values": [
+            {
+              "@type": "FieldOperationMeasurement",
+              "measurementName": "HarvestYieldResult",
+              "measurementCategory": "Result",
+              "area": {
+                "@type": "EventMeasurement",
+                "value": 73.4,
+                "unitId": "ac"
+              },
+              "yield": {
+                "@type": "EventMeasurement",
+                "value": 11366.7,
+                "unitId": "bu"
+              },
+              "averageYield": {
+                "@type": "EventMeasurement",
+                "value": 154.86,
+                "unitId": "bu1ac-1"
+              },
+              "averageMoisture": {
+                "@type": "EventMeasurement",
+                "value": 18.4,
+                "unitId": "prcnt"
+              }
+            },
+            {
+              "@type": "FieldOperationMeasurement",
+              "measurementName": "HarvestMoistureResult",
+              "measurementCategory": "Result",
+              "area": {
+                "@type": "EventMeasurement",
+                "value": 73.4,
+                "unitId": "ac"
+              },
+              "averageMoisture": {
+                "@type": "EventMeasurement",
+                "value": 18.4,
+                "unitId": "prcnt"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OmhhcnZlc3Q6MjAyNg/boundary"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "@type": "Boundary",
+          "name": "Juniper Hill Fairbanks 80 harvest 2026 worked area",
+          "sourceType": "Auto",
+          "createdTime": "2026-03-02T15:40:11Z",
+          "modifiedTime": "2026-03-02T15:41:15.205Z",
+          "area": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 29.83,
+            "unit": "ha"
+          },
+          "workableArea": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 29.83,
+            "unit": "ha"
+          },
+          "multipolygons": [
+            {
+              "@type": "Polygon",
+              "rings": [
+                {
+                  "@type": "Ring",
+                  "points": [
+                    {
+                      "@type": "Point",
+                      "lat": 41.888472,
+                      "lon": -83.802087
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.888472,
+                      "lon": -83.792655
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.891923,
+                      "lon": -83.792655
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.891923,
+                      "lon": -83.802087
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.888472,
+                      "lon": -83.802087
+                    }
+                  ],
+                  "type": "exterior",
+                  "passable": true
+                }
+              ]
+            }
+          ],
+          "extent": {
+            "@type": "Extent",
+            "topLeft": {
+              "@type": "Point",
+              "lat": 41.891923,
+              "lon": -83.802087
+            },
+            "bottomRight": {
+              "@type": "Point",
+              "lat": 41.888472,
+              "lon": -83.792655
+            }
+          },
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "fieldOperation",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OmhhcnZlc3Q6MjAyNg"
+            }
+          ],
+          "active": false,
+          "irrigated": false,
+          "archived": false,
+          "signalType": "dtiSignalTypeRTK"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OnNlZWRpbmc6MjAyNg/measurementTypes"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OnNlZWRpbmc6MjAyNg/measurementTypes"
+            }
+          ],
+          "total": 1,
+          "values": [
+            {
+              "@type": "FieldOperationMeasurement",
+              "measurementName": "SeedingRateResult",
+              "measurementCategory": "Result",
+              "area": {
+                "@type": "EventMeasurement",
+                "value": 74.3,
+                "unitId": "ac"
+              },
+              "averageMaterial": {
+                "@type": "EventMeasurement",
+                "value": 34000,
+                "unitId": "seeds1ac-1"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OnNlZWRpbmc6MjAyNg/boundary"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "@type": "Boundary",
+          "name": "Juniper Hill Fairbanks 80 seeding 2026 worked area",
+          "sourceType": "Auto",
+          "createdTime": "2026-03-02T15:40:11Z",
+          "modifiedTime": "2026-03-02T15:41:15.205Z",
+          "area": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 29.94,
+            "unit": "ha"
+          },
+          "workableArea": {
+            "@type": "MeasurementAsDouble",
+            "valueAsDouble": 29.94,
+            "unit": "ha"
+          },
+          "multipolygons": [
+            {
+              "@type": "Polygon",
+              "rings": [
+                {
+                  "@type": "Ring",
+                  "points": [
+                    {
+                      "@type": "Point",
+                      "lat": 41.888472,
+                      "lon": -83.802105
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.888472,
+                      "lon": -83.792637
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.891923,
+                      "lon": -83.792637
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.891923,
+                      "lon": -83.802105
+                    },
+                    {
+                      "@type": "Point",
+                      "lat": 41.888472,
+                      "lon": -83.802105
+                    }
+                  ],
+                  "type": "exterior",
+                  "passable": true
+                }
+              ]
+            }
+          ],
+          "extent": {
+            "@type": "Extent",
+            "topLeft": {
+              "@type": "Point",
+              "lat": 41.891923,
+              "lon": -83.802105
+            },
+            "bottomRight": {
+              "@type": "Point",
+              "lat": 41.888472,
+              "lon": -83.792637
+            }
+          },
+          "links": [
+            {
+              "@type": "Link",
+              "rel": "fieldOperation",
+              "uri": "https://sandboxapi.deere.com/platform/fieldOperations/cmVwbGF5LWZpZWxkb3A6ZmllbGQtcGV0ZXJzYnVyZy03OnNlZWRpbmc6MjAyNg"
+            }
+          ],
+          "active": false,
+          "irrigated": false,
+          "archived": false,
+          "signalType": "dtiSignalTypeRTK"
+        }
+      }
+    }
+  ]
+}

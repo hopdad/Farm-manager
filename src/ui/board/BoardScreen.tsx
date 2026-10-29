@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { SessionChip } from '../../app/login/_components/SessionChip';
 import { FieldPanel, type FieldPanelMap } from '../fields/FieldPanel';
+import { FleetPanel } from '../fleet/FleetPanel';
 import type { FleetFrame } from '../map/fleet/model';
 import { KIND_COLORS, KIND_LABELS } from '../map/fleet/style';
 import { type FleetStatus, useFleet } from '../map/fleet/useFleet';
@@ -190,6 +191,13 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
           flyTo={flyTo}
           onFieldTap={setFieldId}
           onMapReady={setMap}
+        />
+        <FleetPanel
+          variant={variant}
+          onLocate={(m) => {
+            setSelectedId(m.id);
+            setFlyTo({ lng: m.lng, lat: m.lat, nonce: Date.now() });
+          }}
         />
         {selected && variant === 'wall' && (
           <MachineCard m={selected} onClose={() => setSelectedId(null)} />

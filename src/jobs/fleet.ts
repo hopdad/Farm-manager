@@ -10,6 +10,11 @@
  * turns the trucks stale on the board), plus an `admin`/`sync.status` per claimed step.
  * Vendor ids map to machines through ingest.external_refs (seeded by `simExternalRefs`);
  * unmapped vehicles are skipped and logged, never invented.
+ *
+ * M1 1a: every NEW fix also runs geofence enter/exit detection in the same per-event
+ * transaction (./geofences.ts → farm.geofence_visits), and `replay` mode (CONNECTOR_DEERE /
+ * CONNECTOR_ELD=replay) runs the same clients on the doc-derived fixtures, time-shifted to now
+ * (Samsara through SamsaraClient.forMode, Deere through DeereClient.forReplay: no OAuth).
  */
 import { type Config, getConfig } from '../config';
 import { DeereClient } from '../connectors/deere/client';
@@ -46,6 +51,7 @@ import {
 } from '../db/queries/fleet';
 import type { StaleThresholds } from '../domain/fleet';
 import { publish } from '../platform/realtime/publish';
+import { detectGeofenceVisits } from './geofences';
 import type { JobContext, JobResult } from './types';
 
 /** What the fleet jobs read from config (tests pass their own). */
@@ -138,10 +144,16 @@ function tickAfterRun(stale: StaleThresholds) {
   };
 }
 
+/**
+ * One fix: farm.positions + machine_state, then geofence enter/exit for a NEW fix in the same
+ * per-event transaction (src/jobs/geofences.ts), so a fix and its visits commit together.
+ */
 function positionsUpsert(resolve: ReturnType<typeof machineResolver>) {
   return async (tx: Executor, p: NormalizedPosition, sctx: SyncContext): Promise<void> => {
     const id = await resolve(tx, sctx, p.source, p.sourceOrg, p.externalMachineId);
-    if (id) await upsertPosition(tx, id, p);
+    if (!id) return;
+    const stored = await upsertPosition(tx, id, p);
+    if (stored.inserted) await detectGeofenceVisits(tx, id, p.ts);
   };
 }
 
@@ -241,6 +253,10 @@ export function createFleetDeereJob(opts: FleetJobOptions = {}) {
       stream: DEERE_STREAM,
       mode,
       poll: (cursor) => {
+        if (!client && mode === 'replay') {
+          // Replay (contracts-m1 §10): the doc-derived fixtures, no OAuth.
+          client = DeereClient.forReplay(cfg, http);
+        }
         if (!client) {
           const endpoints = deereEndpoints(mode, cfg);
           client = new DeereClient({

@@ -1,0 +1,133 @@
+{
+  "format": 1,
+  "source": "deere",
+  "stream": "organizations",
+  "kind": "doc-derived",
+  "reference": "https://developer.deere.com/dev-docs/machine-locations (GET /machines/{principalId}/breadcrumbs, Breadcrumb, MeasurementAsDouble/Integer, nextPage paging); https://developer.deere.com/dev-docs/organizations; org `machines` link as recorded in RealmFive/my_john_deere_api test/support/vcr/get_organizations.yml. Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "basePath": "/platform",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations"
+            }
+          ],
+          "total": 3,
+          "values": [
+            {
+              "@type": "Organization",
+              "name": "Halvorsen Bros.",
+              "type": "customer",
+              "member": true,
+              "id": "org-customer-1",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "machines",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/machines"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fields",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flags",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/flags"
+                }
+              ]
+            },
+            {
+              "@type": "Organization",
+              "name": "Simulated org org-customer-2",
+              "type": "customer",
+              "member": true,
+              "id": "org-customer-2",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "machines",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/machines"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fields",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flags",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/flags"
+                }
+              ]
+            },
+            {
+              "@type": "Organization",
+              "name": "Adrian",
+              "type": "customer",
+              "member": true,
+              "id": "org-home",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "machines",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/machines"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fields",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flags",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flags"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

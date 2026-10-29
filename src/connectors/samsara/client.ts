@@ -6,7 +6,12 @@
  * are ready right now (runSyncStep keeps polling while it is true, within the job budget).
  * The stored cursor is the endCursor string; an empty endCursor keeps the previous one.
  */
-import { type ConnectorConfig, type SamsaraEndpoint, samsaraEndpoint } from '../endpoints';
+import {
+  type ConnectorConfig,
+  replayFetch,
+  type SamsaraEndpoint,
+  samsaraEndpoint,
+} from '../endpoints';
 import { type VendorHttpOptions, vendorJson } from '../http';
 import type { Mode, PollResult, PositionSource, RawItem, VehicleStatsSource } from '../types';
 import {
@@ -36,7 +41,17 @@ export class SamsaraClient {
     this.http = http;
   }
 
+  /**
+   * The client for a connector mode. Replay (contracts-m1 §10) is this same client with the
+   * fixture transport (src/connectors/samsara/replay.ts), time-shifted on the job's clock.
+   */
   static forMode(mode: Mode, cfg: ConnectorConfig, http: SamsaraHttpOptions = {}): SamsaraClient {
+    if (mode === 'replay') {
+      return new SamsaraClient(samsaraEndpoint(mode, cfg), {
+        ...http,
+        fetch: replayFetch('samsara', { now: http.now }),
+      });
+    }
     return new SamsaraClient(samsaraEndpoint(mode, cfg), http);
   }
 

@@ -1,0 +1,2202 @@
+{
+  "format": 1,
+  "source": "deere",
+  "stream": "fields",
+  "kind": "doc-derived",
+  "reference": "https://developer.deere.com/dev-docs/fields (GET /organizations/{orgId}/fields, Field and its links); recorded shape: RealmFive/my_john_deere_api test/support/vcr/get_field.yml. Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "basePath": "/platform",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-customer-1/fields"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields"
+            }
+          ],
+          "total": 5,
+          "values": [
+            {
+              "@type": "Field",
+              "name": "Halvorsen Redfield 80",
+              "archived": false,
+              "id": "658ef263-f082-5c18-ba62-b7201b69aebc",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/658ef263-f082-5c18-ba62-b7201b69aebc"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/658ef263-f082-5c18-ba62-b7201b69aebc/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/658ef263-f082-5c18-ba62-b7201b69aebc/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/658ef263-f082-5c18-ba62-b7201b69aebc/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/658ef263-f082-5c18-ba62-b7201b69aebc/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/658ef263-f082-5c18-ba62-b7201b69aebc/boundaries/7a74fd8f-ba96-5aff-9509-d643556475c2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/658ef263-f082-5c18-ba62-b7201b69aebc/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Halvorsen Iverson 80",
+              "archived": false,
+              "id": "1ad4195f-5136-5223-9354-1629af21ae94",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/1ad4195f-5136-5223-9354-1629af21ae94"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/1ad4195f-5136-5223-9354-1629af21ae94/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/1ad4195f-5136-5223-9354-1629af21ae94/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/1ad4195f-5136-5223-9354-1629af21ae94/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/1ad4195f-5136-5223-9354-1629af21ae94/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/1ad4195f-5136-5223-9354-1629af21ae94/boundaries/1aa1ae71-e82f-51d0-85fb-116157d8427b"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/1ad4195f-5136-5223-9354-1629af21ae94/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Halvorsen Iverson 160",
+              "archived": false,
+              "id": "48f84647-1387-5b1a-872d-c1415c47567f",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/48f84647-1387-5b1a-872d-c1415c47567f"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/48f84647-1387-5b1a-872d-c1415c47567f/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/48f84647-1387-5b1a-872d-c1415c47567f/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/48f84647-1387-5b1a-872d-c1415c47567f/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/48f84647-1387-5b1a-872d-c1415c47567f/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/48f84647-1387-5b1a-872d-c1415c47567f/boundaries/58f9adcd-0130-576a-a3af-8e532fed927a"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/48f84647-1387-5b1a-872d-c1415c47567f/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Halvorsen Wexley 160",
+              "archived": false,
+              "id": "903599de-1cac-5557-9c39-07ca36e13b91",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/903599de-1cac-5557-9c39-07ca36e13b91"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/903599de-1cac-5557-9c39-07ca36e13b91/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/903599de-1cac-5557-9c39-07ca36e13b91/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/903599de-1cac-5557-9c39-07ca36e13b91/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/903599de-1cac-5557-9c39-07ca36e13b91/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/903599de-1cac-5557-9c39-07ca36e13b91/boundaries/58c4c202-8b56-5d81-86fb-c96d86842008"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/903599de-1cac-5557-9c39-07ca36e13b91/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Halvorsen Kingsley 160",
+              "archived": false,
+              "id": "0966130f-e67d-5fcc-bcd2-78e178c55ccd",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/0966130f-e67d-5fcc-bcd2-78e178c55ccd"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/0966130f-e67d-5fcc-bcd2-78e178c55ccd/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/0966130f-e67d-5fcc-bcd2-78e178c55ccd/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/0966130f-e67d-5fcc-bcd2-78e178c55ccd/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/0966130f-e67d-5fcc-bcd2-78e178c55ccd/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/0966130f-e67d-5fcc-bcd2-78e178c55ccd/boundaries/7af3d442-b42f-5e2a-8dd8-f7aa3be63fa8"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/0966130f-e67d-5fcc-bcd2-78e178c55ccd/fieldOperations"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-customer-2/fields"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields"
+            }
+          ],
+          "total": 3,
+          "values": [
+            {
+              "@type": "Field",
+              "name": "Juniper Hill Jennings 160",
+              "archived": false,
+              "id": "d9746527-5c09-5ec6-bada-9708ac4db099",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/d9746527-5c09-5ec6-bada-9708ac4db099"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/d9746527-5c09-5ec6-bada-9708ac4db099/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/d9746527-5c09-5ec6-bada-9708ac4db099/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/d9746527-5c09-5ec6-bada-9708ac4db099/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/d9746527-5c09-5ec6-bada-9708ac4db099/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/d9746527-5c09-5ec6-bada-9708ac4db099/boundaries/3388968a-4434-59c0-a9f7-31b467239deb"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/d9746527-5c09-5ec6-bada-9708ac4db099/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Juniper Hill Jennings North 160",
+              "archived": false,
+              "id": "fa48631f-77b3-53d7-ac2a-e10545731ce8",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/fa48631f-77b3-53d7-ac2a-e10545731ce8"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/fa48631f-77b3-53d7-ac2a-e10545731ce8/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/fa48631f-77b3-53d7-ac2a-e10545731ce8/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/fa48631f-77b3-53d7-ac2a-e10545731ce8/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/fa48631f-77b3-53d7-ac2a-e10545731ce8/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/fa48631f-77b3-53d7-ac2a-e10545731ce8/boundaries/4e24f701-fa7f-51c5-b190-12074bdb10b8"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/fa48631f-77b3-53d7-ac2a-e10545731ce8/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Juniper Hill Ambrose 160",
+              "archived": false,
+              "id": "eb459e68-53d9-5153-a757-80910d53ff29",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/eb459e68-53d9-5153-a757-80910d53ff29"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/eb459e68-53d9-5153-a757-80910d53ff29/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/eb459e68-53d9-5153-a757-80910d53ff29/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/eb459e68-53d9-5153-a757-80910d53ff29/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/eb459e68-53d9-5153-a757-80910d53ff29/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/eb459e68-53d9-5153-a757-80910d53ff29/boundaries/af677dae-f889-53ee-b4c1-3107eb85a5a2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/fields/eb459e68-53d9-5153-a757-80910d53ff29/fieldOperations"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-home/fields"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields"
+            },
+            {
+              "rel": "nextPage",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields;start=25;count=25"
+            }
+          ],
+          "total": 35,
+          "values": [
+            {
+              "@type": "Field",
+              "name": "Abernath South 160",
+              "archived": false,
+              "id": "3df37e9a-b738-5550-81a1-0a06bc27ef2a",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a/boundaries/dfb9c7e6-549e-5b78-bb77-7ed501442382"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Stanwick 80",
+              "archived": false,
+              "id": "fc44cfae-ebce-589c-b08c-635d9bf603bd",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/fc44cfae-ebce-589c-b08c-635d9bf603bd"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/fc44cfae-ebce-589c-b08c-635d9bf603bd/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/fc44cfae-ebce-589c-b08c-635d9bf603bd/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/fc44cfae-ebce-589c-b08c-635d9bf603bd/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/fc44cfae-ebce-589c-b08c-635d9bf603bd/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/fc44cfae-ebce-589c-b08c-635d9bf603bd/boundaries/9a4c0550-69d8-5e01-834f-8058dd96e6ae"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/fc44cfae-ebce-589c-b08c-635d9bf603bd/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Stanwick North 80",
+              "archived": false,
+              "id": "50c1c8b6-401d-5b72-bbaf-9dfeaba691a7",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/50c1c8b6-401d-5b72-bbaf-9dfeaba691a7"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/50c1c8b6-401d-5b72-bbaf-9dfeaba691a7/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/50c1c8b6-401d-5b72-bbaf-9dfeaba691a7/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/50c1c8b6-401d-5b72-bbaf-9dfeaba691a7/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/50c1c8b6-401d-5b72-bbaf-9dfeaba691a7/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/50c1c8b6-401d-5b72-bbaf-9dfeaba691a7/boundaries/d82a3fc0-771f-5765-a011-3b38e89293e3"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/50c1c8b6-401d-5b72-bbaf-9dfeaba691a7/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Abernath West 80",
+              "archived": false,
+              "id": "663fcf42-b673-5695-ac10-7c2287763789",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/663fcf42-b673-5695-ac10-7c2287763789"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/663fcf42-b673-5695-ac10-7c2287763789/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/663fcf42-b673-5695-ac10-7c2287763789/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/663fcf42-b673-5695-ac10-7c2287763789/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/663fcf42-b673-5695-ac10-7c2287763789/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/663fcf42-b673-5695-ac10-7c2287763789/boundaries/3d6033fd-5f2e-5c31-a0e5-3930a8c4b5a7"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/663fcf42-b673-5695-ac10-7c2287763789/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Westerholt 80",
+              "archived": false,
+              "id": "c5690a91-79a8-59d6-b960-cb2ae2ef09c1",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c5690a91-79a8-59d6-b960-cb2ae2ef09c1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c5690a91-79a8-59d6-b960-cb2ae2ef09c1/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c5690a91-79a8-59d6-b960-cb2ae2ef09c1/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c5690a91-79a8-59d6-b960-cb2ae2ef09c1/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c5690a91-79a8-59d6-b960-cb2ae2ef09c1/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c5690a91-79a8-59d6-b960-cb2ae2ef09c1/boundaries/ecf366c9-48ba-5fb2-b89e-c20609bd9e5c"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c5690a91-79a8-59d6-b960-cb2ae2ef09c1/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Vickery 80",
+              "archived": false,
+              "id": "53873dc3-eb23-54d2-89f8-185c9a6d2362",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/53873dc3-eb23-54d2-89f8-185c9a6d2362"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/53873dc3-eb23-54d2-89f8-185c9a6d2362/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/53873dc3-eb23-54d2-89f8-185c9a6d2362/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/53873dc3-eb23-54d2-89f8-185c9a6d2362/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/53873dc3-eb23-54d2-89f8-185c9a6d2362/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/53873dc3-eb23-54d2-89f8-185c9a6d2362/boundaries/0cf45e7b-f398-5c19-8391-10b4799c9ae4"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/53873dc3-eb23-54d2-89f8-185c9a6d2362/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Tillotson 160",
+              "archived": false,
+              "id": "b7dae8a8-95a4-5792-a1e1-4aca66eb9993",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b7dae8a8-95a4-5792-a1e1-4aca66eb9993"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b7dae8a8-95a4-5792-a1e1-4aca66eb9993/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b7dae8a8-95a4-5792-a1e1-4aca66eb9993/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b7dae8a8-95a4-5792-a1e1-4aca66eb9993/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b7dae8a8-95a4-5792-a1e1-4aca66eb9993/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b7dae8a8-95a4-5792-a1e1-4aca66eb9993/boundaries/5ea68798-a5b1-55a4-b4dd-58d3cdf2978d"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b7dae8a8-95a4-5792-a1e1-4aca66eb9993/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Abernath East 80",
+              "archived": false,
+              "id": "a09641b6-c3f0-55db-af84-b33b64f1ff85",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/a09641b6-c3f0-55db-af84-b33b64f1ff85"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/a09641b6-c3f0-55db-af84-b33b64f1ff85/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/a09641b6-c3f0-55db-af84-b33b64f1ff85/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/a09641b6-c3f0-55db-af84-b33b64f1ff85/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/a09641b6-c3f0-55db-af84-b33b64f1ff85/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/a09641b6-c3f0-55db-af84-b33b64f1ff85/boundaries/f02339d5-16ca-5ed8-a7cb-ad00ed9c8568"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/a09641b6-c3f0-55db-af84-b33b64f1ff85/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Bellamy 80",
+              "archived": false,
+              "id": "508a8383-12d4-54d9-97bb-d709ee5e2878",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/508a8383-12d4-54d9-97bb-d709ee5e2878"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/508a8383-12d4-54d9-97bb-d709ee5e2878/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/508a8383-12d4-54d9-97bb-d709ee5e2878/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/508a8383-12d4-54d9-97bb-d709ee5e2878/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/508a8383-12d4-54d9-97bb-d709ee5e2878/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/508a8383-12d4-54d9-97bb-d709ee5e2878/boundaries/bd9d5d39-86af-581b-97cb-1aa9fc59c0e8"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/508a8383-12d4-54d9-97bb-d709ee5e2878/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Hollinger North 160",
+              "archived": false,
+              "id": "5af32b67-a8c4-5f2a-829e-1065f4c27cb7",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7/boundaries/986a3fbb-d681-598f-888d-d1fa68057a8d"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5af32b67-a8c4-5f2a-829e-1065f4c27cb7/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Oakmont 160",
+              "archived": false,
+              "id": "8d806424-7cfb-5c25-a76b-d2591118bc29",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/8d806424-7cfb-5c25-a76b-d2591118bc29"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/8d806424-7cfb-5c25-a76b-d2591118bc29/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/8d806424-7cfb-5c25-a76b-d2591118bc29/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/8d806424-7cfb-5c25-a76b-d2591118bc29/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/8d806424-7cfb-5c25-a76b-d2591118bc29/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/8d806424-7cfb-5c25-a76b-d2591118bc29/boundaries/815798d4-f4bc-5efd-ad16-f48f11e4f97b"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/8d806424-7cfb-5c25-a76b-d2591118bc29/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Feltner 80",
+              "archived": false,
+              "id": "1128d48b-b257-597b-8db3-458b1c571b51",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/1128d48b-b257-597b-8db3-458b1c571b51"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/1128d48b-b257-597b-8db3-458b1c571b51/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/1128d48b-b257-597b-8db3-458b1c571b51/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/1128d48b-b257-597b-8db3-458b1c571b51/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/1128d48b-b257-597b-8db3-458b1c571b51/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/1128d48b-b257-597b-8db3-458b1c571b51/boundaries/e1fbd8a4-e9cf-5b41-8cb4-eece2da38898"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/1128d48b-b257-597b-8db3-458b1c571b51/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Hollinger Quarry 160",
+              "archived": false,
+              "id": "9f158e5e-88f2-5e83-8def-90e705851293",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9f158e5e-88f2-5e83-8def-90e705851293"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9f158e5e-88f2-5e83-8def-90e705851293/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9f158e5e-88f2-5e83-8def-90e705851293/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9f158e5e-88f2-5e83-8def-90e705851293/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9f158e5e-88f2-5e83-8def-90e705851293/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9f158e5e-88f2-5e83-8def-90e705851293/boundaries/a9f85cc6-985b-5f83-b2f9-a113841d01e7"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9f158e5e-88f2-5e83-8def-90e705851293/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Brenner West 80",
+              "archived": false,
+              "id": "836fbb0b-33f4-5c83-ac71-e3d49cd4c07d",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d/boundaries/a816678e-21d3-5c84-a1d1-8a6bcfcf3dfb"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/836fbb0b-33f4-5c83-ac71-e3d49cd4c07d/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Brenner South 160",
+              "archived": false,
+              "id": "479c7862-1877-52ed-9157-a2cdcfeab7b4",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/479c7862-1877-52ed-9157-a2cdcfeab7b4"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/479c7862-1877-52ed-9157-a2cdcfeab7b4/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/479c7862-1877-52ed-9157-a2cdcfeab7b4/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/479c7862-1877-52ed-9157-a2cdcfeab7b4/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/479c7862-1877-52ed-9157-a2cdcfeab7b4/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/479c7862-1877-52ed-9157-a2cdcfeab7b4/boundaries/23a36719-c86e-5ac5-90c4-668f25f7d688"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/479c7862-1877-52ed-9157-a2cdcfeab7b4/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Hollinger South 160",
+              "archived": false,
+              "id": "c3e198b0-af6a-53da-a2a2-fa293ca5f9d8",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c3e198b0-af6a-53da-a2a2-fa293ca5f9d8"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c3e198b0-af6a-53da-a2a2-fa293ca5f9d8/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c3e198b0-af6a-53da-a2a2-fa293ca5f9d8/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c3e198b0-af6a-53da-a2a2-fa293ca5f9d8/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c3e198b0-af6a-53da-a2a2-fa293ca5f9d8/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c3e198b0-af6a-53da-a2a2-fa293ca5f9d8/boundaries/4a2c2aec-0e8c-5452-864e-e2c650901e37"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c3e198b0-af6a-53da-a2a2-fa293ca5f9d8/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Lindqvist South 80",
+              "archived": false,
+              "id": "86a8630d-19f7-5665-95fe-f1ff098b3f62",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/86a8630d-19f7-5665-95fe-f1ff098b3f62"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/86a8630d-19f7-5665-95fe-f1ff098b3f62/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/86a8630d-19f7-5665-95fe-f1ff098b3f62/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/86a8630d-19f7-5665-95fe-f1ff098b3f62/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/86a8630d-19f7-5665-95fe-f1ff098b3f62/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/86a8630d-19f7-5665-95fe-f1ff098b3f62/boundaries/a37e07f1-cbe4-5f58-a2a8-c86d9d3299ea"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/86a8630d-19f7-5665-95fe-f1ff098b3f62/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Gilchrist 80",
+              "archived": false,
+              "id": "012a06b2-fcb9-5382-89de-e4c7440ae5c1",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/012a06b2-fcb9-5382-89de-e4c7440ae5c1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/012a06b2-fcb9-5382-89de-e4c7440ae5c1/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/012a06b2-fcb9-5382-89de-e4c7440ae5c1/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/012a06b2-fcb9-5382-89de-e4c7440ae5c1/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/012a06b2-fcb9-5382-89de-e4c7440ae5c1/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/012a06b2-fcb9-5382-89de-e4c7440ae5c1/boundaries/3931c48f-fa06-54d3-b605-8e93e77ff74a"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/012a06b2-fcb9-5382-89de-e4c7440ae5c1/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Lindqvist North 160",
+              "archived": false,
+              "id": "f90b28ac-ba51-5c1a-931d-2c6aa1098f62",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/f90b28ac-ba51-5c1a-931d-2c6aa1098f62"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/f90b28ac-ba51-5c1a-931d-2c6aa1098f62/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/f90b28ac-ba51-5c1a-931d-2c6aa1098f62/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/f90b28ac-ba51-5c1a-931d-2c6aa1098f62/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/f90b28ac-ba51-5c1a-931d-2c6aa1098f62/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/f90b28ac-ba51-5c1a-931d-2c6aa1098f62/boundaries/750541c3-c93b-52bb-8d3b-4689e725663f"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/f90b28ac-ba51-5c1a-931d-2c6aa1098f62/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Juniper Hill Yardley 160",
+              "archived": false,
+              "id": "cd1fa4cb-de29-5513-9134-6725acb3a1bf",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/cd1fa4cb-de29-5513-9134-6725acb3a1bf"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/cd1fa4cb-de29-5513-9134-6725acb3a1bf/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/cd1fa4cb-de29-5513-9134-6725acb3a1bf/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/cd1fa4cb-de29-5513-9134-6725acb3a1bf/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/cd1fa4cb-de29-5513-9134-6725acb3a1bf/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/cd1fa4cb-de29-5513-9134-6725acb3a1bf/boundaries/7cfb291a-5b64-54df-8c5b-f3dfcd69657c"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/cd1fa4cb-de29-5513-9134-6725acb3a1bf/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Juniper Hill Jennings 160",
+              "archived": false,
+              "id": "9acdf590-7691-59db-b5e9-ef242911134a",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9acdf590-7691-59db-b5e9-ef242911134a"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9acdf590-7691-59db-b5e9-ef242911134a/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9acdf590-7691-59db-b5e9-ef242911134a/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9acdf590-7691-59db-b5e9-ef242911134a/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9acdf590-7691-59db-b5e9-ef242911134a/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9acdf590-7691-59db-b5e9-ef242911134a/boundaries/97942d84-44ba-5a3a-a1ae-44fb30be2f3e"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9acdf590-7691-59db-b5e9-ef242911134a/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Kowalczyk 80",
+              "archived": false,
+              "id": "d6f0b3ac-95df-5fdf-a60c-a915b57db010",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d6f0b3ac-95df-5fdf-a60c-a915b57db010"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d6f0b3ac-95df-5fdf-a60c-a915b57db010/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d6f0b3ac-95df-5fdf-a60c-a915b57db010/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d6f0b3ac-95df-5fdf-a60c-a915b57db010/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d6f0b3ac-95df-5fdf-a60c-a915b57db010/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d6f0b3ac-95df-5fdf-a60c-a915b57db010/boundaries/8971279b-ae57-51ed-9297-c5d4c389c25a"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d6f0b3ac-95df-5fdf-a60c-a915b57db010/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Wojcikow East 80",
+              "archived": false,
+              "id": "b0948e12-8ee9-5ef3-8b14-40e019a71437",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b0948e12-8ee9-5ef3-8b14-40e019a71437"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b0948e12-8ee9-5ef3-8b14-40e019a71437/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b0948e12-8ee9-5ef3-8b14-40e019a71437/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b0948e12-8ee9-5ef3-8b14-40e019a71437/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b0948e12-8ee9-5ef3-8b14-40e019a71437/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b0948e12-8ee9-5ef3-8b14-40e019a71437/boundaries/fe76dd2c-a0d5-50a6-9834-34b0b6cbca89"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b0948e12-8ee9-5ef3-8b14-40e019a71437/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Juniper Hill Upham 160",
+              "archived": false,
+              "id": "deb48f24-a500-54ef-95ec-5dd9f82deeb8",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8/boundaries/a695d052-4d6b-544b-954f-fba19deb09c2"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Wojcikow North 160",
+              "archived": false,
+              "id": "596ae9b6-fb81-5dea-93e4-04d60aa8dbb4",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/596ae9b6-fb81-5dea-93e4-04d60aa8dbb4"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/596ae9b6-fb81-5dea-93e4-04d60aa8dbb4/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/596ae9b6-fb81-5dea-93e4-04d60aa8dbb4/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/596ae9b6-fb81-5dea-93e4-04d60aa8dbb4/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/596ae9b6-fb81-5dea-93e4-04d60aa8dbb4/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/596ae9b6-fb81-5dea-93e4-04d60aa8dbb4/boundaries/450d6b40-b512-5434-9489-f3633604181c"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/596ae9b6-fb81-5dea-93e4-04d60aa8dbb4/fieldOperations"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-home/fields;start=25;count=25"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields;start=25;count=25"
+            }
+          ],
+          "total": 35,
+          "values": [
+            {
+              "@type": "Field",
+              "name": "Juniper Hill Fairbanks 80",
+              "archived": false,
+              "id": "72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0/boundaries/4ca732af-f08d-5afa-97a0-0f07993dc850"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/72c6d8f0-8d70-5a6b-aea8-253a1ffd84e0/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Wojcikow Iverson 80",
+              "archived": false,
+              "id": "ff4181b5-d93e-5b92-80c6-c97437779584",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/ff4181b5-d93e-5b92-80c6-c97437779584"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/ff4181b5-d93e-5b92-80c6-c97437779584/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/ff4181b5-d93e-5b92-80c6-c97437779584/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/ff4181b5-d93e-5b92-80c6-c97437779584/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/ff4181b5-d93e-5b92-80c6-c97437779584/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/ff4181b5-d93e-5b92-80c6-c97437779584/boundaries/e81e4eae-8544-51b6-bb6a-69598f152b66"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/ff4181b5-d93e-5b92-80c6-c97437779584/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Petrakis East 80",
+              "archived": false,
+              "id": "5abd5098-830b-5518-9880-2005d14eb520",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5abd5098-830b-5518-9880-2005d14eb520"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5abd5098-830b-5518-9880-2005d14eb520/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5abd5098-830b-5518-9880-2005d14eb520/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5abd5098-830b-5518-9880-2005d14eb520/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5abd5098-830b-5518-9880-2005d14eb520/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5abd5098-830b-5518-9880-2005d14eb520/boundaries/d8f08dda-cba3-58aa-b6be-a67f40e7ff9d"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5abd5098-830b-5518-9880-2005d14eb520/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Lockwood 160",
+              "archived": false,
+              "id": "468ee580-a8a0-5ab4-b7c5-e92a5b1942b4",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/468ee580-a8a0-5ab4-b7c5-e92a5b1942b4"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/468ee580-a8a0-5ab4-b7c5-e92a5b1942b4/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/468ee580-a8a0-5ab4-b7c5-e92a5b1942b4/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/468ee580-a8a0-5ab4-b7c5-e92a5b1942b4/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/468ee580-a8a0-5ab4-b7c5-e92a5b1942b4/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/468ee580-a8a0-5ab4-b7c5-e92a5b1942b4/boundaries/82d559f5-f283-5a65-a17f-85c06738d661"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/468ee580-a8a0-5ab4-b7c5-e92a5b1942b4/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Juniper Hill Jennings North 160",
+              "archived": false,
+              "id": "d779de22-b3e1-559c-ac0d-47a08ec3aec7",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d779de22-b3e1-559c-ac0d-47a08ec3aec7"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d779de22-b3e1-559c-ac0d-47a08ec3aec7/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d779de22-b3e1-559c-ac0d-47a08ec3aec7/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d779de22-b3e1-559c-ac0d-47a08ec3aec7/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d779de22-b3e1-559c-ac0d-47a08ec3aec7/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d779de22-b3e1-559c-ac0d-47a08ec3aec7/boundaries/a59d8eec-ca55-52bb-8ae6-8f6c8f0c13a7"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d779de22-b3e1-559c-ac0d-47a08ec3aec7/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Calder 160",
+              "archived": false,
+              "id": "47659609-25ca-59be-a26f-aa2fe44cc2be",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/47659609-25ca-59be-a26f-aa2fe44cc2be"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/47659609-25ca-59be-a26f-aa2fe44cc2be/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/47659609-25ca-59be-a26f-aa2fe44cc2be/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/47659609-25ca-59be-a26f-aa2fe44cc2be/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/47659609-25ca-59be-a26f-aa2fe44cc2be/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/47659609-25ca-59be-a26f-aa2fe44cc2be/boundaries/821e8e27-3c55-5ae8-bb06-93cdfc1c3955"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/47659609-25ca-59be-a26f-aa2fe44cc2be/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Brambleton North 80",
+              "archived": false,
+              "id": "65bc89d8-1cf4-5b30-8723-869028055093",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/65bc89d8-1cf4-5b30-8723-869028055093"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/65bc89d8-1cf4-5b30-8723-869028055093/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/65bc89d8-1cf4-5b30-8723-869028055093/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/65bc89d8-1cf4-5b30-8723-869028055093/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/65bc89d8-1cf4-5b30-8723-869028055093/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/65bc89d8-1cf4-5b30-8723-869028055093/boundaries/30d3c02a-57c8-51d1-9109-faf8dd979513"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/65bc89d8-1cf4-5b30-8723-869028055093/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Petrakis West 80",
+              "archived": false,
+              "id": "28a822ab-1923-5b62-ad82-f5f731d7c0f3",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/28a822ab-1923-5b62-ad82-f5f731d7c0f3"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/28a822ab-1923-5b62-ad82-f5f731d7c0f3/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/28a822ab-1923-5b62-ad82-f5f731d7c0f3/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/28a822ab-1923-5b62-ad82-f5f731d7c0f3/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/28a822ab-1923-5b62-ad82-f5f731d7c0f3/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/28a822ab-1923-5b62-ad82-f5f731d7c0f3/boundaries/5bd117fc-f3a6-5149-940a-30f2975f38d6"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/28a822ab-1923-5b62-ad82-f5f731d7c0f3/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Brambleton Kingsley 160",
+              "archived": false,
+              "id": "eb75c5f8-c600-55e7-ab7c-7ad503e4e31b",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/eb75c5f8-c600-55e7-ab7c-7ad503e4e31b"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/eb75c5f8-c600-55e7-ab7c-7ad503e4e31b/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/eb75c5f8-c600-55e7-ab7c-7ad503e4e31b/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/eb75c5f8-c600-55e7-ab7c-7ad503e4e31b/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/eb75c5f8-c600-55e7-ab7c-7ad503e4e31b/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/eb75c5f8-c600-55e7-ab7c-7ad503e4e31b/boundaries/f851bcdc-4984-50cd-9bf4-411201fadfd4"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/eb75c5f8-c600-55e7-ab7c-7ad503e4e31b/fieldOperations"
+                }
+              ]
+            },
+            {
+              "@type": "Field",
+              "name": "Juniper Hill Ambrose 160",
+              "archived": false,
+              "id": "5046eb7d-85b2-5790-9b13-6c9310f8754a",
+              "lastModifiedTime": "2026-03-02T15:41:15.205Z",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "self",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5046eb7d-85b2-5790-9b13-6c9310f8754a"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "clients",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5046eb7d-85b2-5790-9b13-6c9310f8754a/clients"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "farms",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5046eb7d-85b2-5790-9b13-6c9310f8754a/farms"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "boundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5046eb7d-85b2-5790-9b13-6c9310f8754a/boundaries"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "simplifiedBoundaries",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5046eb7d-85b2-5790-9b13-6c9310f8754a/boundaries?simple=true"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "activeBoundary",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5046eb7d-85b2-5790-9b13-6c9310f8754a/boundaries/95fb8977-81e9-5034-a605-58afccb80996"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "fieldOperation",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5046eb7d-85b2-5790-9b13-6c9310f8754a/fieldOperations"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

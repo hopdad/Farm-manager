@@ -2,12 +2,24 @@
  * Base URLs and credentials per connector mode (plan §5: "Going live changes a base URL and
  * credentials, not code"). Sim mode is the live client against `${VENDOR_SIM_URL}/<vendor>`
  * with SIM_CREDENTIALS (src/sim/types.ts); sandbox/live use the vendor and the configured
- * credentials; replay arrives with the recorded/doc-derived fixtures (1a); off never polls.
+ * credentials; replay (contracts-m1 §10) is the live client against `replayBaseUrl(<vendor>)`
+ * (https://replay.invalid/<vendor>, never resolvable) with a fixed token, the fixture transport
+ * being added by the client (`SamsaraClient.forMode`, `DeereClient.forReplay`); off never polls.
+ * Motive has no replay fixtures until D3 picks the ELD vendor.
  */
 import type { Config } from '../config';
 import { SIM_CREDENTIALS } from '../sim/types';
 import { DEERE_AUTH_SERVER_ID } from './deere/schemas';
+import {
+  createReplayFetch,
+  type ReplayFetchOptions,
+  type ReplayFixture,
+  replayBaseUrl,
+} from './replay';
 import type { Mode } from './types';
+
+/** What replay-mode clients send as their credential (the fixture transport ignores it). */
+export const REPLAY_CREDENTIAL = 'replay-token';
 
 /** The config keys the connectors read (a subset of Config, so tests can pass their own). */
 export type ConnectorConfig = Pick<
@@ -32,7 +44,9 @@ const trim = (u: string) => u.replace(/\/+$/, '');
 
 function unsupported(vendor: string, mode: Mode): never {
   if (mode === 'replay') {
-    throw new ConnectorModeError(`${vendor}: replay fixtures arrive in slice 1a (use sim)`);
+    throw new ConnectorModeError(
+      `${vendor}: no replay fixtures yet (use sim, or ELD_VENDOR=samsara for an ELD replay)`,
+    );
   }
   throw new ConnectorModeError(`${vendor}: mode '${mode}' does not poll`);
 }
@@ -54,6 +68,8 @@ export function samsaraEndpoint(mode: Mode, cfg: ConnectorConfig): SamsaraEndpoi
         baseUrl: `${trim(cfg.VENDOR_SIM_URL)}/samsara`,
         apiToken: SIM_CREDENTIALS.samsara.apiToken,
       };
+    case 'replay':
+      return { baseUrl: replayBaseUrl('samsara'), apiToken: REPLAY_CREDENTIAL };
     case 'sandbox': // Samsara has no sandbox: a test org's token against the real API.
     case 'live':
       return {
@@ -115,6 +131,17 @@ export function deereEndpoints(mode: Mode, cfg: ConnectorConfig): DeereEndpoints
         sim: true,
       };
     }
+    case 'replay': {
+      const base = replayBaseUrl('deere');
+      return {
+        apiBase: `${base}/platform`,
+        authBase: `${base}/oauth2/${DEERE_AUTH_SERVER_ID}`,
+        clientId: 'replay',
+        clientSecret: REPLAY_CREDENTIAL,
+        redirectUri,
+        sim: false,
+      };
+    }
     case 'sandbox':
     case 'live':
       return {
@@ -131,4 +158,30 @@ export function deereEndpoints(mode: Mode, cfg: ConnectorConfig): DeereEndpoints
     default:
       return unsupported('deere', mode);
   }
+}
+
+/** Sources with replay fixtures (src/connectors/<source>/replay.ts). */
+export type ReplaySource = 'deere' | 'samsara';
+
+const REPLAY_FIXTURES: Record<ReplaySource, () => Promise<readonly ReplayFixture[]>> = {
+  deere: () => import('./deere/replay').then((m) => m.deereReplayFixtures),
+  samsara: () => import('./samsara/replay').then((m) => m.samsaraReplayFixtures),
+};
+
+/**
+ * The replay transport for `source` (createReplayFetch over its committed fixtures). The fixture
+ * module (a few hundred KB of JSON) loads on the first request, so sim and live never load it.
+ */
+export function replayFetch(
+  source: ReplaySource,
+  opts: ReplayFetchOptions & { fixtures?: readonly ReplayFixture[] } = {},
+): typeof fetch {
+  const { fixtures, ...fetchOpts } = opts;
+  let ready: Promise<typeof fetch> | null = null;
+  return async (input, init) => {
+    ready ??= (fixtures ? Promise.resolve(fixtures) : REPLAY_FIXTURES[source]()).then((f) =>
+      createReplayFetch(f, fetchOpts),
+    );
+    return (await ready)(input, init);
+  };
 }
