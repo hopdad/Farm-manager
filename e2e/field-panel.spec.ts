@@ -161,10 +161,39 @@ async function openAt(page: Page, field: Seeded): Promise<void> {
     .toContain(field.id);
 }
 
+/**
+ * Phones: a point under the open panel's bottom sheet can't be tapped (the finger lands on the
+ * sheet). Move the map so the point shows halfway between the top of the map and the sheet, as
+ * someone would pan before tapping the next field.
+ */
+async function revealAbovePanel(page: Page, lngLat: { lng: number; lat: number }): Promise<void> {
+  if (!isPhone()) return;
+  const sheet = page.getByTestId('field-panel');
+  if ((await sheet.count()) === 0) return;
+  const sheetTop = (await sheet.boundingBox())?.y;
+  const mapTop = (await page.getByTestId('war-room-map').boundingBox())?.y;
+  if (sheetTop === undefined || mapTop === undefined) return;
+  const moved = await page.evaluate(
+    ({ c, targetY }) => {
+      const m = window.__map;
+      if (!m) return false;
+      const p = m.project(c.lng, c.lat);
+      if (p.y < targetY + 40) return false;
+      const pxPerDegLat = p.y - m.project(c.lng, c.lat + 0.001).y;
+      const centre = m.center();
+      m.jumpTo({ center: [centre.lng, centre.lat - ((p.y - targetY) / pxPerDegLat) * 0.001] });
+      return true;
+    },
+    { c: lngLat, targetY: (sheetTop - mapTop) / 2 },
+  );
+  if (moved) await mapIdle(page);
+}
+
 /** Tap the map at a WGS84 point (trusted touch), once any camera move has finished. */
 async function tapAt(page: Page, lngLat: { lng: number; lat: number }): Promise<void> {
   // The panel may have moved the map to show the boundary (a 600 ms animation).
   await mapIdle(page);
+  await revealAbovePanel(page, lngLat);
   const p = await page.evaluate((c) => window.__map?.project(c.lng, c.lat), lngLat);
   if (!p) throw new Error('map not ready');
   await page.touchscreen.tap(p.x, p.y);
