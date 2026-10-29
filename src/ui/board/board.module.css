@@ -1,0 +1,258 @@
+/*
+ * /board (wall, kiosk) and /m (phone). Full-screen, touch-first: no text selection, no
+ * browser pinch or overscroll, no long-press callouts. Wall targets 72 px.
+ */
+
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0b1210;
+  color: #e7efe9;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  overscroll-behavior: none;
+  overflow: hidden;
+  --strip: 72px;
+  --font: 22px;
+}
+
+.phoneScreen {
+  --strip: 52px;
+  --font: 16px;
+}
+
+.strip {
+  flex: none;
+  height: var(--strip);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 20px;
+  background: #101a16;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  font-size: var(--font);
+  white-space: nowrap;
+}
+
+.phoneScreen .strip {
+  gap: 12px;
+  padding: 0 12px;
+}
+
+.brand {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #86efac;
+}
+
+.clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.date {
+  opacity: 0.7;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 6%);
+}
+
+.pillWarn {
+  color: #fbbf24;
+}
+
+.pillBad {
+  color: #f87171;
+}
+
+.led {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #6b7280;
+}
+
+.ledLive {
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.ledBad {
+  background: #ef4444;
+}
+
+.mapArea {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.card {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  z-index: 3;
+  min-width: 300px;
+  max-width: 420px;
+  background: rgb(11 18 16 / 92%);
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 16px;
+  padding: 16px 20px;
+  font-size: calc(var(--font) * 0.85);
+  display: grid;
+  gap: 6px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 45%);
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: calc(var(--font) * 1.15);
+  font-weight: 800;
+}
+
+.cardClose {
+  width: 72px;
+  height: 72px;
+  margin: -12px -16px -12px auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 32px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.muted {
+  opacity: 0.7;
+}
+
+.staleTag {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.downTag {
+  color: #f87171;
+  font-weight: 700;
+}
+
+/* Phone bottom sheet. */
+
+.sheet {
+  flex: none;
+  background: #101a16;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 16px 16px 0 0;
+  margin-top: -16px;
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  max-height: 32vh;
+  transition: max-height 0.2s ease;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.sheetOpen {
+  max-height: 62vh;
+}
+
+.sheetHandle {
+  flex: none;
+  height: 52px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.grip {
+  width: 44px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 35%);
+}
+
+.sheetBody {
+  overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  padding: 0 12px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.sheetDetails {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #86efac;
+  font-size: 15px;
+}
+
+.row {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 18px 64px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  background: rgb(255 255 255 / 4%);
+  color: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.rowSelected {
+  border-color: #86efac;
+}
+
+.rowDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.empty {
+  padding: 16px;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--font);
+  opacity: 0.7;
+}
