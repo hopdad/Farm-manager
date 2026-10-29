@@ -25,7 +25,7 @@ import {
   stateCookieName,
   statesMatch,
 } from '@/connectors/oauth/flow';
-import { OAuthTokenStore } from '@/connectors/oauth/token-store';
+import { OAuthTokenStore, userGrantOrg } from '@/connectors/oauth/token-store';
 import { getPool } from '@/db/client';
 
 export const dynamic = 'force-dynamic';
@@ -102,6 +102,7 @@ export async function GET(
     const store = new OAuthTokenStore({
       pool: getPool(),
       source: 'deere',
+      org: userGrantOrg(ep),
       key: tokenKey(cfg.TOKEN_ENC_KEY),
     });
     await store.save(tokens);

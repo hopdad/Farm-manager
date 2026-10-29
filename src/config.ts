@@ -126,8 +126,16 @@ const baseSchema = z.object({
   FLEET_STALE_SECONDS_DEERE: int(5, 86_400).default(600),
 
   // --- connectors -----------------------------------------------------------------------------
-  /** Vendor stand-in base URL; sim-mode clients use `${VENDOR_SIM_URL}/<vendor>`. */
-  VENDOR_SIM_URL: httpUrl.default('http://127.0.0.1:4010'),
+  /**
+   * Vendor stand-in base URL; sim-mode clients use `${VENDOR_SIM_URL}/<vendor>`. Loopback only
+   * (the stand-in never listens on the LAN, and sim-mode traffic never leaves the PC).
+   */
+  VENDOR_SIM_URL: httpUrl
+    .refine(
+      (u) => ['127.0.0.1', 'localhost', '[::1]'].includes(new URL(u).hostname),
+      'the vendor stand-in is loopback-only: use http://127.0.0.1:<port>',
+    )
+    .default('http://127.0.0.1:4010'),
   CONNECTOR_DEERE: connectorMode,
   CONNECTOR_ELD: connectorMode,
   CONNECTOR_WEATHER: connectorMode,

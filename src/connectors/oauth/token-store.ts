@@ -13,7 +13,9 @@
  * (any process) call the token endpoint, and the rest read its result.
  *
  * Deere: one row per connected Deere user with org_external_id '' (a user token sees every org
- * that approved the connection). QBO (M3) will use the realm id.
+ * that approved the connection); the stand-in's sim grant lives in its own row, SIM_GRANT_ORG,
+ * so switching CONNECTOR_DEERE between sim and sandbox/live never sends one kind of token to
+ * the other kind of server (or deletes it there). QBO (M3) will use the realm id.
  */
 import type pg from 'pg';
 import type { ConnectorSource } from '../types';
@@ -41,6 +43,14 @@ export interface TokenStore {
   refreshAfterReject(rejected: string, refresher: TokenRefresher): Promise<string | null>;
   /** Store a fresh grant. */
   save(tokens: OAuthTokens): Promise<void>;
+}
+
+/** org_external_id of the stand-in's (sim mode) user-level grant: never a real account's row. */
+export const SIM_GRANT_ORG = 'sim';
+
+/** org_external_id of the user-level grant for a client of `ep` ('' real, SIM_GRANT_ORG sim). */
+export function userGrantOrg(ep: { sim: boolean }): string {
+  return ep.sim ? SIM_GRANT_ORG : '';
 }
 
 /** The grant is gone (revoked, expired, or rotated away): a person must sign in again. */
@@ -75,7 +85,7 @@ interface Secret {
 export interface OAuthTokenStoreOptions {
   pool: pg.Pool;
   source: ConnectorSource;
-  /** org_external_id ('' for user-level grants). */
+  /** org_external_id ('' for user-level grants; userGrantOrg(ep) for Deere). */
   org?: string;
   key: Buffer;
   now?: () => Date;

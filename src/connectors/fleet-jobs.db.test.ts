@@ -13,6 +13,8 @@ import { SIM_DEERE_HOME_ORG } from '../sim/types';
 import { startVendorSim, type VendorSim } from '../sim/vendors/server';
 import { buildStubFarm, createStubSimWorld } from '../sim/vendors/stub-world';
 import { setupTestDb } from '../test/db';
+import { tokenKey } from './oauth/crypto';
+import { OAuthTokenStore, SIM_GRANT_ORG } from './oauth/token-store';
 import { listenAppEvents, seedSimFarm, testJobContext } from './testkit';
 import { SyncStepError } from './types';
 
@@ -267,5 +269,45 @@ describe('fleet.deere (sim)', () => {
     await t().admin.query(`update farm.machines set status = 'retired' where unit_no = 'S2'`);
     const after = await fleetSnapshot(t().pool, wall(), 600);
     expect(after.machines.map((m) => m.unitNo)).not.toContain('S2');
+  });
+});
+
+describe('fleet.deere keeps sim and real grants apart', () => {
+  test("a sim run never reads, sends or replaces the real account's grant", async () => {
+    const key = tokenKey(cfg.TOKEN_ENC_KEY);
+    const real = new OAuthTokenStore({ pool: t().pool, source: 'deere', key });
+    await real.save({
+      accessToken: 'REAL-ACCESS',
+      refreshToken: 'REAL-REFRESH',
+      tokenType: 'Bearer',
+      expiresAt: new Date(wall().getTime() + 3600_000),
+      refreshExpiresAt: null,
+      scopes: ['ag1', 'offline_access'],
+    });
+    // No sim grant yet: the sim client must connect its own instead of borrowing the real one.
+    await t().pool.query(
+      `delete from ingest.oauth_tokens where source = 'deere' and org_external_id = $1`,
+      [SIM_GRANT_ORG],
+    );
+    const sent: string[] = [];
+    const recording: typeof fetch = async (input, init) => {
+      const headers = new Headers(init?.headers);
+      sent.push(`${headers.get('authorization') ?? ''} ${String(init?.body ?? '')}`);
+      return fetch(input, init);
+    };
+    offset += 2 * 60_000; // new breadcrumbs to land
+    const job = createFleetDeereJob({ config: () => cfg, http: { ...http, fetch: recording } });
+    const result = await job(ctx('fleet.deere'));
+    expect(result.items).toBeGreaterThan(0);
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent.filter((s) => s.includes('REAL-'))).toEqual([]);
+    expect(await real.read()).toMatchObject({
+      accessToken: 'REAL-ACCESS',
+      refreshToken: 'REAL-REFRESH',
+    });
+    const rows = await t().pool.query<{ org: string }>(
+      `select org_external_id as org from ingest.oauth_tokens where source = 'deere' order by 1`,
+    );
+    expect(rows.rows.map((r) => r.org)).toEqual(['', SIM_GRANT_ORG]);
   });
 });

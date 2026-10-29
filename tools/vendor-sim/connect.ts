@@ -23,7 +23,7 @@ import { DeereClient } from '../../src/connectors/deere/client';
 import { deereEndpoints } from '../../src/connectors/endpoints';
 import { MotiveClient } from '../../src/connectors/motive/client';
 import { tokenKey } from '../../src/connectors/oauth/crypto';
-import { OAuthTokenStore } from '../../src/connectors/oauth/token-store';
+import { OAuthTokenStore, SIM_GRANT_ORG } from '../../src/connectors/oauth/token-store';
 import { SamsaraClient } from '../../src/connectors/samsara/client';
 import { createPool } from '../../src/db/client';
 import { isMainModule } from '../../src/lib/proc';
@@ -69,6 +69,7 @@ export async function connectSimVendors(o: ConnectSimOptions): Promise<ConnectSi
     const tokens = new OAuthTokenStore({
       pool,
       source: 'deere',
+      org: SIM_GRANT_ORG,
       key: tokenKey(cfg.TOKEN_ENC_KEY),
     });
     const had = (await tokens.read()) !== null;

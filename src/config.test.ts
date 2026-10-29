@@ -102,6 +102,17 @@ describe('parseConfig', () => {
     expect(() => parseConfig({})).toThrow(/pnpm env:init/);
   });
 
+  test('VENDOR_SIM_URL must be a loopback address', () => {
+    for (const ok of ['http://127.0.0.1:4011', 'http://localhost:4010', 'http://[::1]:4010']) {
+      expect(parseConfig({ ...base, VENDOR_SIM_URL: ok }).VENDOR_SIM_URL).toBe(ok);
+    }
+    for (const bad of ['http://192.168.1.20:4010', 'http://0.0.0.0:4010', 'https://sim.example']) {
+      expect(issues({ ...base, VENDOR_SIM_URL: bad }).join('\n')).toMatch(
+        /VENDOR_SIM_URL: the vendor stand-in is loopback-only/,
+      );
+    }
+  });
+
   test('a valid production config passes', () => {
     const c = parseConfig(prod);
     expect(c.isProduction).toBe(true);

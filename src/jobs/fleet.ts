@@ -20,7 +20,7 @@ import type { VendorHttpOptions } from '../connectors/http';
 import { MotiveClient, mapMotivePosition } from '../connectors/motive/client';
 import type { MotivePositionRaw } from '../connectors/motive/schemas';
 import { tokenKey } from '../connectors/oauth/crypto';
-import { OAuthTokenStore } from '../connectors/oauth/token-store';
+import { OAuthTokenStore, userGrantOrg } from '../connectors/oauth/token-store';
 import { SamsaraClient } from '../connectors/samsara/client';
 import { mapSamsaraPosition, mapSamsaraStat } from '../connectors/samsara/mapper';
 import type { SamsaraPositionRaw, SamsaraStatRaw } from '../connectors/samsara/schemas';
@@ -241,16 +241,20 @@ export function createFleetDeereJob(opts: FleetJobOptions = {}) {
       stream: DEERE_STREAM,
       mode,
       poll: (cursor) => {
-        client ??= new DeereClient({
-          endpoints: deereEndpoints(mode, cfg),
-          tokens: new OAuthTokenStore({
-            pool: ctx.pool,
-            source: 'deere',
-            key: tokenKey(cfg.TOKEN_ENC_KEY),
-            now: () => ctx.now(),
-          }),
-          http,
-        });
+        if (!client) {
+          const endpoints = deereEndpoints(mode, cfg);
+          client = new DeereClient({
+            endpoints,
+            tokens: new OAuthTokenStore({
+              pool: ctx.pool,
+              source: 'deere',
+              org: userGrantOrg(endpoints),
+              key: tokenKey(cfg.TOKEN_ENC_KEY),
+              now: () => ctx.now(),
+            }),
+            http,
+          });
+        }
         return client.pollLocations(cursor);
       },
       map: (raw) => mapDeereBreadcrumb(raw),
