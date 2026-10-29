@@ -2,6 +2,8 @@
  * weather.nws (plan 1b; docs/contracts-m1.md §13): every 30 min (30 s in the local demo cadence).
  * One run:
  *
+ *  0. Cells are cached per source (app.settings 'weather.grid_source'): switching
+ *     CONNECTOR_WEATHER between sim, replay and live drops them first (`switchGridSource`).
  *  1. Grid lookups (cached): fields without a cell, whose boundary moved, or looked up more than
  *     GRID_LOOKUP_MAX_AGE_DAYS ago get one. A cached cell whose outline contains the field's
  *     point is reused; otherwise `/points/{lat},{lon}` names it and, for a new cell,
@@ -44,10 +46,12 @@ import {
   fieldsNeedingGrid,
   type GridInUse,
   gridIsFresh,
+  gridSourceOf,
   gridsInUse,
   insertForecastIssue,
   pruneWeather,
   readSprayThresholds,
+  switchGridSource,
   upsertGrid,
   upsertObservation,
 } from '../db/queries/weather';
@@ -387,6 +391,13 @@ export function createWeatherNwsJob(opts: WeatherJobOptions = {}) {
       );
     }
 
+    const dropped = await switchGridSource(ctx.pool, gridSourceOf(mode));
+    if (dropped) {
+      ctx.log.info('weather source changed: cached grid cells dropped, looking them up again', {
+        dropped,
+        source: gridSourceOf(mode),
+      });
+    }
     const lookups = await lookupFieldGrids(ctx, client);
     if (lookups.failed) partial.push(`${lookups.failed} grid lookups failed`);
     const grids = await gridsInUse(ctx.pool);

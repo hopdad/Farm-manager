@@ -12,6 +12,11 @@
  *                 5 s with JOBS_DEMO_CADENCE=on (plan §1 "5 s in local demo mode")
  *   fleet.deere   every 2 min (plan §1; the real cadence is set at 1f from Deere's call budget);
  *                 15 s with JOBS_DEMO_CADENCE=on (sim only: the stand-in has no call budget)
+ *   weather.nws   every 30 min (plan §5 NWS); 30 s with JOBS_DEMO_CADENCE=on, so the sim's wind
+ *                 slider shows on the board within seconds
+ *
+ * `connector` names the mode each job talks through: the demo cadence only applies while that
+ * connector is sim, replay or off (src/jobs/schedule.ts `demoCadenceApplies`).
  */
 import { runFleetDeere, runFleetTrucks, TRUCKS_BUDGET_MS } from './fleet';
 import type { JobRegistry } from './types';
@@ -22,10 +27,21 @@ export const jobs = {
     every: '30 seconds',
     demoEvery: '5 seconds',
     budgetMs: TRUCKS_BUDGET_MS,
+    connector: 'CONNECTOR_ELD',
     run: runFleetTrucks,
   },
-  'fleet.deere': { cron: '*/2 * * * *', demoEvery: '15 seconds', run: runFleetDeere },
-  'weather.nws': { cron: '*/30 * * * *', demoEvery: '30 seconds', run: runWeatherNws },
+  'fleet.deere': {
+    cron: '*/2 * * * *',
+    demoEvery: '15 seconds',
+    connector: 'CONNECTOR_DEERE',
+    run: runFleetDeere,
+  },
+  'weather.nws': {
+    cron: '*/30 * * * *',
+    demoEvery: '30 seconds',
+    connector: 'CONNECTOR_WEATHER',
+    run: runWeatherNws,
+  },
 } satisfies JobRegistry;
 
 /** The registry as a plain lookup table: `registry[name]` is `JobDef | undefined`. */

@@ -17,7 +17,12 @@
 import pg from 'pg';
 import { getConfig } from '../../src/config';
 import { readClockPaused } from '../../src/db/settings';
-import { clockSchedule, type ValidJob, validateRegistry } from '../../src/jobs/schedule';
+import {
+  type ConnectorModes,
+  clockSchedule,
+  type ValidJob,
+  validateRegistry,
+} from '../../src/jobs/schedule';
 import type { JobHost, JobRegistry } from '../../src/jobs/types';
 import { isMainModule } from '../../src/lib/proc';
 import { type ClockLog, describeSchedule, JobClock } from './clock';
@@ -92,16 +97,17 @@ export function clockBaseUrl(publicUrl: string): string {
 
 /**
  * Validate the registry (throws one error listing every problem) and keep the given hosts.
- * With `demo` (JOBS_DEMO_CADENCE=on) a job's `demoEvery` replaces its schedule.
+ * With `demo` (JOBS_DEMO_CADENCE=on) a job's `demoEvery` replaces its schedule while its
+ * connector (`modes`, from the config) is sim, replay or off.
  */
 export function selectJobs(
   reg: JobRegistry,
   hosts: readonly JobHost[],
-  opts: { demo?: boolean } = {},
+  opts: { demo?: boolean; modes?: ConnectorModes } = {},
 ): ValidJob[] {
   return validateRegistry(reg)
     .filter((j) => hosts.includes(j.host))
-    .map((j) => ({ ...j, schedule: clockSchedule(j, opts.demo === true) }));
+    .map((j) => ({ ...j, schedule: clockSchedule(j, opts.demo === true, opts.modes) }));
 }
 
 /** Console logger; under the launcher (`--parent`) it adds no prefix (the launcher does). */
@@ -148,7 +154,7 @@ export async function main(argv: string[]): Promise<number> {
   const { registry } = await import('../../src/jobs/registry');
   const hosts = args.hosts ?? cfg.CLOCK_HOSTS;
   const demo = cfg.JOBS_DEMO_CADENCE;
-  const jobs = selectJobs(registry, hosts, { demo });
+  const jobs = selectJobs(registry, hosts, { demo, modes: cfg });
   const baseUrl = args.url ? new URL(args.url).origin : clockBaseUrl(cfg.PUBLIC_URL);
 
   const pool = new pg.Pool({

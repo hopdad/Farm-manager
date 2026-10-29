@@ -14,6 +14,7 @@
  * fixtures): the breadcrumb, field, boundary, field-operation, measurement and flag shapes in
  * src/connectors/deere/schemas.ts. Still to confirm against OUR sandbox org (below).
  */
+import { NWS_DOC_DERIVED } from './nws/doc-derived';
 import type { ConnectorSource } from './types';
 
 export interface DocDerivedItem {
@@ -44,7 +45,7 @@ export const DOC_DERIVED: readonly DocDerivedItem[] = [
     source: 'deere',
     what: 'GET /platform/machines/{principalId}/breadcrumbs?startDate&endDate',
     confirm:
-      'shapes are from the Machine Locations OpenAPI (speed {valueAsDouble, unit km1hr-1}, heading {valueAsInteger}, machineState {value}); confirm units as our org sends them, page size, whether startDate/endDate are inclusive (the client filters to its window), and move the stand-in to these shapes',
+      'shapes are from the Machine Locations OpenAPI (speed {valueAsDouble, unit km1hr-1}, heading {valueAsInteger}, machineState {value}); confirm units as our org sends them, page size, whether startDate/endDate are inclusive (the client filters to its window); the stand-in sends these shapes since M1',
     file: 'src/connectors/deere/schemas.ts, src/sim/vendors/deere/routes.ts',
   },
   {
@@ -79,4 +80,6 @@ export const DOC_DERIVED: readonly DocDerivedItem[] = [
     confirm: 'path, auth header, current_location fields (lat, lon, bearing, kph, located_at)',
     file: 'src/connectors/motive/schemas.ts',
   },
+  // NWS (1b): api.weather.gov was unreachable from the build machine; one live run confirms.
+  ...NWS_DOC_DERIVED,
 ];

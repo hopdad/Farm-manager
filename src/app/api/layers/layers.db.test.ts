@@ -38,6 +38,23 @@ describe('listMapLayers', () => {
     expect(mayViewPrivate(makeSession({ role: 'viewer' }))).toBe(true);
   });
 
+  test("a manager's parcels URL is the owners variant (its own ?v=); everyone else's is not", async () => {
+    const parcelsUrl = async (role: 'viewer' | 'driver' | 'manager' | 'owner' | null) =>
+      (await listMapLayers(t().pool, storage, { includePrivate: true, role })).layers.find(
+        (l) => l.key === 'parcels',
+      );
+    const v = await TILE_LAYERS.parcels.version(t().pool);
+    for (const role of ['manager', 'owner'] as const) {
+      expect(await parcelsUrl(role)).toMatchObject({
+        version: `${v}.o`,
+        url: `/api/tiles/parcels/{z}/{x}/{y}?v=${v}.o`,
+      });
+    }
+    for (const role of ['viewer', 'driver', null] as const) {
+      expect((await parcelsUrl(role))?.url).toBe(`/api/tiles/parcels/{z}/{x}/{y}?v=${v}`);
+    }
+  });
+
   test('pmtiles rows resolve through storage; xyz rows stay as stored', async () => {
     await t().admin.query(
       `insert into gis.map_layers (key, kind, url_or_key, version, cache_policy, minzoom, maxzoom, meta)

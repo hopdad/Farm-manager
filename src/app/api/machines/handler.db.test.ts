@@ -15,7 +15,7 @@ import {
   MAX_DOWN_REASON_CHARS,
   machineStatusResultSchema,
 } from '@/ui/fleet/contract';
-import { handleListMachines, handleSetMachineStatus, isSameOriginRequest } from './handler';
+import { handleListMachines, handleSetMachineStatus } from './handler';
 
 const t = setupTestDb(import.meta.url);
 
@@ -282,29 +282,5 @@ describe('POST /api/machines/<id>/status', () => {
     ).toBe(404);
     expect((await post(d, 'not-a-uuid', { status: 'active' })).status).toBe(404);
     expect((await post(d, retired, { status: 'down', reason: 'x' })).status).toBe(409);
-  });
-});
-
-describe('isSameOriginRequest', () => {
-  const req = (headers: Record<string, string>) =>
-    new Request('http://192.168.1.20:3000/api/machines/x/status', { method: 'POST', headers });
-  test('no Origin (not a browser page) passes; same host passes; others fail', () => {
-    expect(isSameOriginRequest(req({}))).toBe(true);
-    expect(
-      isSameOriginRequest(req({ origin: 'http://192.168.1.20:3000', host: '192.168.1.20:3000' })),
-    ).toBe(true);
-    expect(
-      isSameOriginRequest(
-        req({
-          origin: 'https://farm.example',
-          host: 'internal',
-          'x-forwarded-host': 'farm.example',
-        }),
-      ),
-    ).toBe(true);
-    expect(
-      isSameOriginRequest(req({ origin: 'http://evil.example', host: '192.168.1.20:3000' })),
-    ).toBe(false);
-    expect(isSameOriginRequest(req({ origin: 'garbage', host: '192.168.1.20:3000' }))).toBe(false);
   });
 });

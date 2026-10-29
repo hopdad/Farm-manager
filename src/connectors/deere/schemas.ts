@@ -135,7 +135,7 @@ export const deereBreadcrumbSchema = z.looseObject({
   speed: z.union([deereMeasurementAsDoubleSchema, legacyMeasurementSchema]).optional(),
   /** Heading in degrees; documented `{ valueAsInteger }`. */
   heading: z.union([deereMeasurementAsIntegerSchema, legacyMeasurementSchema]).optional(),
-  /** Documented `{ '@type': 'Breadcrumb$MachineState', value: 'Working' }`; the stand-in sends a string. */
+  /** Documented `{ '@type': 'Breadcrumb$MachineState', value: 'Working' }` (the stand-in too); a bare string is accepted. */
   machineState: z
     .union([
       z.string(),

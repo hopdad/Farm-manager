@@ -7,7 +7,12 @@
 import { type Executor, exec, toDate } from '../../../db/exec';
 import { JOB_LEASE_SOURCE } from '../../../db/leases';
 import { readClockPaused } from '../../../db/settings';
-import { type ValidJob, validateRegistry } from '../../../jobs/schedule';
+import {
+  type ConnectorModes,
+  demoCadenceApplies,
+  type ValidJob,
+  validateRegistry,
+} from '../../../jobs/schedule';
 import type { JobRegistry } from '../../../jobs/types';
 
 export interface RawCounts {
@@ -98,18 +103,26 @@ function counters(extra: unknown): Record<string, number> {
   return out;
 }
 
-/** 'every 30 s' or '<cron> UTC'; with the demo cadence on: 'every 5 s (demo; every 30 s)'. */
-export function describeJobSchedule(j: ValidJob, opts: { demo?: boolean } = {}): string {
+/**
+ * 'every 30 s' or '<cron> UTC'; with the demo cadence on (and the job's connector sim, replay or
+ * off): 'every 5 s (demo; every 30 s)'.
+ */
+export function describeJobSchedule(
+  j: ValidJob,
+  opts: { demo?: boolean; modes?: ConnectorModes } = {},
+): string {
   const text = (s: ValidJob['schedule']) =>
     s.kind === 'every' ? `every ${s.seconds} s` : `${s.expr} UTC`;
-  if (opts.demo && j.demoSchedule) return `${text(j.demoSchedule)} (demo; ${text(j.schedule)})`;
+  if (demoCadenceApplies(j, opts.demo === true, opts.modes) && j.demoSchedule) {
+    return `${text(j.demoSchedule)} (demo; ${text(j.schedule)})`;
+  }
   return text(j.schedule);
 }
 
 export async function loadConnectorsSnapshot(
   ex: Executor,
   registry: JobRegistry,
-  opts: { demoCadence?: boolean } = {},
+  opts: { demoCadence?: boolean; modes?: ConnectorModes } = {},
 ): Promise<ConnectorsSnapshot> {
   let valid: ValidJob[] = [];
   let registryError: string | null = null;
@@ -248,7 +261,7 @@ export async function loadConnectorsSnapshot(
     return {
       name,
       registered: !!v,
-      schedule: v ? describeJobSchedule(v, { demo: opts.demoCadence }) : null,
+      schedule: v ? describeJobSchedule(v, { demo: opts.demoCadence, modes: opts.modes }) : null,
       host: v?.host ?? null,
       budgetMs: v?.budgetMs ?? null,
       running: jobLeases.get(name) ?? false,

@@ -15,6 +15,12 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // pg's optional native binding must never be bundled.
   serverExternalPackages: ['pg', 'pg-native'],
+  experimental: {
+    // Plan §1: request bodies up to 4 MB (Vercel's function limit is 4.5 MB). The admin uploads
+    // (/admin/fields boundary zips, crop-history and contacts CSVs) are server actions, whose
+    // default is 1 MB; bigger files go through the CLIs (pnpm import:boundaries, import:seasons).
+    serverActions: { bodySizeLimit: '4mb' },
+  },
 };
 
 export default nextConfig;

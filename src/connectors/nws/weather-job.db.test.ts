@@ -297,7 +297,9 @@ describe('weather.nws in sim mode', () => {
 
 describe('weather.nws in replay mode', () => {
   test('the doc-derived fixtures drive the same pipeline (one cell for the farm)', async () => {
-    await exec(t().admin, 'truncate farm.field_weather_grids, farm.weather_grids cascade');
+    // The sim's cells are still cached: switching the mode drops them (they are not the replay
+    // source's cells), so nothing has to be cleared by hand.
+    expect(await count('select 1 from farm.weather_grids')).toBeGreaterThan(0);
     await exec(t().admin, `delete from ingest.sync_state where source = 'nws'`);
     const replay = createWeatherNwsJob({
       config: () => ({ ...cfg, CONNECTOR_WEATHER: 'replay' }),
@@ -310,6 +312,12 @@ describe('weather.nws in replay mode', () => {
       'select distinct grid_id from farm.field_weather_grids',
     );
     expect(cells.rows.map((r) => r.grid_id)).toEqual(['DTX/31,40']);
+    expect(await count('select 1 from farm.weather_grids')).toBe(1);
+    const source = await exec<{ v: string }>(
+      t().pool,
+      `select value #>> '{}' as v from app.settings where key = 'weather.grid_source'`,
+    );
+    expect(source.rows[0]?.v).toBe('replay');
     expect(
       await count(`select 1 from farm.weather_forecasts where grid_id = 'DTX/31,40'`),
     ).toBeGreaterThan(100);

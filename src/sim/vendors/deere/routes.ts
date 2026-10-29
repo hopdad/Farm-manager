@@ -430,9 +430,14 @@ function breadcrumbs(req: SimRequest, ctx: VendorContext, deereId: string): SimR
       '@type': 'Breadcrumb',
       point: { lat: round(s.lat, 6), lon: round(s.lng, 6) },
       eventTimestamp: new Date(t).toISOString(),
-      speed: { value: round(Math.max(0, s.speedMph) * 1.609344, 1), unit: 'km/hr' },
-      heading: { value: round(s.heading, 1), unit: 'deg' },
-      machineState: 'Working',
+      // Deere's documented shapes (Machine Locations API; src/connectors/deere/schemas.ts).
+      speed: {
+        '@type': 'measurementAsDouble',
+        valueAsDouble: round(Math.max(0, s.speedMph) * 1.609344, 1),
+        unit: 'km1hr-1',
+      },
+      heading: { '@type': 'measurementAsInteger', valueAsInteger: Math.round(s.heading) % 360 },
+      machineState: { '@type': 'Breadcrumb$MachineState', value: 'Working' },
     });
   }
   const body = collection(req.url, crumbs, pg.offset, pg.limit);

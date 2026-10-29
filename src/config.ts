@@ -115,8 +115,9 @@ const baseSchema = z.object({
     }),
   /**
    * Local demo cadence: tools/clock fires jobs that declare `demoEvery` at that interval
-   * (fleet.trucks every 5 s instead of 30 s). Only with sim/replay/off connectors; never in
-   * production. `pnpm env:init` turns it on for the PC demo.
+   * (fleet.trucks every 5 s instead of 30 s), but only while the job's connector is sim, replay
+   * or off: a sandbox or live vendor keeps the job's real schedule. Never in production.
+   * `pnpm env:init` turns it on for the PC demo.
    */
   JOBS_DEMO_CADENCE: onOff.default(false),
   /**
@@ -180,18 +181,15 @@ const configSchema = baseSchema.superRefine((c, ctx) => {
     ['CONNECTOR_ELD', c.CONNECTOR_ELD],
     ['CONNECTOR_WEATHER', c.CONNECTOR_WEATHER],
   ];
-  if (c.JOBS_DEMO_CADENCE) {
-    const real = modes.filter(([, m]) => m === 'sandbox' || m === 'live').map(([k]) => k);
-    if (c.APP_ENV === 'production' || real.length) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['JOBS_DEMO_CADENCE'],
-        message:
-          c.APP_ENV === 'production'
-            ? 'not allowed in production'
-            : `only for sim/replay/off connectors (${real.join(', ')} talk to a real vendor): set JOBS_DEMO_CADENCE=off`,
-      });
-    }
+  // The demo cadence never runs in production. Locally it may stay on while a connector is live:
+  // tools/clock applies it only to jobs whose connector is sim, replay or off (src/jobs/schedule.ts
+  // `demoCadenceApplies`), so a live vendor is always polled at the job's real schedule.
+  if (c.JOBS_DEMO_CADENCE && c.APP_ENV === 'production') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['JOBS_DEMO_CADENCE'],
+      message: 'not allowed in production',
+    });
   }
   if (c.APP_ENV !== 'production') return;
   for (const [key, mode] of modes) {

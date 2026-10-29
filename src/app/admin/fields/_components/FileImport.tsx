@@ -57,11 +57,11 @@ export function FileImport({
           router.refresh();
         }
       } catch (e) {
-        // Next refuses action bodies over 1 MB before our code runs.
+        // Next refuses action bodies over 4 MB (next.config.ts) before our code runs.
         setResult({
           ok: false,
           at: Date.now(),
-          message: `The upload did not go through (${(e as Error).message}). Files over 1 MB: use the command line (pnpm import:boundaries / import:seasons).`,
+          message: `The upload did not go through (${(e as Error).message}). Files over 4 MB: use the command line (pnpm import:boundaries / import:seasons).`,
         });
       }
     });

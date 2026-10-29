@@ -148,7 +148,7 @@ describe('parseConfig', () => {
     expect(list).toMatch(/SIM_FROZEN_AT/);
   });
 
-  test('JOBS_DEMO_CADENCE: off by default, on only with sim/replay/off connectors', () => {
+  test('JOBS_DEMO_CADENCE: off by default, never in production; live connectors are allowed (the clock skips their jobs)', () => {
     expect(parseConfig(base).JOBS_DEMO_CADENCE).toBe(false);
     expect(parseConfig({ ...base, JOBS_DEMO_CADENCE: 'on' }).JOBS_DEMO_CADENCE).toBe(true);
     expect(
@@ -159,9 +159,12 @@ describe('parseConfig', () => {
         CONNECTOR_ELD: 'off',
       }).JOBS_DEMO_CADENCE,
     ).toBe(true);
+    // A live weather connector keeps weather.nws on its real schedule (src/jobs/schedule.ts);
+    // the config no longer refuses the combination.
     expect(
-      issues({ ...base, JOBS_DEMO_CADENCE: 'on', CONNECTOR_DEERE: 'sandbox' }).join('\n'),
-    ).toMatch(/JOBS_DEMO_CADENCE: only for sim\/replay\/off connectors \(CONNECTOR_DEERE/);
+      parseConfig({ ...base, JOBS_DEMO_CADENCE: 'on', CONNECTOR_WEATHER: 'live' })
+        .JOBS_DEMO_CADENCE,
+    ).toBe(true);
     expect(issues({ ...prod, JOBS_DEMO_CADENCE: 'on' }).join('\n')).toMatch(
       /JOBS_DEMO_CADENCE: not allowed in production/,
     );

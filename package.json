@@ -49,7 +49,10 @@
     "import:seasons": "tsx scripts/import-seasons.ts",
     "import:tile": "tsx tools/import/tile.ts",
     "data:export": "tsx scripts/data-export.ts",
-    "data:import": "tsx scripts/data-import.ts"
+    "data:import": "tsx scripts/data-import.ts",
+    "auth:reset-owner": "tsx src/platform/auth/cli.ts reset-owner",
+    "auth:links": "tsx src/platform/auth/cli.ts links",
+    "auth:demo-people": "tsx src/platform/auth/cli.ts demo-people"
   },
   "dependencies": {
     "@deck.gl/core": "9.4.1",

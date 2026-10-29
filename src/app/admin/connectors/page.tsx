@@ -189,6 +189,13 @@ function SimCard({
             </select>
             <SubmitButton>Start scenario</SubmitButton>
           </ActionForm>
+          <p className={css.muted}>
+            Weather: the simulated NWS wind slider and the spray thresholds are on{' '}
+            <a href="/admin/spray" data-testid="spray-link">
+              Spray
+            </a>
+            .
+          </p>
 
           <h3>Faults</h3>
           <div className={css.toggleGrid}>
@@ -468,6 +475,7 @@ export default async function ConnectorsPage() {
   try {
     snap = await loadConnectorsSnapshot(getPool(), registry, {
       demoCadence: cfg.JOBS_DEMO_CADENCE,
+      modes: cfg,
     });
   } catch (e) {
     dbError = (e as Error).message;

@@ -4,10 +4,11 @@
  *
  *   sim      `${VENDOR_SIM_URL}/nws` (the stand-in; default locally, CI and e2e)
  *   replay   the doc-derived fixtures (./replay.ts) through the replay transport
- *   live     https://api.weather.gov. On the PC, in .env.local: CONNECTOR_WEATHER=live,
- *            NWS_USER_AGENT="farm-manager (you@example.com)" (NWS asks for contact info) and
- *            JOBS_DEMO_CADENCE=off (config refuses the demo cadence with a live connector);
- *            then restart pnpm dev / pnpm pilot
+ *   live     https://api.weather.gov. On the PC, in .env.local: CONNECTOR_WEATHER=live and
+ *            NWS_USER_AGENT="farm-manager (you@example.com)" (NWS asks for contact info); then
+ *            restart pnpm dev / pnpm pilot. weather.nws then runs every 30 min even with
+ *            JOBS_DEMO_CADENCE=on (the demo cadence only applies to sim/replay connectors), and
+ *            the cached sim grid cells are dropped and looked up at NWS on the first run
  *   sandbox  NWS has no sandbox: the same as live
  *   off      the weather.nws job does nothing
  */

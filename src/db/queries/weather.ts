@@ -31,6 +31,44 @@ export const PRUNE_BATCH = 5_000;
 const DAY_MS = 86_400_000;
 
 // ---------------------------------------------------------------------------------------------
+// Where the cached grid cells came from (app.settings 'weather.grid_source')
+// ---------------------------------------------------------------------------------------------
+
+/** app.settings key: the NWS source the cached cells were looked up at ('sim', 'replay', 'nws'). */
+export const GRID_SOURCE_SETTING_KEY = 'weather.grid_source';
+
+/** The source a mode's cells come from: sandbox and live are both api.weather.gov. */
+export function gridSourceOf(mode: 'sim' | 'replay' | 'sandbox' | 'live'): string {
+  return mode === 'live' || mode === 'sandbox' ? 'nws' : mode;
+}
+
+/**
+ * Cells are only valid for the source that named them: the stand-in's lattice is not NWS's
+ * Lambert grid, so switching CONNECTOR_WEATHER from sim to live must not query api.weather.gov
+ * for sim cell ids. When the source changed (or is unknown while cells exist), drop every cached
+ * cell (field assignments and forecasts cascade; assessments keep their grid id as history), then
+ * record the new source. Returns the number of cells dropped. Idempotent: a crash between the two
+ * statements repeats the delete on the next run.
+ */
+export async function switchGridSource(ex: Executor, source: string): Promise<number> {
+  const r = await exec<{ source: string | null }>(
+    ex,
+    `select value #>> '{}' as source from app.settings where key = $1`,
+    [GRID_SOURCE_SETTING_KEY],
+  );
+  const previous = r.rows[0]?.source ?? null;
+  if (previous === source) return 0;
+  const dropped = await exec(ex, 'delete from farm.weather_grids');
+  await exec(
+    ex,
+    `insert into app.settings (key, value, updated_at) values ($1, to_jsonb($2::text), now())
+     on conflict (key) do update set value = excluded.value, updated_at = now()`,
+    [GRID_SOURCE_SETTING_KEY, source],
+  );
+  return dropped.rowCount ?? 0;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Spray thresholds (app.settings 'spray.thresholds'; readers always parse: invalid = defaults)
 // ---------------------------------------------------------------------------------------------
 

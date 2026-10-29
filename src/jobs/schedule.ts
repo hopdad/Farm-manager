@@ -8,8 +8,10 @@
  *    croner parses it to prove it is well-formed and to compute next runs.
  */
 import { Cron } from 'croner';
+import type { Mode } from '../connectors/types';
 import {
   DEFAULT_JOB_BUDGET_MS,
+  type JobConnector,
   type JobDef,
   type JobHost,
   type JobRegistry,
@@ -108,12 +110,31 @@ export function validateJobDef(name: string, def: JobDef): ValidJob {
   return { name, schedule, demoSchedule, host, budgetMs, def };
 }
 
+/** The connector modes the demo cadence looks at (a Config satisfies it). */
+export type ConnectorModes = Partial<Record<JobConnector, Mode>>;
+
 /**
- * The schedule a local clock uses: the demo cadence when `demo` is on and the job has one,
- * else its real schedule. Production (pg_cron, jobs:emit-cron) always uses `job.schedule`.
+ * Does the demo cadence apply to this job? Only with `demo` on, a `demoEvery`, and the job's
+ * connector (if it declares one) in sim, replay or off: never against a sandbox or live vendor.
  */
-export function clockSchedule(job: ValidJob, demo: boolean): Schedule {
-  return demo && job.demoSchedule ? job.demoSchedule : job.schedule;
+export function demoCadenceApplies(
+  job: ValidJob,
+  demo: boolean,
+  modes: ConnectorModes = {},
+): boolean {
+  if (!demo || !job.demoSchedule) return false;
+  const connector = job.def.connector;
+  if (!connector) return true;
+  const mode = modes[connector] ?? 'sim';
+  return mode === 'sim' || mode === 'replay' || mode === 'off';
+}
+
+/**
+ * The schedule a local clock uses: the demo cadence when it applies (`demoCadenceApplies`),
+ * else the real schedule. Production (pg_cron, jobs:emit-cron) always uses `job.schedule`.
+ */
+export function clockSchedule(job: ValidJob, demo: boolean, modes: ConnectorModes = {}): Schedule {
+  return demoCadenceApplies(job, demo, modes) && job.demoSchedule ? job.demoSchedule : job.schedule;
 }
 
 /** Validate a whole registry; throws one error listing every problem. */

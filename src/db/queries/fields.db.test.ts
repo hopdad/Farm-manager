@@ -89,6 +89,13 @@ describe('fieldDetail', () => {
       geom: ADRIAN_QUARTER_SECTION,
       tenure: 'cash_rent',
     });
+    // The panel is read at a fixed instant below: the boundary must already be valid then,
+    // whatever the wall clock says when the suite runs.
+    await pool.query(
+      `update farm.field_boundaries set valid = tstzrange('2026-01-01T00:00:00Z', null)
+        where id = $1`,
+      [boundaryId],
+    );
     const landlord = await party('Ivan Abernath', 'person', {
       phone: '(517) 555-0109',
       email: 'ivan@example.com',

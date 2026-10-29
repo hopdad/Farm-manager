@@ -22,9 +22,9 @@ import {
   mapLayerRowSchema,
   type ResolvedMapLayer,
 } from '@/domain/map-layers';
-import { ROLE_FOR, roleAtLeast, type Session } from '@/platform/auth/types';
+import { ROLE_FOR, type Role, roleAtLeast, type Session } from '@/platform/auth/types';
 import type { StorageReader } from '@/platform/storage/types';
-import { isTileLayerId, TILE_LAYERS } from '../tiles/layers';
+import { isTileLayerId, TILE_LAYERS, tileVersionFor } from '../tiles/layers';
 
 interface DbRow {
   key: string;
@@ -90,15 +90,21 @@ export async function readMapLayerRows(ex: Queryable): Promise<MapLayerRow[]> {
   return out;
 }
 
-/** The URL (and effective version) the browser uses for one row. */
+/**
+ * The URL (and effective version) the browser uses for one row. `role`: the session's, for
+ * layers whose tiles differ by role (parcels: the owners variant gets its own `?v=`).
+ */
 export async function resolveLayerRow(
   ex: Queryable,
   row: MapLayerRow,
   storage: Pick<StorageReader, 'publicUrl'>,
+  role: Role | null = null,
 ): Promise<ResolvedMapLayer> {
   if (row.kind === 'pmtiles') return { ...row, url: storage.publicUrl('tiles', row.urlOrKey) };
   if (row.kind === 'xyz') return { ...row, url: row.urlOrKey };
-  const version = isTileLayerId(row.key) ? await TILE_LAYERS[row.key].version(ex) : row.version;
+  const version = isTileLayerId(row.key)
+    ? tileVersionFor(TILE_LAYERS[row.key], await TILE_LAYERS[row.key].version(ex), role)
+    : row.version;
   const base = `${row.urlOrKey.replace(/\/+$/, '')}/{z}/{x}/{y}`;
   return {
     ...row,
@@ -110,12 +116,12 @@ export async function resolveLayerRow(
 export async function listMapLayers(
   ex: Queryable,
   storage: Pick<StorageReader, 'publicUrl'>,
-  opts: { includePrivate: boolean },
+  opts: { includePrivate: boolean; role?: Role | null },
 ): Promise<MapLayersResponse> {
   const rows = (await readMapLayerRows(ex)).filter(
     (r) => opts.includePrivate || r.cachePolicy === 'public',
   );
   const layers: ResolvedMapLayer[] = [];
-  for (const row of rows) layers.push(await resolveLayerRow(ex, row, storage));
+  for (const row of rows) layers.push(await resolveLayerRow(ex, row, storage, opts.role ?? null));
   return { layers };
 }

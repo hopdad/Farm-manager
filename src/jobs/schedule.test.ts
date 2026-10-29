@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   clockSchedule,
+  demoCadenceApplies,
   nextRun,
   parseEvery,
   ScheduleError,
@@ -88,6 +89,29 @@ describe('job definitions', () => {
     expect(() =>
       validateJobDef('a.b', { cron: '* * * * *', demoEvery: '90 seconds' as '1 seconds', run }),
     ).toThrow(/job 'a.b': demoEvery: every '90 seconds' is invalid/);
+  });
+
+  test('the demo cadence never applies to a job whose connector talks to a real vendor', () => {
+    const w = validateJobDef('weather.nws', {
+      cron: '*/30 * * * *',
+      demoEvery: '30 seconds',
+      connector: 'CONNECTOR_WEATHER',
+      run,
+    });
+    const demo = { kind: 'every', seconds: 30 };
+    const real = { kind: 'cron', expr: '*/30 * * * *' };
+    for (const mode of ['sim', 'replay', 'off'] as const) {
+      expect(demoCadenceApplies(w, true, { CONNECTOR_WEATHER: mode })).toBe(true);
+      expect(clockSchedule(w, true, { CONNECTOR_WEATHER: mode })).toEqual(demo);
+    }
+    for (const mode of ['sandbox', 'live'] as const) {
+      expect(demoCadenceApplies(w, true, { CONNECTOR_WEATHER: mode })).toBe(false);
+      expect(clockSchedule(w, true, { CONNECTOR_WEATHER: mode })).toEqual(real);
+    }
+    // Other connectors don't matter; no modes given means the sim default.
+    expect(clockSchedule(w, true, { CONNECTOR_DEERE: 'live' })).toEqual(demo);
+    expect(clockSchedule(w, true)).toEqual(demo);
+    expect(clockSchedule(w, false, { CONNECTOR_WEATHER: 'sim' })).toEqual(real);
   });
 
   test('needs exactly one schedule', () => {

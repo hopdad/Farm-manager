@@ -5,8 +5,9 @@
  *  - every row's id is the SimFarm id (demoId(key)), source = 'demo', source_id = key;
  *  - one current boundary per field (id field.boundaryId, source_id 'boundary:<key>', valid
  *    from DEMO_VALID_FROM), five completed seasons per field, the fleet, one geofence per
- *    elevator (kind 'elevator', party = the elevator company), the shop (kind 'shop') and its
- *    bin site (kind 'bin_site');
+ *    elevator (kind 'elevator', party = the elevator company), the shop (kind 'shop'), its
+ *    bin site (kind 'bin_site') and one entrance per field (kind 'field_entrance', field_id set;
+ *    src/sim/farm/geofences.ts, plan 1a);
  *  - exactly the external refs simExternalRefs(farm, ELD_VENDOR) returns, via upsertExternalRef.
  *
  * Idempotent: every write is an upsert that changes a row only when a seeded column differs
@@ -22,6 +23,7 @@ import { upsertExternalRef } from '../../src/db/external-refs';
 import { demoId } from '../../src/domain/ids';
 import { buildDemoFarm, type DemoFarm } from '../../src/sim/farm/build';
 import { FLEET } from '../../src/sim/farm/fleet';
+import { fieldEntranceGeofences } from '../../src/sim/farm/geofences';
 import { simFieldSeasons } from '../../src/sim/seasons';
 import { simExternalRefs } from '../../src/sim/types';
 
@@ -279,6 +281,7 @@ export async function seedDemo(
         kind: 'elevator',
         name: e.name,
         partyId: e.partyId as string | null,
+        fieldId: null as string | null,
         geom: e.geofence,
       })),
       {
@@ -287,6 +290,7 @@ export async function seedDemo(
         kind: 'shop',
         name: farm.shop.name,
         partyId: null,
+        fieldId: null,
         geom: farm.shop.geofence,
       },
       ...farm.binSites.map((b) => ({
@@ -295,7 +299,17 @@ export async function seedDemo(
         kind: 'bin_site',
         name: b.name,
         partyId: null,
+        fieldId: null,
         geom: b.geofence,
+      })),
+      ...fieldEntranceGeofences(farm).map((g) => ({
+        id: g.id,
+        key: g.key,
+        kind: g.kind,
+        name: g.name,
+        partyId: null,
+        fieldId: g.fieldId as string | null,
+        geom: g.geofence,
       })),
     ];
     for (const g of geofences) {
@@ -303,18 +317,18 @@ export async function seedDemo(
         'geofences',
         await upsert(
           client,
-          `insert into farm.geofences as t (id, kind, name, party_id, geom, source, source_id)
-           values ($1::uuid, $2, $3, $4::uuid, ${GEOM(5)}, $6, $7)
+          `insert into farm.geofences as t (id, kind, name, party_id, field_id, geom, source, source_id)
+           values ($1::uuid, $2, $3, $4::uuid, $5::uuid, ${GEOM(6)}, $7, $8)
            on conflict (id) do update set
              kind = excluded.kind, name = excluded.name, party_id = excluded.party_id,
-             geom = excluded.geom, source = excluded.source, source_id = excluded.source_id,
-             updated_at = now()
-           where (t.kind, t.name, t.party_id, t.source, t.source_id)
-               is distinct from (excluded.kind, excluded.name, excluded.party_id, excluded.source,
-                                 excluded.source_id)
+             field_id = excluded.field_id, geom = excluded.geom, source = excluded.source,
+             source_id = excluded.source_id, updated_at = now()
+           where (t.kind, t.name, t.party_id, t.field_id, t.source, t.source_id)
+               is distinct from (excluded.kind, excluded.name, excluded.party_id, excluded.field_id,
+                                 excluded.source, excluded.source_id)
               or extensions.ST_AsBinary(t.geom) is distinct from extensions.ST_AsBinary(excluded.geom)
            returning (xmax = 0) as inserted`,
-          [g.id, g.kind, g.name, g.partyId, JSON.stringify(g.geom), DEMO_SOURCE, g.key],
+          [g.id, g.kind, g.name, g.partyId, g.fieldId, JSON.stringify(g.geom), DEMO_SOURCE, g.key],
         ),
       );
     }

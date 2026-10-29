@@ -47,7 +47,9 @@ import {
 } from '../src/db/admin';
 import { type PortProbe, probePort, reservedPortHint } from '../src/lib/ports';
 import { isMainModule, runNode, tsxBin } from '../src/lib/proc';
+import { createPool } from '../src/db/client';
 import { adminUnlockUrl } from '../src/platform/auth/admin-key';
+import { authBannerLines } from '../src/platform/auth/banner';
 import { configure, migrate, pending, up } from './db';
 import {
   describeReport,
@@ -613,7 +615,7 @@ export async function bootstrap(flags: BootstrapFlags, d: BootstrapDeps): Promis
 
   // Summary.
   section(dry ? 'Dry run complete: nothing was changed.' : 'Ready.');
-  for (const l of summary(appPort, cfg, d.platform)) out(l);
+  for (const l of await summary(appPort, cfg, d.platform, dry)) out(l);
   return 0;
 }
 
@@ -834,23 +836,50 @@ async function isConfigured(cfg: Config, migrateUrl: string): Promise<true | str
   }
 }
 
-function summary(port: number, cfg: Config | null, platform: NodeJS.Platform): string[] {
+/** Sign-in lines from the database (owner setup link, devices, demo PINs); empty on a dry run. */
+async function signInLines(cfg: Config | null, port: number, dry: boolean): Promise<string[]> {
+  if (!cfg || dry) {
+    return [
+      '  Sign-in:            `pnpm dev` prints the first-run owner link, then where to sign in and',
+      '                      the demo PINs (docs/kiosk.md: the wall kiosk and cab iPads)',
+    ];
+  }
+  const pool = createPool({
+    connectionString: cfg.DATABASE_URL,
+    max: 1,
+    applicationName: 'farm-bootstrap',
+  });
+  try {
+    return await authBannerLines(pool, cfg.SESSION_SECRET, `http://localhost:${port}`);
+  } finally {
+    await pool.end().catch(() => undefined);
+  }
+}
+
+async function summary(
+  port: number,
+  cfg: Config | null,
+  platform: NodeJS.Platform,
+  dry: boolean,
+): Promise<string[]> {
   const origins = cfg?.DEV_ORIGINS.length ? cfg.DEV_ORIGINS : devOriginCandidates();
   const adapters = new Map(privateIPv4Candidates().map((c) => [c.address, c.iface]));
   const lines = [
     '  Start everything:   pnpm dev        (app + clock + vendor stand-in; Ctrl+C stops all)',
     `  Board:              http://localhost:${port}/board`,
+    ...(await signInLines(cfg, port, dry)),
     `  Sync health:        http://localhost:${port}/admin/connectors   (clock + simulation controls)`,
     cfg
-      ? `  Unlock admin once:  ${adminUnlockUrl(`http://localhost:${port}`, cfg.SESSION_SECRET)}`
-      : '  Unlock admin once:  open the Admin link `pnpm dev` prints (on this PC)',
+      ? `  Admin on this PC:   ${adminUnlockUrl(`http://localhost:${port}`, cfg.SESSION_SECRET)}`
+      : '  Admin on this PC:   open the Admin link `pnpm dev` prints (on this PC)',
     '  Phones on the same Wi-Fi (pick the adapter of your shop network):',
     ...origins.map(
       (o) => `    http://${o}:${port}/m${adapters.has(o) ? `   (${adapters.get(o)})` : ''}`,
     ),
     `  Phone check:        open http://<pc-ip>:${port}/api/health on the phone; it should show "ok":true`,
     `  Demo:               scenario ${cfg?.SIM_SCENARIO ?? 'harvest-day'}; \`pnpm dev --scenario=spray-windy --speed=30\` runs a farm day in ~30 min.`,
-    '                      Sign-in and operator PINs arrive with slice 1a (M0 has no sign-in).',
+    '  Your data:          pnpm gis:soils (real SSURGO, once, needs internet), pnpm import:boundaries',
+    '                      <Ops Center export>, pnpm import:seasons <csv>: see README "Your own data".',
     `  ${platform === 'win32' ? 'Windows firewall' : 'Firewall (Windows PC)'}: set the shop Wi-Fi profile to Private and allow Node.js on private networks`,
     '    when prompted, or once in an admin PowerShell:',
     `    New-NetFirewallRule -DisplayName 'farm-ops dev' -Direction Inbound -Protocol TCP -LocalPort ${port},3443 -Profile Private -Action Allow`,

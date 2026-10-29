@@ -108,6 +108,18 @@ describe('/api/tile-lines', () => {
       );
       expect(res.status, role).toBe(403);
     }
+    // A manager's browser on another site's page (another port of the PC counts): refused.
+    const crossSite = new Request('http://192.168.1.20:3000/api/tile-lines', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        host: '192.168.1.20:3000',
+        origin: 'http://192.168.1.20:8080',
+      },
+      body: JSON.stringify(body),
+    });
+    const refused = await as('manager', () => handleCreateTileLine(crossSite, t().pool));
+    expect(refused.status).toBe(403);
     const n = await t().pool.query('select count(*)::int as n from farm.tile_lines');
     expect(n.rows[0]?.n).toBe(0);
   });

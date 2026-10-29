@@ -152,9 +152,7 @@ test.describe('parcels', () => {
     ).toBe('0');
   });
 
-  test('owner names in the tiles only for managers (once the tiles route picks the variant)', async ({
-    browser,
-  }) => {
+  test('owner names in the tiles only for managers', async ({ browser }) => {
     const f = fields[0] as DemoField;
     const viewer = await browser.newContext();
     const manager = await browser.newContext();
@@ -164,11 +162,11 @@ test.describe('parcels', () => {
       const v = await tileFeatures(viewer, tileUrl('parcels', f.lng, f.lat));
       const m = await tileFeatures(manager, tileUrl('parcels', f.lng, f.lat));
       expect(m.some((x) => typeof x.properties.owner_name === 'string')).toBe(true);
-      test.skip(
-        v.some((x) => 'owner_name' in x.properties),
-        'the tiles route still serves app.mvt_parcels(z, x, y) to every role: the integrator wires parcelTileSql(canSeeParcelOwners(role)) (imagery report)',
-      );
-      for (const x of v) expect(x.properties).not.toHaveProperty('owner_mailing');
+      expect(v.length).toBe(m.length);
+      for (const x of v) {
+        expect(x.properties).not.toHaveProperty('owner_name');
+        expect(x.properties).not.toHaveProperty('owner_mailing');
+      }
     } finally {
       await viewer.close();
       await manager.close();

@@ -10,9 +10,9 @@
  * In sim mode the authorize URL is the stand-in's "Sign in to Deere (simulated)" page; the
  * redirect URI is `${PUBLIC_URL}/api/oauth/deere` (register it with Deere for sandbox/live).
  * The fleet.deere job doesn't need this in sim mode (it connects unattended), but this is the
- * path a real account takes. Outside sim mode starting the flow needs the admin cookie
- * (src/platform/auth/admin-key.ts): someone on the shop Wi-Fi must not be able to link another
- * Deere account over the farm's grant. The callback is bound to that start by the state cookie.
+ * path a real account takes. Outside sim mode starting the flow needs a manager (ROLE_FOR.admin;
+ * the admin link on the PC counts as the owner): someone on the shop Wi-Fi must not be able to
+ * link another Deere account over the farm's grant. The callback is bound to that start by the state cookie.
  */
 import { getConfig } from '@/config';
 import { deereAuthorizeUrl, exchangeDeereCode, newOAuthState } from '@/connectors/deere/oauth';
@@ -29,7 +29,8 @@ import {
 } from '@/connectors/oauth/flow';
 import { OAuthTokenStore, userGrantOrg } from '@/connectors/oauth/token-store';
 import { getPool } from '@/db/client';
-import { ADMIN_COOKIE, ADMIN_LOCKED_MESSAGE, isAdminKey } from '@/platform/auth/admin-key';
+import { ADMIN_LOCKED_MESSAGE } from '@/platform/auth/admin-key';
+import { getSession, ROLE_FOR, roleAtLeast } from '@/platform/auth/server';
 import { limitedBytes } from '@/platform/http/limits';
 
 export const dynamic = 'force-dynamic';
@@ -72,7 +73,8 @@ export async function GET(
   }
 
   if (!code) {
-    if (!ep.sim && !isAdminKey(cfg, readCookie(request.headers.get('cookie'), ADMIN_COOKIE))) {
+    const session = ep.sim ? null : await getSession();
+    if (!ep.sim && !(session && roleAtLeast(session.role, ROLE_FOR.admin))) {
       return page(403, 'Admin is locked', `<p>${escapeHtml(ADMIN_LOCKED_MESSAGE)}.</p>`);
     }
     const state = newOAuthState();

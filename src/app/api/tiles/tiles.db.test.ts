@@ -10,7 +10,7 @@ import { ADRIAN_QUARTER_SECTION, insertField, squareMultiPolygon, tileFor } from
 import { lngLatToTilePixel } from '@/ui/map/tile-math';
 import { decodeMvt } from '../../../../tools/gis/mvt';
 import { handleTileRequest, MVT_CONTENT_TYPE } from './handler';
-import { TILE_LAYERS, tileUrlTemplate } from './layers';
+import { TILE_LAYERS, tileUrlTemplate, tileVersionFor } from './layers';
 
 const t = setupTestDb(import.meta.url);
 
@@ -201,6 +201,57 @@ describe('M1 layers (0003)', () => {
     });
     expect(allowed.status).toBe(200);
     expect(allowed.headers.get('cache-control')).toBe('private, no-cache');
+  });
+
+  test('parcels: owner names only for managers and up, the safe variant by default', async () => {
+    const { admin } = t();
+    const imp = await admin.query<{ id: string }>(
+      `insert into gis.parcel_imports (source) values ('test') returning id::text`,
+    );
+    await admin.query(
+      `insert into gis.parcels (import_id, county_fips, parcel_no, owner_name, owner_mailing, geom)
+       values ($1::uuid, '26091', 'XT-1', 'Pat Owner', '1 Main St',
+               extensions.ST_Multi(extensions.ST_Buffer(
+                 extensions.ST_SetSRID(extensions.ST_MakePoint($2, $3), 4326), 0.003)))`,
+      [imp.rows[0]?.id, inside.lng, inside.lat],
+    );
+    const tile = tileFor(inside.lng, inside.lat, 14);
+    const params = { layer: 'parcels', z: '14', x: String(tile.x), y: String(tile.y) };
+    const props = async (checkAccess?: () => Promise<unknown>) => {
+      const res = await handleTileRequest(
+        new Request(`http://localhost/api/tiles/parcels/14/${tile.x}/${tile.y}`),
+        params,
+        t().pool,
+        checkAccess ? { checkAccess } : {},
+      );
+      expect(res.status).toBe(200);
+      const layer = decodeMvt(new Uint8Array(await res.arrayBuffer()))[0];
+      const f = layer?.features.find((x) => x.properties.parcel_no === 'XT-1');
+      expect(f).toBeDefined();
+      return f?.properties ?? {};
+    };
+    for (const role of ['manager', 'owner'] as const) {
+      expect(await props(async () => ({ role }))).toMatchObject({
+        owner_name: 'Pat Owner',
+        owner_mailing: '1 Main St',
+      });
+    }
+    for (const check of [
+      async () => ({ role: 'viewer' }),
+      async () => ({ role: 'operator' }),
+      async () => undefined,
+      undefined,
+    ]) {
+      const p = await props(check);
+      expect(p).not.toHaveProperty('owner_name');
+      expect(p).not.toHaveProperty('owner_mailing');
+    }
+    // Each variant gets its own ?v= (the tiles are cached immutable per URL).
+    const def = TILE_LAYERS.parcels;
+    expect(tileVersionFor(def, 'abc', 'manager')).toBe('abc.o');
+    expect(tileVersionFor(def, 'abc', 'viewer')).toBe('abc');
+    expect(tileVersionFor(def, 'abc', null)).toBe('abc');
+    expect(tileVersionFor(TILE_LAYERS.fields, 'abc', 'manager')).toBe('abc');
   });
 
   test('versioned public tiles get the year-long CDN policy', async () => {

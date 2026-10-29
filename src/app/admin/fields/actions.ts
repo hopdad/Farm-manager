@@ -6,7 +6,7 @@
  *
  * Every action checks the session on the server first (`runAction`, ROLE_FOR.editFieldData =
  * manager): the browser's word counts for nothing (contracts-m1 §2). Uploads arrive as
- * FormData (Next caps an action's body at 1 MB; bigger files go through the CLIs).
+ * FormData (next.config.ts raises the action body limit to 4 MB, plan §1; bigger files go through the CLIs).
  */
 import type { LineString, MultiPolygon } from 'geojson';
 import { revalidatePath } from 'next/cache';

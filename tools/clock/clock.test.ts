@@ -111,6 +111,31 @@ describe('selectJobs (the shared schedule validator)', () => {
     ]);
   });
 
+  test('JOBS_DEMO_CADENCE leaves jobs of a live connector on their real schedule', () => {
+    const reg: JobRegistry = {
+      'fleet.trucks': {
+        every: '30 seconds',
+        demoEvery: '5 seconds',
+        connector: 'CONNECTOR_ELD',
+        run,
+      },
+      'weather.nws': {
+        cron: '*/30 * * * *',
+        demoEvery: '30 seconds',
+        connector: 'CONNECTOR_WEATHER',
+        run,
+      },
+    };
+    const jobs = selectJobs(reg, ['app'], {
+      demo: true,
+      modes: { CONNECTOR_ELD: 'sim', CONNECTOR_WEATHER: 'live' },
+    });
+    expect(jobs.map((j) => [j.name, describeSchedule(j)])).toEqual([
+      ['fleet.trucks', 'every 5 s'],
+      ['weather.nws', 'cron */30 * * * * (UTC)'],
+    ]);
+  });
+
   test('refuses an invalid registry, listing every problem', () => {
     const bad = {
       'a.b': { every: '60 seconds', run },

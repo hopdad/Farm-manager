@@ -11,7 +11,10 @@
  * field or boundary yields new URLs.
  */
 import type { Queryable } from '@/db/client';
+import { parcelTileSql, parcelTileVersionSuffix } from '@/db/queries/parcels';
+import { canSeeParcelOwners } from '@/db/queries/parcels-access';
 import type { CachePolicy } from '@/domain/map-layers';
+import type { Role } from '@/platform/auth/types';
 
 export type TileCachePolicy = CachePolicy;
 
@@ -24,6 +27,14 @@ export interface TileLayerDef {
   maxzoom: number;
   /** Current data version (short hex). */
   version(ex: Queryable): Promise<string>;
+  /**
+   * Layers whose tiles differ by role (parcels: owner names for managers and up). The SQL for a
+   * role (null = unknown: the safe variant), and the suffix that keeps each variant's URLs apart
+   * (`?v=<version><suffix>`): private tiles are cached immutable, and a shared wall browser must
+   * never show one person's variant to the next.
+   */
+  sqlForRole?(role: Role | null): string;
+  versionSuffixForRole?(role: Role | null): string;
 }
 
 const FIELDS_VERSION_SQL = `
@@ -79,6 +90,10 @@ export const TILE_LAYERS = {
     minzoom: 12,
     maxzoom: 16,
     version: (ex) => versionOf(ex, tableVersionSql('gis.parcels', 'updated_at')),
+    // Owner names and mailing addresses only for managers and up (D8; migration 0004).
+    sqlForRole: (role) => parcelTileSql(role !== null && canSeeParcelOwners(role)),
+    versionSuffixForRole: (role) =>
+      parcelTileVersionSuffix(role !== null && canSeeParcelOwners(role)),
   },
   /** Drainage tile lines: PRIVATE (empty below z12). Owner of the data: imagery builder. */
   tile_lines: {
@@ -89,6 +104,16 @@ export const TILE_LAYERS = {
     version: (ex) => versionOf(ex, tableVersionSql('farm.tile_lines', 'updated_at')),
   },
 } satisfies Record<string, TileLayerDef>;
+
+/** The SQL that serves `layer` to `role` (role-dependent layers; else the layer's SQL). */
+export function tileSqlFor(def: TileLayerDef, role: Role | null): string {
+  return def.sqlForRole ? def.sqlForRole(role) : def.sql;
+}
+
+/** The `?v=` value for `role`: the layer's version plus its role variant's suffix. */
+export function tileVersionFor(def: TileLayerDef, version: string, role: Role | null): string {
+  return `${version}${def.versionSuffixForRole?.(role) ?? ''}`;
+}
 
 export type TileLayerId = keyof typeof TILE_LAYERS;
 

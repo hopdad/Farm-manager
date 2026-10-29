@@ -20,6 +20,7 @@ import { isUuid } from '@/domain/ids';
 import { authErrorResponse, requireRole } from '@/platform/auth/server';
 import { ROLE_FOR, roleAtLeast } from '@/platform/auth/types';
 import { limitedJson, readLimitedText } from '@/platform/http/limits';
+import { isSameOriginRequest } from '@/platform/http/origin';
 import {
   type FleetPanelData,
   type MachineStatusResult,
@@ -44,22 +45,6 @@ type PanelConfig = Pick<
 
 function json(status: number, body: unknown, route = 'api/machines'): Response {
   return limitedJson(body, { status, headers: NO_STORE }, { route });
-}
-
-/**
- * Is the request from a page of this app (or not from a browser page at all)? Browsers send
- * `Origin` on every POST; it must name the host the request came to (the LAN address,
- * localhost, or the production domain behind Vercel's x-forwarded-host).
- */
-export function isSameOriginRequest(request: Request): boolean {
-  const origin = request.headers.get('origin');
-  if (!origin) return true;
-  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
-  try {
-    return host !== null && new URL(origin).host === host.split(',')[0]?.trim();
-  } catch {
-    return false;
-  }
 }
 
 export async function handleListMachines(

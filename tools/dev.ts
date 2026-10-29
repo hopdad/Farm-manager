@@ -37,9 +37,11 @@ import net from 'node:net';
 import path from 'node:path';
 import { devOriginCandidates, privateIPv4Candidates } from '../scripts/env';
 import { type Config, childEnv, getConfig } from '../src/config';
+import { createPool } from '../src/db/client';
 import { bindError, probePort, reservedPortHint } from '../src/lib/ports';
 import { isMainModule, tsxBin } from '../src/lib/proc';
 import { adminUnlockUrl } from '../src/platform/auth/admin-key';
+import { authBannerLines } from '../src/platform/auth/banner';
 import {
   type ClockControlRequest,
   SCENARIO_NAMES,
@@ -772,6 +774,16 @@ export function originsDrift(configured: string[], current: string[]): string | 
   );
 }
 
+/** Sign-in lines (owner setup link or /login, devices, demo PINs); a note if the DB can't say. */
+async function signInLines(cfg: Config, port: number): Promise<string[]> {
+  const pool = createPool({ max: 1, applicationName: 'farm-launcher' });
+  try {
+    return await authBannerLines(pool, cfg.SESSION_SECRET, `http://localhost:${port}`);
+  } finally {
+    await pool.end().catch(() => undefined);
+  }
+}
+
 function banner(lines: string[]): string {
   const width = Math.max(...lines.map((l) => l.length)) + 2;
   const rule = '-'.repeat(width);
@@ -1007,8 +1019,10 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
   const lines = [
     `Farm Ops is running (${prod ? 'production build, next start' : 'next dev'})`,
     `  Board     http://localhost:${port}/board`,
+    ...(await signInLines(cfg, port)),
     `  Admin     ${adminUnlockUrl(`http://localhost:${port}`, cfg.SESSION_SECRET)}`,
-    '            (this PC only: it unlocks /admin/* in that browser)',
+    '            (this PC only: opens /admin/* in that browser as the owner, no PIN)',
+    `  Data      Deere ${cfg.CONNECTOR_DEERE} · ELD ${cfg.CONNECTOR_ELD} (${cfg.ELD_VENDOR}) · weather ${cfg.CONNECTOR_WEATHER}`,
     '  Phones on the same Wi-Fi:',
     ...phoneUrls(origins, port).map((p) => `    ${p.url.padEnd(34)} (${p.note})`),
     `  Phone check  http://<pc-ip>:${port}/api/health`,

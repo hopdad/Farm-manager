@@ -2,7 +2,8 @@
  * pnpm db:seed demo [--seed N]
  *
  * Writes the simulated demo farm (fields, parties, fleet, elevators, seasons, external refs)
- * into the database DATABASE_URL names, as farm_app. `pnpm db:reset` runs `scripts/seed.ts demo`
+ * into the database DATABASE_URL names, as farm_app, then the M1 extras (tools/seed/extras.ts:
+ * demo people with their PINs, soils, synthetic parcels, the online NAIP layer row). `pnpm db:reset` runs `scripts/seed.ts demo`
  * after migrating. Idempotent: running it again changes nothing. Refuses any database that
  * isn't on this machine (plan §1). The seed defaults to SIM_SEED; ELD refs use ELD_VENDOR.
  */
@@ -12,6 +13,7 @@ import { assertLocalUrl } from '../src/db/admin';
 import { createPool } from '../src/db/client';
 import { isMainModule } from '../src/lib/proc';
 import { formatSeedReport, seedDemo } from '../tools/seed/demo';
+import { formatExtrasReport, seedDemoExtras } from '../tools/seed/extras';
 
 export const SEED_SETS = ['demo'] as const;
 export type SeedSet = (typeof SEED_SETS)[number];
@@ -66,6 +68,11 @@ async function main(): Promise<void> {
       `[seed] ${args.set} (seed ${report.seed}, ELD ${report.eldVendor}) into ${db} in ${Math.round(performance.now() - started)} ms`,
     );
     console.log(formatSeedReport(report));
+    const extras = await seedDemoExtras(pool, {
+      secret: cfg.SESSION_SECRET,
+      projectDir: cfg.projectDir,
+    });
+    for (const l of await formatExtrasReport(pool, extras, cfg.SESSION_SECRET)) console.log(l);
   } finally {
     await pool.end();
   }

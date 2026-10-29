@@ -17,9 +17,11 @@
 import type { Db } from '@/db/client';
 import type { Executor } from '@/db/exec';
 import { fieldDetail, saveFieldNotes } from '@/db/queries/fields';
+import { redactParcelOwners } from '@/db/queries/parcels-access';
 import { authErrorResponse, requireRole } from '@/platform/auth/server';
-import { ROLE_FOR } from '@/platform/auth/types';
+import { ROLE_FOR, type Role } from '@/platform/auth/types';
 import { limitedJson, readLimitedText } from '@/platform/http/limits';
+import { isSameOriginRequest } from '@/platform/http/origin';
 import { parseSaveNotesBody } from '@/ui/fields/notes';
 import { FIELD_ROLE_HEADER } from '@/ui/fields/protocol';
 
@@ -32,28 +34,12 @@ function json(status: number, body: unknown, headers: Record<string, string> = N
   return limitedJson(body, { status, headers }, { route: 'api/fields' });
 }
 
-/**
- * Is the request from a page of this app (or not from a browser page at all)? Browsers send
- * `Origin` on every PUT; it must name the host the request came to (the LAN address, localhost,
- * or the production domain behind Vercel's x-forwarded-host).
- */
-export function isSameOriginRequest(request: Request): boolean {
-  const origin = request.headers.get('origin');
-  if (!origin) return true;
-  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
-  try {
-    return host !== null && new URL(origin).host === host.split(',')[0]?.trim();
-  } catch {
-    return false;
-  }
-}
-
 export async function handleFieldDetail(
   fieldId: string,
   ex: Executor,
   now: Date = new Date(),
 ): Promise<Response> {
-  let role: string;
+  let role: Role;
   try {
     role = (await requireRole(ROLE_FOR.viewPrivate)).role;
   } catch (e) {
@@ -62,8 +48,10 @@ export async function handleFieldDetail(
     throw e;
   }
   try {
-    const detail = await fieldDetail(ex, fieldId, now);
-    if (!detail) return json(404, { error: 'field not found' });
+    const found = await fieldDetail(ex, fieldId, now);
+    if (!found) return json(404, { error: 'field not found' });
+    // Parcel owner names and mailing addresses leave the server only for managers and up (D8).
+    const detail = { ...found, parcels: redactParcelOwners(found.parcels, role) };
     return limitedJson(
       detail,
       { headers: { 'cache-control': 'private, no-store', [FIELD_ROLE_HEADER]: role } },

@@ -1,5 +1,7 @@
 /**
- * The per-install admin key: M0's lock on /admin/* until slice 1a brings manager sessions.
+ * The per-install admin key: M0's lock on /admin/*. Since slice 1a the admin pages need a manager
+ * (src/app/admin/_lib/guard.ts); the key stays as the PC-only way in (a provisional owner session,
+ * docs/contracts-m1.md §4), for the person at the PC and the M0 e2e specs.
  *
  * Next listens on 0.0.0.0 so phones on the shop Wi-Fi can open /board and /m. Without a lock,
  * anyone on that network could also use /admin/* and its server actions (pause the job clock,
@@ -20,7 +22,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 export const ADMIN_COOKIE = 'farm_admin';
 export const ADMIN_UNLOCK_PATH = '/admin/unlock';
 export const ADMIN_LOCKED_MESSAGE =
-  'admin is locked: open the Admin link `pnpm dev` (or `pnpm pilot`) printed on the PC';
+  'admin needs a manager: sign in as a manager at /login, or open the Admin link `pnpm dev` (or `pnpm pilot`) printed on the PC';
 
 /** The config an admin check needs. */
 export interface AdminKeyConfig {

@@ -10,15 +10,22 @@
  *    `If-None-Match` with 304.
  *  - database errors → 503 `no-store` (MapLibre retries the tile on the next render)
  *  - private layers first run `opts.checkAccess` (the route passes requireRole('viewer')): an
- *    AuthError becomes 401/403 `no-store` (contracts-m1 §4)
+ *    AuthError becomes 401/403 `no-store` (contracts-m1 §4); the session's role picks the variant
+ *    of a role-dependent layer (parcels: owner names for managers and up, D8)
  *  - never 3xx (contracts §5)
  */
 import { createHash } from 'node:crypto';
 import type { Queryable } from '@/db/client';
-import { isAuthError } from '@/platform/auth/types';
+import { isAuthError, isRole, type Role } from '@/platform/auth/types';
 import { limitedBytes } from '@/platform/http/limits';
 import { isValidTile } from '@/ui/map/tile-math';
-import { isTileLayerId, TILE_LAYERS, type TileCachePolicy, type TileLayerDef } from './layers';
+import {
+  isTileLayerId,
+  TILE_LAYERS,
+  type TileCachePolicy,
+  type TileLayerDef,
+  tileSqlFor,
+} from './layers';
 
 export const MVT_CONTENT_TYPE = 'application/vnd.mapbox-vector-tile';
 const VERSION_RE = /^[0-9A-Za-z_.-]{1,64}$/;
@@ -53,9 +60,16 @@ function text(status: number, body: string): Response {
 export interface TileRequestOptions {
   /**
    * Called before serving a PRIVATE layer; throw an AuthError to refuse. The route passes
-   * `() => requireRole('viewer')`; omitted (tests, tools) means no check.
+   * `() => requireRole('viewer')`; omitted (tests, tools) means no check. What it returns may be
+   * the session: its `role` picks a role-dependent layer's variant (parcels with owner names for
+   * managers); anything else serves the safe variant.
    */
   checkAccess?: () => Promise<unknown>;
+}
+
+function roleOf(session: unknown): Role | null {
+  const role = (session as { role?: unknown } | null | undefined)?.role;
+  return isRole(role) ? role : null;
 }
 
 export async function handleTileRequest(
@@ -66,9 +80,10 @@ export async function handleTileRequest(
 ): Promise<Response> {
   if (!isTileLayerId(params.layer)) return text(404, 'unknown layer');
   const def: TileLayerDef = TILE_LAYERS[params.layer];
+  let role: Role | null = null;
   if (def.cachePolicy === 'private' && opts.checkAccess) {
     try {
-      await opts.checkAccess();
+      role = roleOf(await opts.checkAccess());
     } catch (e) {
       if (isAuthError(e)) return text(e.status, e.message);
       throw e;
@@ -85,7 +100,7 @@ export async function handleTileRequest(
 
   let mvt: Buffer;
   try {
-    const r = await ex.query<{ mvt: Buffer | null }>(def.sql, [z, x, y]);
+    const r = await ex.query<{ mvt: Buffer | null }>(tileSqlFor(def, role), [z, x, y]);
     mvt = r.rows[0]?.mvt ?? Buffer.alloc(0);
   } catch (e) {
     console.error(`[tiles] ${params.layer}/${z}/${x}/${y} failed:`, (e as Error).message);

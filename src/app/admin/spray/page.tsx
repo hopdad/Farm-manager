@@ -162,10 +162,10 @@ export default async function SprayAdminPage() {
         <p className={css.muted} data-testid="weather-mode-hint">
           Weather comes from{' '}
           {cfg.CONNECTOR_WEATHER === 'sim' ? 'the simulated NWS' : cfg.CONNECTOR_WEATHER}. For the
-          real NWS forecast of your grid cells put <code>CONNECTOR_WEATHER=live</code>,{' '}
-          <code>NWS_USER_AGENT=&quot;farm-manager (you@example.com)&quot;</code> and{' '}
-          <code>JOBS_DEMO_CADENCE=off</code> in <code>.env.local</code>, then restart{' '}
-          <code>pnpm dev</code>.
+          real NWS forecast of your grid cells put <code>CONNECTOR_WEATHER=live</code> and{' '}
+          <code>NWS_USER_AGENT=&quot;farm-manager (you@example.com)&quot;</code> in{' '}
+          <code>.env.local</code>, then restart <code>pnpm dev</code>. The forecast then refreshes
+          every 30 minutes.
         </p>
       )}
       <div className={css.grid}>

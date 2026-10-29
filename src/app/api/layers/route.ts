@@ -20,6 +20,7 @@ export async function GET(): Promise<Response> {
   try {
     const body = await listMapLayers(getPool(), getStorage(), {
       includePrivate: mayViewPrivate(session),
+      role: session?.role ?? null,
     });
     return limitedJson(body, { headers }, { route: 'api/layers' });
   } catch (e) {

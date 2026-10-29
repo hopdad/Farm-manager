@@ -10,7 +10,7 @@ import { ROLES, type Role } from '@/platform/auth/types';
 import { setupTestDb } from '@/test/db';
 import { ADRIAN_QUARTER_SECTION, insertField } from '@/test/fixtures';
 import { FIELD_ROLE_HEADER } from '@/ui/fields/protocol';
-import { handleFieldDetail, handleSaveNotes, isSameOriginRequest } from './handler';
+import { handleFieldDetail, handleSaveNotes } from './handler';
 
 const t = setupTestDb(import.meta.url);
 
@@ -54,6 +54,33 @@ describe('GET /api/fields/<id>', () => {
       expect(body.field.id).toBe(fieldId);
       expect(body.field.acres).toBeCloseTo(160, 0);
       expect(body.openJobs).toEqual({ count: 0, placeholder: true });
+    }
+  });
+
+  test('parcel owners leave the server only for managers and up (D8)', async () => {
+    const { fieldId } = await seeded();
+    const imp = await t().admin.query<{ id: string }>(
+      `insert into gis.parcel_imports (source) values ('test') returning id::text`,
+    );
+    await t().admin.query(
+      `insert into gis.parcels (import_id, county_fips, parcel_no, owner_name, owner_mailing, geom)
+       select $1::uuid, '26091', 'XF-' || left(md5($2), 6), 'Pat Owner', '1 Main St', b.geom
+         from farm.current_boundaries b where b.field_id = $2::uuid`,
+      [imp.rows[0]?.id, fieldId],
+    );
+    const parcelsFor = async (role: Role) => {
+      const res = await as(role, () => handleFieldDetail(fieldId, t().pool));
+      return ((await res.json()) as FieldDetail).parcels;
+    };
+    for (const role of ['manager', 'owner'] as const) {
+      expect(await parcelsFor(role)).toEqual([
+        expect.objectContaining({ ownerName: 'Pat Owner', ownerMailing: '1 Main St' }),
+      ]);
+    }
+    for (const role of ['viewer', 'driver', 'operator'] as const) {
+      expect(await parcelsFor(role)).toEqual([
+        expect.objectContaining({ ownerName: null, ownerMailing: null }),
+      ]);
     }
   });
 
@@ -163,28 +190,5 @@ describe('PUT /api/fields/<id>/notes', () => {
     }
     const r = await t().pool.query('select notes from farm.fields where id = $1', [fieldId]);
     expect(r.rows[0]?.notes).toBeNull();
-  });
-});
-
-describe('isSameOriginRequest', () => {
-  const req = (headers: Record<string, string>) => new Request('http://x/', { headers });
-  test('no Origin (not a browser page) is allowed; the Origin must match the host', () => {
-    expect(isSameOriginRequest(req({ host: '192.168.1.20:3000' }))).toBe(true);
-    expect(
-      isSameOriginRequest(req({ host: '192.168.1.20:3000', origin: 'http://192.168.1.20:3000' })),
-    ).toBe(true);
-    expect(
-      isSameOriginRequest(req({ host: '192.168.1.20:3000', origin: 'http://localhost:3000' })),
-    ).toBe(false);
-    expect(isSameOriginRequest(req({ host: 'a:3000', origin: 'null' }))).toBe(false);
-    expect(
-      isSameOriginRequest(
-        req({
-          host: 'internal:3000',
-          'x-forwarded-host': 'farm.example.com',
-          origin: 'https://farm.example.com',
-        }),
-      ),
-    ).toBe(true);
   });
 });

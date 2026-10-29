@@ -17,6 +17,7 @@ import type pg from 'pg';
 import { authErrorResponse, requireRole } from '@/platform/auth/server';
 import { ROLE_FOR, roleAtLeast } from '@/platform/auth/types';
 import { limitedJson, readLimitedText } from '@/platform/http/limits';
+import { isSameOriginRequest } from '@/platform/http/origin';
 import {
   createTileLine,
   deleteTileLine,
@@ -102,9 +103,15 @@ export async function handleListTileLines(request: Request, pool: pg.Pool): Prom
   return json(body);
 }
 
+/** Writes from another site's page (another port of the PC's address counts) are refused. */
+const crossSite = (request: Request) =>
+  isSameOriginRequest(request) ? null : error(403, 'cross-site request refused');
+
 export async function handleCreateTileLine(request: Request, pool: pg.Pool): Promise<Response> {
   try {
     const session = await requireRole(ROLE_FOR.editTileLines);
+    const refused = crossSite(request);
+    if (refused) return refused;
     const body = await readJson(request);
     if (!body.ok) return body.res;
     const parsed = createTileLineSchema.safeParse(body.value);
@@ -123,6 +130,8 @@ export async function handleUpdateTileLine(
 ): Promise<Response> {
   try {
     await requireRole(ROLE_FOR.editTileLines);
+    const refused = crossSite(request);
+    if (refused) return refused;
     if (!UUID_RE.test(id)) return error(404, 'no such tile line');
     const body = await readJson(request);
     if (!body.ok) return body.res;
@@ -142,6 +151,8 @@ export async function handleDeleteTileLine(
 ): Promise<Response> {
   try {
     await requireRole(ROLE_FOR.editTileLines);
+    const refused = crossSite(request);
+    if (refused) return refused;
     if (!UUID_RE.test(id)) return error(404, 'no such tile line');
     const version = new URL(request.url).searchParams.get('version');
     if (!version) return error(400, 'give ?version= (the line as you last saw it)');

@@ -51,7 +51,7 @@ describe('pnpm db:seed demo', () => {
     expect(ins('field_boundaries')).toBe(40);
     expect(ins('field_seasons')).toBe(200);
     expect(ins('machines')).toBe(11);
-    expect(ins('geofences')).toBe(farm.elevators.length + 1 + farm.binSites.length);
+    expect(ins('geofences')).toBe(farm.elevators.length + 1 + farm.binSites.length + 40);
     expect(ins('external_refs')).toBe(simExternalRefs(farm, 'samsara').length);
     expect(report.extraRefs).toEqual([]);
 
@@ -122,16 +122,28 @@ describe('pnpm db:seed demo', () => {
       expected.map((s) => [s.key, s.crop, s.cropYear, s.yieldBuAc]),
     );
     const g = await pool.query(
-      `select kind, name, party_id::text as party, extensions.ST_IsValid(geom) as valid
+      `select kind, name, party_id::text as party, field_id::text as field,
+              extensions.ST_IsValid(geom) as valid
          from farm.geofences order by kind, name`,
     );
+    // One entrance per field (plan 1a), tied to its field; it ends short of the crop.
+    const entrances = g.rows.filter((r) => r.kind === 'field_entrance');
+    expect(entrances.map((r) => r.field).sort()).toEqual(farm.fields.map((f) => f.id).sort());
+    expect(entrances.every((r) => r.valid && r.party === null)).toBe(true);
+    const crossing = await pool.query(
+      `select count(*)::int as n
+         from farm.geofences g
+         join farm.field_boundaries b on b.field_id = g.field_id and upper_inf(b.valid)
+        where g.kind = 'field_entrance' and extensions.ST_Intersects(g.geom, b.geom)`,
+    );
+    expect(crossing.rows[0].n).toBe(0);
     expect(
       g.rows
         .filter((r) => r.kind === 'elevator')
         .map((r) => r.party)
         .sort(),
     ).toEqual(farm.elevators.map((e) => e.partyId).sort());
-    expect(g.rows.map((r) => r.kind)).toEqual([
+    expect(g.rows.filter((r) => r.kind !== 'field_entrance').map((r) => r.kind)).toEqual([
       'bin_site',
       'elevator',
       'elevator',

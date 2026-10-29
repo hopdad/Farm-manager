@@ -22,6 +22,7 @@ import { SPRAY_ASSESS_AHEAD_HOURS, sprayAssessmentHours } from '@/domain/weather
 import { authErrorResponse, requireRole } from '@/platform/auth/server';
 import { ROLE_FOR, type Role, roleAtLeast, type Session } from '@/platform/auth/types';
 import { limitedJson, readLimitedText } from '@/platform/http/limits';
+import { isSameOriginRequest } from '@/platform/http/origin';
 import { publish } from '@/platform/realtime/publish';
 import {
   type FieldSprayResponse,
@@ -53,21 +54,6 @@ async function authorize(min: Role): Promise<Session | Response> {
     const res = authErrorResponse(e);
     if (res) return res;
     throw e;
-  }
-}
-
-/**
- * Is the request from a page of this app (or not from a browser page at all)? Browsers send
- * `Origin` on every POST; it must name the host the request came to.
- */
-export function isSameOriginRequest(request: Request): boolean {
-  const origin = request.headers.get('origin');
-  if (!origin) return true;
-  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
-  try {
-    return host !== null && new URL(origin).host === host.split(',')[0]?.trim();
-  } catch {
-    return false;
   }
 }
 

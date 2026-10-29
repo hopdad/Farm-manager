@@ -16,6 +16,21 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           Farm Ops
         </Link>
         <nav className={css.nav} aria-label="Admin">
+          <Link href="/admin/fields" className={css.navLink}>
+            Fields
+          </Link>
+          <Link href="/admin/parties" className={css.navLink}>
+            Parties
+          </Link>
+          <Link href="/admin/spray" className={css.navLink}>
+            Spray
+          </Link>
+          <Link href="/admin/people" className={css.navLink}>
+            People
+          </Link>
+          <Link href="/admin/devices" className={css.navLink}>
+            Devices
+          </Link>
           <Link href="/admin/connectors" className={css.navLink}>
             Connectors
           </Link>

@@ -4,7 +4,8 @@
  * simulated world, plus the control API under /_control (403 unless the caller is loopback).
  *
  *   /samsara/...  ./samsara/routes.ts      /deere/...   ./deere/routes.ts
- *   /motive/...   ./motive/routes.ts       /qbo, /nws   404 until their slices
+ *   /motive/...   ./motive/routes.ts       /nws/...     ./nws/routes.ts (1b)
+ *   /qbo          404 until its slice (M3)
  *   /_control/status | clock | scenario | faults | reset | stats
  *
  * `startVendorSim()` is used by the CLI (tools/vendor-sim/index.ts, state in

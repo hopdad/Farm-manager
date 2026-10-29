@@ -81,7 +81,7 @@ export default async function FieldsAdminPage({
             <>
               An Operations Center boundary export (.zip), a .shp with its .dbf and .prj, or
               GeoJSON. Fields are matched by Deere id, else by name and shape; Deere-synced
-              boundaries are left alone. Up to 1 MB here; bigger files:{' '}
+              boundaries are left alone. Up to 4 MB here; bigger files:{' '}
               <code>pnpm import:boundaries</code>.
             </>
           }

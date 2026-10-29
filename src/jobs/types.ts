@@ -71,6 +71,9 @@ export interface JobResult {
   note?: string;
 }
 
+/** Config keys of the connector modes a job can depend on. */
+export type JobConnector = 'CONNECTOR_DEERE' | 'CONNECTOR_ELD' | 'CONNECTOR_WEATHER';
+
 interface JobBase {
   /** Default 'app'. */
   host?: JobHost;
@@ -81,6 +84,12 @@ interface JobBase {
    * `jobs:emit-cron` ignores it: production always uses `every` / `cron`.
    */
   demoEvery?: EverySpec;
+  /**
+   * The connector setting this job talks through. Its `demoEvery` applies only while that
+   * connector is sim, replay or off: a sandbox or live vendor is always polled at the real
+   * schedule (call budgets, NWS etiquette), even with JOBS_DEMO_CADENCE=on.
+   */
+  connector?: JobConnector;
   /** Default DEFAULT_JOB_BUDGET_MS; at most MAX_JOB_BUDGET_MS. */
   budgetMs?: number;
   run(ctx: JobContext): Promise<JobResult>;

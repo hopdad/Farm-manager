@@ -404,7 +404,7 @@ export default function BoundaryEditor(props: EditorProps) {
     return r;
   }, []);
 
-  /** A server action that never answered (network, the 1 MB body limit, a restart). */
+  /** A server action that never answered (network, the 4 MB body limit, a restart). */
   const failed = (e: unknown) =>
     setResult({
       ok: false,
