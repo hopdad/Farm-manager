@@ -73,6 +73,10 @@ function sortMachines(list: PanelMachine[]): PanelMachine[] {
   return list.sort((a, b) => byUnit.compare(a.unitNo, b.unitNo) || (a.id < b.id ? -1 : 1));
 }
 
+/**
+ * Apply one machine of a tick. `odd` asks for a refetch: a status change we never heard about
+ * (down without a reason) or a move into a field whose name we don't have.
+ */
 function applyTickMachine(m: PanelMachine, v: MachineView): { next: PanelMachine; odd: boolean } {
   const sameField = m.position?.fieldId === v.fieldId;
   const next: PanelMachine = {
@@ -89,11 +93,12 @@ function applyTickMachine(m: PanelMachine, v: MachineView): { next: PanelMachine
       fieldName: sameField ? (m.position?.fieldName ?? null) : null,
     },
   };
-  if (v.status === m.status) return { next, odd: false };
+  const newField = !sameField && v.fieldId !== null;
+  if (v.status === m.status) return { next, odd: newField };
   if (v.status === 'active') {
     return {
       next: { ...next, status: 'active', downReason: null, downAt: null, downBy: null },
-      odd: false,
+      odd: newField,
     };
   }
   // Down (or retired) by a change we never heard about: show it, fetch the reason.

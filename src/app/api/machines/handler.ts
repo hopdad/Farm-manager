@@ -1,7 +1,7 @@
 /**
  * The fleet panel's routes (framework-free, so the DB tests call them under runWithSession):
  *
- *  GET /api/machines -> 200 FleetPanelData (src/ui/fleet/contract.ts): requireRole('viewer')
+ *  GET /api/machines -> 200 FleetPanelData (src/ui/fleet/contract.ts): requireRole(viewPrivate)
  *    first (401/403 JSON otherwise), `Cache-Control: no-store`; 503 when the database is down.
  *    `canMarkDown` comes from the session's role (the server checks again on every POST).
  *
@@ -69,7 +69,7 @@ export async function handleListMachines(
 ): Promise<Response> {
   let role: Parameters<typeof roleAtLeast>[0];
   try {
-    role = (await requireRole('viewer')).role;
+    role = (await requireRole(ROLE_FOR.viewPrivate)).role;
   } catch (e) {
     const res = authErrorResponse(e);
     if (res) return res;

@@ -7,6 +7,9 @@
  * degrades to polling instead of going stale; a tick that disagrees with what we know (a status
  * change we never heard of, a new machine) also triggers a refetch.
  *
+ * Ticks carry positions, not geofence visits: while ticks keep arriving the list is also
+ * refetched at most every `placeRefreshMs`, so "At Kestrel Grain" doesn't outlive the visit.
+ *
  * Realtime needs the server's config (which adapter), so the subscription starts after the
  * first snapshot.
  */
@@ -17,6 +20,8 @@ import { initialPanelState, type PanelAction, type PanelState, reducePanel } fro
 
 /** Snapshot poll while realtime is down (and the tick re-check of ages). */
 export const PANEL_POLL_MS = 5_000;
+/** While ticks arrive, refetch at most this often (geofence places, field names). */
+export const PLACE_REFRESH_MS = 20_000;
 
 export interface PanelRealtime {
   client: RealtimeClient;
@@ -29,6 +34,9 @@ export interface FleetPanelFeedOptions {
   realtimeFor(config: FleetPanelData['config']): PanelRealtime;
   fetch?: typeof globalThis.fetch;
   pollMs?: number;
+  placeRefreshMs?: number;
+  /** Wall clock (ms) for the place refresh; tests inject one. */
+  now?: () => number;
 }
 
 export interface FleetPanelFeed {
@@ -46,6 +54,8 @@ export function startFleetPanelFeed(opts: FleetPanelFeedOptions): FleetPanelFeed
   let inflight = false;
   let again = false;
   let realtime: PanelRealtime | null = null;
+  const wallNow = opts.now ?? (() => Date.now());
+  let lastSnapshotAt = Number.NEGATIVE_INFINITY;
   let unsubscribe: (() => void) | null = null;
 
   const dispatch = (action: PanelAction) => {
@@ -65,7 +75,11 @@ export function startFleetPanelFeed(opts: FleetPanelFeedOptions): FleetPanelFeed
           dispatch({ type: 'machine', payload: evt.payload });
         } else if (evt.event === 'tick') {
           const parsed = fleetTickSchema.safeParse(evt.payload);
-          if (parsed.success) dispatch({ type: 'tick', tick: parsed.data });
+          if (!parsed.success) return;
+          dispatch({ type: 'tick', tick: parsed.data });
+          if (wallNow() - lastSnapshotAt >= (opts.placeRefreshMs ?? PLACE_REFRESH_MS)) {
+            void refetch();
+          }
         }
         // 'invalidate' → onResync refetches
       },
@@ -99,6 +113,7 @@ export function startFleetPanelFeed(opts: FleetPanelFeedOptions): FleetPanelFeed
         const parsed = fleetPanelDataSchema.safeParse(await res.json());
         if (!parsed.success) throw new Error('Fleet unavailable (unexpected response)');
         if (stopped) return;
+        lastSnapshotAt = wallNow();
         dispatch({ type: 'snapshot', data: parsed.data });
         subscribe(parsed.data.config);
       } while (again && !stopped);

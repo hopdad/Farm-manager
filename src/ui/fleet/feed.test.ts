@@ -135,6 +135,34 @@ describe('startFleetPanelFeed', () => {
     h.feed.stop();
   });
 
+  test('while ticks arrive, the list (geofence places) is refetched at most every 20 s', async () => {
+    let wall = 0;
+    const states: PanelState[] = [];
+    const rt = new FakeRealtime();
+    const fetch = vi.fn(async () => Response.json(snapshot()));
+    const feed = startFleetPanelFeed({
+      onState: (s) => states.push(s),
+      realtimeFor: () => ({ client: rt, connected: () => true }),
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      pollMs: 60_000,
+      placeRefreshMs: 20_000,
+      now: () => wall,
+    });
+    await vi.waitFor(() => expect(states.at(-1)?.loaded).toBe(true));
+    const tick = (ts: string) => rt.emit({ event: 'tick', seq: 9, payload: { ts, machines: [] } });
+    for (let i = 0; i < 4; i++) {
+      wall += 5_000;
+      tick('2026-11-30T15:00:05.000Z');
+    }
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(2); // the first load + one refresh at 20 s
+    wall += 5_000;
+    tick('2026-11-30T15:00:10.000Z');
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    feed.stop();
+  });
+
   test('polls while realtime is down, not while it is up', async () => {
     vi.useFakeTimers();
     const h = harness([() => Response.json(snapshot())]);

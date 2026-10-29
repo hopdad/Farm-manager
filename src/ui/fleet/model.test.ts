@@ -162,6 +162,24 @@ describe('reducePanel', () => {
     });
     expect(s.machines[0]?.position).toMatchObject({ fieldId: id(91), fieldName: null });
     expect(s.machines[1]?.position?.lng).toBe(-83.9); // not in the tick: unchanged
+    expect(s.needsRefetch).toBe(true); // a field we have no name for: refetch
+  });
+
+  test('staying in the same field, or leaving to the road, needs no refetch', () => {
+    const a = machine(1, 'S1', {
+      position: { ...BASE_POS, fieldId: id(90), fieldName: 'North 80' },
+    });
+    let s = loaded([a]);
+    s = reducePanel(s, {
+      type: 'tick',
+      tick: { ts: NOW.toISOString(), machines: [view(a, { fieldId: id(90) })] },
+    });
+    expect(s.needsRefetch).toBe(false);
+    s = reducePanel(s, {
+      type: 'tick',
+      tick: { ts: NOW.toISOString(), machines: [view(a, { fieldId: null })] },
+    });
+    expect(s.machines[0]?.position?.fieldName).toBeNull();
     expect(s.needsRefetch).toBe(false);
   });
 
