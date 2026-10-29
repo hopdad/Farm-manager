@@ -1,0 +1,409 @@
+/**
+ * The demo seed (contracts §9 "Seed contract"): writes the simulated farm into farm.* and
+ * ingest.external_refs so the vendor syncs map onto it.
+ *
+ *  - every row's id is the SimFarm id (demoId(key)), source = 'demo', source_id = key;
+ *  - one current boundary per field (id field.boundaryId, source_id 'boundary:<key>', valid
+ *    from DEMO_VALID_FROM), five completed seasons per field, the fleet, one geofence per
+ *    elevator (kind 'elevator', party = the elevator company), the shop (kind 'shop') and its
+ *    bin site (kind 'bin_site');
+ *  - exactly the external refs simExternalRefs(farm, ELD_VENDOR) returns, via upsertExternalRef.
+ *
+ * Idempotent: every write is an upsert that changes a row only when a seeded column differs
+ * (`... where (cols) is distinct from (excluded cols)`), so a re-run writes nothing. Columns the
+ * app or the syncs own are written on insert only and never overwritten: fields.active and
+ * notes, boundaries' valid range and derived_stale, machines' status, engine hours and odometer.
+ * One transaction; any error rolls everything back.
+ */
+import type pg from 'pg';
+import { type EldVendor, externalRefKey } from '../../src/connectors/types';
+import { exec } from '../../src/db/exec';
+import { upsertExternalRef } from '../../src/db/external-refs';
+import { demoId } from '../../src/domain/ids';
+import { buildDemoFarm, type DemoFarm } from '../../src/sim/farm/build';
+import { FLEET } from '../../src/sim/farm/fleet';
+import { simFieldSeasons } from '../../src/sim/seasons';
+import { simExternalRefs } from '../../src/sim/types';
+
+/** Lower bound of every seeded boundary's validity (fixed, so re-runs are no-ops). */
+export const DEMO_VALID_FROM = '2020-01-01T00:00:00Z';
+export const DEMO_SOURCE = 'demo';
+
+export type SeedTable =
+  | 'parties'
+  | 'farms'
+  | 'fields'
+  | 'field_boundaries'
+  | 'field_seasons'
+  | 'machines'
+  | 'geofences'
+  | 'external_refs';
+
+export interface SeedCounts {
+  inserted: number;
+  updated: number;
+  unchanged: number;
+}
+
+export interface SeedReport {
+  seed: number;
+  eldVendor: EldVendor;
+  tables: Record<SeedTable, SeedCounts>;
+  /** External refs that point at demo rows but aren't in simExternalRefs (e.g. a previous ELD_VENDOR). Left alone. */
+  extraRefs: string[];
+}
+
+const TABLES: SeedTable[] = [
+  'parties',
+  'farms',
+  'fields',
+  'field_boundaries',
+  'field_seasons',
+  'machines',
+  'geofences',
+  'external_refs',
+];
+
+type Outcome = keyof SeedCounts;
+
+/** Run one upsert ending in `returning (xmax = 0) as inserted`. */
+async function upsert(client: pg.PoolClient, text: string, values: unknown[]): Promise<Outcome> {
+  const r = await exec<{ inserted: boolean }>(client, text, values);
+  const row = r.rows[0];
+  if (!row) return 'unchanged';
+  return row.inserted ? 'inserted' : 'updated';
+}
+
+const GEOM = (n: number) =>
+  `extensions.ST_SetSRID(extensions.ST_GeomFromGeoJSON($${n}::text), 4326)`;
+
+/** Write the demo farm for `seed`. The caller owns the pool. */
+export async function seedDemo(
+  pool: pg.Pool,
+  opts: { seed: number; eldVendor: EldVendor; farm?: DemoFarm },
+): Promise<SeedReport> {
+  const farm = opts.farm ?? buildDemoFarm(opts.seed);
+  const tables = Object.fromEntries(
+    TABLES.map((t) => [t, { inserted: 0, updated: 0, unchanged: 0 }]),
+  ) as Record<SeedTable, SeedCounts>;
+  const count = (t: SeedTable, o: Outcome) => {
+    tables[t][o]++;
+  };
+
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+
+    for (const p of farm.parties) {
+      count(
+        'parties',
+        await upsert(
+          client,
+          `insert into farm.parties as t (id, kind, org_id, display_name, roles, phone, email, source, source_id)
+           values ($1::uuid, $2, $3::uuid, $4, $5::text[], $6, $7, $8, $9)
+           on conflict (id) do update set
+             kind = excluded.kind, org_id = excluded.org_id, display_name = excluded.display_name,
+             roles = excluded.roles, phone = excluded.phone, email = excluded.email,
+             source = excluded.source, source_id = excluded.source_id, updated_at = now()
+           where (t.kind, t.org_id, t.display_name, t.roles, t.phone, t.email, t.source, t.source_id)
+             is distinct from (excluded.kind, excluded.org_id, excluded.display_name, excluded.roles,
+                               excluded.phone, excluded.email, excluded.source, excluded.source_id)
+           returning (xmax = 0) as inserted`,
+          [
+            p.id,
+            p.kind,
+            p.orgId,
+            p.displayName,
+            p.roles,
+            p.phone ?? null,
+            p.email ?? null,
+            DEMO_SOURCE,
+            p.key,
+          ],
+        ),
+      );
+    }
+
+    for (const u of farm.farms) {
+      count(
+        'farms',
+        await upsert(
+          client,
+          `insert into farm.farms as t (id, name, client_party_id, deere_farm_id, source, source_id)
+           values ($1::uuid, $2, $3::uuid, $4, $5, $6)
+           on conflict (id) do update set
+             name = excluded.name, client_party_id = excluded.client_party_id,
+             deere_farm_id = excluded.deere_farm_id, source = excluded.source,
+             source_id = excluded.source_id, updated_at = now()
+           where (t.name, t.client_party_id, t.deere_farm_id, t.source, t.source_id)
+             is distinct from (excluded.name, excluded.client_party_id, excluded.deere_farm_id,
+                               excluded.source, excluded.source_id)
+           returning (xmax = 0) as inserted`,
+          [u.id, u.name, u.clientPartyId, u.deereFarmId, DEMO_SOURCE, u.key],
+        ),
+      );
+    }
+
+    for (const f of farm.fields) {
+      const meta = farm.fieldMeta[f.id];
+      count(
+        'fields',
+        await upsert(
+          client,
+          `insert into farm.fields as t
+             (id, farm_id, name, county_fips, tenure, landlord_party_id, deere_field_id, notes, source, source_id)
+           values ($1::uuid, $2::uuid, $3, $4, $5, $6::uuid, $7, $8, $9, $10)
+           on conflict (id) do update set
+             farm_id = excluded.farm_id, name = excluded.name, county_fips = excluded.county_fips,
+             tenure = excluded.tenure, landlord_party_id = excluded.landlord_party_id,
+             deere_field_id = excluded.deere_field_id, source = excluded.source,
+             source_id = excluded.source_id, updated_at = now()
+           where (t.farm_id, t.name, t.county_fips, t.tenure, t.landlord_party_id, t.deere_field_id,
+                  t.source, t.source_id)
+             is distinct from (excluded.farm_id, excluded.name, excluded.county_fips, excluded.tenure,
+                               excluded.landlord_party_id, excluded.deere_field_id, excluded.source,
+                               excluded.source_id)
+           returning (xmax = 0) as inserted`,
+          [
+            f.id,
+            f.farmId,
+            f.name,
+            f.countyFips,
+            f.tenure,
+            f.landlordPartyId,
+            f.deereFieldId,
+            meta ? `${meta.legal} (demo grid)` : null,
+            DEMO_SOURCE,
+            f.key,
+          ],
+        ),
+      );
+      count(
+        'field_boundaries',
+        await upsert(
+          client,
+          `insert into farm.field_boundaries as t (id, field_id, geom, valid, source, source_id, source_ref)
+           values ($1::uuid, $2::uuid, extensions.ST_Multi(${GEOM(3)}),
+                   tstzrange($4::timestamptz, null, '[)'), $5, $6, $7)
+           on conflict (id) do update set
+             field_id = excluded.field_id, geom = excluded.geom, source = excluded.source,
+             source_id = excluded.source_id, source_ref = excluded.source_ref
+           where (t.field_id, t.source, t.source_id, t.source_ref)
+               is distinct from (excluded.field_id, excluded.source, excluded.source_id, excluded.source_ref)
+              or extensions.ST_AsBinary(t.geom) is distinct from extensions.ST_AsBinary(excluded.geom)
+           returning (xmax = 0) as inserted`,
+          [
+            f.boundaryId,
+            f.id,
+            JSON.stringify(f.boundary),
+            DEMO_VALID_FROM,
+            DEMO_SOURCE,
+            `boundary:${f.key}`,
+            'demo grid (simulated farm)',
+          ],
+        ),
+      );
+    }
+
+    for (const s of simFieldSeasons(farm)) {
+      count(
+        'field_seasons',
+        await upsert(
+          client,
+          `insert into farm.field_seasons as t
+             (id, field_id, crop_year, crop, variety, planted_on, harvested_on, yield_bu_ac, source, source_id)
+           values ($1::uuid, $2::uuid, $3, $4, $5, $6::date, $7::date, $8::numeric, $9, $10)
+           on conflict (field_id, crop_year) do update set
+             crop = excluded.crop, variety = excluded.variety, planted_on = excluded.planted_on,
+             harvested_on = excluded.harvested_on, yield_bu_ac = excluded.yield_bu_ac,
+             updated_at = now()
+           where t.source = excluded.source
+             and (t.crop, t.variety, t.planted_on, t.harvested_on, t.yield_bu_ac)
+               is distinct from (excluded.crop, excluded.variety, excluded.planted_on,
+                                 excluded.harvested_on, excluded.yield_bu_ac)
+           returning (xmax = 0) as inserted`,
+          [
+            demoId(s.key),
+            s.fieldId,
+            s.cropYear,
+            s.crop,
+            s.variety,
+            s.plantedOn,
+            s.harvestedOn,
+            s.yieldBuAc.toFixed(2),
+            DEMO_SOURCE,
+            s.key,
+          ],
+        ),
+      );
+    }
+
+    for (const m of farm.machines) {
+      const spec = FLEET.find((f) => f.key === m.key);
+      count(
+        'machines',
+        await upsert(
+          client,
+          `insert into farm.machines as t
+             (id, kind, unit_no, make, model, year, vin_serial, engine_hours, odometer_mi, source, source_id)
+           values ($1::uuid, $2, $3, $4, $5, $6, $7, $8::numeric, $9::numeric, $10, $11)
+           on conflict (id) do update set
+             kind = excluded.kind, unit_no = excluded.unit_no, make = excluded.make,
+             model = excluded.model, year = excluded.year, vin_serial = excluded.vin_serial,
+             source = excluded.source, source_id = excluded.source_id, updated_at = now()
+           where (t.kind, t.unit_no, t.make, t.model, t.year, t.vin_serial, t.source, t.source_id)
+             is distinct from (excluded.kind, excluded.unit_no, excluded.make, excluded.model,
+                               excluded.year, excluded.vin_serial, excluded.source, excluded.source_id)
+           returning (xmax = 0) as inserted`,
+          [
+            m.id,
+            m.kind,
+            m.unitNo,
+            m.make,
+            m.model,
+            m.year,
+            `SIM-${m.unitNo}-${m.year}`,
+            (spec?.hoursAt2026 ?? 0).toFixed(1),
+            (spec?.odometerAt2026 ?? 0).toFixed(1),
+            DEMO_SOURCE,
+            m.key,
+          ],
+        ),
+      );
+    }
+
+    const geofences = [
+      ...farm.elevators.map((e) => ({
+        id: e.id,
+        key: e.key,
+        kind: 'elevator',
+        name: e.name,
+        partyId: e.partyId as string | null,
+        geom: e.geofence,
+      })),
+      {
+        id: farm.shop.id,
+        key: 'shop',
+        kind: 'shop',
+        name: farm.shop.name,
+        partyId: null,
+        geom: farm.shop.geofence,
+      },
+      ...farm.binSites.map((b) => ({
+        id: b.id,
+        key: b.key,
+        kind: 'bin_site',
+        name: b.name,
+        partyId: null,
+        geom: b.geofence,
+      })),
+    ];
+    for (const g of geofences) {
+      count(
+        'geofences',
+        await upsert(
+          client,
+          `insert into farm.geofences as t (id, kind, name, party_id, geom, source, source_id)
+           values ($1::uuid, $2, $3, $4::uuid, ${GEOM(5)}, $6, $7)
+           on conflict (id) do update set
+             kind = excluded.kind, name = excluded.name, party_id = excluded.party_id,
+             geom = excluded.geom, source = excluded.source, source_id = excluded.source_id,
+             updated_at = now()
+           where (t.kind, t.name, t.party_id, t.source, t.source_id)
+               is distinct from (excluded.kind, excluded.name, excluded.party_id, excluded.source,
+                                 excluded.source_id)
+              or extensions.ST_AsBinary(t.geom) is distinct from extensions.ST_AsBinary(excluded.geom)
+           returning (xmax = 0) as inserted`,
+          [g.id, g.kind, g.name, g.partyId, JSON.stringify(g.geom), DEMO_SOURCE, g.key],
+        ),
+      );
+    }
+
+    // External refs: diff against what is there (for the counts), then upsert every one.
+    const refs = simExternalRefs(farm, opts.eldVendor);
+    const keyOf = (r: { source: string; kind: string; externalId: string; sourceOrg: string }) =>
+      externalRefKey(
+        r.source as Parameters<typeof externalRefKey>[0],
+        r.kind as Parameters<typeof externalRefKey>[1],
+        r.externalId,
+        r.sourceOrg,
+      );
+    const demoIds = [
+      ...new Set([
+        ...farm.farms.map((u) => u.id),
+        ...farm.fields.flatMap((f) => [f.id, f.boundaryId]),
+        ...farm.machines.map((m) => m.id),
+      ]),
+    ];
+    const existing = await exec<{
+      source: string;
+      kind: string;
+      external_id: string;
+      source_org: string;
+      entity_id: string;
+    }>(
+      client,
+      `select source, kind, external_id, source_org, entity_id::text as entity_id
+         from ingest.external_refs
+        where external_id = any($1::text[]) or entity_id = any($2::uuid[])`,
+      [refs.map((r) => r.ref.externalId), demoIds],
+    );
+    const before = new Map(
+      existing.rows.map((r) => [
+        keyOf({
+          source: r.source,
+          kind: r.kind,
+          externalId: r.external_id,
+          sourceOrg: r.source_org,
+        }),
+        r.entity_id,
+      ]),
+    );
+    const expected = new Set<string>();
+    for (const r of refs) {
+      const key = keyOf(r.ref);
+      expected.add(key);
+      const prev = before.get(key);
+      count(
+        'external_refs',
+        prev === undefined ? 'inserted' : prev === r.entityId ? 'unchanged' : 'updated',
+      );
+      await upsertExternalRef(client, r.ref, r.entityId);
+    }
+    const demoIdSet = new Set(demoIds);
+    const extraRefs = existing.rows
+      .filter((r) => demoIdSet.has(r.entity_id))
+      .map((r) =>
+        keyOf({
+          source: r.source,
+          kind: r.kind,
+          externalId: r.external_id,
+          sourceOrg: r.source_org,
+        }),
+      )
+      .filter((k) => !expected.has(k))
+      .sort();
+
+    await client.query('commit');
+    return { seed: farm.seed, eldVendor: opts.eldVendor, tables, extraRefs };
+  } catch (e) {
+    await client.query('rollback').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+/** One line per table: "parties  31 inserted, 0 updated, 0 unchanged". */
+export function formatSeedReport(r: SeedReport): string {
+  const lines = TABLES.map((t) => {
+    const c = r.tables[t];
+    return `  ${t.padEnd(18)} ${String(c.inserted).padStart(4)} inserted ${String(c.updated).padStart(4)} updated ${String(c.unchanged).padStart(4)} unchanged`;
+  });
+  if (r.extraRefs.length) {
+    lines.push(
+      `  note: ${r.extraRefs.length} other external ref(s) point at demo rows and were left alone (e.g. ${r.extraRefs[0]})`,
+    );
+  }
+  return lines.join('\n');
+}

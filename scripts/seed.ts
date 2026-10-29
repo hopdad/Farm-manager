@@ -1,0 +1,81 @@
+/**
+ * pnpm db:seed demo [--seed N]
+ *
+ * Writes the simulated demo farm (fields, parties, fleet, elevators, seasons, external refs)
+ * into the database DATABASE_URL names, as farm_app. `pnpm db:reset` runs `scripts/seed.ts demo`
+ * after migrating. Idempotent: running it again changes nothing. Refuses any database that
+ * isn't on this machine (plan §1). The seed defaults to SIM_SEED; ELD refs use ELD_VENDOR.
+ */
+import { parseArgs } from 'node:util';
+import { getConfig } from '../src/config';
+import { assertLocalUrl } from '../src/db/admin';
+import { createPool } from '../src/db/client';
+import { isMainModule } from '../src/lib/proc';
+import { formatSeedReport, seedDemo } from '../tools/seed/demo';
+
+export const SEED_SETS = ['demo'] as const;
+export type SeedSet = (typeof SEED_SETS)[number];
+
+export class UsageError extends Error {}
+
+const USAGE = `usage: pnpm db:seed <${SEED_SETS.join('|')}> [--seed N]`;
+
+export function parseSeedArgs(argv: string[], defaultSeed: number): { set: SeedSet; seed: number } {
+  let parsed: ReturnType<typeof parseArgs>;
+  try {
+    parsed = parseArgs({
+      args: argv,
+      allowPositionals: true,
+      options: { seed: { type: 'string' }, help: { type: 'boolean', short: 'h', default: false } },
+    });
+  } catch (e) {
+    throw new UsageError(`${(e as Error).message}\n${USAGE}`);
+  }
+  const { values, positionals } = parsed;
+  if (values.help || positionals.length !== 1) throw new UsageError(USAGE);
+  const set = positionals[0] as string;
+  if (!(SEED_SETS as readonly string[]).includes(set)) {
+    throw new UsageError(`unknown seed set '${set}'\n${USAGE}`);
+  }
+  let seed = defaultSeed;
+  const raw = values.seed as string | undefined;
+  if (raw !== undefined) {
+    seed = Number(raw);
+    if (!Number.isInteger(seed) || seed < 0) throw new UsageError('--seed must be an integer >= 0');
+  }
+  return { set: set as SeedSet, seed };
+}
+
+async function main(): Promise<void> {
+  const cfg = getConfig();
+  let args: { set: SeedSet; seed: number };
+  try {
+    args = parseSeedArgs(process.argv.slice(2), cfg.SIM_SEED);
+  } catch (e) {
+    console.error((e as Error).message);
+    process.exitCode = 2;
+    return;
+  }
+  assertLocalUrl(cfg.DATABASE_URL, 'db:seed');
+  const pool = createPool({ max: 2, applicationName: 'farm-seed' });
+  try {
+    const started = performance.now();
+    const report = await seedDemo(pool, { seed: args.seed, eldVendor: cfg.ELD_VENDOR });
+    const db = new URL(cfg.DATABASE_URL).pathname.slice(1) || 'postgres';
+    console.log(
+      `[seed] ${args.set} (seed ${report.seed}, ELD ${report.eldVendor}) into ${db} in ${Math.round(performance.now() - started)} ms`,
+    );
+    console.log(formatSeedReport(report));
+  } finally {
+    await pool.end();
+  }
+}
+
+if (isMainModule(import.meta.url)) {
+  try {
+    await main();
+  } catch (e) {
+    console.error(`[seed] error: ${(e as Error).message}`);
+    process.exitCode = 1;
+  }
+}
