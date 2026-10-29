@@ -610,7 +610,33 @@ Plan §1 *Storage* / *Basemap* and §2 step 6. Only `src/platform/**` touches th
 | e2e | `playwright.config.ts`: WebGL flags in `use`, `webServer` = `pnpm pilot`; `e2e/m0-demo.spec.ts` (the M0 demo), `e2e/routes.spec.ts` | map and runtime asked for both |
 | db/pending | no builder left SQL there: no new migration | |
 
+### Review fixes after stage 3 (Oct 29, 2026)
+
+Additive: every earlier contract still holds (an existing call keeps compiling and behaving the
+same), except where a row says a value is now refused.
+
+| Area | Change | Why |
+|---|---|---|
+| Realtime (§6) | `getRealtimeClient(kind = 'sse')` takes the adapter kind (`publicConfig().realtime`); `'supabase'` returns the inert client (one `onResync`, a console warning) until the Broadcast adapter lands at MD. BoardScreen, `LiveRefresh` and `RealtimeMonitor` pass it | `NEXT_PUBLIC_REALTIME` reached no client |
+| Fleet on the map (§7) | `src/ui/map/fleet/feed.ts`: the first snapshot loads 1.5 s after subscribing if no resync came, and the 5 s staleness timer also refetches `GET /api/fleet` while realtime isn't connected. A glide lasts the time between the machine's own last two fixes | an unreachable `/api/realtime` left the map empty; two full-fleet publishers broke the arrival-gap glide |
+| Storage (§10) | `StorageReader.publicUrl(bucket, key)`; the board builds the PMTiles, glyph and sprite URLs through it (local: `/api/storage/<bucket>/<key>`, segments encoded) | at MD the Supabase adapter returns the public bucket URLs; no UI change |
+| HTTP limits (plan §1) | `src/platform/http/limits.ts`: `limitedJson` / `limitedBytes` (outside production a response over 4 MiB becomes a 500 saying to page or stream it) and `readLimitedText` (request bodies, 4 MB cap, chunked included). Every API route except `/api/storage` and `/api/realtime` uses them (`src/seams.test.ts`) | the dev guard the plan asks for |
+| Admin | `/admin/*`, its server actions and the non-sim start of `GET /api/oauth/deere` need the `farm_admin` cookie: an HMAC of `SESSION_SECRET` (`src/platform/auth/admin-key.ts`) set by `GET /admin/unlock?key=…`, which `pnpm dev` / `pnpm pilot` / bootstrap print on the PC; never in production. e2e contexts get it from `e2e/support/admin.ts` | Next listens on the LAN and the actions had no check; until 1a's sign-in |
+| OAuth tokens (§4) | the stand-in's Deere grant lives under `org_external_id` `SIM_GRANT_ORG` (`'sim'`), chosen by `userGrantOrg(endpoints)`; real grants stay under `''` | a sim client sent a real grant to `VENDOR_SIM_URL` and replaced it |
+| Config (§3) | `VENDOR_SIM_URL` must be loopback (127.0.0.1, localhost, [::1]); `BASEMAP_STYLE=openfreemap` is refused until that style exists | sim traffic never leaves the PC; the switch was silently ignored |
+| Stand-in (§9) | `/_control/*` also needs a loopback `Host`, no foreign `Origin`, and `application/json` for POST (415 otherwise); `startVendorSim` refuses a non-loopback `host` | a web page in the PC's browser could drive the control API |
+| Webhooks | sim-mode secrets are `simWebhookSecret(SESSION_SECRET, source)` (was the public `SIM_WEBHOOK_SECRETS`); off/sandbox/live are refused before the body is read | forged sim webhooks; unbounded body reads |
+| Sync step (§8) | pending raw events are processed `order by fetched_at, external_id, id` (every external id ends in its series' ISO time) | in-page order was random, so fuel ("latest wins") could end on an older reading |
+| Motive (placeholder) | the positions cursor is a JSON map of vehicle id to newest `located_at` | one global watermark dropped slower trucks |
+| DB guards | `isLoopbackUrl` / `assertLocalUrl` check every host pg would use (`?host=`, `hostaddr`; `connectionHosts`); bootstrap refuses a non-local `DATABASE_URL_MIGRATE` before connecting | the guard could be bypassed, and `--db=external` migrated whatever it named |
+| Launchers | port checks bind like the servers (`src/lib/ports.ts`), with a hint for Windows excluded port ranges; bootstrap also checks the stand-in's port | connect-probes said "free" for reserved or other-address ports |
+
 Still open (reported, not done in M0): `loadBu` on `SimMachineSample` (3d), webhook secrets
 (`SAMSARA_WEBHOOK_SECRET` …, needed before sandbox/live webhooks), the stand-in sending webhooks
-(`webhook_replay` / `webhook_reorder` faults are accepted but inert), `pnpm pilot:https`
-(slice 2c), a native go-pmtiles for `bootstrap --no-docker`, authentication on `/admin/*` (1a).
+(`webhook_replay` / `webhook_reorder` faults are accepted but inert; it signs with
+`simWebhookSecret`), `pnpm pilot:https` (slice 2c), a native go-pmtiles for
+`bootstrap --no-docker`, real authentication on `/admin/*` (1a; the admin key stands in), a
+time guard on `machine_state.fuel_pct` across pages (needs a stat-time column), the
+`BASEMAP_STYLE=openfreemap` style, the Supabase Realtime client adapter (MD), and the plan §7
+`ipad` (WebKit) and iPhone e2e projects (not verified: WebKit couldn't be downloaded on the build
+machine).
