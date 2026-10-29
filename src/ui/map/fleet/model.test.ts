@@ -147,6 +147,20 @@ describe('FleetModel', () => {
     expect(lng('C1', start + 7500)).toBeCloseTo(-84 + 2.5 * 0.003, 9);
   });
 
+  test('one irregular longer gap does not stretch the glide; a new cadence is adopted', () => {
+    const m = model();
+    m.applySnapshot([machine()], 0);
+    const fix = (i: number, tsMs: number, at: number) =>
+      m.applyTick([machine({ lng: -84 + i * 0.001, ts: new Date(T0 + tsMs).toISOString() })], at);
+    fix(1, 15_000, 15_000); // every 15 s
+    fix(2, 43_000, 43_000); // a 28 s gap (an idle cart working again): glide 15 s, not 28 s
+    expect(m.isAnimating(43_000 + 14_900)).toBe(true);
+    expect(m.isAnimating(43_000 + 15_000)).toBe(false);
+    fix(3, 71_000, 71_000); // 28 s again: that is the cadence now
+    expect(m.isAnimating(71_000 + 27_900)).toBe(true);
+    expect(m.isAnimating(71_000 + 28_000)).toBe(false);
+  });
+
   test('after a long gap the machine keeps its own fix interval', () => {
     const m = model();
     m.applySnapshot([machine()], 0);

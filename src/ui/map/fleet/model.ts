@@ -7,11 +7,12 @@
  *  - snapshot: authoritative set (machines missing from it are dropped)
  *  - tick: upsert; a fix older than the one already held is ignored (out-of-order delivery), and
  *    the same fix again (same `ts`, e.g. another job's full-fleet tick) leaves the glide alone
- *  - each new fix glides from the currently drawn position over the time between this machine's
- *    own last two fixes (two jobs publish full-fleet ticks at different cadences, so the gap
- *    between tick arrivals says nothing about one machine); jumps longer than `teleportMeters`
- *    snap. After a gap longer than `maxIntervalMs` (outage, idle Deere machine) the machine's
- *    last regular fix interval is used, else the arrival estimate.
+ *  - each new fix glides from the currently drawn position over the machine's own fix interval
+ *    (two jobs publish full-fleet ticks at different cadences, so the gap between tick arrivals
+ *    says nothing about one machine): the shorter of its last two gaps, so one irregular long
+ *    gap (an idle Deere cart starting again) doesn't stretch the glide past the next fix; jumps
+ *    longer than `teleportMeters` snap. After a gap longer than `maxIntervalMs` (outage, idle
+ *    machine) the machine's last regular interval is used, else the arrival estimate.
  */
 import { isMachineStale, type MachineView, type StaleThresholds } from '../../../domain/fleet';
 import {
@@ -151,8 +152,12 @@ export class FleetModel {
     }
     const { minIntervalMs: min, maxIntervalMs: max } = this.opts;
     const gap = ts - prevTs;
-    const fixIntervalMs = gap <= max ? Math.max(min, gap) : prev.fixIntervalMs;
-    const duration = gap <= max ? Math.max(min, gap) : (prev.fixIntervalMs ?? this.intervalMs);
+    const regular = gap <= max ? Math.max(min, gap) : null;
+    const fixIntervalMs = regular ?? prev.fixIntervalMs;
+    const duration =
+      regular !== null
+        ? Math.min(regular, prev.fixIntervalMs ?? regular)
+        : (prev.fixIntervalMs ?? this.intervalMs);
     const from = glideAt(prev.glide, now);
     const moved = from.lng !== to.lng || from.lat !== to.lat || from.heading !== to.heading;
     const glide =

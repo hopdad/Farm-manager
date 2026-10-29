@@ -272,8 +272,9 @@ test('pausing the simulation freezes the fleet (still fresh); resuming moves it 
   const page = wall.page;
   await admin(adminPage);
   await setPaused(adminPage, true);
-  // Let the last pre-pause fixes arrive and their glides finish (Deere polls every 15 s).
-  await page.waitForTimeout(25_000);
+  // Let the last pre-pause fixes arrive and their glides finish: the first Deere fix after the
+  // pause lands within one 15 s poll, and a marker glides over the machine's own 15 s interval.
+  await page.waitForTimeout(35_000);
   const before = await fleet(page);
   await page.waitForTimeout(20_000);
   const after = await fleet(page);
