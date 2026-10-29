@@ -7,10 +7,14 @@
  *     (`parcelId(county, number)`); geometries are made valid (ST_MakeValid, polygons only) and
  *     merged features unioned. A row whose values didn't change is not touched, so `updated_at`
  *     (and with it the tiles' `?v=` version) moves only when the data did;
- *  3. `--replace`: parcels of the file's counties that this import didn't write are deleted (a
+ *  3. a real file (any source but 'synthetic') retires the synthetic D7 parcels of its counties,
+ *     always: their made-up owners must never sit next to or on top of real ones, and the
+ *     registry row below then names the real source; their emptied import rows go too (so the
+ *     demo seed doesn't load them again);
+ *  4. `--replace`: parcels of the file's counties that this import didn't write are deleted (a
  *     newer full-county file retires split and merged parcels); without it they are counted only;
- *  4. the `parcels` registry row gets the vintage, build time and import id;
- *  5. realtime, delivered on commit: `layers`/`updated { key: 'parcels', version }` (the rail
+ *  5. the `parcels` registry row gets the vintage, build time and import id;
+ *  6. realtime, delivered on commit: `layers`/`updated { key: 'parcels', version }` (the rail
  *     re-adds the layer) and `fields`/`updated { parts: ['parcels'] }` for each field whose
  *     parcels changed (`fields`/`invalidate` past MAX_FIELD_MESSAGES).
  */
@@ -18,6 +22,7 @@ import type pg from 'pg';
 import { TILE_LAYERS } from '../../src/app/api/tiles/layers';
 import { publish } from '../../src/platform/realtime/publish';
 import type { ParcelRecord } from './parcels-map';
+import { SYNTHETIC_SOURCE } from './parcels-synthetic';
 
 export interface ParcelImportMeta {
   /** 'synthetic', a county ('lenawee-county'), or a vendor ('regrid', 'reportall'). */
@@ -51,6 +56,8 @@ export interface LoadSummary {
   /** Rows of these counties this import didn't write (deleted with --replace). */
   stale: number;
   deleted: number;
+  /** Synthetic (D7 fixture) parcels of these counties retired by a real file. */
+  syntheticRetired: number;
   /** Fields whose parcels changed. */
   fieldsAffected: number;
   version: string;
@@ -182,6 +189,29 @@ export async function loadParcels(
       log(`parcels ${Math.min(i + batchSize, records.length)}/${records.length}`);
     }
 
+    // A real file replaces the synthetic fixture in its counties, --replace or not.
+    let syntheticRetired = 0;
+    const affected = new Set<string>();
+    if (meta.source !== SYNTHETIC_SOURCE && counties.length > 0) {
+      const synthetic = await c.query<{ id: string }>(
+        `select p.id::text from gis.parcels p join gis.parcel_imports i on i.id = p.import_id
+          where i.source = $1 and p.county_fips = any($2::text[]) and not (p.id = any($3::uuid[]))`,
+        [SYNTHETIC_SOURCE, counties, records.map((r) => r.id)],
+      );
+      const ids = synthetic.rows.map((r) => r.id);
+      if (ids.length > 0) {
+        for (const f of await fieldsTouching(c, ids)) affected.add(f);
+        const d = await c.query(`delete from gis.parcels where id = any($1::uuid[])`, [ids]);
+        syntheticRetired = d.rowCount ?? 0;
+        await c.query(
+          `delete from gis.parcel_imports i
+            where i.source = $1 and not exists (select 1 from gis.parcels p where p.import_id = i.id)`,
+          [SYNTHETIC_SOURCE],
+        );
+        log(`retired ${syntheticRetired} synthetic parcels in ${counties.join(', ')}`);
+      }
+    }
+
     const staleRows = await c.query<{ id: string }>(
       `select id::text from gis.parcels
         where county_fips = any($1::text[]) and not (id = any($2::uuid[]))`,
@@ -189,9 +219,9 @@ export async function loadParcels(
     );
     const staleIds = staleRows.rows.map((r) => r.id);
     // Fields next to retired parcels change too: find them before the rows go.
-    const affected = new Set(
-      await fieldsTouching(c, [...changedIds, ...(opts.replace ? staleIds : [])]),
-    );
+    for (const f of await fieldsTouching(c, [...changedIds, ...(opts.replace ? staleIds : [])])) {
+      affected.add(f);
+    }
     let deleted = 0;
     if (opts.replace && staleIds.length > 0) {
       const d = await c.query(`delete from gis.parcels where id = any($1::uuid[])`, [staleIds]);
@@ -209,7 +239,7 @@ export async function loadParcels(
     );
 
     const version = await TILE_LAYERS.parcels.version(c);
-    const changed = changedIds.length > 0 || deleted > 0;
+    const changed = changedIds.length > 0 || deleted > 0 || syntheticRetired > 0;
     if (changed) {
       await publish('layers', 'updated', { key: 'parcels', version }, c);
       const fieldIds = [...affected].sort();
@@ -230,6 +260,7 @@ export async function loadParcels(
       unchanged: records.length - inserted - updated,
       stale: staleIds.length,
       deleted,
+      syntheticRetired,
       fieldsAffected: changed ? affected.size : 0,
       version,
     };

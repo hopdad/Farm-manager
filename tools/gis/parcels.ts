@@ -3,6 +3,7 @@
  * into gis.parcels (plan 1d, D7; docs/contracts-m1.md §3.1, §5.3, §13).
  *
  *   pnpm gis:parcels lenawee-parcels.zip --county 26091 --source lenawee-county --received-on 2027-01-05
+ *   (a real county or vendor file retires the synthetic demo parcels of its counties)
  *   pnpm gis:parcels https://<host>/arcgis/rest/services/<svc>/FeatureServer/0 --county 26091 --source lenawee-county
  *   pnpm gis:parcels --fixture         the synthetic demo parcels (fictional owners; D7 default)
  *   pnpm gis:parcels --write-fixture   regenerate tools/gis/fixtures/parcels/synthetic-parcels.geojson
@@ -19,7 +20,8 @@
  *   --received-on <date>   when it arrived (YYYY-MM-DD)
  *   --license <text>       licence / terms note kept with the import
  *   --map <col=ATTR,…>     name the attribute of a column: parcel, owner, owner2, mailing,
- *                          mailCity, mailState, mailZip, address, acres, county
+ *                          mailCity, mailState, mailZip, address, acres, county. Quote it in
+ *                          PowerShell (--map 'parcel=PIN,owner=OWNER1'), or repeat --map
  *   --replace              delete parcels of the file's counties that the file no longer has
  *   --dry-run              read and map only; print what would be loaded
  */
@@ -34,7 +36,14 @@ import { describeError } from './http';
 import { newRunDir, rawRelative, rawRoot, recordDownloads, sha256Hex } from './naip-raw';
 import { parseGeoJsonText, readVectorInput, VectorInputError } from './parcels-io';
 import { type LoadSummary, loadParcels } from './parcels-load';
-import { type ColumnMap, type MapResult, mapParcelFeatures, parseColumnMap } from './parcels-map';
+import {
+  type ColumnMap,
+  type MapResult,
+  mapParcelFeatures,
+  PARCEL_COLUMNS,
+  parseColumnMap,
+  splitMapPositionals,
+} from './parcels-map';
 import {
   SYNTHETIC_LICENSE,
   SYNTHETIC_PARCELS_FILE,
@@ -43,7 +52,7 @@ import {
 } from './parcels-synthetic';
 
 export const USAGE = `usage: pnpm gis:parcels <file | ArcGIS layer URL> [--county 26091] [--source lenawee-county]
-                        [--received-on YYYY-MM-DD] [--license "..."] [--map parcel=PIN,owner=OWNER1]
+                        [--received-on YYYY-MM-DD] [--license "..."] [--map 'parcel=PIN,owner=OWNER1']
                         [--replace] [--dry-run]
        pnpm gis:parcels --fixture          load the synthetic demo parcels (fictional owners)
        pnpm gis:parcels --write-fixture    regenerate the committed synthetic fixture`;
@@ -73,14 +82,17 @@ export function parseParcelsArgs(argv: readonly string[]): ParcelsArgs {
       source: { type: 'string' },
       'received-on': { type: 'string' },
       license: { type: 'string' },
-      map: { type: 'string' },
+      map: { type: 'string', multiple: true },
       replace: { type: 'boolean', default: false },
       'dry-run': { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
   });
-  if (positionals.length > 1) throw new Error('give one file or URL at a time');
-  const input = positionals[0] ?? null;
+  // PowerShell may hand an unquoted `--map a=X,b=Y` on as separate arguments.
+  const split = splitMapPositionals(positionals, PARCEL_COLUMNS);
+  if (split.rest.length > 1) throw new Error('give one file or URL at a time');
+  const input = split.rest[0] ?? null;
+  const mapSpec = [...(values.map ?? []), ...split.map].join(',');
   const fixture = values.fixture === true;
   const writeFixture = values['write-fixture'] === true;
   const help = values.help === true;
@@ -105,7 +117,7 @@ export function parseParcelsArgs(argv: readonly string[]): ParcelsArgs {
     source,
     receivedOn,
     license: values.license ?? (fixture ? SYNTHETIC_LICENSE : ''),
-    columns: values.map ? parseColumnMap(values.map) : {},
+    columns: mapSpec ? parseColumnMap(mapSpec) : {},
     replace: values.replace === true,
     dryRun: values['dry-run'] === true,
     help,
@@ -140,6 +152,9 @@ function describeLoad(r: LoadSummary, replace: boolean): string[] {
       : r.stale > 0
         ? `${r.stale} parcels of these counties are not in this file (kept; --replace deletes them)`
         : 'no other parcels in these counties',
+    ...(r.syntheticRetired > 0
+      ? [`${r.syntheticRetired} synthetic (made-up) demo parcels of these counties were retired`]
+      : []),
     `${r.fieldsAffected} fields' parcels changed; tiles version ${r.version}`,
   ];
 }

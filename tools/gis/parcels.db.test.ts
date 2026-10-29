@@ -221,3 +221,40 @@ describe('who sees owners', () => {
     expect(await parcelById(t().pool, '00000000-0000-4000-8000-000000000000', 'owner')).toBeNull();
   });
 });
+
+describe('a real county file and the D7 fixture', () => {
+  test('a real file retires the synthetic parcels of its counties, without --replace', async () => {
+    const synthetic = await loadSyntheticParcels(t().pool);
+    const count = async (county: string) => {
+      const r = await t().pool.query<{ n: number }>(
+        `select count(*)::int as n from gis.parcels p join gis.parcel_imports i on i.id = p.import_id
+          where i.source = 'synthetic' and p.county_fips = $1`,
+        [county],
+      );
+      return r.rows[0]?.n ?? 0;
+    };
+    const monroe = await count('26115');
+    expect(await count('26091')).toBeGreaterThan(0);
+    expect(monroe).toBeGreaterThan(0);
+
+    const real = mapParcelFeatures(
+      [feature('LEN-1', 'Real Owner', rect(-84.06, 41.89, -84.055, 41.893))],
+      { countyFips: '26091' },
+    );
+    const before = await seq('fields');
+    const r = await loadParcels(t().pool, real.records, meta('b1', { source: 'lenawee-county' }));
+    expect(r.syntheticRetired).toBe(synthetic.inserted - monroe);
+    expect(r).toMatchObject({ inserted: 1, deleted: 0 });
+    expect(await count('26091')).toBe(0);
+    expect(await count('26115')).toBe(monroe); // another county's fixture stays
+    expect(await seq('fields')).toBeGreaterThanOrEqual(before);
+    const imports = await t().pool.query<{ source: string }>(
+      `select source from gis.parcel_imports where source in ('lenawee-county', 'synthetic')
+        order by source`,
+    );
+    expect(imports.rows.map((x) => x.source)).toEqual(['lenawee-county', 'synthetic']);
+    await t().admin.query(
+      `delete from gis.parcel_imports where source in ('lenawee-county', 'synthetic')`,
+    );
+  });
+});

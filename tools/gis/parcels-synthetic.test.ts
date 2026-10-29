@@ -145,6 +145,18 @@ describe('gis:parcels arguments', () => {
   test('refuses bad input', () => {
     expect(() => parseParcelsArgs([])).toThrow(/no file/);
     expect(() => parseParcelsArgs(['a.zip', 'b.zip'])).toThrow(/one file/);
+    // --map repeated, or split into separate arguments by PowerShell: all the same.
+    for (const argv of [
+      ['a.zip', '--map', 'parcel=PIN,owner=OWNER1'],
+      ['a.zip', '--map', 'parcel=PIN', '--map', 'owner=OWNER1'],
+      ['a.zip', '--map', 'parcel=PIN', 'owner=OWNER1'],
+      ['a.zip', '--map', 'parcel=PIN owner=OWNER1'],
+    ]) {
+      expect(parseParcelsArgs(argv)).toMatchObject({
+        input: 'a.zip',
+        columns: { parcel: 'PIN', owner: 'OWNER1' },
+      });
+    }
     expect(() => parseParcelsArgs(['a.zip', '--county', 'Lenawee'])).toThrow(/FIPS/);
     expect(() => parseParcelsArgs(['a.zip', '--received-on', 'Jan 5'])).toThrow(/YYYY-MM-DD/);
     expect(() => parseParcelsArgs(['a.zip', '--source', 'Lenawee County'])).toThrow(/lower-case/);
