@@ -299,4 +299,30 @@ describe('runSyncStep', () => {
     // The stream itself was released OK.
     expect((await state(s.stream)).ok_at).toBe(true);
   });
+
+  test('a page is applied in series time order (external_id), not in uuid order', async () => {
+    // One catch-up page: a vehicle's stats from 05:46 to 05:49, delivered newest first. Every row
+    // of the page shares fetched_at, and ids are random, so only external_id orders them.
+    const order: string[] = [];
+    const minutes = [49, 48, 47, 46];
+    const s = spec(
+      [
+        {
+          items: minutes.map((m) => ({
+            externalId: `281474976831855:fuelPercents:2026-10-29T05:${m}:00.000Z`,
+            payload: { n: m },
+          })),
+          cursor: 'f1',
+        },
+      ],
+      {
+        async upsert(_tx, item) {
+          order.push(`05:${item.n}`);
+        },
+      },
+    );
+    const r = await runSyncStep(s, testJobContext(t()));
+    expect(r).toMatchObject({ ok: true, landed: 4, processed: 4 });
+    expect(order).toEqual(['05:46', '05:47', '05:48', '05:49']);
+  });
 });

@@ -109,7 +109,12 @@ interface PendingRow {
   attempts: number;
 }
 
-/** Process pending raw events one at a time until none are left or the deadline passes. */
+/**
+ * Process pending raw events one at a time until none are left or the deadline passes. Order:
+ * page by page (fetched_at), then by external_id: every connector's ends in the ISO time of its
+ * series (`<vehicle>:<iso>`, `<vehicle>:<type>:<iso>`, `<org>:<machine>:<iso>`), so within a page
+ * each series is applied oldest first and "latest wins" updates (fuel) end at the newest value.
+ */
 async function processPending<TRaw, TNorm>(
   spec: SyncStepSpec<TRaw, TNorm>,
   sctx: SyncContext,
@@ -127,7 +132,7 @@ async function processPending<TRaw, TNorm>(
         `select id::text as id, payload, attempts from ingest.raw_events
           where source = $1 and stream = $2 and status = 'pending'
             and not (id = any($3::uuid[]))
-          order by fetched_at, id
+          order by fetched_at, external_id, id
           limit 1
           for update skip locked`,
         [spec.source, spec.stream, failedThisRun],
