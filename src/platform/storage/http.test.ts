@@ -9,6 +9,7 @@ import {
   IMMUTABLE_CACHE,
   ifNoneMatchHits,
   ifRangeAllows,
+  PRIVATE_CACHE,
   REVALIDATE_CACHE,
   serveStorageObject,
 } from './http';
@@ -153,6 +154,41 @@ describe('serveStorageObject', () => {
     const req = new Request('http://localhost/api/storage/uploads/private.json');
     expect((await serveStorageObject(req, storage, 'uploads', ['private.json'])).status).toBe(404);
     expect((await serveStorageObject(req, storage, 'nope', ['x'])).status).toBe(404);
+  });
+
+  test("access 'signed' (a GET the route verified) serves a private bucket, never cached", async () => {
+    const req = (headers: Record<string, string> = {}) =>
+      new Request('http://localhost/api/storage/uploads/private.json?sig=checked-by-the-route', {
+        headers,
+      });
+    const res = await serveStorageObject(req(), storage, 'uploads', ['private.json'], {
+      access: 'signed',
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe(PRIVATE_CACHE);
+    expect(await res.text()).toBe('{}');
+    const part = await serveStorageObject(
+      req({ range: 'bytes=0-0' }),
+      storage,
+      'uploads',
+      ['private.json'],
+      { access: 'signed' },
+    );
+    expect(part.status).toBe(206);
+    expect(part.headers.get('cache-control')).toBe(PRIVATE_CACHE);
+    // Still refused: unknown buckets, bad keys, missing objects.
+    const opts = { access: 'signed' } as const;
+    expect((await serveStorageObject(req(), storage, 'nope', ['x'], opts)).status).toBe(404);
+    expect((await serveStorageObject(req(), storage, 'uploads', ['..', 'x'], opts)).status).toBe(
+      400,
+    );
+    expect((await serveStorageObject(req(), storage, 'uploads', ['gone.json'], opts)).status).toBe(
+      404,
+    );
+    // The default stays M0's: public buckets only.
+    expect((await serveStorageObject(req(), storage, 'uploads', ['private.json'])).status).toBe(
+      404,
+    );
   });
 
   test('a symlink pointing outside the bucket is not served', async () => {

@@ -52,7 +52,11 @@ export interface SyncStatusPayload {
 
 /**
  * fleet/machine (M1 1a): one machine's status changed (marked down from a phone, back up).
- * Clients patch their model at once; the next tick carries the status too.
+ * Clients that know it (the fleet panel) patch their model at once; the next tick carries the
+ * status too. In the same transaction the publisher also sends fleet/invalidate
+ * `{ event: 'machine', reason: 'changed' }`, so subscribers that only read ticks (the M0 map's
+ * feed, src/ui/map/fleet/feed.ts) refetch GET /api/fleet within the 2 s target instead of waiting
+ * for the next fleet.deere tick (docs/contracts-m1.md §6).
  */
 export interface MachineStatusPayload {
   machineId: string;

@@ -129,7 +129,10 @@ export interface WeatherStripDay {
 
 /** One hour on the strip's detail row. */
 export interface WeatherStripHour extends HourlyForecast {
-  /** The spray verdict for this hour on the strip's reference field, when assessed. */
+  /**
+   * The spray verdict for this hour on the strip's reference field, when assessed: null past the
+   * stored window (the current hour + SPRAY_ASSESS_AHEAD_HOURS).
+   */
   spray: SprayVerdict | null;
 }
 
@@ -349,4 +352,41 @@ export interface SprayAssessmentView {
   rulesVersion: string;
   forecastIssuedAt: string | null;
   assessedAt: string;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Stored assessments and retention (docs/contracts-m1.md §3.1, §13). The weather.nws job
+// assesses only these hours and prunes both tables, so they stay bounded at 500 fields.
+// ---------------------------------------------------------------------------------------------
+
+/** Each weather.nws run stores, per field, the current hour plus this many hours after it. */
+export const SPRAY_ASSESS_AHEAD_HOURS = 12;
+
+/**
+ * farm.weather_forecasts rows of issues older than this (by issued_at) are deleted, except the
+ * (grid, issue, hour) rows a stored assessment used (grid_id, forecast_issued_at, for_hour).
+ */
+export const FORECAST_RETENTION_HOURS = 48;
+
+/**
+ * farm.spray_assessments rows whose for_hour is older than this many days are deleted, except the
+ * newest one (by assessed_at, then id) per (field_id, for_hour): what the farm was told last.
+ */
+export const SPRAY_DETAIL_RETENTION_DAYS = 30;
+
+const HOUR_MS = 3_600_000;
+
+/**
+ * The hours a run assesses: the start of `now`'s hour (UTC; Michigan's offsets are whole hours),
+ * then each of the next `ahead` hours, as UTC ISO strings (farm.spray_assessments.for_hour).
+ */
+export function sprayAssessmentHours(
+  now: Date,
+  ahead: number = SPRAY_ASSESS_AHEAD_HOURS,
+): string[] {
+  const t = now.getTime();
+  if (!Number.isFinite(t)) throw new Error('sprayAssessmentHours: invalid date');
+  if (!Number.isInteger(ahead) || ahead < 0) throw new Error(`bad hours ahead: ${ahead}`);
+  const start = Math.floor(t / HOUR_MS) * HOUR_MS;
+  return Array.from({ length: ahead + 1 }, (_, i) => new Date(start + i * HOUR_MS).toISOString());
 }

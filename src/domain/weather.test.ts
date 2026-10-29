@@ -5,8 +5,10 @@ import {
   gridId,
   parseGridId,
   parseSprayThresholdsSetting,
+  SPRAY_ASSESS_AHEAD_HOURS,
   SPRAY_REASON_CODES,
   SPRAY_VERDICTS,
+  sprayAssessmentHours,
   sprayRulesVersion,
   sprayThresholdsSchema,
   sprayThresholdsSettingSchema,
@@ -75,5 +77,30 @@ describe('spray thresholds (D4 defaults pending)', () => {
     expect(sprayRulesVersion({ ...DEFAULT_SPRAY_THRESHOLDS })).toBe(a);
     expect(sprayRulesVersion({ ...DEFAULT_SPRAY_THRESHOLDS, gustMaxMph: 16 })).not.toBe(a);
     expect(sprayRulesVersion(DEFAULT_SPRAY_THRESHOLDS, 'v1')).toMatch(/^v1-/);
+  });
+});
+
+describe('stored assessment window', () => {
+  test('the current hour (floored, UTC) plus the next 12', () => {
+    const hours = sprayAssessmentHours(new Date('2026-11-30T13:47:12.345Z'));
+    expect(hours).toHaveLength(SPRAY_ASSESS_AHEAD_HOURS + 1);
+    expect(hours[0]).toBe('2026-11-30T13:00:00.000Z');
+    expect(hours[1]).toBe('2026-11-30T14:00:00.000Z');
+    expect(hours.at(-1)).toBe('2026-12-01T01:00:00.000Z');
+    // Whole hours only (the farm.spray_assessments CHECK), strictly increasing.
+    for (const h of hours) expect(new Date(h).getTime() % 3_600_000).toBe(0);
+    expect([...hours].sort()).toEqual(hours);
+  });
+
+  test('on the hour, across a DST change, and refusals', () => {
+    expect(sprayAssessmentHours(new Date('2026-11-01T06:00:00Z'), 2)).toEqual([
+      '2026-11-01T06:00:00.000Z',
+      '2026-11-01T07:00:00.000Z',
+      '2026-11-01T08:00:00.000Z',
+    ]);
+    expect(sprayAssessmentHours(new Date('2026-11-01T06:00:00Z'), 0)).toHaveLength(1);
+    expect(() => sprayAssessmentHours(new Date('nope'))).toThrow();
+    expect(() => sprayAssessmentHours(new Date(), -1)).toThrow();
+    expect(() => sprayAssessmentHours(new Date(), 1.5)).toThrow();
   });
 });

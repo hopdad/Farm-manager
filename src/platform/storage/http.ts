@@ -4,7 +4,9 @@
  * src/app/api/storage/[bucket]/[...key]/route.ts; framework-free (Web Request/Response) so it is
  * unit-tested against a temp directory.
  *
- *  - only buckets in PUBLIC_READ_BUCKETS (M0: `tiles`) → else 404
+ *  - only buckets in PUBLIC_READ_BUCKETS (M0: `tiles`) → else 404, unless the caller already
+ *    verified a signed GET for a private bucket and passes `{ access: 'signed' }` (1d, contracts-m1
+ *    §9): then `uploads` is served too, always with `Cache-Control: private, no-store`
  *  - bad key → 400; missing object → 404
  *  - `Accept-Ranges: bytes`; `Range: bytes=a-b | a- | -n` → 206 + Content-Range; unsatisfiable → 416
  *  - ETag `"<sha8>"` for content-addressed keys (`name.<sha8>.ext`), `"<size>-<mtime>"` otherwise;
@@ -28,6 +30,17 @@ import type { StorageObjectInfo, StorageReader } from './types';
 
 export const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable';
 export const REVALIDATE_CACHE = 'no-cache';
+/** Private objects served through a signed GET: never kept by the browser or any proxy. */
+export const PRIVATE_CACHE = 'private, no-store';
+
+export interface ServeOptions {
+  /**
+   * 'public' (default): PUBLIC_READ_BUCKETS only, byte-for-byte M0 behaviour. 'signed': the route
+   * has verified a signed GET URL for this exact bucket and key (the imagery builder's check,
+   * contracts-m1 §9), so a private bucket is served, with PRIVATE_CACHE.
+   */
+  access?: 'public' | 'signed';
+}
 
 /** Cache-Control for a key in the `tiles` bucket. */
 export function cacheControlFor(key: string): string {
@@ -69,8 +82,10 @@ export async function serveStorageObject(
   storage: StorageReader,
   bucketParam: string,
   keyParam: string | readonly string[],
+  opts: ServeOptions = {},
 ): Promise<Response> {
-  if (!isStorageBucket(bucketParam) || !PUBLIC_READ_BUCKETS.includes(bucketParam)) {
+  const signed = opts.access === 'signed';
+  if (!isStorageBucket(bucketParam) || (!signed && !PUBLIC_READ_BUCKETS.includes(bucketParam))) {
     return errorResponse(404, 'not found');
   }
   const bucket: StorageBucket = bucketParam;
@@ -88,7 +103,7 @@ export async function serveStorageObject(
   const lastModified = info.mtime.toUTCString();
   const headers = new Headers({
     'accept-ranges': 'bytes',
-    'cache-control': cacheControlFor(key),
+    'cache-control': signed ? PRIVATE_CACHE : cacheControlFor(key),
     'content-type': contentTypeFor(key),
     etag,
     'last-modified': lastModified,

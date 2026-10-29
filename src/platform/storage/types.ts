@@ -121,7 +121,14 @@ export interface StorageWriter extends StorageReader {
    * (StorageTooLargeError) and a key that already exists (StorageConflictError).
    */
   createUploadGrant(req: UploadGrantRequest): Promise<UploadGrant>;
-  /** A signed GET URL for a private object (`uploads`), valid `expiresInSeconds`. */
+  /**
+   * A signed GET URL for a private object (`uploads`), valid `expiresInSeconds`. Locally
+   * /api/storage/<bucket>/<key>?… (HMAC with SESSION_SECRET, expiry inside the signature), served
+   * by the route's GET/HEAD after the imagery builder's check passes, through
+   * `serveStorageObject(…, { access: 'signed' })` (Range, ETag, `Cache-Control: private,
+   * no-store`). Unsigned: 404 as in M0; bad or expired signature: 403. At MD: Supabase's
+   * createSignedUrl.
+   */
   createSignedReadUrl(
     bucket: StorageBucket,
     key: string,

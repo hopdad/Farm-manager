@@ -28,6 +28,7 @@ import {
 import { getConfig, getE2eSettings } from '../src/config';
 import type { FleetFrame } from '../src/ui/map/fleet/model';
 import { unlockAdmin } from './support/admin';
+import { signInAs } from './support/auth';
 import { blockExternalHosts, mapIdle, waitForMap } from './support/map';
 
 test.describe.configure({ mode: 'serial' });
@@ -74,6 +75,8 @@ async function openMap(
   options: Parameters<Browser['newContext']>[0],
 ): Promise<Opened> {
   const context = await browser.newContext(options);
+  // A viewer session for the host this context opens (the phone uses the LAN address).
+  await signInAs(context, 'viewer', new URL(url).origin);
   const page = await context.newPage();
   const blocked = await blockExternalHosts(page, url);
   await page.goto(url);

@@ -2,7 +2,8 @@
  * src/jobs/registry.ts: one source for the local clock, the shop-PC worker and the Supabase
  * Cron SQL. All cron strings are UTC; `every` must be '1-59 seconds' (plan §1).
  *
- * Owner: the vendors agent adds entries (fleet.trucks, fleet.deere, …) to `jobs`.
+ * Owner: the integrator. M1 one-line registry (docs/contracts-m1.md §1.1): the weather builder
+ * adds exactly its import and its `weather.nws` entry (and that job's rows in registry.test.ts).
  * Consumers (the clock, /api/jobs/[name], jobs:emit-cron) import `registry`, which is typed
  * `JobRegistry` so `registry[name]` compiles while `jobs` is still empty, and must run
  * `validateRegistry(registry)` first.

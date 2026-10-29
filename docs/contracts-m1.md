@@ -16,31 +16,39 @@ conflicts, wires the shared lists and owns the final layout.
 
 | Key | Builds (plan §6) | Owns (may create and edit) | Next / stand-in | Dev database |
 |---|---|---|---|---|
-| **auth** | 1a `LocalAuth`: device and manager sessions, operator PIN on shared devices with lockout, roles, kiosk device session (D8), enrollment, people and device admin, `src/proxy.ts`, `pnpm pilot` + kiosk instructions | `src/platform/auth/**` except `types.ts`, `src/app/login/**`, `src/app/enroll/**`, `src/app/admin/people/**`, `src/app/admin/devices/**`, `src/proxy.ts`, `e2e/auth*.spec.ts`, `e2e/support/auth.ts` | 3101 / 4011 | `farm_dev_auth` |
+| **auth** | 1a `LocalAuth`: device and manager sessions, operator PIN on shared devices with lockout, roles, kiosk device session (D8), enrollment, people and device admin, `src/proxy.ts`, sessions for the e2e suite, kiosk instructions for `pnpm pilot` | `src/platform/auth/**` except `types.ts`, `src/app/login/**`, `src/app/enroll/**`, `src/app/admin/people/**`, `src/app/admin/devices/**`, `src/proxy.ts`, `e2e/auth*.spec.ts`, `e2e/support/auth.ts` (replace the placeholder, §1.2), `e2e/global-setup.ts`, `docs/kiosk.md`, **plus (assigned here, §1.2)** `playwright.config.ts`: only its `globalSetup` and `use.storageState` | 3101 / 4011 | `farm_dev_auth` |
 | **field-panel** | 1a tap a field: boundary, acres, owner or landlord, 5 seasons, open jobs (placeholder), notes; wall side panel (72 px targets), phone bottom sheet; < 200 ms | `src/ui/fields/**` except `tabs.ts`, `tab-registry.ts` and the other builders' tab files, `src/app/api/fields/**`, `src/db/queries/fields.ts`, `e2e/field-panel*.spec.ts` | 3102 / 4012 | `farm_dev_field_panel` |
-| **field-data** | 1c `import:boundaries`, `import:seasons`, landlords/customers/crew admin + CSV, `data:export` / `data:import`, boundary edit/split/merge for non-Deere fields with lineage, "change this in Ops Center" requests | `scripts/import-boundaries.ts`, `scripts/import-seasons.ts`, `scripts/data-export.ts`, `scripts/data-import.ts`, `tools/import/**` except `tools/import/tile*.ts`, `src/app/admin/parties/**`, `src/app/admin/fields/**`, `src/ui/fields/tabs/history*.tsx`, `src/db/queries/parties.ts`, `e2e/field-data*.spec.ts` | 3103 / 4013 | `farm_dev_field_data` |
-| **fleet** | 1a fleet panel (moving, idle, down, stale, position-source badge), mark down with a reason from a phone, geofence enter/exit in the positions job, doc-derived replay fixtures for Deere and the ELD | `src/ui/fleet/**`, `src/app/api/machines/**`, `src/domain/geofence*.ts`, `src/jobs/geofences*.ts`, `src/connectors/*/replay*.ts`, `src/connectors/*/fixtures/**` (except `nws`), `e2e/fleet-panel*.spec.ts`, **plus (assigned here, §1.2)** `src/jobs/fleet.ts`, `src/db/queries/fleet.ts`, `src/connectors/endpoints.ts`, `src/connectors/{deere,samsara,motive}/**`, `src/connectors/doc-derived.ts` | 3104 / 4014 | `farm_dev_fleet` |
-| **weather** | 1b `weather.nws` job (grid lookup cached, hourly forecast with `issued_at`, observations, sim fallback), weather strip, soil temperature entry, spray go/no-go v0, thresholds page | `src/connectors/nws/**` (its fixtures and replay too), `src/sim/vendors/nws/**`, `src/jobs/weather*.ts`, `src/domain/spray*.ts`, `src/ui/weather/**`, `src/app/api/weather/**`, `src/app/admin/spray/**`, `e2e/weather*.spec.ts` | 3105 / 4015 | `farm_dev_weather` |
-| **soils** | 1c `gis:soils` (county load + per-boundary clip), soils layer, field soils tab; 1d the layer rail and `GET /api/layers` | `tools/gis/soils*.ts`, `src/ui/map/layers/soils*.ts`, `src/ui/map/rail/**`, `src/app/api/layers/**`, `src/ui/fields/tabs/soils*.tsx`, `e2e/soils*.spec.ts`, `e2e/layers*.spec.ts` | 3106 / 4016 | `farm_dev_soils` |
-| **imagery** | 1d storage write side (signed PUT, 4 MB, no overwrites), NAIP online layer + AOI close-up PMTiles, parcels import (D7) + private parcels layer + parcel tab, tile-line import and draw tool | `src/platform/storage/**` **new files only** (the write side; never break the reader), `tools/gis/naip*.ts`, `tools/gis/parcels*.ts`, `tools/import/tile*.ts`, `src/ui/map/layers/{naip,parcels,tile}*.ts`, `src/ui/map/draw/**`, `src/ui/fields/tabs/parcel*.tsx`, `src/app/api/tile-lines/**`, `e2e/imagery*.spec.ts`, **plus (assigned here, §1.2)** the PUT handler in `src/app/api/storage/[bucket]/[...key]/route.ts` | 3107 / 4017 | `farm_dev_imagery` |
+| **field-data** | 1c `import:boundaries`, `import:seasons`, landlords/customers/crew admin + CSV, `data:export` / `data:import`, boundary edit/split/merge for non-Deere fields with lineage, "change this in Ops Center" requests | `scripts/import-boundaries.ts`, `scripts/import-seasons.ts`, `scripts/data-export.ts`, `scripts/data-import.ts`, `tools/import/**` except `tools/import/tile*.ts`, `src/app/admin/parties/**`, `src/app/admin/fields/**`, `src/ui/fields/tabs/history*.tsx`, `src/db/queries/parties.ts`, `src/db/queries/{boundaries,seasons,lineage}*.ts`, `e2e/field-data*.spec.ts` | 3103 / 4013 | `farm_dev_field_data` |
+| **fleet** | 1a fleet panel (moving, idle, down, stale, position-source badge), mark down with a reason from a phone, geofence enter/exit in the positions job, doc-derived replay fixtures for Deere and the ELD | `src/ui/fleet/**`, `src/app/api/machines/**`, `src/domain/geofence*.ts`, `src/jobs/geofences*.ts`, `src/sim/farm/geofences*.ts` (new files, §1.2), `e2e/fleet-panel*.spec.ts`, **plus (assigned here, §1.2)** `src/jobs/fleet.ts`, `src/db/queries/fleet.ts`, `src/connectors/endpoints.ts`, `src/connectors/{deere,samsara,motive}/**` (their `replay*.ts` and `fixtures/**` included), `src/connectors/doc-derived.ts` | 3104 / 4014 | `farm_dev_fleet` |
+| **weather** | 1b `weather.nws` job (grid lookup cached, hourly forecast with `issued_at`, observations, sim fallback), weather strip, soil temperature entry, spray go/no-go v0, thresholds page | `src/connectors/nws/**` (its fixtures and replay too), `src/sim/vendors/nws/**`, `src/jobs/weather*.ts`, `src/domain/spray*.ts`, `src/db/queries/weather*.ts`, `src/ui/weather/**`, `src/ui/map/layers/spray*.ts` (§7.3), `src/app/api/weather/**`, `src/app/admin/spray/**`, `e2e/weather*.spec.ts`, **plus** its one-line entry in `src/jobs/registry.ts` (§1.1) | 3105 / 4015 | `farm_dev_weather` |
+| **soils** | 1c `gis:soils` (county load + per-boundary clip), soils layer, field soils tab; 1d the layer rail and `GET /api/layers` | `tools/gis/soils*.ts`, `tools/gis/fixtures/soils/**`, `src/db/queries/soils*.ts`, `src/ui/map/layers/soils*.ts`, `src/ui/map/rail/**`, `src/app/api/layers/**`, `src/ui/fields/tabs/soils*.tsx`, `e2e/soils*.spec.ts`, `e2e/layers*.spec.ts` | 3106 / 4016 | `farm_dev_soils` |
+| **imagery** | 1d storage write side (signed PUT, 4 MB, no overwrites), NAIP online layer + AOI close-up PMTiles, parcels import (D7) + private parcels layer + parcel tab, tile-line import and draw tool | `src/platform/storage/**` **new files only** (the write side and the signed-GET check; never break the reader), `tools/gis/naip*.ts`, `tools/gis/parcels*.ts`, `tools/gis/fixtures/parcels/**`, `tools/import/tile*.ts`, `src/db/queries/{parcels,tile-lines}*.ts`, `src/ui/map/layers/{naip,parcels,tile}*.ts`, `src/ui/map/draw/**`, `src/ui/fields/tabs/parcel*.tsx`, `src/app/api/tile-lines/**`, `e2e/imagery*.spec.ts`, **plus (assigned here, §1.2)** in `src/app/api/storage/[bucket]/[...key]/route.ts` the PUT handler and the signed `uploads` branch of GET/HEAD | 3107 / 4017 | `farm_dev_imagery` |
 
 ### 1.1 Integrator-owned (shared) files
 
-Builders don't edit these; they list what to add in their report. Two exceptions, the **one-line
-registries**: a builder may add exactly its own import line and its own entry, nothing else (the
-integrator resolves the trivial merge conflicts):
+Builders don't edit these; they list what to add in their report. The exceptions are the
+**one-line registries**: a builder may add exactly its own import line and its own entry, nothing
+else (the integrator resolves the trivial merge conflicts):
 
 - `src/ui/fields/tab-registry.ts` (`FIELD_PANEL_TABS`, §8)
 - `src/ui/map/layers/registry.ts` (`LAYER_DEFS`, §7)
+- `src/jobs/registry.ts` (`jobs`, §13): only weather, and exactly
+  `import { runWeatherNws } from './weather';` plus the entry
+  `'weather.nws': { cron: '*/30 * * * *', demoEvery: '30 seconds', run: runWeatherNws },`
+  (and, because that test lists every job, the `weather.nws` row in each of the two expected lists
+  of `src/jobs/registry.test.ts`). The clock and `POST /api/jobs/<name>` only run registered jobs,
+  so this is what makes the job run under `pnpm dev` / `pnpm pilot` in the weather worktree.
 
 Everything else shared stays untouched: `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`,
-`db/migrations/**`, `src/db/schema/**`, `src/config.ts`, `src/jobs/registry.ts`,
-`src/ui/board/**`, `src/app/board/**`, `src/app/m/**`, `src/ui/map/*.ts(x)` (the map shell,
+`db/migrations/**`, `src/db/schema/**`, `src/config.ts`, `src/ui/board/**` (except the minimal
+mount of §12), `src/app/board/**`, `src/app/m/**`, `src/ui/map/*.ts(x)` (the map shell,
 `style.ts`, `WarRoomMap.tsx`), `src/app/api/tiles/**`, `src/app/api/fleet/**`,
 `src/app/api/realtime/**`, `src/platform/realtime/**`, `src/sim/**` (except
-`src/sim/vendors/nws/**`), `tools/vendor-sim/**`, `scripts/{bootstrap,db,env,seed}.ts`,
-`tools/{dev,pilot}.ts`, `src/app/admin/connectors/**`, `src/app/admin/_*/**`, `README.md`,
-`.github/**` and **every contract file** of this page:
+`src/sim/vendors/nws/**`; fleet's new `src/sim/farm/geofences*.ts`), `tools/vendor-sim/**`,
+`tools/seed/**`, `scripts/{bootstrap,db,env,seed}.ts`, `tools/{dev,pilot}.ts`,
+`src/app/admin/connectors/**`, `src/app/admin/_*/**` (`guard.ts`: see §4), `src/ui/map/fleet/**`,
+the M0 e2e specs and `e2e/support/{admin,map,touch}.ts`, `README.md`, `.github/**` and **every
+contract file** of this page:
 `src/platform/auth/types.ts`, `src/domain/{weather,fields,soils,parcels,map-layers,farm}.ts`,
 `src/ui/fields/tabs.ts`, `src/ui/map/layers/{types,apply,visibility,builtin,test-fixtures}.ts`,
 `src/platform/storage/types.ts`, `src/connectors/replay.ts`, `src/connectors/types.ts`,
@@ -49,18 +57,29 @@ Everything else shared stays untouched: `package.json`, `pnpm-lock.yaml`, `pnpm-
 ### 1.2 Existing files assigned in M1
 
 M0 files no builder is listed for belong to the integrator, except these, which only one builder
-needs and is therefore given: **fleet** gets `src/jobs/fleet.ts` (geofence detection inside the
-positions step, replay wiring), `src/db/queries/fleet.ts`, `src/connectors/endpoints.ts`,
-`src/connectors/{deere,samsara,motive}/**` and `src/connectors/doc-derived.ts`; **imagery** gets
-the storage route's new `PUT` handler (keep `GET`/`HEAD` byte-for-byte). The **weather** builder
-puts its NWS endpoint function in `src/connectors/nws/` (not `endpoints.ts`) and its
-"doc-derived, confirm" entries in `src/connectors/nws/doc-derived.ts` (the integrator appends them
-to the admin list).
+needs and is therefore given:
+
+- **fleet** gets `src/jobs/fleet.ts` (geofence detection inside the positions step, replay
+  wiring), `src/db/queries/fleet.ts`, `src/connectors/endpoints.ts`,
+  `src/connectors/{deere,samsara,motive}/**` and `src/connectors/doc-derived.ts`. The demo seed
+  has only elevator, shop and bin-site geofences; plan 1a also wants **field entrances**. Fleet
+  writes them as a new pure module `src/sim/farm/geofences*.ts` (polygons around each built
+  field's `entrance`, deterministic ids; not imported by `src/sim/farm/build.ts`, so the sim's
+  determinism hashes don't move), builds its own geofences in its DB tests, and names in its
+  report the lines the integrator adds to `tools/seed/demo.ts`.
+- **imagery** gets, in the storage route, the new `PUT` handler and the `uploads` branch of
+  `GET`/`HEAD` (§9): `tiles` stays byte-for-byte as it is (`e2e/storage.spec.ts`).
+- **auth** gets two keys of `playwright.config.ts`: `globalSetup` and `use.storageState` (§4
+  "E2E"). Nothing else in that file.
+
+The **weather** builder puts its NWS endpoint function in `src/connectors/nws/` (not
+`endpoints.ts`) and its "doc-derived, confirm" entries in `src/connectors/nws/doc-derived.ts`
+(the integrator appends them to the admin list).
 
 Placeholders you replace, keeping their exports: `src/platform/auth/server.ts` and
 `src/platform/auth/testing.ts` (auth: `getSession`, `requireRole`, `authErrorResponse`,
-`runWithSession`, `sessionOverride`, `makeSession`), `src/sim/vendors/nws/routes.ts` (weather:
-`nwsModule`).
+`runWithSession`, `sessionOverride`, `makeSession`), `e2e/support/auth.ts` (auth: `signInAs`,
+same signature), `src/sim/vendors/nws/routes.ts` (weather: `nwsModule`).
 
 ---
 
@@ -97,7 +116,19 @@ Placeholders you replace, keeping their exports: `src/platform/auth/server.ts` a
 - **Never edit another builder's paths.** Need something from one? Use its contract; if the
   contract lacks it, ask in your report.
 - **Authorization:** every mutation (route handler or server action) and every private read calls
-  `requireRole(min)` FIRST, on the server (§4). The browser's claims count for nothing.
+  `requireRole(min)` FIRST, on the server (§4). The browser's claims count for nothing. New admin
+  pages (`/admin/spray`, `/admin/parties`, `/admin/fields`, `/admin/people`, `/admin/devices`)
+  use `requireRole(ROLE_FOR.…)`, never `assertAdmin`/`adminUnlocked`.
+- **E2E sessions:** every spec you write gets its session from
+  `signInAs(context, role = 'viewer', baseURL?)` (`e2e/support/auth.ts`) before its first
+  navigation: `'viewer'` for reads, the role the action needs (`ROLE_FOR`) for writes, and the
+  origin when a context opens another host (a phone on the LAN address). Never call `unlockAdmin`
+  directly (only M0's specs do). Today's placeholder: `'viewer'` adds nothing (the anonymous viewer,
+  so "a viewer gets 403" is testable now); `'driver'` and above set the admin cookie, a
+  provisional **owner**: show the role you need is enough, and test refusals of roles above
+  viewer with `runWithSession` in unit/DB tests. A spec that needs a signed-out browser:
+  `test.use({ storageState: { cookies: [], origins: [] } })`. These calls keep your spec green
+  when the auth builder's real sessions land.
 - **Windows is the target:** no bash in anything a user runs, no inline `FOO=bar`, `node:path`,
   spawn `process.execPath` + a JS entry (`src/lib/proc.ts`), never `.cmd` shims, LF endings, no
   POSIX-only signals. Windows CI runs unit tests under heavy parallelism with a 30 s timeout:
@@ -138,10 +169,10 @@ SELECT/INSERT/UPDATE/DELETE on all of it, EXECUTE on `app.*`, `gis.rebuild_field
 | `farm.geofence_visits` (1a) | `machine_id`, `geofence_id`, `entered_at`, `exited_at` (≥ entered) | unique (machine, geofence, entered_at); **one open visit** per machine and geofence (partial unique index) |
 | `farm.weather_grids` (1b) | PK `id` = `'<WFO>/<x>,<y>'` (CHECKed), `wfo`, `grid_x`, `grid_y`, `stations` jsonb `WeatherStation[]` nearest first, `geom` Polygon null, `time_zone`, `looked_up_at` | the cached NWS cell |
 | `farm.field_weather_grids` (1b) | PK `field_id`, `grid_id`, `point` (the point looked up), `looked_up_at` | redo when the boundary moves |
-| `farm.weather_forecasts` (1b) | PK (`grid_id`, `issued_at`, `valid_at`); `temp_f`, `dewpoint_f`, `rh_pct`, `wind_mph`, `gust_mph`, `wind_dir`, `pop_pct`, `qpf_in`, `sky_pct`, `mixing_height_ft`, `transport_wind_mph`, `source` ('nws'), `fetched_at` | one row per hour per issue; `valid_at` = hour start UTC |
+| `farm.weather_forecasts` (1b) | PK (`grid_id`, `issued_at`, `valid_at`); `temp_f`, `dewpoint_f`, `rh_pct`, `wind_mph`, `gust_mph`, `wind_dir`, `pop_pct`, `qpf_in`, `sky_pct`, `mixing_height_ft`, `transport_wind_mph`, `source` ('nws'), `fetched_at` | one row per hour per issue; `valid_at` = hour start UTC. Pruned by the job (§13): issues older than 48 h go, except the hours an assessment used |
 | `farm.weather_observations` (1b) | PK (`station_id`, `observed_at`); `geom` Point, `temp_f`, `dewpoint_f`, `rh_pct`, `wind_mph`, `gust_mph`, `wind_dir`, `precip_last_hour_in`, `source`, `fetched_at` | |
 | `farm.soil_temp_readings` (1b) | `field_id` null, `observed_at`, `depth_in` (default 2), `temp_f`, `source` (manual, station, probe), `source_id`, `geom`, `entered_by`, `device_id`, `note` | |
-| `farm.spray_assessments` (1b) | `field_id`, `for_hour` (whole hour, CHECK), `verdict` (go, caution, no_go), `reasons` jsonb `SprayReason[]`, `inputs` jsonb, `rules_version`, `forecast_issued_at`, `grid_id`, `assessed_at` | insert-only audit trail; unique **nulls not distinct** (field, hour, rules_version, forecast_issued_at): insert `on conflict on constraint spray_assessments_run_key do nothing` |
+| `farm.spray_assessments` (1b) | `field_id`, `for_hour` (whole hour, CHECK), `verdict` (go, caution, no_go), `reasons` jsonb `SprayReason[]`, `inputs` jsonb, `rules_version`, `forecast_issued_at`, `grid_id`, `assessed_at` | insert-only audit trail; unique **nulls not distinct** (field, hour, rules_version, forecast_issued_at): insert `on conflict on constraint spray_assessments_run_key do nothing`. Each run writes, per field, **only the current hour plus the next 12** (`sprayAssessmentHours(now)`, `SPRAY_ASSESS_AHEAD_HOURS`); `inputs` holds every forecast value the rules read (the audit never depends on forecast rows). Pruned by the job (§13) |
 | `farm.field_lineage` (1c) | `parent_field_id`, `child_field_id` (≠ parent), `kind` (split, merge), `effective_on`, `note`, `created_by` | unique (parent, child) |
 | `farm.boundary_change_requests` (1c) | `field_id`, `proposed_geom` MultiPolygon null, `note`, `requested_by`, `requested_at`, `resolved_at`, `resolved_by`, `resolution` (set together: CHECK) | D6: an edit attempted on a Deere field lands here |
 | `gis.soil_mapunits` (1c) | PK `mukey`; `areasymbol`, `musym`, `muname`, `dominant_component`, `drainage_class`, `hydgrp`, `farmland_class`, `nccpi` (0-1), `components` jsonb `SoilComponent[]`, `survey_version`, `loaded_at` | |
@@ -149,7 +180,7 @@ SELECT/INSERT/UPDATE/DELETE on all of it, EXECUTE on `app.*`, `gis.rebuild_field
 | `gis.field_soils` (1c) | PK (`boundary_id`, `mukey`); `acres`, `pct` (0-100 of the boundary), `computed_at` | **written only by** `gis.rebuild_field_soils` |
 | `farm.tile_lines` (1d) | `field_id` null, `geom` MultiLineString, `kind` (main, submain, lateral, unknown), `size_in`, `depth_ft`, `installed_on`, `origin` (installer_drawing, deere_tile_plow, manual), `installer`, `notes`, `source` (app, import, demo, deere), `source_id`, `source_ref`, `created_by` | drawn lines: source `app`, origin `manual` |
 | `gis.parcel_imports` (1d) | `source` ('synthetic', a county, a vendor), `county_fips`, `received_on`, `license_note`, `file_name`, `sha256`, `feature_count`, `imported_at`, `notes` | |
-| `gis.parcels` (1d) | `import_id` → imports (cascade), `county_fips`, `parcel_no` (unique together), `owner_name`, `owner_mailing`, `property_address`, `acres` (the file's), `gis_acres` (trigger, geodesic), `attrs` jsonb, `geom` MultiPolygon | **PRIVATE** (owner names). Use `parcelId()` for ids |
+| `gis.parcels` (1d) | `import_id` → imports (cascade), `county_fips`, `parcel_no` (unique together), `owner_name`, `owner_mailing`, `property_address`, `acres` (the file's), `gis_acres` (trigger, geodesic), `attrs` jsonb, `geom` MultiPolygon | **PRIVATE** (owner names). `parcel_no` is stored **normalized**: importers write `normalizeParcelNo(raw)`, upsert on (`county_fips`, `parcel_no`) and take the id from `parcelId(county_fips, parcel_no)`; features of one file that normalize to the same number become one row (geometries unioned, count logged) |
 | `gis.map_layers` (1d) | PK `key` (`^[a-z][a-z0-9_]{0,62}$`), `kind` (pmtiles, mvt, xyz), `url_or_key`, `version` null, `cache_policy` (public, private), `minzoom`, `maxzoom`, `attribution`, `legend` jsonb `LayerLegend`, `source_vintage`, `built_at`, `default_visible`, `meta` jsonb | rows `fields`, `soils`, `parcels`, `tile_lines` (mvt) come with 0003; pmtiles/xyz rows are upserted by the CLIs |
 
 ### 3.2 Functions and triggers
@@ -217,18 +248,46 @@ checkRole(session, min)                  // the pure core (types.ts)
   your query functions (`downBy: session.appUserId`) and test them with a made-up session.
 - **Tests:** `runWithSession(makeSession({ role: 'driver' }), () => action(form))`; `null` =
   signed out. Only tests import `testing.ts` (`src/seams.test.ts` checks).
-- **The placeholder until auth lands:** a request with the M0 admin cookie (`farm_admin`, never
-  valid in production) is a provisional **owner** ("Admin key"); every other request is the
-  provisional `ANONYMOUS_VIEWER`. So `requireRole('viewer')` passes for everyone today, and
-  `requireRole('driver')`+ needs the admin cookie: in e2e, `unlockAdmin(context)` from
-  `e2e/support/admin.ts`. When the auth builder's code lands, signed-out requests get 401.
-- **Already guarded** (so they start enforcing the day auth lands): `/api/tiles` for private
-  layers (fields, parcels, tile_lines), `/api/fleet`, `/api/realtime` (all `requireRole('viewer')`).
-  The auth builder must make `/board`, `/m` and the e2e suite carry sessions (kiosk device
-  session, `e2e/support/auth.ts`), replace `assertAdmin` on `/admin/*` with
-  `requireRole('manager')` (or keep the admin key as a manager bootstrap on the PC: say which),
-  and keep `src/proxy.ts` off `/api/tiles`, `/api/jobs`, `/api/webhooks`, `/api/oauth`,
-  `/api/realtime` (never 3xx; `e2e/routes.spec.ts`).
+- **The placeholder until auth lands:** a request with the M0 admin cookie (`farm_admin`) is a
+  provisional **owner** ("Admin key"); every other request is the provisional `ANONYMOUS_VIEWER`.
+  So `requireRole('viewer')` passes for everyone today, and `requireRole('driver')`+ needs the
+  admin cookie (in e2e: `signInAs(context, role)`, §2). When the auth builder's code lands,
+  signed-out requests get 401.
+- **The admin cookie (decided):** it stays. On the PC a valid `farm_admin` cookie is a
+  provisional owner session that wins over any other identity on that browser (the person at the
+  PC opened the link `pnpm dev` / `pnpm pilot` printed). It is never valid in production
+  (`isAdminKey` is false there), so production has managers only through real sign-in. The real
+  `getSession()` keeps that branch. `src/app/admin/_lib/guard.ts` stays as it is, and M0's
+  `/admin/connectors` and `/admin/realtime` keep using it; after merging, the integrator moves
+  `/admin/*` to `requireRole('manager')` (the admin cookie, an owner, still passes).
+- **Already guarded** (they start enforcing the day auth lands): `/api/tiles` for private layers
+  (fields, parcels, tile_lines), `/api/fleet`, `/api/realtime` (all `requireRole('viewer')`).
+- **`src/proxy.ts` never redirects an API call.** No `/api/**` path ever gets a 3xx from the
+  proxy: a signed-out API call reaches its handler and gets 401 JSON from `requireRole`
+  (`e2e/routes.spec.ts` asserts no 3xx for `/api/jobs`, `/api/realtime`, `/api/tiles`,
+  `/api/webhooks`, `/api/oauth`, `/api/fleet` and `/api/health`; `/api/storage` serves Range
+  requests to MapLibre). Also never redirected: `/admin/unlock`, `/login`, `/enroll`,
+  `/_next/**` and static files. Only a page request with no identity at all (a valid admin
+  cookie counts as one) redirects, to `/login` or `/enroll`; role checks stay in the pages and
+  handlers.
+- **E2E (auth builder).** Once real auth lands the suite must still carry sessions, with no edits
+  to the M0 specs:
+  - `e2e/global-setup.ts` (set as `globalSetup` in `playwright.config.ts`) enrolls or reuses a
+    **viewer kiosk device** in the app's database and writes its cookies to a storageState file
+    under `.data/e2e/` (gitignored; not `test-results/`, which Playwright empties at the start
+    of a run), which `use.storageState` points at. Playwright 1.64.1 (checked) applies
+    `use.storageState` to every context a test or hook opens: the `page`/`context`/`request`
+    fixtures and `browser.newContext()` alike. So `/board`, `/m`, `/api/fleet`, `/api/realtime`
+    and the private tiles keep working in the board, fields, map-fleet, touch and m0-demo specs.
+    It must also work against `E2E_BASE_URL` (same `SESSION_SECRET`, like `unlockAdmin`).
+  - Cookies are per host: the M0 demo's phone opens `/m` on the LAN address, so its `openMap`
+    already calls `signInAs(context, 'viewer', origin)` (added by the contracts stage; a no-op
+    today).
+  - `signInAs` keeps its signature and mints a real device or person session for exactly that
+    role, for `baseURL`'s host. The M0 specs that call `unlockAdmin` (admin-lock, realtime,
+    realtime-admin, the demo's admin context) keep passing because the admin cookie stays.
+- **Kiosk instructions** (enroll the wall and the cab iPads, full-screen, operator PIN) go in
+  `docs/kiosk.md`; the integrator links it from `README.md` and the `pnpm pilot` banner.
 - **Provider adapter** (auth builder implements `local.ts`; `supabase.ts` at MD):
 
   ```ts
@@ -283,7 +342,11 @@ dominant, drainage[] }`, `SoilComponent`, `DRAINAGE_CLASSES` (driest first), `SO
 
 `ParcelSummary`, `FieldParcelRow` (+ `overlapAcres`, `overlapPct`), `ParcelTileProperties`,
 `COUNTY_FIPS` (lenawee 26091, monroe 26115), `parcelId(county, parcelNo)` (uuid v5 of the
-normalized number) and `normalizeParcelNo`.
+normalized number) and `normalizeParcelNo` (idempotent). **Importers store the normalized
+number**: `parcel_no = normalizeParcelNo(raw)`, upsert on (`county_fips`, `parcel_no`),
+`id = parcelId(county_fips, parcel_no)`, so two spellings of one number (case, spacing) are one
+row with one id; features of a file that normalize to the same number are merged into that row
+(geometries unioned) before the insert, never upserted twice in one statement.
 
 ### 5.4 Weather and spray (`weather.ts`)
 
@@ -305,6 +368,9 @@ normalized number) and `normalizeParcelNo`.
   updatedBy }`; `parseSprayThresholdsSetting`; `sprayRulesVersion(thresholds)` =
   `'v0-<fnv8>'` (bump `SPRAY_RULES` when the rules change). The strip and the admin page say
   "advisory, defaults pending Derrick's values" while `isDefault`.
+- Stored window and retention (§13): `SPRAY_ASSESS_AHEAD_HOURS` (12) and
+  `sprayAssessmentHours(now)` (the current UTC hour plus the next 12), `FORECAST_RETENTION_HOURS`
+  (48), `SPRAY_DETAIL_RETENTION_DAYS` (30). Strip hours past the stored window have `spray: null`.
 
 ### 5.5 Map layers (`map-layers.ts`)
 
@@ -319,11 +385,11 @@ normalized number) and `normalizeParcelNo`.
 | Topic / event | Payload | Published by | Subscribers do |
 |---|---|---|---|
 | `fleet` / `tick` | `FleetTick` (M0) | fleet jobs | draw |
-| `fleet` / `machine` | `MachineStatusPayload { machineId, status, downReason, downAt, by }` | fleet: after marking down/up (in the same transaction) | patch the machine; the next tick agrees |
+| `fleet` / `machine` | `MachineStatusPayload { machineId, status, downReason, downAt, by }` | fleet: after marking down/up (in the same transaction), **always followed by** `fleet` / `invalidate` `{ event: 'machine', reason: 'changed' }` in that transaction | the fleet panel patches the machine; the M0 map (`src/ui/map/fleet/feed.ts` reads only ticks) refetches `GET /api/fleet` (it carries `machines.status`) on the invalidate, so the wall shows "down" within the 2 s target, not at the next `fleet.deere` tick (15 s demo, 2 min live); the next tick agrees |
 | `admin` / `clock`, `sync.status` | M0 | runtime | M0 |
 | `fields` / `updated` | `{ fieldId, parts: FieldPart[] }` | field-panel (notes), field-data (boundary, seasons, parties, lineage), soils (`soils` after a load: one per field or `invalidate`), weather (`spray`) | panels showing that field refetch `GET /api/fields/<id>`; maps refetch field tiles when `boundary` or `identity` |
 | `weather` / `updated` | `{ gridIds, issuedAt }` | weather job | strips refetch |
-| `spray` / `assessed` | `{ forHour, fieldIds, counts }` | weather job | refetch verdicts (a big farm gets `invalidate` instead: the same) |
+| `spray` / `assessed` | `{ forHour, fieldIds, counts }` | weather job | strips and `SprayFieldState` (§7.3) refetch verdicts (a big farm gets `invalidate` instead: the same) |
 | `layers` / `updated` | `{ key, version }` | gis CLIs (after a build), parcels import, tile-line draws | the rail refetches `GET /api/layers`; maps re-add that layer |
 | every topic / `invalidate` | `InvalidatePayload` | `publish()` when a payload is too big | refetch (onResync) |
 
@@ -366,8 +432,13 @@ resolveLayers(defs, rows) → ResolvedLayer[] { def, row, status: 'ready' | 'mis
 - Built-ins (`builtin.ts`): `fieldsLayer` (style), `fleetLayer` (external),
   `customersLayer` (outline + name over the fields tiles' `client_id`/`client`).
 - `WarRoomMap` props added for M1: `onMapReady(map | null)` (the rail calls `applyLayers` on that
-  map), `fleetVisible` (the board passes `useLayerVisible('fleet', true)`), `onFieldTap(fieldId |
+  map; `SprayFieldState` sets feature state on it; the integrator gives both the same map),
+  `fleetVisible` (the board passes `useLayerVisible('fleet', true)`), `onFieldTap(fieldId |
   null)` (machines win when both are under the finger; the board opens the field panel).
+- Until the rail (soils) is merged, nothing calls `applyLayers` on a builder's own board, so
+  MapLibre defs (spray, parcels, tile lines, NAIP) don't draw in their worktree: test the def as a
+  unit (`spec()`, `validateSpec`, the fake map of `apply.test.ts`) and your e2e through your data
+  (API responses, your components). The integrator checks the drawn layers after wiring the rail.
 
 ### 7.3 Who draws what
 
@@ -381,6 +452,20 @@ resolveLayers(defs, rows) → ResolvedLayer[] { def, row, status: 'ready' | 'mis
 | `tile_lines` | `tile*.ts` (imagery) | maplibre / vector | MVT `tile_lines` (private), row from 0003 |
 | `naip` | `naip*.ts` (imagery) | maplibre / online | xyz row written by `gis:naip` (USGS imagery service; confirm the URL from the plan's §5 sources) |
 | `naip_aoi` | `naip*.ts` (imagery) | maplibre / raster | pmtiles row (`tiles` key `naip/aoi.<sha8>.pmtiles`) written by `gis:naip` |
+| `spray` | `spray*.ts` (weather) | maplibre / vector; group `fields`, order 20, `requiresRow: false`, `cachePolicy: 'private'`, anchor `below-labels`, `defaultVisible: false` (on from the rail) | the fields tiles (no row, no source of its own) + feature state set by `SprayFieldState` |
+
+**Spray colors (1b done-when: the wind slider flips field colors).** The `spray` def's spec adds
+one layer, `layer:spray:fill` (type `fill`), on `FIELDS_SOURCE` / `FIELDS_SOURCE_LAYER`
+(`src/ui/map/style.ts`; the fields source already has `promoteId: 'id'`), with
+`'fill-color': ['match', ['feature-state', 'verdict'], 'go', <green>, 'caution', <amber>,
+'no_go', <red>, 'rgba(0,0,0,0)']` (translucent; a field with no verdict stays clear) and a legend
+marked advisory. The verdicts come from the weather client component
+`src/ui/weather/SprayFieldState.tsx`, `({ map }: { map: maplibregl.Map | null })`, which renders
+nothing: it loads `GET /api/weather/spray` (weather; `requireRole('viewer')`, `no-store`; field id
+→ verdict for the current hour), calls `map.setFeatureState({ source: FIELDS_SOURCE, sourceLayer:
+FIELDS_SOURCE_LAYER, id: fieldId }, { verdict })` for each field (and clears fields no longer
+listed), refetches on `spray` / `assessed` and in `onResync`, and re-applies after a style reload
+(`styledata`). Weather mounts it on `/board` with the strip (§12).
 
 ### 7.4 Tiles route and `GET /api/layers`
 
@@ -442,12 +527,21 @@ StorageConflictError (409), StorageTooLargeError (413)
   `/api/storage/<bucket>/<key>?…` HMAC-signed with `SESSION_SECRET` (expiry, size and content type
   inside the signature) and checked by the route's new `PUT` handler, which reads at most
   `maxBytes` (never buffers unbounded) and answers 403 (bad or expired signature), 409, 413.
+- **Signed GET (private `uploads`):** `createSignedReadUrl` returns
+  `/api/storage/uploads/<key>?…` signed the same way (bucket, key and expiry inside the
+  signature). Imagery adds the check as a new file under `src/platform/storage/` and, in the
+  route's `GET`/`HEAD`, an `uploads` branch: no signature → 404 exactly as in M0
+  (`e2e/storage.spec.ts`), bad or expired → 403, valid → `serveStorageObject(request, storage,
+  bucket, key, { access: 'signed' })`, which the contracts stage added to `http.ts` (Range, ETag,
+  `Cache-Control: private, no-store`; tested in `http.test.ts`). The `tiles` path does not
+  change.
 - **No bucket overwrites:** identical bytes at an existing key are a no-op (a retried upload);
   different bytes → `StorageConflictError`. `put()` writes a temp file and renames (atomic).
 - Entry point: `getStorageWriter()` in `src/platform/storage/writer.ts` (new file);
   `getStorage()` (the reader) is unchanged. Only `src/platform/**` touches the filesystem.
-- Adapter contract tests (plan §7): signed PUT accepted once and expired/forged refused, 4 MB limit,
-  no overwrite in `tiles`, path guard; written so the Supabase adapter (MD) runs the same suite.
+- Adapter contract tests (plan §7): signed PUT accepted once and expired/forged refused, signed
+  GET served and expired/forged/other-key refused, 4 MB limit, no overwrite in `tiles`, path
+  guard; written so the Supabase adapter (MD) runs the same suite.
 
 ---
 
@@ -495,13 +589,18 @@ token). Contract details, in the file's header:
 
 Each builder exposes **self-contained components** (data loading included) and never edits the
 board or phone layout: field-panel `<FieldPanel fieldId variant onClose />`; fleet
-`<FleetPanel variant />` and the mark-down sheet; weather `<WeatherStrip variant />` and a soil
-temperature entry form for `/m`; soils `<LayerRail map variant />`; imagery the draw tool
-(`src/ui/map/draw/**`). To see your work on `/board` or `/m` you may add **one minimal mount**
-there: one import line and one element (plus the one prop it needs, e.g. `onFieldTap`), no
-layout or style changes, so the merge stays trivial; say so in your report. The integrator owns
-the final layout, the 72 px wall targets, and the wiring between pieces (`onFieldTap` → panel,
-`onMapReady` → rail, `useLayerVisible('fleet')` → `fleetVisible`).
+`<FleetPanel variant />` and the mark-down sheet; weather `<WeatherStrip variant />`,
+`<SprayFieldState map />` (§7.3) and a soil temperature entry form for `/m`; soils
+`<LayerRail map variant />`; imagery the draw tool (`src/ui/map/draw/**`). To see your work on
+`/board` or `/m` you may add **one minimal mount** there (`src/ui/board/BoardScreen.tsx`): one
+import line and one element (plus the one prop it needs, e.g. `onFieldTap`), no layout or style
+changes, so the merge stays trivial; say so in your report. A component that needs the map
+(weather's `SprayFieldState`, soils' `LayerRail`) also adds
+`const [map, setMap] = useState<maplibregl.Map | null>(null)` and `onMapReady={setMap}` on
+`WarRoomMap`; weather's mount is the strip plus `<SprayFieldState map={map} />`. The integrator
+owns the final layout, the 72 px wall targets, and the wiring between pieces (`onFieldTap` →
+panel, one `onMapReady` map shared by the rail and `SprayFieldState`, `useLayerVisible('fleet')`
+→ `fleetVisible`).
 
 ---
 
@@ -527,9 +626,28 @@ inputs go through GDAL in Docker (`ghcr.io/osgeo/gdal:ubuntu-small-3.13.3`, `ogr
 like the other `gis:*` steps: no npm reader. PIN hashing uses `node:crypto` scrypt. Raster
 PMTiles: `tools/gis/pmtiles-writer.ts` now has `PmTileType.Jpeg/Webp/Avif`.
 
-**Jobs the integrator registers** (`src/jobs/registry.ts`): `weather.nws` (`*/30 * * * *`, with
-a `demoEvery` for the sim, plan §1) from `src/jobs/weather.ts`, which also assesses spray for the
-coming hours. Geofence detection is not a job: it runs inside the fleet positions step.
+**Jobs** (`src/jobs/registry.ts`; weather adds its own line, §1.1): `weather.nws`
+(`cron: '*/30 * * * *'`, `demoEvery: '30 seconds'` for the sim, plan §1) from
+`src/jobs/weather.ts`. Each run: grid lookups (cached), the newest forecast issue and the
+observations, then the spray assessment of **each field's current hour plus the next 12**
+(`sprayAssessmentHours(now)`: 13 rows per field per new forecast issue or rules version; up to
+about 12k rows a day for the 40 demo fields, 150k at 500 fields), then pruning, at most once an hour (when
+the run's hour changes), in batches (e.g. 5 000 rows per statement) so the run stays in its
+budget:
+
+- `farm.weather_forecasts`: delete rows with `issued_at` older than `FORECAST_RETENTION_HOURS`
+  (48 h), except the rows a stored assessment used: `not exists (select 1 from
+  farm.spray_assessments s where s.grid_id = f.grid_id and s.forecast_issued_at = f.issued_at and
+  s.for_hour = f.valid_at)`. That keeps about two days of issues plus, for each assessed hour,
+  only the forecast rows its kept assessments used.
+- `farm.spray_assessments`: delete rows with `for_hour` older than `SPRAY_DETAIL_RETENTION_DAYS`
+  (30 days), except the newest per (`field_id`, `for_hour`) (by `assessed_at`, then `id`; the
+  index `spray_assessments_field_id_for_hour_idx` serves it): what the farm was told last.
+
+Check both with `EXPLAIN` on a 500-field fixture; if the forecast anti-join needs an index, add
+`farm.spray_assessments (grid_id, forecast_issued_at, for_hour)` through `db/pending/weather.sql`.
+The constants live in `src/domain/weather.ts` (easy to shorten if the 8 GB of Supabase Pro gets
+tight). Geofence detection is not a job: it runs inside the fleet positions step.
 
 **Data export/import (field-data):** rows with `source` `demo` or `sim` are never exported; ids of
 synced rows are deterministic, so hand-entered rows that reference them survive

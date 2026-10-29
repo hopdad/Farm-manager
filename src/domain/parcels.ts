@@ -51,7 +51,14 @@ export interface ParcelTileProperties {
 /**
  * Stable parcel id: uuid v5 of `parcel:<county>:<parcel number>` (normalized), so a re-import or
  * a newer file for the same county keeps ids, and rows that point at parcels (CDL/terrain stats
- * in 1e, prospect notes in M4) survive. Importers use it for gis.parcels.id.
+ * in 1e, prospect notes in M4) survive.
+ *
+ * Importers (docs/contracts-m1.md §3.1, §5.3) store the NORMALIZED number, so the id and the
+ * unique key (county_fips, parcel_no) always agree:
+ *   const parcelNo = normalizeParcelNo(raw);   // gis.parcels.parcel_no
+ *   const id = parcelId(countyFips, parcelNo); // gis.parcels.id
+ *   insert … on conflict (county_fips, parcel_no) do update …
+ * Features of one file that normalize to the same number become one row (geometries unioned).
  */
 export function parcelId(countyFips: string, parcelNo: string): string {
   if (!/^\d{5}$/.test(countyFips)) throw new Error(`bad county FIPS '${countyFips}'`);
@@ -60,7 +67,10 @@ export function parcelId(countyFips: string, parcelNo: string): string {
   return deterministicId('parcel', `${countyFips}:${norm}`);
 }
 
-/** Parcel numbers as counties print them vary in case and spacing: trim, upper-case, collapse spaces. */
+/**
+ * Parcel numbers as counties print them vary in case and spacing: trim, upper-case, collapse
+ * spaces. Idempotent; gis.parcels.parcel_no holds its result.
+ */
 export function normalizeParcelNo(parcelNo: string): string {
   return parcelNo.trim().toUpperCase().replace(/\s+/g, ' ');
 }

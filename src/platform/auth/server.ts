@@ -12,7 +12,12 @@
  *
  * So `requireRole('viewer')` passes for everyone now and starts answering 401 for signed-out
  * requests the day the real implementation lands; `requireRole('driver')` and above need the
- * admin cookie (e2e: `unlockAdmin(context)` from e2e/support/admin.ts) until then.
+ * admin cookie until then (e2e: `signInAs(context, role)` from e2e/support/auth.ts, never
+ * `unlockAdmin` directly).
+ *
+ * Decided (docs/contracts-m1.md §4): the admin-cookie branch STAYS in the real implementation. On
+ * the PC a valid `farm_admin` cookie is a provisional owner session that wins over any other
+ * identity on that browser; it is never valid in production (`isAdminKey` is false there).
  */
 import { cookies } from 'next/headers';
 import { getConfig } from '../../config';

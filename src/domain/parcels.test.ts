@@ -17,4 +17,14 @@ describe('parcel ids', () => {
   test('normalizeParcelNo', () => {
     expect(normalizeParcelNo(' ab  12 ')).toBe('AB 12');
   });
+
+  test('two spellings of one number: one stored parcel_no, one id (the import rule)', () => {
+    const spellings = ['xa0-123 4567-00', ' XA0-123  4567-00', 'Xa0-123\t4567-00 '];
+    const parcelNo = 'XA0-123 4567-00';
+    expect(new Set(spellings.map(normalizeParcelNo))).toEqual(new Set([parcelNo]));
+    expect(normalizeParcelNo(parcelNo)).toBe(parcelNo);
+    for (const raw of spellings) {
+      expect(parcelId(COUNTY_FIPS.lenawee, raw)).toBe(parcelId(COUNTY_FIPS.lenawee, parcelNo));
+    }
+  });
 });
