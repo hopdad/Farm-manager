@@ -12,11 +12,15 @@
  *  - private layers first run `opts.checkAccess` (the route passes requireRole('viewer')): an
  *    AuthError becomes 401/403 `no-store` (contracts-m1 §4); the session's role picks the variant
  *    of a role-dependent layer (parcels: owner names for managers and up, D8)
+ *  - a role-dependent layer's `?v=` names its variant (`<version>.o` for the owners tiles); a
+ *    URL whose variant is not the one this session is served (a page that loaded the layer list
+ *    before a role change) still gets its tile, but `private, no-store`: a shared browser must
+ *    never keep one person's owner names under a URL the next person's page asks for
  *  - never 3xx (contracts §5)
  */
 import { createHash } from 'node:crypto';
 import type { Queryable } from '@/db/client';
-import { isAuthError, isRole, type Role } from '@/platform/auth/types';
+import { isAuthError, isRole, ROLES, type Role } from '@/platform/auth/types';
 import { limitedBytes } from '@/platform/http/limits';
 import { isValidTile } from '@/ui/map/tile-math';
 import {
@@ -48,6 +52,23 @@ export function tileCacheControl(policy: TileCachePolicy, versioned: boolean): s
   return policy === 'private'
     ? 'private, max-age=31536000, immutable'
     : 'public, max-age=31536000, s-maxage=31536000, immutable';
+}
+
+/**
+ * Does the URL's `?v=` name the variant `role` is served? (Always true for a layer that is the
+ * same for everyone, or an unversioned URL.) The variant is the longest known suffix `v` ends
+ * with ('' for none).
+ */
+export function versionMatchesRole(
+  def: TileLayerDef,
+  v: string | null,
+  role: Role | null,
+): boolean {
+  const suffixOf = def.versionSuffixForRole;
+  if (!suffixOf || v === null) return true;
+  const known = [...new Set([...ROLES, null].map((r) => suffixOf(r)))].filter(Boolean);
+  const got = known.filter((s) => v.endsWith(s)).sort((a, b) => b.length - a.length)[0] ?? '';
+  return got === suffixOf(role);
 }
 
 function text(status: number, body: string): Response {
@@ -110,7 +131,9 @@ export async function handleTileRequest(
   const etag = `"${createHash('sha1').update(mvt).digest('hex').slice(0, 20)}"`;
   const headers = new Headers({
     'content-type': MVT_CONTENT_TYPE,
-    'cache-control': tileCacheControl(def.cachePolicy, v !== null),
+    'cache-control': versionMatchesRole(def, v, role)
+      ? tileCacheControl(def.cachePolicy, v !== null)
+      : 'private, no-store',
     etag,
     'x-content-type-options': 'nosniff',
   });

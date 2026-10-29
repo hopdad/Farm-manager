@@ -40,9 +40,14 @@ describe('/api/tiles/fields', () => {
     expect(Number(res.headers.get('content-length'))).toBe(body.length);
 
     const layers = decodeMvt(body);
-    expect(layers.map((l) => l.name)).toEqual(['fields']);
+    expect(layers.map((l) => l.name)).toEqual(['fields', 'fields_label']);
     const layer = layers[0];
     if (!layer) throw new Error('no layer');
+    // One label point per field (migration 0005), inside the field.
+    const label = layers[1]?.features.filter((x) => x.properties.id === fieldId) ?? [];
+    expect(label).toHaveLength(1);
+    expect(label[0]?.type).toBe('Point');
+    expect(label[0]?.properties).toMatchObject({ name: 'Kowalski North', tenure: 'cash_rent' });
     expect(layer.extent).toBe(4096);
     const f = layer.features.find((x) => x.properties.id === fieldId);
     expect(f).toBeDefined();
@@ -252,6 +257,21 @@ describe('M1 layers (0003)', () => {
     expect(tileVersionFor(def, 'abc', 'viewer')).toBe('abc');
     expect(tileVersionFor(def, 'abc', null)).toBe('abc');
     expect(tileVersionFor(TILE_LAYERS.fields, 'abc', 'manager')).toBe('abc');
+
+    // A URL naming the other variant (a page that asked before a role change) is never cached.
+    const cache = async (v: string, role: string) => {
+      const res = await handleTileRequest(
+        new Request(`http://localhost/api/tiles/parcels/14/${tile.x}/${tile.y}?v=${v}`),
+        params,
+        t().pool,
+        { checkAccess: async () => ({ role }) },
+      );
+      return res.headers.get('cache-control');
+    };
+    expect(await cache('abc.o', 'viewer')).toBe('private, no-store');
+    expect(await cache('abc', 'manager')).toBe('private, no-store');
+    expect(await cache('abc.o', 'manager')).toBe('private, max-age=31536000, immutable');
+    expect(await cache('abc', 'viewer')).toBe('private, max-age=31536000, immutable');
   });
 
   test('versioned public tiles get the year-long CDN policy', async () => {

@@ -12,6 +12,10 @@ import type { BasemapFlavor, BasemapInfo, FieldsLayerInfo } from './types';
 export const BASEMAP_SOURCE = 'protomaps';
 export const FIELDS_SOURCE = 'fields';
 export const FIELDS_SOURCE_LAYER = 'fields';
+/** One point per field (app.mvt_fields, migration 0005): one label per field, not per tile. */
+export const FIELDS_LABEL_SOURCE_LAYER = 'fields_label';
+/** Field names show from this zoom (the wall's morning view is about z10-11.5). */
+export const FIELD_LABEL_MINZOOM = 9.5;
 export const FIELD_LAYER_IDS = {
   fill: 'fields-fill',
   outline: 'fields-outline',
@@ -43,6 +47,8 @@ export interface MapStyleInput {
   glyphsPath: string | null;
   fields: FieldsLayerInfo;
   flavor: BasemapFlavor;
+  /** Field name sizes: read across the room on the wall (default), held in the hand on phones. */
+  variant?: 'wall' | 'phone';
 }
 
 const tenureMatch = (fallback: string) =>
@@ -60,10 +66,15 @@ const tenureMatch = (fallback: string) =>
     fallback,
   ] as unknown as string;
 
-/** The field layers: [fill, outline] go under the basemap labels, [label] on top. */
+/**
+ * The field layers: [fill, outline] go under the basemap labels, [label] on top. Labels come
+ * from the one-point-per-field layer and collide with each other (MapLibre thins them when
+ * zoomed out instead of hiding them all below a zoom).
+ */
 export function fieldLayers(
   withLabels: boolean,
   flavor: BasemapFlavor,
+  variant: 'wall' | 'phone' = 'wall',
 ): {
   below: LayerSpecification[];
   top: LayerSpecification[];
@@ -114,8 +125,8 @@ export function fieldLayers(
           id: FIELD_LAYER_IDS.label,
           type: 'symbol',
           source: FIELDS_SOURCE,
-          'source-layer': FIELDS_SOURCE_LAYER,
-          minzoom: 12,
+          'source-layer': FIELDS_LABEL_SOURCE_LAYER,
+          minzoom: FIELD_LABEL_MINZOOM,
           layout: {
             'text-field': [
               'format',
@@ -127,7 +138,9 @@ export function fieldLayers(
               { 'font-scale': 0.8 },
             ] as unknown as string,
             'text-font': ['Noto Sans Medium'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 12, 12, 16, 18] as unknown as number,
+            'text-size': (variant === 'wall'
+              ? ['interpolate', ['linear'], ['zoom'], 10, 14, 13, 18, 16, 22]
+              : ['interpolate', ['linear'], ['zoom'], 10, 11, 13, 13, 16, 17]) as unknown as number,
             'text-max-width': 8,
             'symbol-placement': 'point',
           },
@@ -154,7 +167,7 @@ export function insertAppLayers(
 }
 
 export function buildMapStyle(input: MapStyleInput): StyleSpecification {
-  const { origin, basemap, glyphsPath, fields, flavor } = input;
+  const { origin, basemap, glyphsPath, fields, flavor, variant = 'wall' } = input;
   const abs = (p: string) =>
     new URL(p, origin).toString().replace(/%7B/gi, '{').replace(/%7D/gi, '}');
   const fieldsSource = {
@@ -165,7 +178,7 @@ export function buildMapStyle(input: MapStyleInput): StyleSpecification {
     promoteId: 'id',
   };
   const withLabels = glyphsPath !== null;
-  const { below, top } = fieldLayers(withLabels, flavor);
+  const { below, top } = fieldLayers(withLabels, flavor, variant);
 
   if (!basemap) {
     return {
