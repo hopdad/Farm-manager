@@ -98,6 +98,12 @@ export interface StyleLayerDef extends LayerDefBase {
   render: 'style';
   /** Ids of base-style layers this toggle shows and hides. */
   styleLayerIds: readonly string[];
+  /**
+   * A base-style vector source whose tiles follow the registry row's URL: when the row's `?v=`
+   * version moves (fields imported, redrawn, renamed), applyLayers re-points the source with
+   * setTiles, so an open page draws the new tiles without a reload.
+   */
+  styleSourceId?: string;
 }
 
 export interface ExternalLayerDef extends LayerDefBase {

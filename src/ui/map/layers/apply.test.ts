@@ -98,12 +98,38 @@ describe('applyLayers', () => {
     applyLayers(map, resolved, () => true, ctx);
     map.calls = [];
     const again = applyLayers(map, resolved, () => true, ctx);
-    expect(again).toEqual({ added: [], removed: [] });
+    expect(again).toEqual({ added: [], removed: [], retiled: [] });
     expect(map.calls).toEqual([]);
     applyLayers(map, resolved, (k) => k !== 'fields', ctx);
     expect(map.calls).toEqual([]);
     expect(map.visibility(FIELD_LAYER_IDS.fill)).toBe('none');
     expect(map.visibility(FIELD_LAYER_IDS.label)).toBe('none');
+  });
+
+  test("a new fields version re-points the base style's field tiles, once", () => {
+    const map = new FakeMap();
+    const tiles = ['http://localhost:3000/api/tiles/fields/{z}/{x}/{y}?v=v1'];
+    const setTiles: string[][] = [];
+    map.sources.fields = {
+      type: 'vector',
+      tiles,
+      setTiles(t: string[]) {
+        setTiles.push(t);
+        (this as { tiles: string[] }).tiles = t;
+      },
+    } as unknown as SourceSpecification;
+    const fieldsRow = (v: string) =>
+      row('fields', { cachePolicy: 'private', url: `/api/tiles/fields/{z}/{x}/{y}?v=${v}` });
+    // The page was built with v1: nothing to do.
+    expect(
+      applyLayers(map, resolveLayers(defs, [fieldsRow('v1')]), () => true, ctx).retiled,
+    ).toEqual([]);
+    // An import moved the version: the source follows, and only once.
+    const r = applyLayers(map, resolveLayers(defs, [fieldsRow('v2')]), () => true, ctx);
+    expect(r.retiled).toEqual(['fields']);
+    expect(setTiles).toEqual([['http://localhost:3000/api/tiles/fields/{z}/{x}/{y}?v=v2']]);
+    applyLayers(map, resolveLayers(defs, [fieldsRow('v2')]), () => true, ctx);
+    expect(setTiles).toHaveLength(1);
   });
 
   test('a new version re-adds the layer; a lost row removes it', () => {

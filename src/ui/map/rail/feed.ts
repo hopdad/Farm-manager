@@ -4,6 +4,11 @@
  * invalidate), with overlapping refetches merged into one more after the current one. While
  * realtime can't deliver (SSE down, the Supabase adapter before MD) it polls slowly; a failed
  * fetch keeps the last good list and retries.
+ *
+ * Also on `fields`/`updated` with 'boundary' or 'identity' (and `fields`/`invalidate`): the
+ * fields row's tile URL carries the fields version, so the map re-points its field tiles
+ * (applyLayers, `styleSourceId`) and an open wall draws imported or redrawn fields without a
+ * reload (contracts-m1 §6). An import sends up to 25 such messages: they are debounced.
  */
 import { z } from 'zod';
 import type { PublicConfig } from '../../../config';
@@ -20,6 +25,8 @@ export const LAYERS_URL = '/api/layers';
 export const LAYERS_RETRY_MS = 15_000;
 /** Poll while realtime is not connected (layers change rarely: after a gis:* build). */
 export const LAYERS_POLL_MS = 60_000;
+/** Field changes arrive in bursts (an import, a split): one reload this long after the last. */
+export const FIELD_CHANGE_DEBOUNCE_MS = 500;
 
 const resolvedSchema = mapLayerRowSchema.extend({ url: z.string().min(1) });
 
@@ -56,6 +63,7 @@ export interface LayersFeedOptions {
   fetch?: typeof globalThis.fetch;
   retryMs?: number;
   pollMs?: number;
+  fieldDebounceMs?: number;
 }
 
 export function startLayersFeed(opts: LayersFeedOptions): () => void {
@@ -67,6 +75,7 @@ export function startLayersFeed(opts: LayersFeedOptions): () => void {
   let inflight = false;
   let again = false;
   let retry: ReturnType<typeof setTimeout> | null = null;
+  let fieldTimer: ReturnType<typeof setTimeout> | null = null;
 
   const load = async (): Promise<void> => {
     if (disposed) return;
@@ -107,6 +116,26 @@ export function startLayersFeed(opts: LayersFeedOptions): () => void {
     },
     { onResync: () => void load() },
   );
+  const fieldsChanged = () => {
+    if (fieldTimer) clearTimeout(fieldTimer);
+    fieldTimer = setTimeout(() => {
+      fieldTimer = null;
+      void load();
+    }, opts.fieldDebounceMs ?? FIELD_CHANGE_DEBOUNCE_MS);
+  };
+  const unsubscribeFields = opts.realtime.client.subscribe(
+    'fields',
+    (evt) => {
+      if (
+        evt.event === 'updated' &&
+        evt.payload.parts.some((p) => p === 'boundary' || p === 'identity')
+      ) {
+        fieldsChanged();
+      }
+      // 'invalidate' (an import, data:import) → onResync below.
+    },
+    { onResync: fieldsChanged },
+  );
   const poll = setInterval(() => {
     if (!opts.realtime.connected()) void load();
   }, pollMs);
@@ -116,7 +145,9 @@ export function startLayersFeed(opts: LayersFeedOptions): () => void {
     disposed = true;
     abort.abort();
     unsubscribe();
+    unsubscribeFields();
     clearInterval(poll);
     if (retry) clearTimeout(retry);
+    if (fieldTimer) clearTimeout(fieldTimer);
   };
 }

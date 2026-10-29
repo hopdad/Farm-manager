@@ -9,32 +9,29 @@ import type { ResolvedRealtime } from '../fleet/realtime';
 import { row } from '../layers/test-fixtures';
 import { LAYERS_URL, parseLayersResponse, startLayersFeed } from './feed';
 
-/** A realtime client the test drives: emit('layers', …) and resync(). */
+/** A realtime client the test drives: emit('layers', …), emitFields(…) and resync(). */
 function fakeRealtime(connected = true) {
-  let handler: ((evt: TopicMessage<'layers'>) => void) | null = null;
-  let opts: SubscribeOptions | null = null;
-  let unsubscribed = false;
+  const subs = new Map<string, { onEvent: (evt: unknown) => void; opts: SubscribeOptions }>();
+  let unsubscribes = 0;
   const client: RealtimeClient = {
-    subscribe: ((
-      topic: string,
-      onEvent: (evt: TopicMessage<'layers'>) => void,
-      o: SubscribeOptions,
-    ) => {
-      expect(topic).toBe('layers');
-      handler = onEvent;
-      opts = o;
+    subscribe: ((topic: string, onEvent: (evt: unknown) => void, o: SubscribeOptions) => {
+      expect(['layers', 'fields']).toContain(topic);
+      subs.set(topic, { onEvent, opts: o });
       return () => {
-        unsubscribed = true;
+        unsubscribes += 1;
+        subs.delete(topic);
       };
     }) as RealtimeClient['subscribe'],
   };
   const realtime: ResolvedRealtime = { client, connected: () => connected };
   return {
     realtime,
-    emit: (evt: TopicMessage<'layers'>) => handler?.(evt),
-    resync: () => opts?.onResync(),
+    emit: (evt: TopicMessage<'layers'>) => subs.get('layers')?.onEvent(evt),
+    emitFields: (evt: TopicMessage<'fields'>) => subs.get('fields')?.onEvent(evt),
+    resync: () => subs.get('layers')?.opts.onResync(),
+    resyncFields: () => subs.get('fields')?.opts.onResync(),
     get unsubscribed() {
-      return unsubscribed;
+      return unsubscribes > 0 && subs.size === 0;
     },
   };
 }
@@ -85,6 +82,38 @@ describe('startLayersFeed', () => {
     rt.emit({ event: 'updated', payload: { key: 'soils', version: 'v2' }, seq: 2 });
     await flush();
     rt.resync();
+    await flush();
+    expect(fetch).toHaveBeenCalledTimes(3);
+    stop();
+    expect(rt.unsubscribed).toBe(true);
+  });
+
+  test('field boundary or identity changes reload the list (the fields tile URL), debounced', async () => {
+    const rt = fakeRealtime();
+    const fetch = vi.fn(async () => ok([row('soils')]));
+    const stop = startLayersFeed({
+      realtime: rt.realtime,
+      onLayers: () => {},
+      onError: () => {},
+      fetch,
+    });
+    await flush();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const updated = (parts: string[]) =>
+      rt.emitFields({ event: 'updated', payload: { fieldId: 'f', parts } as never, seq: 1 });
+    updated(['notes']);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    // An import: a burst of boundary messages → one reload.
+    for (let i = 0; i < 10; i++) updated(['identity', 'boundary']);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(200);
+    await flush();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    // fields/invalidate (data:import) arrives as a resync.
+    rt.resyncFields();
+    await vi.advanceTimersByTimeAsync(600);
     await flush();
     expect(fetch).toHaveBeenCalledTimes(3);
     stop();

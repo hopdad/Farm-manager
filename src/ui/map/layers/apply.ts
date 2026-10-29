@@ -6,13 +6,15 @@
  *  - 'maplibre' defs: their spec is added once (sources, then layers at the def's anchor) and
  *    re-added when it changes (a new `?v=` version, a new flavour); visibility is a layout
  *    property, so hidden layers fetch no tiles. Defs that are not 'ready' are removed.
- *  - 'style' defs: only the visibility of their base-style layers changes.
+ *  - 'style' defs: the visibility of their base-style layers changes, and a `styleSourceId`
+ *    source is re-pointed (setTiles) when the row's tile URL (its `?v=` version) moves.
  *  - 'external' defs: nothing here (their owner reads useLayerVisible).
  *  - Anything prefixed `layer:` on the map that no resolved def owns any more is removed.
  */
 import type { LayerSpecification, SourceSpecification } from 'maplibre-gl';
 import { FIELD_LAYER_IDS } from '../style';
 import {
+  absoluteUrl,
   type LayerAnchor,
   type LayerSpec,
   type LayerSpecContext,
@@ -46,6 +48,14 @@ export interface ApplyResult {
   added: string[];
   /** Layer and source ids removed this call. */
   removed: string[];
+  /** Base-style source ids re-pointed at new tiles this call. */
+  retiled: string[];
+}
+
+/** A vector source as MapLibre's VectorTileSource exposes it (tiles + setTiles). */
+interface RetileableSource {
+  tiles?: string[];
+  setTiles?(tiles: string[]): unknown;
 }
 
 const applied = new WeakMap<object, Map<string, { fingerprint: string; spec: LayerSpec }>>();
@@ -99,7 +109,7 @@ export function applyLayers(
   isVisible: (key: string, defaultVisible: boolean) => boolean,
   ctx: ApplyContext,
 ): ApplyResult {
-  const result: ApplyResult = { added: [], removed: [] };
+  const result: ApplyResult = { added: [], removed: [], retiled: [] };
   let state = applied.get(map);
   if (!state) {
     state = new Map();
@@ -113,6 +123,14 @@ export function applyLayers(
     if (def.render === 'style') {
       for (const id of def.styleLayerIds) {
         if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visibility);
+      }
+      if (def.styleSourceId && r.status === 'ready' && r.row?.url) {
+        const want = absoluteUrl(ctx.origin, r.row.url);
+        const src = map.getSource(def.styleSourceId) as RetileableSource | undefined;
+        if (src?.setTiles && src.tiles?.[0] !== want) {
+          src.setTiles([want]);
+          result.retiled.push(def.styleSourceId);
+        }
       }
       continue;
     }
