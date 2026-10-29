@@ -91,8 +91,12 @@ describe('clock -> /api/jobs -> job_runs', () => {
     try {
       await sleep(3_200);
       const running = await runCount();
+      const ranNow = ran;
       expect(running).toBeGreaterThanOrEqual(2);
-      expect(ran).toBe(running);
+      // Every recorded run executed. One more may be in flight: run() done, its job_runs row
+      // not written yet (the lease keeps runs from overlapping, so never more than one).
+      expect(ranNow - running).toBeGreaterThanOrEqual(0);
+      expect(ranNow - running).toBeLessThanOrEqual(1);
       expect(posts.every((p) => p === 'demo.tick')).toBe(true);
 
       await setClockPaused(t().db, true);
