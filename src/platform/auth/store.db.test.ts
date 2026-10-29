@@ -3,6 +3,7 @@
  * people and the last-owner rule, devices and one-time enrollment, revocation, owner setup and
  * recovery, and the "device session + operator PIN" adapter contract through resolveBrowserAuth.
  */
+import { scryptSync } from 'node:crypto';
 import { describe, expect, test } from 'vitest';
 import { setupTestDb } from '../../test/db';
 import { AUTH_COOKIE, OPERATOR_COOKIE } from './cookies';
@@ -95,6 +96,25 @@ describe('operator PIN lockout', () => {
     const cleared = await getPerson(t().pool, p.id);
     expect(cleared).toMatchObject({ failedPins: 0, lockedUntil: null });
     expect(cleared?.lastSignInAt).toEqual(after);
+  });
+
+  test('a PIN hash from before the pepper works once more and is rewritten peppered', async () => {
+    const p = await person('operator', null);
+    const salt = Buffer.alloc(16, 3);
+    const key = scryptSync('4071', salt, 32, { N: 1 << 14, r: 8, p: 1 });
+    const legacy = ['scrypt', 16384, 8, 1, salt.toString('base64url'), key.toString('base64url')];
+    await t().admin.query(`update farm.app_users set pin_hash = $2 where id = $1`, [
+      p.id,
+      legacy.join('$'),
+    ]);
+    expect(await attemptPin(t().pool, p.id, '4071', NOW)).toMatchObject({ ok: true });
+    const r = await t().pool.query<{ pin_hash: string }>(
+      'select pin_hash from farm.app_users where id = $1',
+      [p.id],
+    );
+    expect(r.rows[0]?.pin_hash).toMatch(/^scrypt-p1\$/);
+    expect(await attemptPin(t().pool, p.id, '4071', NOW)).toMatchObject({ ok: true });
+    expect(await attemptPin(t().pool, p.id, '4072', NOW)).toMatchObject({ ok: false });
   });
 
   test('repeated lockouts double (15, 30, 60 min ... a day); Unlock starts over', async () => {

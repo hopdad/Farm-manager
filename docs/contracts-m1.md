@@ -312,7 +312,10 @@ checkRole(session, min)                  // the pure core (types.ts)
   (follows `PUBLIC_URL`, never `NODE_ENV`), signed with `SESSION_SECRET` (jose). Sign-in must
   work over `http://<lan-ip>` under `pnpm pilot` (plan 1a done-when).
 - **PIN hashing:** `node:crypto` scrypt with a per-user random salt, compared with
-  `timingSafeEqual`; no dependency. Lockout state lives in the row (`failed_pins`,
+  `timingSafeEqual`; no dependency. Review fix (Oct 29): scrypt hashes HMAC-SHA256(pepper, PIN),
+  the pepper derived from `SESSION_SECRET` (`scrypt-p1$…`), so the hashes `data:export` writes
+  can't be brute-forced without `.env.local`; legacy `scrypt$…` hashes verify and are rewritten
+  at the next good sign-in. Lockout state lives in the row (`failed_pins`,
   `locked_until`), never in memory.
 
 ---

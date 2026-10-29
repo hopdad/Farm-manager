@@ -34,7 +34,9 @@ Two builders were asked for "operator and up" for marking machines down and logg
 temperatures; the binding contract said **driver**, so drivers (truck drivers) can do both. If
 you want only field operators and up, it is one word each in `ROLE_FOR`.
 
-**PINs:** 4-8 digits, obvious ones refused (`1111`, `1234`, `1212`…); 5 wrong PINs lock that
+**PINs:** 4-8 digits, obvious ones refused (`1111`, `1234`, `1212`…), stored as a peppered
+scrypt hash (the pepper comes from `SESSION_SECRET` in `.env.local`, so a copied database or a
+`data:export` file can't be used to work PINs out); 5 wrong PINs lock that
 person for 15 minutes, each further lockout in a row twice as long, up to a day; someone signed
 in on a shared screen is signed out after 12 hours without use. A personal phone or computer
 stays signed in 30 days (renewed while used), an enrolled screen a year (until revoked).

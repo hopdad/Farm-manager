@@ -20,7 +20,7 @@ import {
   newOwnerResetCode,
   OWNER_RESET_TTL_MINUTES,
 } from './codes';
-import { burn, hashPin, pinProblem, verifyPin } from './pin';
+import { burn, hashPin, needsRehash, pinProblem, verifyPin } from './pin';
 import { canManagePerson, canSetPin, isDeviceKind } from './policy';
 import type { DeviceRecord, UserRecord } from './session';
 import { type AuthIdentity, isRole, PIN_RULES, type Role, type Session } from './types';
@@ -236,11 +236,14 @@ export async function attemptPin(
     };
   }
   if (await verifyPin(pin, row.pin_hash)) {
+    // A hash from before the pepper (./pin.ts) is rewritten peppered, same PIN.
+    const rehash = needsRehash(row.pin_hash) ? await hashPin(pin) : null;
     await exec(
       ex,
-      `update farm.app_users set failed_pins = 0, locked_until = null, last_sign_in_at = $2
+      `update farm.app_users set failed_pins = 0, locked_until = null, last_sign_in_at = $2,
+              pin_hash = coalesce($3, pin_hash)
         where id = $1::uuid`,
-      [appUserId, now],
+      [appUserId, now, rehash],
     );
     return {
       ok: true,

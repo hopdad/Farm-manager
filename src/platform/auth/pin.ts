@@ -3,17 +3,62 @@
  * random salt, compared with timingSafeEqual; no dependency. Lockout state lives in the row
  * (farm.app_users.failed_pins / locked_until, ./store.ts), never in memory.
  *
- * Stored format: `scrypt$<N>$<r>$<p>$<salt b64url>$<key b64url>`, so the cost can be raised
+ * Stored format: `scrypt-p1$<N>$<r>$<p>$<salt b64url>$<key b64url>`, so the cost can be raised
  * later without invalidating existing PINs (verify reads the parameters from the hash).
  *
- * A 4-digit PIN has only 10 000 values; what protects it is the lockout (PIN_RULES: 5 tries,
- * then 15 minutes), not the hash. The hash keeps a copied database from handing out PINs
- * directly. Setting a PIN also refuses the guessable ones (1111, 1234, 1212, ...).
+ * A 4-digit PIN has only 10 000 values: scrypt alone can't keep a copied hash from being tried
+ * in minutes, and `pnpm data:export` writes every PIN hash to a file people keep off the PC. So
+ * the PIN is peppered: scrypt hashes HMAC-SHA256(pepper, pin), the pepper derived from
+ * SESSION_SECRET (HKDF, its own label), which lives in .env.local, never in the database or an
+ * export. A copied hash is useless without that secret; on the farm what protects a PIN is the
+ * lockout (PIN_RULES: 5 tries, then 15 minutes). A restore on another PC with another
+ * SESSION_SECRET needs the PINs set again (the owner's: `pnpm auth:reset-owner`).
+ *
+ * Hashes written before the pepper (`scrypt$…`) still verify, and a successful sign-in rewrites
+ * them peppered (./store.ts attemptPin, `needsRehash`). Setting a PIN also refuses the guessable
+ * ones (1111, 1234, 1212, ...).
  */
-import { randomBytes, type ScryptOptions, scrypt, timingSafeEqual } from 'node:crypto';
+import {
+  createHmac,
+  hkdfSync,
+  randomBytes,
+  type ScryptOptions,
+  scrypt,
+  timingSafeEqual,
+} from 'node:crypto';
+import { getConfig } from '../../config';
 import { PIN_RULES } from './types';
 
 const KEY_LEN = 32;
+const PEPPERED = 'scrypt-p1';
+const LEGACY = 'scrypt';
+
+const peppers = new Map<string, Uint8Array>();
+
+/** The PIN pepper for `secret` (HKDF-SHA256, label 'pin pepper v1'). */
+export function pinPepper(secret: string): Uint8Array {
+  let p = peppers.get(secret);
+  if (!p) {
+    p = new Uint8Array(hkdfSync('sha256', secret, 'farm-ops', 'pin pepper v1', 32));
+    peppers.set(secret, p);
+  }
+  return p;
+}
+
+/** This install's pepper (SESSION_SECRET). Callers outside tests pass nothing. */
+function configPepper(): Uint8Array {
+  return pinPepper(getConfig().SESSION_SECRET);
+}
+
+/** What scrypt hashes: the PIN keyed with the pepper (or the bare PIN for a legacy hash). */
+function scryptInput(pin: string, pepper: Uint8Array | null): string | Buffer {
+  return pepper ? createHmac('sha256', pepper).update(pin).digest() : pin;
+}
+
+/** A stored hash from before the pepper: rewrite it at the next good sign-in. */
+export function needsRehash(stored: string | null | undefined): boolean {
+  return !!stored && stored.startsWith(`${LEGACY}$`);
+}
 const SALT_LEN = 16;
 /** N = 2^14, r = 8, p = 1: 16 MiB, a few tens of ms per check. */
 const DEFAULT_COST = Object.freeze({ N: 1 << 14, r: 8, p: 1 });
@@ -48,7 +93,7 @@ export function isGuessablePin(pin: string): boolean {
   return false;
 }
 
-function scryptAsync(pin: string, salt: Buffer, opts: ScryptOptions): Promise<Buffer> {
+function scryptAsync(pin: string | Buffer, salt: Buffer, opts: ScryptOptions): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     scrypt(pin, salt, KEY_LEN, opts, (err, key) => (err ? reject(err) : resolve(key)));
   });
@@ -56,16 +101,25 @@ function scryptAsync(pin: string, salt: Buffer, opts: ScryptOptions): Promise<Bu
 
 const maxmem = (N: number, r: number) => 128 * N * r * 2 + 1024 * 1024;
 
-/** Hash a PIN for farm.app_users.pin_hash (call pinProblem first). */
-export async function hashPin(pin: string): Promise<string> {
+/**
+ * Hash a PIN for farm.app_users.pin_hash (call pinProblem first). `pepper`: tests only; the
+ * app uses this install's (SESSION_SECRET).
+ */
+export async function hashPin(pin: string, pepper: Uint8Array = configPepper()): Promise<string> {
   if (!isWellFormedPin(pin)) throw new Error('not a PIN');
   const { N, r, p } = DEFAULT_COST;
   const salt = randomBytes(SALT_LEN);
-  const key = await scryptAsync(pin, salt, { N, r, p, maxmem: maxmem(N, r) });
-  return ['scrypt', N, r, p, salt.toString('base64url'), key.toString('base64url')].join('$');
+  const key = await scryptAsync(scryptInput(pin, pepper), salt, {
+    N,
+    r,
+    p,
+    maxmem: maxmem(N, r),
+  });
+  return [PEPPERED, N, r, p, salt.toString('base64url'), key.toString('base64url')].join('$');
 }
 
 interface ParsedHash {
+  peppered: boolean;
   N: number;
   r: number;
   p: number;
@@ -75,7 +129,7 @@ interface ParsedHash {
 
 function parseHash(stored: string): ParsedHash | null {
   const parts = stored.split('$');
-  if (parts.length !== 6 || parts[0] !== 'scrypt') return null;
+  if (parts.length !== 6 || (parts[0] !== PEPPERED && parts[0] !== LEGACY)) return null;
   const [N, r, p] = parts.slice(1, 4).map(Number) as [number, number, number];
   const salt = Buffer.from(parts[4] as string, 'base64url');
   const key = Buffer.from(parts[5] as string, 'base64url');
@@ -84,17 +138,30 @@ function parseHash(stored: string): ParsedHash | null {
   if (!Number.isInteger(p) || p < 1 || p > 4 || salt.length < 8 || key.length !== KEY_LEN) {
     return null;
   }
-  return { N, r, p, salt, key };
+  return { peppered: parts[0] === PEPPERED, N, r, p, salt, key };
 }
 
-/** Does `pin` match `stored`? Constant-time compare; false for a malformed hash or PIN. */
-export async function verifyPin(pin: unknown, stored: string | null | undefined): Promise<boolean> {
+/**
+ * Does `pin` match `stored` (peppered, or a legacy hash)? Constant-time compare; false for a
+ * malformed hash or PIN. `pepper`: tests only.
+ */
+export async function verifyPin(
+  pin: unknown,
+  stored: string | null | undefined,
+  pepper?: Uint8Array,
+): Promise<boolean> {
   const h = stored ? parseHash(stored) : null;
   if (!h || !isWellFormedPin(pin)) {
     await burn();
     return false;
   }
-  const got = await scryptAsync(pin, h.salt, { N: h.N, r: h.r, p: h.p, maxmem: maxmem(h.N, h.r) });
+  const input = scryptInput(pin, h.peppered ? (pepper ?? configPepper()) : null);
+  const got = await scryptAsync(input, h.salt, {
+    N: h.N,
+    r: h.r,
+    p: h.p,
+    maxmem: maxmem(h.N, h.r),
+  });
   return got.length === h.key.length && timingSafeEqual(got, h.key);
 }
 
