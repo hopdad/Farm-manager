@@ -1,0 +1,244 @@
+/**
+ * The HTTP layer every vendor client uses (sim mode = the same code against the stand-in).
+ *
+ *  - Per-attempt timeout plus the job's AbortSignal (ctx.signal aborts at the deadline).
+ *  - Retries: network errors, timeouts and 5xx back off briefly (250 ms, 500 ms …); 429/503
+ *    with a short `Retry-After` (<= maxInlineRetryAfterSeconds) wait it out in-process;
+ *    a longer one is thrown as `VendorHttpError.retryAfterSeconds`, which runSyncStep turns into
+ *    the stream's next_run_at (contracts §8 `retryAfterFrom`). No retry may cross the deadline.
+ *  - Errors carry the vendor, status and request PATH only (never tokens or query strings).
+ *  - `vendorJson()` validates the body with the shared zod schema (stand-in and real alike).
+ */
+import type { z } from 'zod';
+
+export interface VendorHttpOptions {
+  /** 'samsara', 'deere', … (error messages, logs). */
+  vendor: string;
+  /** The job's signal: aborting stops the request and any retry wait. */
+  signal?: AbortSignal;
+  /** No retry wait may end after this (default: none). */
+  deadline?: Date;
+  now?: () => Date;
+  /** Per attempt. Default 15 000 ms. */
+  timeoutMs?: number;
+  /** Retries after the first attempt. Default 2. */
+  maxRetries?: number;
+  /** Wait out a Retry-After up to this many seconds in-process. Default 2. */
+  maxInlineRetryAfterSeconds?: number;
+  /** First backoff for network errors / 5xx. Default 250 ms (doubles). */
+  baseBackoffMs?: number;
+  fetch?: typeof fetch;
+  sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
+}
+
+/** A non-2xx answer. `retryAfterSeconds` is set from a 429/503 Retry-After header. */
+export class VendorHttpError extends Error {
+  readonly vendor: string;
+  readonly status: number;
+  readonly path: string;
+  readonly retryAfterSeconds?: number;
+  /** Short vendor message from the body (message / error_description / errors[0].message). */
+  readonly detail?: string;
+  /** OAuth `error` code from the body (invalid_grant, …) when present. */
+  readonly oauthError?: string;
+  constructor(init: {
+    vendor: string;
+    status: number;
+    path: string;
+    retryAfterSeconds?: number;
+    detail?: string;
+    oauthError?: string;
+  }) {
+    super(
+      `${init.vendor} ${init.path}: HTTP ${init.status}${init.detail ? ` (${init.detail})` : ''}`,
+    );
+    this.name = 'VendorHttpError';
+    this.vendor = init.vendor;
+    this.status = init.status;
+    this.path = init.path;
+    this.retryAfterSeconds = init.retryAfterSeconds;
+    this.detail = init.detail;
+    this.oauthError = init.oauthError;
+  }
+}
+
+/** The vendor couldn't be reached (connection refused/reset, DNS, timeout). */
+export class VendorNetworkError extends Error {
+  readonly vendor: string;
+  readonly path: string;
+  constructor(vendor: string, path: string, reason: string, options?: { cause?: unknown }) {
+    super(`${vendor} ${path}: ${reason}`, options);
+    this.name = 'VendorNetworkError';
+    this.vendor = vendor;
+    this.path = path;
+  }
+}
+
+/** The body didn't match the schema (the vendor changed, or the stand-in is wrong). */
+export class VendorResponseError extends Error {
+  readonly vendor: string;
+  readonly path: string;
+  constructor(vendor: string, path: string, reason: string) {
+    super(`${vendor} ${path}: unexpected response (${reason})`);
+    this.name = 'VendorResponseError';
+    this.vendor = vendor;
+    this.path = path;
+  }
+}
+
+/** Retry-After: delta-seconds or an HTTP-date → seconds from `now` (undefined if absent/bad). */
+export function parseRetryAfter(value: string | null | undefined, now: Date): number | undefined {
+  if (!value) return undefined;
+  const v = value.trim();
+  if (/^\d+$/.test(v)) return Number(v);
+  const t = Date.parse(v);
+  if (Number.isNaN(t)) return undefined;
+  return Math.max(0, Math.ceil((t - now.getTime()) / 1000));
+}
+
+/** A short, secret-free message from an error body. */
+export function errorDetail(body: string): { detail?: string; oauthError?: string } {
+  const clip = (s: string) => (s.length > 200 ? `${s.slice(0, 197)}...` : s);
+  try {
+    const j = JSON.parse(body) as Record<string, unknown>;
+    const errors = j.errors as { message?: unknown }[] | undefined;
+    const msg =
+      (typeof j.error_description === 'string' && j.error_description) ||
+      (typeof j.message === 'string' && j.message) ||
+      (typeof j.error_message === 'string' && j.error_message) ||
+      (Array.isArray(errors) && typeof errors[0]?.message === 'string' && errors[0].message) ||
+      (typeof j.error === 'string' && j.error) ||
+      undefined;
+    return {
+      detail: msg ? clip(msg) : undefined,
+      oauthError: typeof j.error === 'string' ? j.error : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+/** Path of a URL for messages (no host, no query: cursors and codes stay out of logs). */
+export function pathOf(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return '(bad url)';
+  }
+}
+
+export function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const t = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(t);
+      reject(signal?.reason);
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+const RETRYABLE_STATUS = new Set([500, 502, 503, 504]);
+
+/**
+ * fetch with timeouts and retries. Returns the response when it is 2xx (or 3xx with
+ * `redirect: 'manual'`); throws VendorHttpError for other statuses, VendorNetworkError when
+ * unreachable, and the signal's reason when the caller aborted.
+ */
+export async function vendorFetch(
+  url: string,
+  init: RequestInit,
+  opts: VendorHttpOptions,
+): Promise<Response> {
+  const doFetch = opts.fetch ?? fetch;
+  const sleep = opts.sleep ?? defaultSleep;
+  const now = opts.now ?? (() => new Date());
+  const timeoutMs = opts.timeoutMs ?? 15_000;
+  const maxRetries = opts.maxRetries ?? 2;
+  const inlineMax = opts.maxInlineRetryAfterSeconds ?? 2;
+  const backoff = opts.baseBackoffMs ?? 250;
+  const path = pathOf(url);
+
+  /** Can we wait `ms` and still finish before the deadline? */
+  const fits = (ms: number) =>
+    !opts.deadline || now().getTime() + ms + 1_000 < opts.deadline.getTime();
+
+  for (let attempt = 0; ; attempt++) {
+    const timeout = AbortSignal.timeout(timeoutMs);
+    const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
+    let res: Response;
+    try {
+      res = await doFetch(url, { ...init, signal });
+    } catch (e) {
+      if (opts.signal?.aborted) throw opts.signal.reason ?? e;
+      const reason = timeout.aborted
+        ? `timed out after ${timeoutMs} ms`
+        : `unreachable (${(e as Error & { cause?: { code?: string } }).cause?.code ?? (e as Error).message})`;
+      const wait = backoff * 2 ** attempt;
+      if (attempt < maxRetries && fits(wait)) {
+        await sleep(wait, opts.signal);
+        continue;
+      }
+      throw new VendorNetworkError(opts.vendor, path, reason, { cause: e });
+    }
+    if (res.ok || (init.redirect === 'manual' && res.status >= 300 && res.status < 400)) {
+      return res;
+    }
+    const body = await res.text().catch(() => '');
+    const retryAfter =
+      res.status === 429 || res.status === 503
+        ? parseRetryAfter(res.headers.get('retry-after'), now())
+        : undefined;
+    if (attempt < maxRetries) {
+      if (retryAfter !== undefined && retryAfter <= inlineMax && fits(retryAfter * 1000)) {
+        await sleep(retryAfter * 1000, opts.signal);
+        continue;
+      }
+      if (retryAfter === undefined && RETRYABLE_STATUS.has(res.status)) {
+        const wait = backoff * 2 ** attempt;
+        if (fits(wait)) {
+          await sleep(wait, opts.signal);
+          continue;
+        }
+      }
+    }
+    throw new VendorHttpError({
+      vendor: opts.vendor,
+      status: res.status,
+      path,
+      retryAfterSeconds: retryAfter,
+      ...errorDetail(body),
+    });
+  }
+}
+
+/** vendorFetch + JSON + zod validation of the body. */
+export async function vendorJson<S extends z.ZodType>(
+  schema: S,
+  url: string,
+  init: RequestInit,
+  opts: VendorHttpOptions,
+): Promise<z.infer<S>> {
+  const res = await vendorFetch(url, init, opts);
+  const text = await res.text();
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    throw new VendorResponseError(opts.vendor, pathOf(url), 'body is not JSON');
+  }
+  const r = schema.safeParse(value);
+  if (!r.success) {
+    const i = r.error.issues[0];
+    throw new VendorResponseError(
+      opts.vendor,
+      pathOf(url),
+      i ? `${i.path.join('.') || '(root)'}: ${i.message}` : 'schema mismatch',
+    );
+  }
+  return r.data;
+}
