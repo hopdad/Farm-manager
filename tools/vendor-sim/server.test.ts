@@ -9,7 +9,12 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { samsaraErrorSchema } from '../../src/connectors/samsara/schemas';
 import type { SimStatus } from '../../src/sim/types';
-import { isLoopbackAddress, startVendorSim, type VendorSim } from '../../src/sim/vendors/server';
+import {
+  controlRefusal,
+  isLoopbackAddress,
+  startVendorSim,
+  type VendorSim,
+} from '../../src/sim/vendors/server';
 import { createStubSimWorld, STUB_STARTS_AT } from '../../src/sim/vendors/stub-world';
 import { fileStateStore } from './state-file';
 
@@ -128,7 +133,11 @@ describe('vendor stand-in server', () => {
     expect((await fetch(`${sim.url}/nope`)).status).toBe(404);
     expect((await fetch(`${sim.url}/samsara/fleet/drivers`, { headers: TOKEN })).status).toBe(404);
     expect((await fetch(`${sim.url}/samsara/fleet/vehicles/locations/feed`)).status).toBe(401);
-    const bad = await fetch(`${sim.url}/_control/faults`, { method: 'POST', body: '{' });
+    const bad = await fetch(`${sim.url}/_control/faults`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{',
+    });
     expect(bad.status).toBe(400);
     expect((await fetch(`${sim.url}/_control/reset`)).status).toBe(405);
   });
@@ -139,6 +148,80 @@ describe('vendor stand-in server', () => {
     expect(isLoopbackAddress('::ffff:127.0.0.1')).toBe(true);
     expect(isLoopbackAddress('192.168.1.20')).toBe(false);
     expect(isLoopbackAddress(undefined)).toBe(false);
+  });
+
+  test('a web page in the PC browser cannot drive it (cross-site, DNS rebinding, text/plain)', async () => {
+    const before = (await (await fetch(`${sim.url}/_control/faults`)).json()) as {
+      rules: unknown[];
+    };
+    const evil = JSON.stringify({
+      action: 'add',
+      rule: { id: 'evil', vendor: '*', kind: 'outage' },
+    });
+    const attempts: [string, Record<string, string>, number][] = [
+      // A no-cors cross-site fetch: text/plain, foreign Origin.
+      [
+        'cross-site',
+        { 'content-type': 'text/plain;charset=UTF-8', origin: 'https://evil.example' },
+        403,
+      ],
+      // DNS rebinding: same-origin to the page, but the Host is the attacker's name.
+      [
+        'rebinding',
+        {
+          'content-type': 'application/json',
+          host: 'rebind.evil.example:4010',
+          origin: 'http://rebind.evil.example:4010',
+        },
+        403,
+      ],
+      // No Origin, but not JSON either (a form post, a sendBeacon).
+      ['text/plain', { 'content-type': 'text/plain' }, 415],
+    ];
+    for (const [name, headers, status] of attempts) {
+      const res = await fetch(`${sim.url}/_control/faults`, {
+        method: 'POST',
+        headers,
+        body: evil,
+      });
+      expect(res.status, name).toBe(status);
+    }
+    const reset = await fetch(`${sim.url}/_control/reset`, { method: 'POST' });
+    expect(reset.status).toBe(415); // an empty-body reset used to parse as {} and wipe the state
+    const after = (await (await fetch(`${sim.url}/_control/faults`)).json()) as {
+      rules: unknown[];
+    };
+    expect(after.rules).toEqual(before.rules);
+    // The stand-in's own origin is fine (a page it served itself).
+    const own = await fetch(`${sim.url}/_control/status`, { headers: { origin: sim.url } });
+    expect(own.status).toBe(200);
+  });
+
+  test('controlRefusal: socket, Host, Origin and content type', () => {
+    const ok = {
+      remoteAddress: '127.0.0.1',
+      method: 'POST',
+      host: '127.0.0.1:4010',
+      origin: undefined,
+      contentType: 'application/json',
+    };
+    expect(controlRefusal(ok)).toBeNull();
+    expect(controlRefusal({ ...ok, host: 'localhost:4010', origin: 'http://localhost:4010' })).toBe(
+      null,
+    );
+    expect(controlRefusal({ ...ok, method: 'GET', contentType: undefined })).toBeNull();
+    expect(controlRefusal({ ...ok, remoteAddress: '192.168.1.20' })?.status).toBe(403);
+    expect(controlRefusal({ ...ok, host: 'rebind.evil.example:4010' })?.status).toBe(403);
+    expect(controlRefusal({ ...ok, host: undefined })?.status).toBe(403);
+    expect(controlRefusal({ ...ok, origin: 'https://evil.example' })?.status).toBe(403);
+    expect(controlRefusal({ ...ok, origin: 'null' })?.status).toBe(403);
+    expect(controlRefusal({ ...ok, contentType: 'text/plain' })?.status).toBe(415);
+  });
+
+  test('it never listens on a non-loopback address', async () => {
+    await expect(
+      startVendorSim({ createWorld: createStubSimWorld, port: 0, host: '0.0.0.0' }),
+    ).rejects.toThrow(/loopback-only/);
   });
 });
 

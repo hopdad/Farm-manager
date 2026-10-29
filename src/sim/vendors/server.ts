@@ -140,9 +140,54 @@ export class VendorSimError extends Error {
 }
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+const LOOPBACK_LISTEN_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
+const LOOPBACK_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
 
 export function isLoopbackAddress(addr: string | undefined): boolean {
   return !!addr && (LOOPBACK.has(addr) || addr.startsWith('127.'));
+}
+
+/**
+ * Why a /_control request is refused, or null. The loopback socket check alone lets any web page
+ * open in the PC's browser drive the control API: a cross-site `fetch(…, { mode: 'no-cors' })`
+ * with a text/plain body needs no preflight, and DNS rebinding reads the answers. So also:
+ * the Host header must name a loopback host (defeats rebinding), an Origin header must be the
+ * stand-in's own (no cross-site requests), and a POST must be application/json (which a
+ * cross-site page can only send after a CORS preflight the stand-in never approves). The admin
+ * page's server actions, tools/dev.ts and the tests call from Node with JSON and no Origin.
+ */
+export function controlRefusal(req: {
+  remoteAddress: string | undefined;
+  method: string;
+  host: string | undefined;
+  origin: string | undefined;
+  contentType: string | undefined;
+}): { status: number; error: string } | null {
+  if (!isLoopbackAddress(req.remoteAddress)) {
+    return { status: 403, error: 'control API is loopback-only' };
+  }
+  let hostname = '';
+  try {
+    hostname = new URL(`http://${req.host ?? ''}`).hostname;
+  } catch {
+    // stays '' (refused below)
+  }
+  if (!LOOPBACK_HOSTNAMES.has(hostname)) {
+    return { status: 403, error: 'control API: the Host header must be a loopback host' };
+  }
+  if (req.origin !== undefined) {
+    let host = '';
+    try {
+      host = new URL(req.origin).host;
+    } catch {
+      // stays '' (refused below)
+    }
+    if (host !== req.host) return { status: 403, error: 'control API: cross-origin request' };
+  }
+  if (req.method === 'POST' && !/^application\/json\b/i.test(req.contentType ?? '')) {
+    return { status: 415, error: 'control API: POST bodies must be application/json' };
+  }
+  return null;
 }
 
 function newCounters(): VendorSimCounters {
@@ -159,6 +204,9 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
   const store = opts.store ?? memoryStateStore();
   const log = opts.log ?? (() => {});
   const host = opts.host ?? '127.0.0.1';
+  if (!LOOPBACK_LISTEN_HOSTS.has(host)) {
+    throw new VendorSimError(`the stand-in is loopback-only: refusing to listen on '${host}'`);
+  }
 
   const makeWorld = (scenario: ScenarioName, seed: number): SimWorld => {
     try {
@@ -468,9 +516,14 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
     const root = segs[1] ?? '';
     const rest = `/${segs.slice(2).join('/')}`;
     if (root === '_control') {
-      if (!isLoopbackAddress(req.socket.remoteAddress)) {
-        return send(req, res, json(403, { error: 'control API is loopback-only' }));
-      }
+      const refused = controlRefusal({
+        remoteAddress: req.socket.remoteAddress,
+        method,
+        host: req.headers.host,
+        origin: req.headers.origin,
+        contentType: req.headers['content-type'],
+      });
+      if (refused) return send(req, res, json(refused.status, { error: refused.error }));
       return send(req, res, controlRoute(method, rest.replace(/\/$/, '') || '/', body));
     }
     if ((SIM_VENDORS as readonly string[]).includes(root)) {
