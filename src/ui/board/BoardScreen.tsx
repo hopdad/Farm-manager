@@ -153,6 +153,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
   useKiosk();
   const { model, status } = useFleet({
     appEnv: data.config.appEnv,
+    realtime: data.config.realtime,
     staleAfterSeconds: data.config.staleAfterSeconds,
     deereStaleAfterSeconds: data.config.deereStaleAfterSeconds,
   });

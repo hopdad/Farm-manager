@@ -10,6 +10,7 @@ import {
   type ConnectionState,
   getRealtimeClient,
   getSseRealtimeClient,
+  type RealtimeKind,
 } from '@/platform/realtime/client';
 import type { Topic } from '@/platform/realtime/types';
 import css from '../admin.module.css';
@@ -31,9 +32,12 @@ const COLOR: Record<ConnectionState, string> = {
 
 export function LiveRefresh({
   topics,
+  realtime,
   intervalMs = 10_000,
 }: {
   topics: Topic[];
+  /** NEXT_PUBLIC_REALTIME (publicConfig().realtime). */
+  realtime: RealtimeKind;
   intervalMs?: number;
 }) {
   const router = useRouter();
@@ -50,7 +54,7 @@ export function LiveRefresh({
         router.refresh();
       }, 250);
     };
-    const rt = getRealtimeClient();
+    const rt = getRealtimeClient(realtime);
     const offs = (key.split(',') as Topic[]).map((topic) =>
       rt.subscribe(topic, () => refresh(), {
         // The page was just rendered on the server: skip the resync of the first connect.
@@ -59,7 +63,7 @@ export function LiveRefresh({
         },
       }),
     );
-    const sse = getSseRealtimeClient();
+    const sse = realtime === 'sse' ? getSseRealtimeClient() : null;
     const offState = sse?.onStateChange(setState);
     if (sse) setState(sse.state);
     const iv = setInterval(() => {
@@ -71,7 +75,7 @@ export function LiveRefresh({
       clearInterval(iv);
       if (timer) clearTimeout(timer);
     };
-  }, [router, intervalMs, key]);
+  }, [router, intervalMs, key, realtime]);
 
   return (
     <span className={css.muted} data-testid="live-state" data-state={state}>

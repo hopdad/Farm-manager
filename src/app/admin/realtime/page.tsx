@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { getConfig } from '@/config';
+import { getConfig, publicConfig } from '@/config';
 import { getRealtimeHub } from '@/platform/realtime/hub';
 import { parseTopics } from '@/platform/realtime/sse';
 import type { Topic } from '@/platform/realtime/types';
@@ -41,7 +41,7 @@ export default async function RealtimePage({
         <div className={css.grid}>
           <section className={css.card}>
             <h2>This tab</h2>
-            <RealtimeMonitor topics={topics} />
+            <RealtimeMonitor topics={topics} realtime={publicConfig(cfg).realtime} />
           </section>
           <section className={css.card}>
             <h2>Server LISTEN hub</h2>

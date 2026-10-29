@@ -1,7 +1,7 @@
 /**
  * Browser realtime client, local SSE adapter (plan §1 "Realtime"; contract docs/contracts.md §6).
  *
- *   const rt = getRealtimeClient();                       // one per tab (globalThis singleton)
+ *   const rt = getRealtimeClient(publicConfig.realtime);  // one per tab (globalThis singleton)
  *   const off = rt.subscribe('fleet', (evt) => {
  *     if (evt.event === 'tick') draw(evt.payload.machines);
  *   }, { onResync: () => refetch('/api/fleet') });
@@ -19,7 +19,11 @@
  *
  * No `window` or env access at import time, so any module may import it.
  */
+import type { PublicConfig } from '../../config';
 import type { RealtimeClient, SubscribeOptions, Topic, TopicMessage } from './types';
+
+/** NEXT_PUBLIC_REALTIME: which adapter the browser uses (server components pass it down). */
+export type RealtimeKind = PublicConfig['realtime'];
 
 /** The part of EventSource this client uses (lets tests and Node inject an implementation). */
 export interface EventSourceLike {
@@ -394,8 +398,24 @@ function sharedClient(): SseRealtimeClient | null {
   return client;
 }
 
-/** The tab's realtime client: one shared EventSource (globalThis singleton, survives HMR). */
-export function getRealtimeClient(): RealtimeClient {
+let warnedSupabase = false;
+
+/**
+ * The tab's realtime client for adapter `kind` (NEXT_PUBLIC_REALTIME, from publicConfig):
+ * 'sse' = one shared EventSource (globalThis singleton, survives HMR). The Supabase Broadcast
+ * adapter arrives at MD; until then 'supabase' gets the inert client (one onResync, no live
+ * events), so callers fall back to polling their snapshot.
+ */
+export function getRealtimeClient(kind: RealtimeKind = 'sse'): RealtimeClient {
+  if (kind === 'supabase') {
+    if (!warnedSupabase) {
+      warnedSupabase = true;
+      console.warn(
+        '[realtime] NEXT_PUBLIC_REALTIME=supabase: the Supabase adapter is not built yet (MD); no live updates',
+      );
+    }
+    return inertClient;
+  }
   return sharedClient() ?? inertClient;
 }
 

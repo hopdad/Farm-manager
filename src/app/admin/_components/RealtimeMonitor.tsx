@@ -9,6 +9,7 @@ import {
   type ConnectionState,
   getRealtimeClient,
   getSseRealtimeClient,
+  type RealtimeKind,
 } from '@/platform/realtime/client';
 import type { Topic } from '@/platform/realtime/types';
 import css from '../admin.module.css';
@@ -25,7 +26,14 @@ interface SeenEvent {
 
 const MAX_EVENTS = 50;
 
-export function RealtimeMonitor({ topics }: { topics: Topic[] }) {
+export function RealtimeMonitor({
+  topics,
+  realtime,
+}: {
+  topics: Topic[];
+  /** NEXT_PUBLIC_REALTIME (publicConfig().realtime). */
+  realtime: RealtimeKind;
+}) {
   const [state, setState] = useState<ConnectionState>('idle');
   const [resyncs, setResyncs] = useState(0);
   const [events, setEvents] = useState<SeenEvent[]>([]);
@@ -33,7 +41,7 @@ export function RealtimeMonitor({ topics }: { topics: Topic[] }) {
 
   useEffect(() => {
     let n = 0;
-    const rt = getRealtimeClient();
+    const rt = getRealtimeClient(realtime);
     const offs = (key.split(',') as Topic[]).map((topic) =>
       rt.subscribe(
         topic,
@@ -55,14 +63,14 @@ export function RealtimeMonitor({ topics }: { topics: Topic[] }) {
         { onResync: () => setResyncs((r) => r + 1) },
       ),
     );
-    const sse = getSseRealtimeClient();
+    const sse = realtime === 'sse' ? getSseRealtimeClient() : null;
     const offState = sse?.onStateChange(setState);
     if (sse) setState(sse.state);
     return () => {
       for (const off of offs) off();
       offState?.();
     };
-  }, [key]);
+  }, [key, realtime]);
 
   return (
     <div className={css.stack}>

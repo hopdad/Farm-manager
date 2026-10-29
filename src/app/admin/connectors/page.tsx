@@ -9,7 +9,7 @@
  * Re-renders on admin realtime events and every 10 s (LiveRefresh).
  */
 import type { ReactNode } from 'react';
-import { getConfig } from '@/config';
+import { getConfig, publicConfig } from '@/config';
 import { getPool } from '@/db/client';
 import { registry } from '@/jobs/registry';
 import { SCENARIO_NAMES, type SimStatus } from '@/sim/types';
@@ -485,7 +485,7 @@ export default async function ConnectorsPage() {
         <div className={css.pageHead}>
           <h1>Connectors</h1>
           <span className={css.row}>
-            <LiveRefresh topics={['admin']} />
+            <LiveRefresh topics={['admin']} realtime={publicConfig(cfg).realtime} />
             <span className={css.muted}>updated {detroitTime(now)}</span>
           </span>
         </div>

@@ -5,7 +5,12 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { FleetTick } from '../../domain/fleet';
-import { createSseRealtimeClient, type EventSourceLike, type SseRealtimeClient } from './client';
+import {
+  createSseRealtimeClient,
+  type EventSourceLike,
+  getRealtimeClient,
+  type SseRealtimeClient,
+} from './client';
 import type { TopicMessage } from './types';
 
 class FakeEventSource implements EventSourceLike {
@@ -346,5 +351,24 @@ describe('lifecycle', () => {
     client.close();
     expect(client.state).toBe('closed');
     expect(() => client.subscribe('fleet', () => {}, { onResync: () => {} })).toThrow(/closed/);
+  });
+});
+
+describe('getRealtimeClient(kind)', () => {
+  test("'supabase' (adapter not built until MD): the inert client, one warning", async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const rt = getRealtimeClient('supabase');
+      const resyncs: number[] = [];
+      const off = rt.subscribe('fleet', () => {}, { onResync: () => resyncs.push(1) });
+      await Promise.resolve();
+      expect(resyncs).toEqual([1]);
+      off();
+      getRealtimeClient('supabase');
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]?.[0])).toContain('NEXT_PUBLIC_REALTIME=supabase');
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
