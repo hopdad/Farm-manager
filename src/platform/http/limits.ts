@@ -8,6 +8,9 @@
  *
  * Streaming routes (/api/storage, /api/realtime) are exempt; src/seams.test.ts checks that every
  * other route handler uses these helpers.
+ *
+ * Request bodies: readLimitedText reads at most MAX_REQUEST_BYTES (4 MB, plan §1) and stops, so
+ * a chunked request without Content-Length can't make the server buffer an unbounded body.
  */
 import { tryGetConfig } from '../../config';
 
@@ -61,4 +64,33 @@ export function limitedBytes(
   const bytes = typeof body === 'string' ? Buffer.byteLength(body, 'utf8') : body.byteLength;
   if (bytes > limit && enforced(opts)) return tooLarge(bytes, limit, opts);
   return new Response(body as BodyInit, init);
+}
+
+/** Plan §1: route handlers reject request bodies over 4 MB (Vercel's limit is 4.5 MB). */
+export const MAX_REQUEST_BYTES = 4 * 1024 * 1024;
+
+/**
+ * The request body as UTF-8 text, or null once it passes `maxBytes` (the rest is not read).
+ * Checks Content-Length first, then counts what actually arrives (chunked bodies have none).
+ */
+export async function readLimitedText(
+  request: Request,
+  maxBytes: number = MAX_REQUEST_BYTES,
+): Promise<string | null> {
+  if (Number(request.headers.get('content-length') ?? 0) > maxBytes) return null;
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }

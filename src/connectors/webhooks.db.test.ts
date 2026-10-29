@@ -4,17 +4,19 @@
  */
 import { describe, expect, test } from 'vitest';
 import { setupTestDb } from '../test/db';
-import { handleWebhook, SIM_WEBHOOK_SECRETS, signWebhook, WEBHOOK_STREAM } from './webhooks';
+import { handleWebhook, signWebhook, simWebhookSecret, WEBHOOK_STREAM } from './webhooks';
 
 const t = setupTestDb(import.meta.url);
 const now = new Date();
 const ts = String(Math.floor(now.getTime() / 1000));
+const SESSION_SECRET = 'q'.repeat(48);
+const simSecret = (source: 'samsara' | 'deere') => simWebhookSecret(SESSION_SECRET, source);
 
 function signed(source: 'samsara' | 'deere', body: string): Headers {
   const prefix = source === 'samsara' ? 'x-samsara' : 'x-deere';
   return new Headers({
     [`${prefix}-timestamp`]: ts,
-    [`${prefix}-signature`]: signWebhook(SIM_WEBHOOK_SECRETS[source], ts, body),
+    [`${prefix}-signature`]: signWebhook(simSecret(source), ts, body),
   });
 }
 
@@ -36,6 +38,7 @@ describe('webhooks', () => {
       body,
       headers: signed('samsara', body),
       now,
+      simSecret: simSecret('samsara'),
     };
     expect(await handleWebhook(pool, input)).toEqual({
       status: 200,
@@ -60,8 +63,16 @@ describe('webhooks', () => {
     const body = '{"eventId":"evt-2"}';
     const bad = new Headers({ 'x-samsara-timestamp': ts, 'x-samsara-signature': 'v1=00' });
     expect(
-      (await handleWebhook(pool, { source: 'samsara', mode: 'sim', body, headers: bad, now }))
-        .status,
+      (
+        await handleWebhook(pool, {
+          source: 'samsara',
+          mode: 'sim',
+          body,
+          headers: bad,
+          now,
+          simSecret: simSecret('samsara'),
+        })
+      ).status,
     ).toBe(401);
     const junk = 'not json';
     expect(
@@ -72,16 +83,33 @@ describe('webhooks', () => {
           body: junk,
           headers: signed('samsara', junk),
           now,
+          simSecret: simSecret('samsara'),
         })
       ).status,
     ).toBe(400);
     expect(
-      (await handleWebhook(pool, { source: 'samsara', mode: 'off', body, headers: bad, now }))
-        .status,
+      (
+        await handleWebhook(pool, {
+          source: 'samsara',
+          mode: 'off',
+          body,
+          headers: bad,
+          now,
+          simSecret: simSecret('samsara'),
+        })
+      ).status,
     ).toBe(404);
     expect(
-      (await handleWebhook(pool, { source: 'samsara', mode: 'live', body, headers: bad, now }))
-        .status,
+      (
+        await handleWebhook(pool, {
+          source: 'samsara',
+          mode: 'live',
+          body,
+          headers: bad,
+          now,
+          simSecret: simSecret('samsara'),
+        })
+      ).status,
     ).toBe(503);
   });
 
@@ -94,6 +122,7 @@ describe('webhooks', () => {
       body,
       headers: signed('deere', body),
       now,
+      simSecret: simSecret('deere'),
     });
     expect(out).toEqual({ status: 200, body: { ok: true, verified: true } });
     const raw = await pool.query(

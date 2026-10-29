@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { limitedBytes, limitedJson, MAX_API_RESPONSE_BYTES } from './limits';
+import { limitedBytes, limitedJson, MAX_API_RESPONSE_BYTES, readLimitedText } from './limits';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -36,5 +36,45 @@ describe('response size guard (plan §1: production limits apply locally)', () =
   test('not enforced (production): passes through', () => {
     const r = limitedBytes(new Uint8Array(10), {}, { enforce: false, limit: 5 });
     expect(r.status).toBe(200);
+  });
+});
+
+describe('readLimitedText (request bodies, plan §1: 4 MB)', () => {
+  const chunked = (chunks: number, size: number) => {
+    let sent = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(c) {
+        if (sent++ >= chunks) c.close();
+        else c.enqueue(new Uint8Array(size).fill(0x61));
+      },
+    });
+    // duplex: a streamed body has no Content-Length (what a chunked upload looks like)
+    return new Request('http://x/api/webhooks/samsara', {
+      method: 'POST',
+      body: stream,
+      duplex: 'half',
+    } as RequestInit & { duplex: 'half' });
+  };
+
+  test('reads a small body', async () => {
+    const r = new Request('http://x', { method: 'POST', body: 'héllo' });
+    expect(await readLimitedText(r)).toBe('héllo');
+    expect(await readLimitedText(new Request('http://x'))).toBe('');
+  });
+
+  test('stops at the limit even without Content-Length', async () => {
+    const r = chunked(10, 1024);
+    expect(r.headers.get('content-length')).toBeNull();
+    expect(await readLimitedText(r, 4096)).toBeNull();
+    expect(await readLimitedText(chunked(4, 1024), 4096)).toHaveLength(4096);
+  });
+
+  test('a declared length over the limit is refused without reading', async () => {
+    const r = new Request('http://x', {
+      method: 'POST',
+      body: 'x',
+      headers: { 'content-length': String(5 * 1024 * 1024) },
+    });
+    expect(await readLimitedText(r)).toBeNull();
   });
 });

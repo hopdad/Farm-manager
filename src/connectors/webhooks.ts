@@ -9,9 +9,11 @@
  *   samsara  X-Samsara-Signature / X-Samsara-Timestamp   (Samsara webhooks 2.0 scheme)
  *   deere    X-Deere-Signature / X-Deere-Timestamp       // doc-derived, confirm
  *   motive   X-Motive-Signature / X-Motive-Timestamp     // doc-derived, confirm
- * In sim mode the secret is SIM_WEBHOOK_SECRETS[source] (the stand-in signs with it). Real
- * secrets need config keys that don't exist yet (SAMSARA_WEBHOOK_SECRET, …), so sandbox/live
- * webhooks are refused (503) instead of being accepted unsigned.
+ * In sim mode the secret is simWebhookSecret(SESSION_SECRET, source): per install, so nobody on
+ * the LAN can forge a "signed" body from constants in the repo (the stand-in derives the same
+ * secret from the same config once it sends webhooks). Real secrets need config keys that don't
+ * exist yet (SAMSARA_WEBHOOK_SECRET, …), so sandbox/live webhooks are refused (503) instead of
+ * being accepted unsigned. The route refuses off/sandbox/live before it reads the body.
  */
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { type Executor, exec } from '../db/exec';
@@ -30,12 +32,10 @@ export const WEBHOOK_NUDGES: Record<WebhookSource, readonly string[]> = {
   motive: ['positions'],
 };
 
-/** Not secrets: the stand-in signs sim webhooks with these (base64). */
-export const SIM_WEBHOOK_SECRETS: Record<WebhookSource, string> = {
-  samsara: Buffer.from('sim-samsara-webhook-secret').toString('base64'),
-  deere: Buffer.from('sim-deere-webhook-secret').toString('base64'),
-  motive: Buffer.from('sim-motive-webhook-secret').toString('base64'),
-};
+/** The sim-mode signing secret of `source` (base64), derived from this install's SESSION_SECRET. */
+export function simWebhookSecret(sessionSecret: string, source: WebhookSource): string {
+  return createHmac('sha256', sessionSecret).update(`sim-webhook:${source}`).digest('base64');
+}
 
 const SIGNATURE_HEADERS: Record<WebhookSource, { signature: string; timestamp: string }> = {
   samsara: { signature: 'x-samsara-signature', timestamp: 'x-samsara-timestamp' },
@@ -81,11 +81,25 @@ export interface WebhookInput {
   body: string;
   headers: Headers;
   now: Date;
+  /** simWebhookSecret(cfg.SESSION_SECRET, source): what sim-mode bodies are signed with. */
+  simSecret: string;
 }
 
 export interface WebhookOutcome {
   status: number;
   body: Record<string, unknown>;
+}
+
+/** The answer for a connector mode that takes no webhooks (off: 404; sandbox/live: 503), or null. */
+export function webhookModeRefusal(source: WebhookSource, mode: Mode): WebhookOutcome | null {
+  if (mode === 'off') return { status: 404, body: { error: `${source} connector is off` } };
+  if (mode !== 'sim') {
+    return {
+      status: 503,
+      body: { error: `${source} webhook secret is not configured; ${mode} mode relies on polling` },
+    };
+  }
+  return null;
 }
 
 /** Deere's subscription handshake event. // doc-derived, confirm (field name and value) */
@@ -108,20 +122,15 @@ function eventIdOf(payload: unknown, sha: string): string {
 
 export async function handleWebhook(ex: Executor, input: WebhookInput): Promise<WebhookOutcome> {
   const { source, mode, body, headers, now } = input;
-  if (mode === 'off') return { status: 404, body: { error: `${source} connector is off` } };
-  if (mode !== 'sim') {
-    return {
-      status: 503,
-      body: { error: `${source} webhook secret is not configured; ${mode} mode relies on polling` },
-    };
-  }
+  const refused = webhookModeRefusal(source, mode);
+  if (refused) return refused;
   if (Buffer.byteLength(body, 'utf8') > MAX_WEBHOOK_BYTES) {
     return { status: 413, body: { error: 'body over 4 MB' } };
   }
   const h = SIGNATURE_HEADERS[source];
   if (
     !verifyWebhookSignature(
-      SIM_WEBHOOK_SECRETS[source],
+      input.simSecret,
       body,
       headers.get(h.timestamp),
       headers.get(h.signature),
