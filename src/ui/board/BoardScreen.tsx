@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { SessionChip } from '../../app/login/_components/SessionChip';
 import { FieldPanel } from '../fields/FieldPanel';
 import { FleetPanel } from '../fleet/FleetPanel';
+import { TileLineDrawTool } from '../map/draw/TileLineDrawTool';
 import type { FleetFrame } from '../map/fleet/model';
 import { KIND_COLORS, KIND_LABELS } from '../map/fleet/style';
 import { type FleetStatus, useFleet } from '../map/fleet/useFleet';
@@ -204,6 +205,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
         <WeatherStrip variant={variant} />
         <SprayFieldState map={map} />
         <LayerRail map={map} variant={variant} config={data.config} />
+        <TileLineDrawTool map={map} variant={variant} config={data.config} />
         {selected && variant === 'wall' && (
           <MachineCard m={selected} onClose={() => setSelectedId(null)} />
         )}
