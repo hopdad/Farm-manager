@@ -6,9 +6,9 @@
  * Pausing the job clock is not pausing the simulation: the stand-in's own clock
  * (POST /_control/clock) freezes machines; this stops the syncs (data goes stale).
  */
-import type { Db, DbTx } from '../../../../db/client';
-import { type Executor, exec } from '../../../../db/exec';
-import { publish } from '../../../../platform/realtime/publish';
+import { publish } from '../platform/realtime/publish';
+import type { Db, DbTx } from './client';
+import { type Executor, exec } from './exec';
 
 export const CLOCK_PAUSED_KEY = 'clock.paused';
 

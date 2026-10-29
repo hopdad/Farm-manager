@@ -108,8 +108,22 @@ const baseSchema = z.object({
       }
       return hosts as ('app' | 'pc')[];
     }),
-  /** Machines whose latest fix is older than this are `stale` (plan 1a: 10 min). */
+  /**
+   * Local demo cadence: tools/clock fires jobs that declare `demoEvery` at that interval
+   * (fleet.trucks every 5 s instead of 30 s). Only with sim/replay/off connectors; never in
+   * production. `pnpm env:init` turns it on for the PC demo.
+   */
+  JOBS_DEMO_CADENCE: onOff.default(false),
+  /**
+   * A machine whose latest fix is older than this is `stale` (plan 1a: 10 min). Applies to
+   * sources that report continuously (ELD, cab device, manual).
+   */
   FLEET_STALE_SECONDS: int(5, 86_400).default(600),
+  /**
+   * The same for machines whose latest fix came from Deere (`deere_working`): Deere only records
+   * positions while a machine is working, so an idle cart has no new fix for minutes at a time.
+   */
+  FLEET_STALE_SECONDS_DEERE: int(5, 86_400).default(600),
 
   // --- connectors -----------------------------------------------------------------------------
   /** Vendor stand-in base URL; sim-mode clients use `${VENDOR_SIM_URL}/<vendor>`. */
@@ -140,12 +154,25 @@ const baseSchema = z.object({
 });
 
 const configSchema = baseSchema.superRefine((c, ctx) => {
-  if (c.APP_ENV !== 'production') return;
   const modes: [string, Mode][] = [
     ['CONNECTOR_DEERE', c.CONNECTOR_DEERE],
     ['CONNECTOR_ELD', c.CONNECTOR_ELD],
     ['CONNECTOR_WEATHER', c.CONNECTOR_WEATHER],
   ];
+  if (c.JOBS_DEMO_CADENCE) {
+    const real = modes.filter(([, m]) => m === 'sandbox' || m === 'live').map(([k]) => k);
+    if (c.APP_ENV === 'production' || real.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['JOBS_DEMO_CADENCE'],
+        message:
+          c.APP_ENV === 'production'
+            ? 'not allowed in production'
+            : `only for sim/replay/off connectors (${real.join(', ')} talk to a real vendor): set JOBS_DEMO_CADENCE=off`,
+      });
+    }
+  }
+  if (c.APP_ENV !== 'production') return;
   for (const [key, mode] of modes) {
     if (mode === 'sim' || mode === 'replay') {
       ctx.addIssue({
@@ -307,6 +334,8 @@ export interface E2eSettings {
   baseURL: string;
   /** CI is set to anything but '', '0' or 'false' (GitHub Actions sets CI=true). */
   ci: boolean;
+  /** E2E_BASE_URL was given: test that app as is (no webServer). */
+  external: boolean;
 }
 
 /** Pure: E2E settings from an env-like object. Throws ConfigError only for a malformed E2E_BASE_URL. */
@@ -322,7 +351,7 @@ export function parseE2eSettings(env: EnvLike): E2eSettings {
     if (pub.success) baseURL = pub.data;
   }
   const ciRaw = (env.CI ?? '').trim().toLowerCase();
-  return { baseURL, ci: ciRaw !== '' && ciRaw !== '0' && ciRaw !== 'false' };
+  return { baseURL, ci: ciRaw !== '' && ciRaw !== '0' && ciRaw !== 'false', external: !!explicit };
 }
 
 /**
@@ -339,7 +368,10 @@ export interface PublicConfig {
   appEnv: AppEnv;
   realtime: 'sse' | 'supabase';
   basemapStyle: 'protomaps-local' | 'openfreemap';
+  /** FLEET_STALE_SECONDS (ELD, cab device, manual fixes). */
   staleAfterSeconds: number;
+  /** FLEET_STALE_SECONDS_DEERE (Deere working-only fixes). */
+  deereStaleAfterSeconds: number;
 }
 export function publicConfig(c: Config): PublicConfig {
   return {
@@ -347,6 +379,7 @@ export function publicConfig(c: Config): PublicConfig {
     realtime: c.NEXT_PUBLIC_REALTIME,
     basemapStyle: c.BASEMAP_STYLE,
     staleAfterSeconds: c.FLEET_STALE_SECONDS,
+    deereStaleAfterSeconds: c.FLEET_STALE_SECONDS_DEERE,
   };
 }
 

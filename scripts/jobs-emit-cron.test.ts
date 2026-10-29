@@ -5,7 +5,7 @@ import { cronJobs, emitCronSql, jobCommand, parseEmitArgs } from './jobs-emit-cr
 
 const run = async () => ({ items: 0 });
 const reg: JobRegistry = {
-  'fleet.trucks': { every: '30 seconds', run },
+  'fleet.trucks': { every: '30 seconds', demoEvery: '5 seconds', run },
   'weather.nws': { cron: '*/30 * * * *', run },
   'gis.derived': { cron: '40 8 * * *', host: 'pc', run },
 };
@@ -15,6 +15,7 @@ describe('jobs:emit-cron', () => {
     const sql = emitCronSql(validateRegistry(reg));
     expect(sql.match(/select cron\.schedule\(/g)).toHaveLength(2);
     expect(sql).toContain("  'fleet.trucks',\n  '30 seconds',");
+    expect(sql).not.toContain('5 seconds'); // demoEvery is local-only
     expect(sql).toContain("  'weather.nws',\n  '*/30 * * * *',");
     expect(sql).not.toMatch(/cron\.schedule\(\s*'gis\.derived'/);
     expect(sql).toMatch(/Not scheduled here \(host 'pc'.*\): gis\.derived\./);

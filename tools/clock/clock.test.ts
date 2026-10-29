@@ -91,6 +91,26 @@ describe('selectJobs (the shared schedule validator)', () => {
     expect(selectJobs(reg, ['app', 'pc'])).toHaveLength(3);
   });
 
+  test('JOBS_DEMO_CADENCE: demoEvery replaces the schedule only when asked', () => {
+    const demoReg: JobRegistry = {
+      'fleet.trucks': { every: '30 seconds', demoEvery: '5 seconds', run },
+      'fleet.deere': { cron: '*/2 * * * *', demoEvery: '15 seconds', run },
+      'gis.derived': { cron: '40 8 * * *', host: 'pc', run },
+    };
+    const sched = (demo: boolean) =>
+      selectJobs(demoReg, ['app', 'pc'], { demo }).map((j) => [j.name, describeSchedule(j)]);
+    expect(sched(false)).toEqual([
+      ['fleet.trucks', 'every 30 s'],
+      ['fleet.deere', 'cron */2 * * * * (UTC)'],
+      ['gis.derived', 'cron 40 8 * * * (UTC)'],
+    ]);
+    expect(sched(true)).toEqual([
+      ['fleet.trucks', 'every 5 s'],
+      ['fleet.deere', 'every 15 s'],
+      ['gis.derived', 'cron 40 8 * * * (UTC)'],
+    ]);
+  });
+
   test('refuses an invalid registry, listing every problem', () => {
     const bad = {
       'a.b': { every: '60 seconds', run },

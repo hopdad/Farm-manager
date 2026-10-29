@@ -74,6 +74,13 @@ export interface JobResult {
 interface JobBase {
   /** Default 'app'. */
   host?: JobHost;
+  /**
+   * Local demo cadence ('1 seconds' … '59 seconds'): with JOBS_DEMO_CADENCE=on (sim connectors
+   * only, never production) tools/clock fires the job at this interval instead of its schedule,
+   * so the board moves every few seconds (plan §1: "fleet.trucks 30 s; 5 s in local demo mode").
+   * `jobs:emit-cron` ignores it: production always uses `every` / `cron`.
+   */
+  demoEvery?: EverySpec;
   /** Default DEFAULT_JOB_BUDGET_MS; at most MAX_JOB_BUDGET_MS. */
   budgetMs?: number;
   run(ctx: JobContext): Promise<JobResult>;

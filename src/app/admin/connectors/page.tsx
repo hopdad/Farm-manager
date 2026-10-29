@@ -463,7 +463,9 @@ export default async function ConnectorsPage() {
   let snap: ConnectorsSnapshot | null = null;
   let dbError: string | null = null;
   try {
-    snap = await loadConnectorsSnapshot(getPool(), registry);
+    snap = await loadConnectorsSnapshot(getPool(), registry, {
+      demoCadence: cfg.JOBS_DEMO_CADENCE,
+    });
   } catch (e) {
     dbError = (e as Error).message;
   }
@@ -530,8 +532,12 @@ export default async function ConnectorsPage() {
             <dd>
               {cfg.CLOCK} (hosts {cfg.CLOCK_HOSTS.join(',')})
             </dd>
+            <dt>Demo cadence</dt>
+            <dd>{cfg.JOBS_DEMO_CADENCE ? 'on (JOBS_DEMO_CADENCE)' : 'off'}</dd>
             <dt>Stale after</dt>
-            <dd>{cfg.FLEET_STALE_SECONDS} s</dd>
+            <dd>
+              {cfg.FLEET_STALE_SECONDS} s (Deere {cfg.FLEET_STALE_SECONDS_DEERE} s)
+            </dd>
             <dt>App env</dt>
             <dd>{cfg.APP_ENV}</dd>
           </dl>

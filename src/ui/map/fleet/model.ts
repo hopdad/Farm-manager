@@ -9,7 +9,7 @@
  *  - each new fix glides from the currently drawn position over the estimated tick interval;
  *    jumps longer than `teleportMeters` snap
  */
-import { isStale, type MachineView } from '../../../domain/fleet';
+import { isMachineStale, type MachineView, type StaleThresholds } from '../../../domain/fleet';
 import {
   distanceMeters,
   type Fix,
@@ -21,7 +21,10 @@ import {
 } from './glide';
 
 export interface FleetModelOptions {
+  /** FLEET_STALE_SECONDS: ELD, cab-device and manual fixes. */
   staleAfterSeconds: number;
+  /** FLEET_STALE_SECONDS_DEERE: Deere working-only fixes (default: staleAfterSeconds). */
+  deereStaleAfterSeconds?: number;
   /** Glide length before two ticks have been seen. */
   defaultIntervalMs?: number;
   minIntervalMs?: number;
@@ -80,6 +83,7 @@ export class FleetModel {
       teleportMeters: 5_000,
       wallNow: () => new Date(),
       ...options,
+      deereStaleAfterSeconds: options.deereStaleAfterSeconds ?? options.staleAfterSeconds,
     };
     this.intervalMs = this.opts.defaultIntervalMs;
   }
@@ -116,9 +120,16 @@ export class FleetModel {
     this.version++;
   }
 
+  private get thresholds(): StaleThresholds {
+    return {
+      staleAfterSeconds: this.opts.staleAfterSeconds,
+      deereStaleAfterSeconds: this.opts.deereStaleAfterSeconds,
+    };
+  }
+
   private upsert(m: MachineView, now: number): void {
     const to: Fix = { lng: m.lng, lat: m.lat, heading: m.heading };
-    const stale = isStale(m.ts, this.opts.wallNow(), this.opts.staleAfterSeconds);
+    const stale = isMachineStale(m, this.opts.wallNow(), this.thresholds);
     const prev = this.machines.get(m.id);
     if (!prev) {
       this.machines.set(m.id, { view: m, glide: stationary(to, now), stale });
@@ -139,7 +150,7 @@ export class FleetModel {
     const wall = this.opts.wallNow();
     let changed = false;
     for (const e of this.machines.values()) {
-      const s = isStale(e.view.ts, wall, this.opts.staleAfterSeconds);
+      const s = isMachineStale(e.view, wall, this.thresholds);
       if (s !== e.stale) {
         e.stale = s;
         changed = true;

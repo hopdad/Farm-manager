@@ -7,8 +7,8 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { readClockPaused, setClockPaused } from '../../src/app/api/jobs/_lib/clock-setting';
 import { handleJobPost } from '../../src/app/api/jobs/_lib/run-job';
+import { readClockPaused, setClockPaused } from '../../src/db/settings';
 import type { JobRegistry } from '../../src/jobs/types';
 import { setupTestDb } from '../../src/test/db';
 import { JobClock } from './clock';

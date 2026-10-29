@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  clockSchedule,
   nextRun,
   parseEvery,
   ScheduleError,
@@ -74,6 +75,19 @@ describe('job definitions', () => {
     const v = validateJobDef('gis.derived', { cron: '40 8 * * *', host: 'pc', run });
     expect(v.schedule).toEqual({ kind: 'cron', expr: '40 8 * * *' });
     expect(v.host).toBe('pc');
+  });
+
+  test('demoEvery: an optional local demo cadence, validated like every', () => {
+    const v = validateJobDef('fleet.trucks', { every: '30 seconds', demoEvery: '5 seconds', run });
+    expect(v.demoSchedule).toEqual({ kind: 'every', seconds: 5 });
+    expect(clockSchedule(v, false)).toEqual({ kind: 'every', seconds: 30 });
+    expect(clockSchedule(v, true)).toEqual({ kind: 'every', seconds: 5 });
+    const c = validateJobDef('fleet.deere', { cron: '*/2 * * * *', run });
+    expect(c.demoSchedule).toBeNull();
+    expect(clockSchedule(c, true)).toEqual({ kind: 'cron', expr: '*/2 * * * *' });
+    expect(() =>
+      validateJobDef('a.b', { cron: '* * * * *', demoEvery: '90 seconds' as '1 seconds', run }),
+    ).toThrow(/job 'a.b': demoEvery: every '90 seconds' is invalid/);
   });
 
   test('needs exactly one schedule', () => {

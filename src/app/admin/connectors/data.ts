@@ -6,9 +6,9 @@
  */
 import { type Executor, exec, toDate } from '../../../db/exec';
 import { JOB_LEASE_SOURCE } from '../../../db/leases';
+import { readClockPaused } from '../../../db/settings';
 import { type ValidJob, validateRegistry } from '../../../jobs/schedule';
 import type { JobRegistry } from '../../../jobs/types';
-import { readClockPaused } from '../../api/jobs/_lib/clock-setting';
 
 export interface RawCounts {
   pending: number;
@@ -98,13 +98,18 @@ function counters(extra: unknown): Record<string, number> {
   return out;
 }
 
-export function describeJobSchedule(j: ValidJob): string {
-  return j.schedule.kind === 'every' ? `every ${j.schedule.seconds} s` : `${j.schedule.expr} UTC`;
+/** 'every 30 s' or '<cron> UTC'; with the demo cadence on: 'every 5 s (demo; every 30 s)'. */
+export function describeJobSchedule(j: ValidJob, opts: { demo?: boolean } = {}): string {
+  const text = (s: ValidJob['schedule']) =>
+    s.kind === 'every' ? `every ${s.seconds} s` : `${s.expr} UTC`;
+  if (opts.demo && j.demoSchedule) return `${text(j.demoSchedule)} (demo; ${text(j.schedule)})`;
+  return text(j.schedule);
 }
 
 export async function loadConnectorsSnapshot(
   ex: Executor,
   registry: JobRegistry,
+  opts: { demoCadence?: boolean } = {},
 ): Promise<ConnectorsSnapshot> {
   let valid: ValidJob[] = [];
   let registryError: string | null = null;
@@ -243,7 +248,7 @@ export async function loadConnectorsSnapshot(
     return {
       name,
       registered: !!v,
-      schedule: v ? describeJobSchedule(v) : null,
+      schedule: v ? describeJobSchedule(v, { demo: opts.demoCadence }) : null,
       host: v?.host ?? null,
       budgetMs: v?.budgetMs ?? null,
       running: jobLeases.get(name) ?? false,

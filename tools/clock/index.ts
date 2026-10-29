@@ -7,16 +7,17 @@
  *   pnpm clock --once                  fire every job once, print the results, exit
  *   pnpm clock --list                  print the schedule and exit
  *
- * Reads src/jobs/registry.ts through validateRegistry (src/jobs/schedule.ts). Honors
+ * Reads src/jobs/registry.ts through validateRegistry (src/jobs/schedule.ts); with
+ * JOBS_DEMO_CADENCE=on, jobs that declare `demoEvery` fire at that faster cadence. Honors
  * app.settings 'clock.paused' (toggle it on /admin/connectors), re-read before each fire.
  * With CLOCK=pgcron the database's pg_cron drives the jobs and this process stays idle.
  * `--parent=<pid>` (used by tools/dev.ts) exits when that process is gone, so a crashed
  * launcher never leaves a clock behind.
  */
 import pg from 'pg';
-import { readClockPaused } from '../../src/app/api/jobs/_lib/clock-setting';
 import { getConfig } from '../../src/config';
-import { type ValidJob, validateRegistry } from '../../src/jobs/schedule';
+import { readClockPaused } from '../../src/db/settings';
+import { clockSchedule, type ValidJob, validateRegistry } from '../../src/jobs/schedule';
 import type { JobHost, JobRegistry } from '../../src/jobs/types';
 import { isMainModule } from '../../src/lib/proc';
 import { type ClockLog, describeSchedule, JobClock } from './clock';
@@ -89,9 +90,18 @@ export function clockBaseUrl(publicUrl: string): string {
   return u.origin;
 }
 
-/** Validate the registry (throws one error listing every problem) and keep the given hosts. */
-export function selectJobs(reg: JobRegistry, hosts: readonly JobHost[]): ValidJob[] {
-  return validateRegistry(reg).filter((j) => hosts.includes(j.host));
+/**
+ * Validate the registry (throws one error listing every problem) and keep the given hosts.
+ * With `demo` (JOBS_DEMO_CADENCE=on) a job's `demoEvery` replaces its schedule.
+ */
+export function selectJobs(
+  reg: JobRegistry,
+  hosts: readonly JobHost[],
+  opts: { demo?: boolean } = {},
+): ValidJob[] {
+  return validateRegistry(reg)
+    .filter((j) => hosts.includes(j.host))
+    .map((j) => ({ ...j, schedule: clockSchedule(j, opts.demo === true) }));
 }
 
 /** Console logger; under the launcher (`--parent`) it adds no prefix (the launcher does). */
@@ -137,7 +147,8 @@ export async function main(argv: string[]): Promise<number> {
   // Imported here so a broken job module fails with a clear message instead of at load.
   const { registry } = await import('../../src/jobs/registry');
   const hosts = args.hosts ?? cfg.CLOCK_HOSTS;
-  const jobs = selectJobs(registry, hosts);
+  const demo = cfg.JOBS_DEMO_CADENCE;
+  const jobs = selectJobs(registry, hosts, { demo });
   const baseUrl = args.url ? new URL(args.url).origin : clockBaseUrl(cfg.PUBLIC_URL);
 
   const pool = new pg.Pool({
@@ -204,7 +215,9 @@ export async function main(argv: string[]): Promise<number> {
     setInterval(() => {}, 60_000);
     return 0;
   }
-  log.info(`firing ${jobs.length} job(s) at ${baseUrl}/api/jobs/<name> (UTC schedules):`);
+  log.info(
+    `firing ${jobs.length} job(s) at ${baseUrl}/api/jobs/<name> (UTC schedules${demo ? '; JOBS_DEMO_CADENCE=on: demo cadence' : ''}):`,
+  );
   printSchedule(clock, log);
   clock.start();
   return 0;

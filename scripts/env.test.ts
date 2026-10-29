@@ -32,6 +32,19 @@ describe('env:init', () => {
     expect(local.VENDOR_SIM_URL).toBe('http://127.0.0.1:4010');
     expect(local.DEV_ORIGINS).toBe('192.168.1.20,farm-pc.local');
     expect(r.added.env).toEqual(['DB_PASSWORD', 'DB_PORT']);
+    // M0 demo tuning.
+    expect(local.JOBS_DEMO_CADENCE).toBe('on');
+    expect(local.FLEET_STALE_SECONDS).toBe('60');
+    expect(local.FLEET_STALE_SECONDS_DEERE).toBe('900');
+  });
+
+  test('demo cadence is not added once a connector talks to a real vendor', () => {
+    const p = planEnvFiles({}, { CONNECTOR_DEERE: 'sandbox' }, opts);
+    expect(p.envLocal.JOBS_DEMO_CADENCE).toBeUndefined();
+    expect(p.envLocal.FLEET_STALE_SECONDS).toBe('60');
+    const kept = planEnvFiles({}, { JOBS_DEMO_CADENCE: 'off' }, opts);
+    expect(kept.envLocal.JOBS_DEMO_CADENCE).toBe('off');
+    expect(kept.addedLocal).not.toContain('JOBS_DEMO_CADENCE');
   });
 
   test('is idempotent: a second run changes nothing and never regenerates secrets', () => {

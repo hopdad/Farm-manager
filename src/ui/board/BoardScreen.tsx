@@ -154,6 +154,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
   const { model, status } = useFleet({
     appEnv: data.config.appEnv,
     staleAfterSeconds: data.config.staleAfterSeconds,
+    deereStaleAfterSeconds: data.config.deereStaleAfterSeconds,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [flyTo, setFlyTo] = useState<{ lng: number; lat: number; nonce: number } | null>(null);

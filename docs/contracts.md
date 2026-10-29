@@ -2,6 +2,12 @@
 
 Oct 29, 2026 · written by the M0 stage 1 (foundation) build · companion to `docs/build-plan.md`
 
+> **Status: integrated (M0 stage 3, Oct 29, 2026).** The four branches are merged into
+> `claude/m0-foundation`; the ownership table and the "rules for shared files" in section 1 were
+> for the parallel build and no longer apply. Everything else still describes the seams. The
+> integration changed a few contracts; each change is marked **(stage 3)** where it lives, and
+> section 12 lists them in one place.
+
 Stage 1 built the tooling, config, database, test harness and the shared interfaces. Four agents now
 build the rest of M0 in parallel. This page is the only agreement between them: the directories each one
 owns, the ports, the rules for shared files, and every contract (TypeScript files in `src/` plus SQL).
@@ -154,13 +160,15 @@ variables win; under `NODE_ENV=test` it also merges `.env.local`, which Next ski
 
 - `getConfig()`: validated, memoized; throws `ConfigError` with a fix-it message.
 - `tryGetConfig()`, `getMigrateUrl()`, `tryGetMigrateUrl()`, `getDevOrigins()` (never throws; next.config.ts).
-- `getE2eSettings()` → `{ baseURL, ci }` for `playwright.config.ts` (pure core `parseE2eSettings(env)`).
+- `getE2eSettings()` → `{ baseURL, ci, external }` for `playwright.config.ts` (pure core
+  `parseE2eSettings(env)`; `external` = `E2E_BASE_URL` was given, so no webServer; stage 3).
   It needs none of the app's secrets, so it works in a fresh clone; it throws only for a malformed
   `E2E_BASE_URL`. Test-tooling keys, not part of `Config`:
   - `E2E_BASE_URL`: the app the suite targets; else `PUBLIC_URL` (so your `.env.development.local`
     port applies), else `http://localhost:3000`;
   - `CI`: true for any value but empty, `0` or `false` (`forbidOnly`, 2 retries, GitHub reporter).
-- `publicConfig(cfg)`: `{ appEnv, realtime, basemapStyle, staleAfterSeconds }`. **Client components never
+- `publicConfig(cfg)`: `{ appEnv, realtime, basemapStyle, staleAfterSeconds, deereStaleAfterSeconds }`
+  (the last one: stage 3). **Client components never
   read env**: a server component passes `publicConfig(getConfig())` down as props.
 - `childEnv(overrides)`: environment for a child process (`undefined` removes a key).
 - Keep imports in `src/config.ts`, `src/db/schema/**`, `drizzle.config.ts` relative (drizzle-kit loads them).
@@ -190,7 +198,9 @@ With **`APP_ENV=production`**, config refuses `sim`/`replay` connector modes, `S
 | `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error` |
 | `CLOCK` | `croner` | `croner` (tools/clock) \| `pgcron` (rehearse Supabase Cron locally) |
 | `CLOCK_HOSTS` | `app,pc` | which job `host` values this clock fires |
-| `FLEET_STALE_SECONDS` | `600` | a machine whose latest fix is older is `stale` (demo: set e.g. 90) |
+| `FLEET_STALE_SECONDS` | `600` | a machine whose latest fix (ELD, cab device, manual) is older is `stale`; `pnpm env:init` writes `60` for the demo |
+| `FLEET_STALE_SECONDS_DEERE` | `600` | the same for Deere working-only fixes (`deere_working`): an idle cart has no new fix for minutes; `env:init` writes `900` (stage 3) |
+| `JOBS_DEMO_CADENCE` | `off` | `on` \| `off` → boolean. tools/clock fires jobs that declare `demoEvery` at that interval (fleet.trucks 5 s, fleet.deere 15 s). Refused in production and when any connector is `sandbox`/`live`; `env:init` writes `on` (stage 3) |
 | `VENDOR_SIM_URL` | `http://127.0.0.1:4010` | stand-in base; sim clients use `${VENDOR_SIM_URL}/<vendor>` |
 | `CONNECTOR_DEERE` | `sim` | `sim` \| `replay` \| `sandbox` \| `live` \| `off` |
 | `CONNECTOR_ELD` | `sim` | same modes; vendor chosen by `ELD_VENDOR` |
@@ -305,8 +315,8 @@ GiST index on every geometry column (a DB test enforces it for new tables too).
 ```ts
 type EverySpec = `${number} seconds`;               // only '1 seconds' … '59 seconds'
 type JobDef =
-  | { every: EverySpec; host?: 'app' | 'pc'; budgetMs?: number; run(ctx: JobContext): Promise<JobResult> }
-  | { cron: string;     host?: 'app' | 'pc'; budgetMs?: number; run(ctx: JobContext): Promise<JobResult> };
+  | { every: EverySpec; host?: 'app' | 'pc'; budgetMs?: number; demoEvery?: EverySpec; run(ctx: JobContext): Promise<JobResult> }
+  | { cron: string;     host?: 'app' | 'pc'; budgetMs?: number; demoEvery?: EverySpec; run(ctx: JobContext): Promise<JobResult> };
 interface JobContext { name; db: Db; pool: pg.Pool; log: JobLogger; signal: AbortSignal; now(): Date; deadline: Date }
 interface JobResult { items: number; note?: string }
 type JobRegistry = Record<string, JobDef>;
@@ -316,6 +326,9 @@ type JobRegistry = Record<string, JobDef>;
 - Exactly one of `every` (1-59 seconds, pg_cron's only interval form) or `cron` (5 fields, **UTC**, only
   digits `* , - /`). Names are dotted lower-case (`fleet.trucks`); they become `/api/jobs/<name>`,
   `ingest.job_runs.job` and the pg_cron job name. `budgetMs` default 45 000, max 55 000.
+- `demoEvery` (stage 3): the local demo cadence. `ValidJob.demoSchedule` holds it (or null);
+  `clockSchedule(job, demo)` is what tools/clock fires with `JOBS_DEMO_CADENCE=on`. `jobs:emit-cron`
+  and pg_cron ignore it: production always runs `every` / `cron`.
 - `validateRegistry(jobs)` → `ValidJob[]` (throws one error listing every problem); the clock and
   `jobs:emit-cron` must both use it. Also `parseEvery`, `validateCron`, `nextRun(schedule, from)` (every-jobs
   fire on epoch-aligned multiples), `toPgCronSchedule`.
@@ -352,10 +365,15 @@ or a webhook nudge plus the clock, can't land the same page twice).
    `await def.run(ctx)` (a throw counts as failure), then `releaseLease(pool, lease, { ok, error })` and
    insert one `ingest.job_runs` row (`job`, `host`, `started_at`, `finished_at`, `ok`, `items`, `note`, `error`).
 
+`clock.paused` helpers: `readClockPaused(ex)` and `setClockPaused(db, paused)` (writes the key and
+publishes `admin`/`clock` in one transaction) live in `src/db/settings.ts` (stage 3; built in
+`src/app/api/jobs/_lib/clock-setting.ts`).
+
 No child processes, nothing from `tools/**` or `scripts/**`, no `src/lib/proc.ts` / `src/db/admin.ts`
 (directly or transitively), no GDAL (Biome + `src/seams.test.ts` walk the import graph of `src/jobs/**`).
 `/api/jobs`, `/api/realtime`, `/api/tiles`, `/api/webhooks`, `/api/oauth` must never answer 3xx (no
-`proxy.ts` yet; keep it that way when it arrives).
+`proxy.ts` yet; keep it that way when it arrives). `next.config.ts` sets `skipTrailingSlashRedirect`
+(stage 3), because Next answered `308` for a trailing slash; `e2e/routes.spec.ts` checks it.
 
 ## 6. Realtime (`src/platform/realtime/types.ts`, `publish.ts`)
 
@@ -381,6 +399,10 @@ No child processes, nothing from `tools/**` or `scripts/**`, no `src/lib/proc.ts
   `FleetTick` with no cast. One shared EventSource per tab. `onResync` fires after every (re)connect,
   on a `seq` gap and on `invalidate` (which is still passed to `onEvent`); subscribers refetch their
   snapshot there (fleet: `GET /api/fleet`).
+- SSE wire format (runtime, documented in `src/platform/realtime/sse.ts`): each notification is a
+  `message` with the raw NOTIFY JSON; three named events on top: `ready` (LISTEN is active and the
+  subscriber registered; the client resyncs), `resync` (the hub's LISTEN reconnected) and `ping`
+  (the 15 s heartbeat, an event rather than a comment so the client's 45 s watchdog sees it).
 
 ## 7. Fleet (`src/domain/fleet.ts`)
 
@@ -395,7 +417,9 @@ interface MachineView {
 interface FleetTick { ts: string; machines: MachineView[] }   // realtime fleet/tick and GET /api/fleet
 ```
 
-`fleetTickSchema` / `machineViewSchema` (zod) validate both; `isStale(ts, now, FLEET_STALE_SECONDS)` and
+`fleetTickSchema` / `machineViewSchema` (zod) validate both; `isStale(ts, now, seconds)`,
+`isMachineStale(m, now, thresholds)` / `staleAfterFor(positionSource, thresholds)` (stage 3: Deere
+fixes use `FLEET_STALE_SECONDS_DEERE`, everything else `FLEET_STALE_SECONDS`) and
 `normalizeHeading()` are the shared helpers. `stale` is computed on the server when the tick (or the
 `GET /api/fleet` snapshot) is built.
 
@@ -482,6 +506,11 @@ tick arrives:**
   - Deere machine `('deere', 'machine', vendorIds.deere, machine.deereOrgId)`;
   - ELD vehicle `(ELD_VENDOR, 'machine', vendorIds.eld, '')`.
 
+  The seed also writes one `farm.geofences` row per bin site (kind `bin_site`, from the demo farm's
+  `binSites`; stage 3 accepted it as is). Scenario starts (`world.startsAt`): harvest-day and
+  breakdown 07:00 EDT Oct 15 2026, bad-morning 05:45 (same motion, 6 a.m. outage), planting-day
+  May 5 07:15, spray-windy Jun 9 06:00, winter-idle Jan 15 09:00 EST.
+
   The Deere stand-in serves each org's data under that org id, so the org a sync reads from is the
   `source_org` it looks up. The seed refuses non-local databases (`assertLocalUrl` in
   `src/db/admin.ts`) and is idempotent.
@@ -495,7 +524,12 @@ tick arrives:**
     from?/until? (wall), simFrom?/simUntil? (sim), label? }`, kinds `latency`, `timeout`, `http_error`,
     `rate_limit`, `token_expired`, `token_revoked`, `duplicate_page`, `out_of_order`, `webhook_replay`,
     `webhook_reorder`, `outage`. "Trucks API down" = `{ vendor: 'samsara', kind: 'outage', label: 'trucks API down' }`.
-  - Webhooks go to `${PUBLIC_URL}/api/webhooks/<source>`.
+  - Webhooks go to `${PUBLIC_URL}/api/webhooks/<source>` (not sent yet in M0).
+  - Launch (stage 3): `pnpm dev` / `pnpm pilot` restart the scenario day of a stand-in they start
+    (`POST /_control/scenario`, faults cleared, Deere grants kept), unless `--resume` or
+    `SIM_FROZEN_AT`; a stand-in already running is reused as is. Bootstrap runs
+    `tools/vendor-sim/connect.ts` (`pnpm vendor-sim:connect`): the Deere sim grant and an ELD token
+    check, against the running stand-in or one it starts for the purpose.
 
 ---
 
@@ -533,7 +567,11 @@ Plan §1 *Storage* / *Basemap* and §2 step 6. Only `src/platform/**` touches th
 - **Bootstrap** (runtime agent) runs `tools/gis/basemap.ts` (as `process.execPath` + tsx's CLI, see
   `src/lib/proc.ts`) when `tiles/basemap.json` or the file it names is missing, and exits non-zero with
   "offline basemap missing, run `pnpm gis:basemap`" if that fails. `tools/gis/basemap.ts` is idempotent
-  and exits non-zero on any failure.
+  and exits non-zero on any failure. **(stage 3)** The synthetic test basemap (`build`
+  `local:synthetic…`, `pnpm gis:basemap --synthetic`) counts as missing, so a plain bootstrap
+  fetches the real extract; `pnpm run bootstrap --synthetic-basemap` installs or accepts the
+  synthetic one instead (CI, machines that can't reach build.protomaps.com). With `--no-docker`
+  bootstrap cannot build a basemap (it needs `protomaps/go-pmtiles`) and says so.
 
 ---
 
@@ -546,9 +584,31 @@ Plan §1 *Storage* / *Basemap* and §2 step 6. Only `src/platform/**` touches th
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm test` / `pnpm test:db` | unit / database projects (section 2) |
 | `pnpm build` / `pnpm start` / `pnpm dev:next` | Next |
-| `pnpm test:e2e` | Playwright against a running app (`baseURL` from `getE2eSettings()`, section 3); `webServer` arrives later |
+| `pnpm test:e2e` | Playwright (`baseURL` from `getE2eSettings()`, section 3). Without `E2E_BASE_URL` it starts `pnpm pilot` itself (CI: `--skip-build` after `pnpm build`) or reuses an app on that port (stage 3) |
+| `pnpm vendor-sim:connect` | the sim connector setup bootstrap runs (stage 3) |
 | `pnpm env:init` | write `.env` + `.env.local` (idempotent) |
 | `pnpm db:up` / `db:down` / `db:nuke` | container (foundation only; not for parallel agents) |
 | `pnpm db:migrate` / `db:configure local` / `db:check` / `db:reset` / `db:lint` / `db:test-template [--force]` / `db:pending` | see `scripts/db.ts` header |
 | `pnpm db:generate` / `db:studio` | drizzle-kit (snapshots in `db/migrations/meta` mirror `src/db/schema`) |
 | `GET /api/health` | `200 { ok: true, db: true, postgis, time, dbTime }` or `503 { ok: false, db: false, … }` |
+
+---
+
+## 12. Stage 3 (integration) changes
+
+| Area | Change | Why |
+|---|---|---|
+| Config | `JOBS_DEMO_CADENCE`, `FLEET_STALE_SECONDS_DEERE`; `publicConfig().deereStaleAfterSeconds`; `getE2eSettings().external`; `pnpm env:init` writes the demo values (`on`, `60`, `900`) | plan §1 "5 s in local demo mode"; vendors asked for a demo cadence key. A single stale threshold either took 10 min to show "trucks API down" or flagged idle Deere carts as stale |
+| Jobs | `JobDef.demoEvery`, `ValidJob.demoSchedule`, `clockSchedule()`; fleet.trucks 5 s / fleet.deere 15 s in demo | same |
+| Fleet | `isMachineStale`, `staleAfterFor`, `StaleThresholds`; `fleetSnapshot(ex, now, number \| StaleThresholds)`, `staleThresholdsOf(cfg)` | per-source staleness on the server and the map |
+| Settings | `src/db/settings.ts` (from `src/app/api/jobs/_lib/clock-setting.ts`) | runtime's request |
+| Next | `skipTrailingSlashRedirect: true` | runtime: a trailing slash got 308 on routes that must never answer 3xx |
+| Launch | `pnpm dev`/`pilot` restart the scenario day of a stand-in they start (`--resume` keeps it); `NEXT_TELEMETRY_DISABLED=1` for the children | a launch otherwise resumed whatever sim day (or night, or fault) the last session left |
+| Bootstrap | `--synthetic-basemap`; synthetic counts as missing otherwise; `tools/vendor-sim/connect.ts` | build.protomaps.com was unreachable from the build machine; the sim-connect step had no entry |
+| e2e | `playwright.config.ts`: WebGL flags in `use`, `webServer` = `pnpm pilot`; `e2e/m0-demo.spec.ts` (the M0 demo), `e2e/routes.spec.ts` | map and runtime asked for both |
+| db/pending | no builder left SQL there: no new migration | |
+
+Still open (reported, not done in M0): `loadBu` on `SimMachineSample` (3d), webhook secrets
+(`SAMSARA_WEBHOOK_SECRET` …, needed before sandbox/live webhooks), the stand-in sending webhooks
+(`webhook_replay` / `webhook_reorder` faults are accepted but inert), `pnpm pilot:https`
+(slice 2c), a native go-pmtiles for `bootstrap --no-docker`, authentication on `/admin/*` (1a).

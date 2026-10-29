@@ -83,6 +83,7 @@ beforeAll(async () => {
     CONNECTOR_DEERE: 'sim',
     ELD_VENDOR: 'samsara',
     FLEET_STALE_SECONDS: 600,
+    FLEET_STALE_SECONDS_DEERE: 600,
   };
   await seedSimFarm(t().adminDb, farm, 'samsara');
   listener = await listenAppEvents(t().appUrl);

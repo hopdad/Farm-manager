@@ -6,7 +6,7 @@
  */
 import { getConfig } from '@/config';
 import { getPool } from '@/db/client';
-import { fleetSnapshot } from '@/db/queries/fleet';
+import { fleetSnapshot, staleThresholdsOf } from '@/db/queries/fleet';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +14,7 @@ export async function GET(): Promise<Response> {
   const headers = { 'cache-control': 'no-store' };
   try {
     const cfg = getConfig();
-    const tick = await fleetSnapshot(getPool(), new Date(), cfg.FLEET_STALE_SECONDS);
+    const tick = await fleetSnapshot(getPool(), new Date(), staleThresholdsOf(cfg));
     return Response.json(tick, { headers });
   } catch (e) {
     console.error('[api/fleet]', (e as Error).message);

@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest';
-import { type FleetTick, fleetTickSchema, isStale, normalizeHeading } from './fleet';
+import {
+  type FleetTick,
+  fleetTickSchema,
+  isMachineStale,
+  isStale,
+  normalizeHeading,
+  staleAfterFor,
+} from './fleet';
 import { demoId, deterministicId, isUuid } from './ids';
 
 const tick: FleetTick = {
@@ -70,5 +77,25 @@ describe('deterministic ids', () => {
   test('requires both parts', () => {
     expect(() => deterministicId('', 'x')).toThrow();
     expect(() => deterministicId('deere', '')).toThrow();
+  });
+});
+
+describe('stale thresholds by position source', () => {
+  const now = new Date('2026-10-28T15:10:00Z');
+  const t = { staleAfterSeconds: 60, deereStaleAfterSeconds: 900 };
+  test('ELD and cab fixes use FLEET_STALE_SECONDS, Deere fixes FLEET_STALE_SECONDS_DEERE', () => {
+    expect(staleAfterFor('eld', t)).toBe(60);
+    expect(staleAfterFor('cab_device', t)).toBe(60);
+    expect(staleAfterFor('manual', t)).toBe(60);
+    expect(staleAfterFor('deere_working', t)).toBe(900);
+    expect(staleAfterFor('deere_working', 30)).toBe(30);
+  });
+  test('a 5-minute-old fix is stale from an ELD but not from Deere', () => {
+    const ts = '2026-10-28T15:05:00Z';
+    expect(isMachineStale({ ts, positionSource: 'eld' }, now, t)).toBe(true);
+    expect(isMachineStale({ ts, positionSource: 'deere_working' }, now, t)).toBe(false);
+    expect(
+      isMachineStale({ ts: '2026-10-28T14:50:00Z', positionSource: 'deere_working' }, now, t),
+    ).toBe(true);
   });
 });

@@ -13,6 +13,14 @@ describe('job registry', () => {
     ]);
   });
 
+  test('demo cadence (JOBS_DEMO_CADENCE=on): trucks every 5 s, Deere every 15 s', () => {
+    const valid = validateRegistry(registry);
+    expect(valid.map((j) => [j.name, j.demoSchedule])).toEqual([
+      ['fleet.trucks', { kind: 'every', seconds: 5 }],
+      ['fleet.deere', { kind: 'every', seconds: 15 }],
+    ]);
+  });
+
   test('fleet.trucks runs never overlap and its stream lease outlives its budget', () => {
     expect(jobs['fleet.trucks'].budgetMs).toBe(TRUCKS_BUDGET_MS);
     expect(TRUCKS_BUDGET_MS).toBeLessThan(30_000);

@@ -21,6 +21,8 @@ export type Schedule = { kind: 'every'; seconds: number } | { kind: 'cron'; expr
 export interface ValidJob {
   name: string;
   schedule: Schedule;
+  /** The local demo cadence (`demoEvery`), or null. Only tools/clock uses it, and only on request. */
+  demoSchedule: Schedule | null;
   host: JobHost;
   budgetMs: number;
   def: JobDef;
@@ -86,6 +88,14 @@ export function validateJobDef(name: string, def: JobDef): ValidJob {
     d.every !== undefined
       ? { kind: 'every', seconds: parseEvery(d.every) }
       : { kind: 'cron', expr: validateCron(d.cron as string) };
+  let demoSchedule: Schedule | null = null;
+  if (def.demoEvery !== undefined) {
+    try {
+      demoSchedule = { kind: 'every', seconds: parseEvery(def.demoEvery) };
+    } catch (e) {
+      throw new ScheduleError(`job '${name}': demoEvery: ${(e as Error).message}`);
+    }
+  }
   const host = def.host ?? 'app';
   if (host !== 'app' && host !== 'pc')
     throw new ScheduleError(`job '${name}': unknown host '${host}'`);
@@ -95,7 +105,15 @@ export function validateJobDef(name: string, def: JobDef): ValidJob {
   }
   if (typeof def.run !== 'function')
     throw new ScheduleError(`job '${name}': run is not a function`);
-  return { name, schedule, host, budgetMs, def };
+  return { name, schedule, demoSchedule, host, budgetMs, def };
+}
+
+/**
+ * The schedule a local clock uses: the demo cadence when `demo` is on and the job has one,
+ * else its real schedule. Production (pg_cron, jobs:emit-cron) always uses `job.schedule`.
+ */
+export function clockSchedule(job: ValidJob, demo: boolean): Schedule {
+  return demo && job.demoSchedule ? job.demoSchedule : job.schedule;
 }
 
 /** Validate a whole registry; throws one error listing every problem. */

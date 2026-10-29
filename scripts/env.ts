@@ -108,6 +108,16 @@ export function databaseUrl(user: string, password: string, port: number | strin
   return `postgres://${user}:${encodeURIComponent(password)}@127.0.0.1:${port}/postgres`;
 }
 
+/**
+ * Demo values written into a new .env.local (docs/contracts.md §3). Delete the lines to get the
+ * plan defaults (fleet.trucks every 30 s, stale after 10 min).
+ */
+export const DEMO_TUNING = {
+  JOBS_DEMO_CADENCE: 'on',
+  FLEET_STALE_SECONDS: '60',
+  FLEET_STALE_SECONDS_DEERE: '900',
+} as const;
+
 interface Planned {
   env: EnvValues;
   envLocal: EnvValues;
@@ -171,6 +181,15 @@ export function planEnvFiles(
   setLocal('SESSION_SECRET', () => opts.randomHex(32));
   setLocal('TOKEN_ENC_KEY', () => opts.randomHex(32));
   setLocal('VENDOR_SIM_URL', () => DEFAULT_VENDOR_SIM_URL);
+  // M0 demo tuning for the PC (sim connectors): jobs every few seconds and trucks stale after a
+  // minute without a fix, so pausing the simulation or "trucks API down" shows within a minute.
+  // The demo cadence is refused once a connector is sandbox/live, so it isn't added then.
+  const realConnector = ['CONNECTOR_DEERE', 'CONNECTOR_ELD', 'CONNECTOR_WEATHER'].some((k) =>
+    ['sandbox', 'live'].includes(envLocal[k] ?? ''),
+  );
+  if (!realConnector) setLocal('JOBS_DEMO_CADENCE', () => DEMO_TUNING.JOBS_DEMO_CADENCE);
+  setLocal('FLEET_STALE_SECONDS', () => DEMO_TUNING.FLEET_STALE_SECONDS);
+  setLocal('FLEET_STALE_SECONDS_DEERE', () => DEMO_TUNING.FLEET_STALE_SECONDS_DEERE);
   const origins = opts.devOrigins.join(',');
   if (envLocal.DEV_ORIGINS === undefined) {
     envLocal.DEV_ORIGINS = origins;
@@ -203,6 +222,8 @@ const ENV_HEADER = `# .env: read by Docker Compose (database container) and by t
 const ENV_LOCAL_HEADER = `# .env.local: app secrets and URLs, read by Next and by every script via src/config.ts.
 # Written by \`pnpm env:init\`; existing values are never regenerated. Never commit this file.
 # Connector modes default to sim (CONNECTOR_DEERE / CONNECTOR_ELD / CONNECTOR_WEATHER=sim|replay|sandbox|live|off).
+# JOBS_DEMO_CADENCE / FLEET_STALE_SECONDS(_DEERE) below are M0 demo tuning: delete them for the plan
+# defaults (trucks every 30 s, stale after 10 min); turn JOBS_DEMO_CADENCE off before going live.
 `;
 
 function quote(value: string): string {

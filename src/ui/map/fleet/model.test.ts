@@ -156,6 +156,34 @@ describe('FleetModel', () => {
     expect(m.counts().stale).toBe(0);
   });
 
+  test('Deere working-only fixes use their own, longer threshold', () => {
+    const wall = { now: T0 + 5 * 60_000 };
+    const m = new FleetModel({
+      staleAfterSeconds: 60,
+      deereStaleAfterSeconds: 900,
+      wallNow: () => new Date(wall.now),
+    });
+    m.applySnapshot(
+      [
+        machine(),
+        machine({
+          id: '00000000-0000-4000-8000-000000000002',
+          unitNo: 'GC1',
+          kind: 'grain_cart',
+          positionSource: 'deere_working',
+        }),
+      ],
+      0,
+    );
+    expect(m.frame(0).map((f) => [f.unitNo, f.stale])).toEqual([
+      ['GC1', false],
+      ['S1', true],
+    ]);
+    wall.now = T0 + 16 * 60_000;
+    m.refreshStaleness();
+    expect(m.counts().stale).toBe(2);
+  });
+
   test('the server stale flag does not override the browser clock', () => {
     const m = model({ now: T0 });
     m.applySnapshot([machine({ stale: true })], 0);

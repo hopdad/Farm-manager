@@ -38,13 +38,26 @@ import {
 } from '../connectors/types';
 import { type Executor, exec, toDate } from '../db/exec';
 import { resolveExternalRefs } from '../db/external-refs';
-import { fleetSnapshot, upsertPosition, upsertVehicleStat } from '../db/queries/fleet';
+import {
+  fleetSnapshot,
+  staleThresholdsOf,
+  upsertPosition,
+  upsertVehicleStat,
+} from '../db/queries/fleet';
+import type { StaleThresholds } from '../domain/fleet';
 import { publish } from '../platform/realtime/publish';
 import type { JobContext, JobResult } from './types';
 
 /** What the fleet jobs read from config (tests pass their own). */
 export type FleetConfig = ConnectorConfig &
-  Pick<Config, 'CONNECTOR_ELD' | 'CONNECTOR_DEERE' | 'ELD_VENDOR' | 'FLEET_STALE_SECONDS'>;
+  Pick<
+    Config,
+    | 'CONNECTOR_ELD'
+    | 'CONNECTOR_DEERE'
+    | 'ELD_VENDOR'
+    | 'FLEET_STALE_SECONDS'
+    | 'FLEET_STALE_SECONDS_DEERE'
+  >;
 
 export interface FleetJobOptions {
   /** Default: getConfig() at run time. */
@@ -117,9 +130,9 @@ async function publishSyncStatus(result: SyncStepResult, sctx: SyncContext): Pro
 }
 
 /** afterRun of a positions step: ONE batched fleet.tick (+ sync.status). */
-function tickAfterRun(staleAfterSeconds: number) {
+function tickAfterRun(stale: StaleThresholds) {
   return async (result: SyncStepResult, sctx: SyncContext): Promise<void> => {
-    const tick = await fleetSnapshot(sctx.job.pool, sctx.job.now(), staleAfterSeconds);
+    const tick = await fleetSnapshot(sctx.job.pool, sctx.job.now(), stale);
     await publish('fleet', 'tick', tick, sctx.job.pool);
     await publishSyncStatus(result, sctx);
   };
@@ -160,7 +173,7 @@ export function createFleetTrucksJob(opts: FleetJobOptions = {}) {
     const mode = cfg.CONNECTOR_ELD;
     const http = httpFor(ctx, opts.http);
     const resolve = machineResolver();
-    const tick = tickAfterRun(cfg.FLEET_STALE_SECONDS);
+    const tick = tickAfterRun(staleThresholdsOf(cfg));
 
     let positions: SyncStepResult;
     const others: SyncStepResult[] = [];
@@ -242,7 +255,7 @@ export function createFleetDeereJob(opts: FleetJobOptions = {}) {
       },
       map: (raw) => mapDeereBreadcrumb(raw),
       upsert: positionsUpsert(resolve),
-      afterRun: tickAfterRun(cfg.FLEET_STALE_SECONDS),
+      afterRun: tickAfterRun(staleThresholdsOf(cfg)),
     };
     return syncStepJobResult(await runSyncStep(spec, ctx));
   };

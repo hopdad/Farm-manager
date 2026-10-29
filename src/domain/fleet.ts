@@ -102,6 +102,37 @@ export function isStale(
   return now.getTime() - t > staleAfterSeconds * 1000;
 }
 
+/**
+ * Stale thresholds by where a fix came from. ELD, cab-device and manual positions arrive
+ * continuously, so a gap means trouble (`staleAfterSeconds` = FLEET_STALE_SECONDS). Deere records
+ * positions only while a machine works, so an idle cart or a combine waiting on a truck has no new
+ * fix for minutes at a time; `deereStaleAfterSeconds` (FLEET_STALE_SECONDS_DEERE) is its own limit.
+ */
+export interface StaleThresholds {
+  staleAfterSeconds: number;
+  deereStaleAfterSeconds: number;
+}
+
+/** Thresholds from one number (both the same) or a pair. */
+export function staleThresholds(t: number | StaleThresholds): StaleThresholds {
+  return typeof t === 'number' ? { staleAfterSeconds: t, deereStaleAfterSeconds: t } : t;
+}
+
+/** The stale threshold for a fix from `source`. */
+export function staleAfterFor(source: PositionSource, t: number | StaleThresholds): number {
+  const th = staleThresholds(t);
+  return source === 'deere_working' ? th.deereStaleAfterSeconds : th.staleAfterSeconds;
+}
+
+/** Is this machine's latest fix stale at wall-clock `now` (threshold by its position source)? */
+export function isMachineStale(
+  m: Pick<MachineView, 'ts' | 'positionSource'>,
+  now: Date,
+  t: number | StaleThresholds,
+): boolean {
+  return isStale(m.ts, now, staleAfterFor(m.positionSource, t));
+}
+
 /** Normalize any heading to [0, 360). */
 export function normalizeHeading(deg: number | null | undefined): number {
   if (deg == null || !Number.isFinite(deg)) return 0;

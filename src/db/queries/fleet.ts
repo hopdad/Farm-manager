@@ -3,7 +3,8 @@
  * (contracts §7): one builder, so a tick and the snapshot always agree.
  *
  *  - `fleetSnapshot()`: every non-retired machine with a known state, as MachineView[], with
- *    `stale` computed at build time from the fix's wall-clock `ts`.
+ *    `stale` computed at build time from the fix's wall-clock `ts` and the threshold for its
+ *    position source (FLEET_STALE_SECONDS, or FLEET_STALE_SECONDS_DEERE for Deere fixes).
  *  - `upsertPosition()`: one fix → farm.positions (PK (machine_id, ts): duplicates are no-ops)
  *    and farm.machine_state (only when the fix is newer, so out-of-order pages never move a
  *    machine back). The current field and the activity are derived in PostGIS:
@@ -13,7 +14,13 @@
  */
 
 import type { NormalizedPosition, NormalizedVehicleStat } from '../../connectors/types';
-import { type FleetTick, isStale, type MachineView, normalizeHeading } from '../../domain/fleet';
+import {
+  type FleetTick,
+  isMachineStale,
+  type MachineView,
+  normalizeHeading,
+  type StaleThresholds,
+} from '../../domain/fleet';
 import { type Executor, exec, toDate } from '../exec';
 
 /** Speeds (mph) behind the derived activity. */
@@ -42,7 +49,7 @@ interface SnapshotRow {
 export async function fleetMachines(
   ex: Executor,
   now: Date,
-  staleAfterSeconds: number,
+  stale: number | StaleThresholds,
 ): Promise<MachineView[]> {
   const r = await exec<SnapshotRow>(
     ex,
@@ -70,7 +77,7 @@ export async function fleetMachines(
       positionSource: row.position_source,
       ts,
       status: row.status,
-      stale: isStale(ts, now, staleAfterSeconds),
+      stale: isMachineStale({ ts, positionSource: row.position_source }, now, stale),
     };
   });
 }
@@ -79,9 +86,20 @@ export async function fleetMachines(
 export async function fleetSnapshot(
   ex: Executor,
   now: Date,
-  staleAfterSeconds: number,
+  stale: number | StaleThresholds,
 ): Promise<FleetTick> {
-  return { ts: now.toISOString(), machines: await fleetMachines(ex, now, staleAfterSeconds) };
+  return { ts: now.toISOString(), machines: await fleetMachines(ex, now, stale) };
+}
+
+/** The stale thresholds from config (FLEET_STALE_SECONDS / FLEET_STALE_SECONDS_DEERE). */
+export function staleThresholdsOf(cfg: {
+  FLEET_STALE_SECONDS: number;
+  FLEET_STALE_SECONDS_DEERE: number;
+}): StaleThresholds {
+  return {
+    staleAfterSeconds: cfg.FLEET_STALE_SECONDS,
+    deereStaleAfterSeconds: cfg.FLEET_STALE_SECONDS_DEERE,
+  };
 }
 
 export interface UpsertPositionResult {

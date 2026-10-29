@@ -30,9 +30,9 @@ import {
   jobLeaseSeconds,
   releaseLease,
 } from '../../../../db/leases';
+import { readClockPaused } from '../../../../db/settings';
 import { type ValidJob, validateJobDef } from '../../../../jobs/schedule';
 import type { JobContext, JobLogger, JobRegistry } from '../../../../jobs/types';
-import { readClockPaused } from './clock-setting';
 import { createJobLogger } from './logger';
 
 export interface JobRouteDeps {

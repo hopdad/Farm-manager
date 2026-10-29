@@ -7,15 +7,22 @@
  * `JobRegistry` so `registry[name]` compiles while `jobs` is still empty, and must run
  * `validateRegistry(registry)` first.
  *
- *   fleet.trucks  every 30 s (plan §5 "Trucks: 30 s"), 25 s budget so runs never overlap
- *   fleet.deere   every 2 min (plan §1; the real cadence is set at 1f from Deere's call budget)
+ *   fleet.trucks  every 30 s (plan §5 "Trucks: 30 s"), 25 s budget so runs never overlap;
+ *                 5 s with JOBS_DEMO_CADENCE=on (plan §1 "5 s in local demo mode")
+ *   fleet.deere   every 2 min (plan §1; the real cadence is set at 1f from Deere's call budget);
+ *                 15 s with JOBS_DEMO_CADENCE=on (sim only: the stand-in has no call budget)
  */
 import { runFleetDeere, runFleetTrucks, TRUCKS_BUDGET_MS } from './fleet';
 import type { JobRegistry } from './types';
 
 export const jobs = {
-  'fleet.trucks': { every: '30 seconds', budgetMs: TRUCKS_BUDGET_MS, run: runFleetTrucks },
-  'fleet.deere': { cron: '*/2 * * * *', run: runFleetDeere },
+  'fleet.trucks': {
+    every: '30 seconds',
+    demoEvery: '5 seconds',
+    budgetMs: TRUCKS_BUDGET_MS,
+    run: runFleetTrucks,
+  },
+  'fleet.deere': { cron: '*/2 * * * *', demoEvery: '15 seconds', run: runFleetDeere },
 } satisfies JobRegistry;
 
 /** The registry as a plain lookup table: `registry[name]` is `JobDef | undefined`. */

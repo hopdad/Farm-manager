@@ -28,6 +28,7 @@ import {
   type DeereTokenResponse,
 } from '../../../connectors/deere/schemas';
 import { SIM_CREDENTIALS, SIM_DEERE_HOME_ORG, type SimFarm } from '../../types';
+import { currentClock } from '../clock';
 import type { VendorContext, VendorModule } from '../context';
 import { firstOfKind } from '../faults';
 import { round, seededShuffle } from '../feed';
@@ -377,6 +378,17 @@ function machines(req: SimRequest, ctx: VendorContext, orgId: string): SimRespon
   return json(200, collection(req.url, list, pg.offset, pg.limit));
 }
 
+/**
+ * Breadcrumb spacing in wall ms. Deere records breadcrumbs every few seconds of machine time;
+ * at 1x that is `intervalMs` of wall time. A sped-up simulation keeps roughly that density in
+ * sim time (down to one breadcrumb per wall second, on the same epoch-aligned grid), so a cart's
+ * one-minute unload at 30x isn't skipped between two 10 s samples.
+ */
+export function breadcrumbStepMs(intervalMs: number, speed: number): number {
+  if (!(speed > 1)) return intervalMs;
+  return Math.max(1_000, Math.floor(intervalMs / speed / 1_000) * 1_000);
+}
+
 function breadcrumbs(req: SimRequest, ctx: VendorContext, deereId: string): SimResponse {
   const machine = deereMachines(ctx.world.farm).find((m) => m.vendorIds.deere === deereId);
   if (!machine) return apiError(404, `Machine ${deereId} not found`);
@@ -399,7 +411,10 @@ function breadcrumbs(req: SimRequest, ctx: VendorContext, deereId: string): SimR
     }
   }
 
-  const step = ctx.tuning.breadcrumbIntervalMs;
+  const step = breadcrumbStepMs(
+    ctx.tuning.breadcrumbIntervalMs,
+    currentClock(ctx.state.clock).speed,
+  );
   const from = Math.max(start, nowMs - ctx.tuning.deereMaxLookbackMs);
   const to = Math.min(end, nowMs);
   const crumbs: DeereBreadcrumb[] = [];

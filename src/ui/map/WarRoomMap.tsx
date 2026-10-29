@@ -297,7 +297,11 @@ export default function WarRoomMap(props: WarRoomMapProps) {
                   className={css.dot}
                   style={{ borderColor: STALE_RING_COLOR, background: STALE_COLOR }}
                 />
-                Stale (no fix for {formatDuration(data.config.staleAfterSeconds)})
+                Stale (no fix for {formatDuration(data.config.staleAfterSeconds)}
+                {data.config.deereStaleAfterSeconds !== data.config.staleAfterSeconds
+                  ? `; Deere ${formatDuration(data.config.deereStaleAfterSeconds)}`
+                  : ''}
+                )
               </div>
               <div className={css.legendRow}>
                 <span className={css.dot} style={{ borderColor: DOWN_COLOR }} />

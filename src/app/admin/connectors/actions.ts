@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { getConfig } from '@/config';
 import { getDb } from '@/db/client';
 import { SCENARIO_NAMES } from '@/sim/types';
-import { setClockPaused } from '../../api/jobs/_lib/clock-setting';
+import { setClockPaused } from '../../../db/settings';
 import { type ActionResult, actionResult as result } from '../action-result';
 import { faultPresets, simClock, simFaults, simReset, simScenario } from './sim-control';
 

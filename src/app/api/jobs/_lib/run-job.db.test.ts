@@ -7,10 +7,10 @@
 import pg from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import { claimDue, ensureStream, JOB_LEASE_SOURCE, jobLeaseSeconds } from '../../../../db/leases';
+import { readClockPaused, setClockPaused } from '../../../../db/settings';
 import type { JobContext, JobRegistry, JobResult } from '../../../../jobs/types';
 import { LOCAL_NOTIFY_CHANNEL, type NotifyMessage } from '../../../../platform/realtime/types';
 import { setupTestDb } from '../../../../test/db';
-import { readClockPaused, setClockPaused } from './clock-setting';
 import { handleJobPost, type JobRouteDeps } from './run-job';
 
 const t = setupTestDb(import.meta.url);

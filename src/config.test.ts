@@ -130,6 +130,33 @@ describe('parseConfig', () => {
     expect(list).toMatch(/SIM_FROZEN_AT/);
   });
 
+  test('JOBS_DEMO_CADENCE: off by default, on only with sim/replay/off connectors', () => {
+    expect(parseConfig(base).JOBS_DEMO_CADENCE).toBe(false);
+    expect(parseConfig({ ...base, JOBS_DEMO_CADENCE: 'on' }).JOBS_DEMO_CADENCE).toBe(true);
+    expect(
+      parseConfig({
+        ...base,
+        JOBS_DEMO_CADENCE: 'on',
+        CONNECTOR_DEERE: 'replay',
+        CONNECTOR_ELD: 'off',
+      }).JOBS_DEMO_CADENCE,
+    ).toBe(true);
+    expect(
+      issues({ ...base, JOBS_DEMO_CADENCE: 'on', CONNECTOR_DEERE: 'sandbox' }).join('\n'),
+    ).toMatch(/JOBS_DEMO_CADENCE: only for sim\/replay\/off connectors \(CONNECTOR_DEERE/);
+    expect(issues({ ...prod, JOBS_DEMO_CADENCE: 'on' }).join('\n')).toMatch(
+      /JOBS_DEMO_CADENCE: not allowed in production/,
+    );
+    expect(issues({ ...base, JOBS_DEMO_CADENCE: 'yes' })).toHaveLength(1);
+  });
+
+  test('stale thresholds: one for continuous sources, one for Deere working-only fixes', () => {
+    const c = parseConfig({ ...base, FLEET_STALE_SECONDS: '60', FLEET_STALE_SECONDS_DEERE: '900' });
+    expect([c.FLEET_STALE_SECONDS, c.FLEET_STALE_SECONDS_DEERE]).toEqual([60, 900]);
+    expect(publicConfig(c)).toMatchObject({ staleAfterSeconds: 60, deereStaleAfterSeconds: 900 });
+    expect(parseConfig(base).FLEET_STALE_SECONDS_DEERE).toBe(600);
+  });
+
   test('production allows off and sandbox', () => {
     expect(issues({ ...prod, CONNECTOR_DEERE: 'off', CONNECTOR_ELD: 'sandbox' })).toEqual([]);
   });
@@ -139,6 +166,7 @@ describe('parseConfig', () => {
     expect(Object.keys(p).sort()).toEqual([
       'appEnv',
       'basemapStyle',
+      'deereStaleAfterSeconds',
       'realtime',
       'staleAfterSeconds',
     ]);
@@ -155,7 +183,12 @@ describe('parseConfig', () => {
 
 describe('parseE2eSettings (playwright.config.ts)', () => {
   test('defaults to localhost:3000 and not-CI, with no other config needed', () => {
-    expect(parseE2eSettings({})).toEqual({ baseURL: 'http://localhost:3000', ci: false });
+    expect(parseE2eSettings({})).toEqual({
+      baseURL: 'http://localhost:3000',
+      ci: false,
+      external: false,
+    });
+    expect(parseE2eSettings({ E2E_BASE_URL: 'http://10.0.0.5:3000' }).external).toBe(true);
   });
 
   test('E2E_BASE_URL wins over PUBLIC_URL; PUBLIC_URL wins over the default', () => {

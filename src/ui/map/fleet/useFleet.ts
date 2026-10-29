@@ -31,12 +31,19 @@ export interface FleetStatus {
   error: string | null;
 }
 
-export function useFleet(opts: { appEnv: AppEnv; staleAfterSeconds: number }): {
+export function useFleet(opts: {
+  appEnv: AppEnv;
+  staleAfterSeconds: number;
+  deereStaleAfterSeconds: number;
+}): {
   model: FleetModel;
   status: FleetStatus;
 } {
-  const { appEnv, staleAfterSeconds } = opts;
-  const model = useMemo(() => new FleetModel({ staleAfterSeconds }), [staleAfterSeconds]);
+  const { appEnv, staleAfterSeconds, deereStaleAfterSeconds } = opts;
+  const model = useMemo(
+    () => new FleetModel({ staleAfterSeconds, deereStaleAfterSeconds }),
+    [staleAfterSeconds, deereStaleAfterSeconds],
+  );
   const [status, setStatus] = useState<FleetStatus>({
     connection: 'loading',
     counts: { total: 0, stale: 0, down: 0 },
