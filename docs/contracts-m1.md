@@ -728,3 +728,31 @@ are gone. What the integration settled, where the builders' reports asked:
 - **Seed:** `tools/seed/extras.ts` (demo people, soils from a cached SSURGO run or the synthetic
   fixture, synthetic parcels unless a real file was imported, the online NAIP row) after the
   demo farm, which now has one field-entrance geofence per field.
+
+### 15.1 Review fixes (Oct 29, 2026)
+
+What the review of the integrated build changed in these contracts:
+
+- **Auth (§4):** a person identity on their enrolled phone carries the phone's epoch
+  (`deviceEpoch`, claim `dep`); `signInPerson(cookies, appUserId, epoch, deviceId, deviceEpoch)`.
+  PIN hashes are peppered from `SESSION_SECRET` (`scrypt-p1$…`; legacy hashes rewritten at the
+  next good sign-in). Switch user returns a shared device to its home (`/board`, `/m`).
+- **Tiles (§7.4):** migration `0005_m1_review`: `app.mvt_fields` adds layer `fields_label`, one
+  point per field (id, name, acres, tenure, client); field names and customer names are labelled
+  from it. A role-dependent layer's URL whose `?v=` names the other variant is served
+  `private, no-store`.
+- **Layers (§7.1, §6):** `StyleLayerDef.styleSourceId` names a base-style source the row's URL
+  re-points (setTiles); the rail's feed reloads `GET /api/layers` on `fields/updated` with
+  `boundary` or `identity`, so open maps follow imports and edits. The `fields` and `fleet`
+  built-ins carry legends; panels on the board mark themselves `data-dock` for the map's fit.
+- **Weather (§5.4):** the strip's spray counts and hour dots and `FieldDetail.spray` apply
+  `withStaleness` at read time, like the map.
+- **Data export (§13):** the demo crew's sign-ins travel as an overlay (switched off, role,
+  epoch, a PIN changed in the app); the demo seed writes `landlord_party_id` and
+  `client_party_id` on insert only.
+- **Imports (§13):** zips are unpacked under limits (`tools/import/zip-vectors.ts`), a `.dbf`
+  without a `.cpg` and a CSV that isn't UTF-8 are read as Windows-1252; `gis:parcels` and
+  `import:tile` read File Geodatabases through GDAL; a real parcel file retires the synthetic
+  parcels of its counties.
+- **NAIP (§9, plan §5):** the online `naip` row reads the cached `USGSImageryOnly` tiles
+  (z11-16); `exportImage` serves the AOI close-ups only.
