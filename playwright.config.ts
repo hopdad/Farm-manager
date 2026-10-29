@@ -2,23 +2,52 @@ import { defineConfig, devices } from '@playwright/test';
 import { getE2eSettings } from './src/config';
 
 /**
- * End-to-end skeleton (plan §7). The e2e stage adds `webServer` (a production build under
- * `next start`) and the specs. Settings come from src/config.ts (never process.env here):
- * E2E_BASE_URL points the suite at an already-running app; without it the suite uses PUBLIC_URL
- * (parallel agents set theirs to 3101-3104 in .env.development.local), else localhost:3000.
+ * End-to-end tests (plan §7). Settings come from src/config.ts (never process.env here).
+ *
+ *  - Without E2E_BASE_URL the suite starts the whole stack itself with `pnpm pilot` (vendor
+ *    stand-in, `next start -H 0.0.0.0` on PUBLIC_URL's port, the job clock) and waits for
+ *    /api/health; CI builds first and passes --skip-build. Locally an app already answering on
+ *    that port (`pnpm dev` or `pnpm pilot`) is reused.
+ *  - With E2E_BASE_URL the suite tests that app as is (no webServer).
+ *
+ * MapLibre 6 needs WebGL2; headless Chromium in CI and containers only has SwiftShader, which
+ * Chrome enables for WebGL only with these flags (plan §7 CI notes).
  */
-const { baseURL, ci } = getE2eSettings();
+const { baseURL, ci, external } = getE2eSettings();
+
+const WEBGL_ARGS = [
+  '--use-angle=swiftshader',
+  '--enable-unsafe-swiftshader',
+  '--ignore-gpu-blocklist',
+];
 
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: true,
   forbidOnly: ci,
   retries: ci ? 2 : 0,
+  // The specs share one app, one simulated farm and one database.
+  workers: ci ? 2 : undefined,
   reporter: ci ? [['github'], ['html', { open: 'never' }]] : 'list',
+  timeout: 60_000,
   use: {
     baseURL,
     trace: 'retain-on-failure',
+    launchOptions: { args: WEBGL_ARGS },
   },
+  webServer: external
+    ? undefined
+    : {
+        command: ci ? 'pnpm pilot --skip-build' : 'pnpm pilot',
+        url: `${baseURL}/api/health`,
+        reuseExistingServer: !ci,
+        // next build (locally) + first boot of the stand-in and Next.
+        timeout: 300_000,
+        // tools/pilot.ts stops the stand-in, Next and the clock (whole trees) on SIGTERM.
+        gracefulShutdown: { signal: 'SIGTERM', timeout: 20_000 },
+        stdout: 'ignore',
+        stderr: 'pipe',
+      },
   projects: [
     {
       // War-room wall: 1080p at DPR 2 (4K-equivalent), touch.
