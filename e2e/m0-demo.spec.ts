@@ -270,22 +270,36 @@ test('a phone at /m (over the LAN address) shows the same fixes within 2 s of th
   expect(phone.blocked, 'requests to non-local hosts').toEqual([]);
 });
 
+/** The largest distance (m) any machine moved between two looks at the map. */
+function largestMove(before: FleetFrame[], after: FleetFrame[]): number {
+  const moved = after.map((m) => {
+    const b = before.find((x) => x.id === m.id);
+    return b ? meters(b, m) : 0;
+  });
+  return Math.max(0, ...moved);
+}
+
 test('pausing the simulation freezes the fleet (still fresh); resuming moves it again', async () => {
-  test.setTimeout(150_000);
+  test.setTimeout(210_000);
   const page = wall.page;
   await admin(adminPage);
   await setPaused(adminPage, true);
   // Let the last pre-pause fixes arrive and their glides finish: the first Deere fix after the
   // pause lands within one 15 s poll, and a marker glides over the machine's own 15 s interval.
-  await page.waitForTimeout(35_000);
-  const before = await fleet(page);
+  // Under load a job run can land later than that, so after 30 s wait (up to a minute more)
+  // until two looks 5 s apart agree: the fleet has settled. Then it must stay put for 20 s.
+  await page.waitForTimeout(30_000);
+  let before = await fleet(page);
+  for (const settleBy = Date.now() + 60_000; Date.now() < settleBy; ) {
+    await page.waitForTimeout(5_000);
+    const now = await fleet(page);
+    const settled = largestMove(before, now) < 0.1;
+    before = now;
+    if (settled) break;
+  }
   await page.waitForTimeout(20_000);
   const after = await fleet(page);
-  const drift = after.map((m) => {
-    const b = before.find((x) => x.id === m.id);
-    return b ? meters(b, m) : 0;
-  });
-  expect(Math.max(...drift), 'largest movement while paused (m)').toBeLessThan(1);
+  expect(largestMove(before, after), 'largest movement while paused (m)').toBeLessThan(1);
   expect(after.filter((m) => m.kind === 'semi' && m.stale)).toEqual([]);
   // Trucks keep reporting (fresh fixes, same place) while the simulation is paused.
   const s1Before = before.find((m) => m.unitNo === 'S1')?.ts ?? '';
