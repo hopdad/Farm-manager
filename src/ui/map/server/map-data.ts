@@ -19,7 +19,6 @@ import type { StorageReader } from '../../../platform/storage/types';
 import { type BBox, padBBox } from '../tile-math';
 import type { BasemapInfo, MapPageData } from '../types';
 
-const STORAGE_PATH = `/api/storage/${BASEMAP_BUCKET}`;
 /** A font file every installed glyph set has. */
 const GLYPH_PROBE = `${BASEMAP_FONTS_PREFIX}/Noto Sans Medium/0-255.pbf`;
 
@@ -61,15 +60,17 @@ async function loadBasemap(
     readBasemapStatus(storage),
     storage.stat(BASEMAP_BUCKET, GLYPH_PROBE).catch(() => null),
   ]);
+  // URLs come from the adapter (local route now, the public tiles bucket at MD); MapLibre fills
+  // in the literal {fontstack}/{range} placeholders.
   const glyphsPath = glyphs
-    ? `${STORAGE_PATH}/${BASEMAP_FONTS_PREFIX}/{fontstack}/{range}.pbf`
+    ? `${storage.publicUrl(BASEMAP_BUCKET, BASEMAP_FONTS_PREFIX)}/{fontstack}/{range}.pbf`
     : null;
   if (!status.ok) return { basemap: null, problem: status.detail, glyphsPath };
   const m = status.manifest;
   return {
     basemap: {
-      pmtilesPath: `${STORAGE_PATH}/${m.key}`,
-      spritePathPrefix: `${STORAGE_PATH}/${BASEMAP_SPRITES_PREFIX}`,
+      pmtilesPath: storage.publicUrl(BASEMAP_BUCKET, m.key),
+      spritePathPrefix: storage.publicUrl(BASEMAP_BUCKET, BASEMAP_SPRITES_PREFIX),
       build: m.build,
       synthetic: isSyntheticBasemap(m),
       bbox: m.bbox,

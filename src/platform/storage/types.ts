@@ -30,4 +30,11 @@ export interface StorageReader {
   openRead(bucket: StorageBucket, key: string, range?: ByteRange): Promise<Readable>;
   /** Read a small object as UTF-8 text (refuses objects over `maxBytes`, default 1 MiB). */
   readText(bucket: StorageBucket, key: string, maxBytes?: number): Promise<string | null>;
+  /**
+   * The URL a browser fetches the object (or, for a key prefix, the objects under it) from:
+   * locally `/api/storage/<bucket>/<key>` (segments URL-encoded); at MD the Supabase adapter
+   * returns the public `tiles` bucket's object URL, so PMTiles Range requests, glyphs and
+   * sprites never go through an app function. Absolute or root-relative.
+   */
+  publicUrl(bucket: StorageBucket, key: string): string;
 }

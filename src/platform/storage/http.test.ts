@@ -172,6 +172,19 @@ describe('LocalStorage', () => {
     await expect(storage.readText('tiles', PMTILES, 10)).rejects.toThrow('limit');
   });
 
+  test('publicUrl: the local route, each segment encoded; bad keys refused', () => {
+    expect(storage.publicUrl('tiles', 'basemap.0123abcd.pmtiles')).toBe(
+      '/api/storage/tiles/basemap.0123abcd.pmtiles',
+    );
+    expect(storage.publicUrl('tiles', 'assets/fonts/Noto Sans Medium/0-255.pbf')).toBe(
+      '/api/storage/tiles/assets/fonts/Noto%20Sans%20Medium/0-255.pbf',
+    );
+    expect(storage.publicUrl('tiles', 'assets/sprites/v4')).toBe(
+      '/api/storage/tiles/assets/sprites/v4',
+    );
+    expect(() => storage.publicUrl('tiles', '../uploads/x')).toThrow();
+  });
+
   test('isInside', () => {
     expect(isInside('/a/b', '/a/b/c', 'linux')).toBe(true);
     expect(isInside('/a/b', '/a/b', 'linux')).toBe(false);

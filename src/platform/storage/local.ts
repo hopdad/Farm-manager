@@ -88,6 +88,11 @@ export class LocalStorage implements StorageReader {
     return createReadStream(real, range ? { start: range.start, end: range.end } : {});
   }
 
+  publicUrl(bucket: StorageBucket, key: string): string {
+    const normalized = parseStorageKey(key);
+    return `/api/storage/${bucket}/${normalized.split('/').map(encodeURIComponent).join('/')}`;
+  }
+
   async readText(
     bucket: StorageBucket,
     key: string,
