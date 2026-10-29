@@ -75,7 +75,9 @@ function StatusStrip({
             ? 'Live'
             : connection === 'loading'
               ? 'Connecting'
-              : 'Offline'
+              : status.offlineSince !== null
+                ? `Offline since ${formatClock(new Date(status.offlineSince)).time}`
+                : 'Offline'
           : null}
       </span>
       {children}

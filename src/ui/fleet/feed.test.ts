@@ -186,6 +186,60 @@ describe('startFleetPanelFeed', () => {
     bad.feed.stop();
   });
 
+  test('a machine event during an in-flight snapshot loads one more after it', async () => {
+    let release: (r: Response) => void = () => {};
+    const held = new Promise<Response>((r) => {
+      release = r;
+    });
+    const h = harness([
+      () => Response.json(snapshot()),
+      // The 20 s place refresh, read before the mark-down committed: it still says active.
+      () => held as unknown as Response,
+      () => Response.json(snapshot('down')),
+    ]);
+    await vi.waitFor(() => expect(h.last()?.loaded).toBe(true));
+    const pending = h.feed.refetch();
+    await settle();
+    h.rt.emit({
+      event: 'machine',
+      seq: 2,
+      payload: { machineId: C1, status: 'down', downReason: 'Engine', downAt: null, by: 'Dana' },
+    });
+    expect(h.last().machines[0]?.status).toBe('down');
+    release(Response.json(snapshot('active')));
+    await pending;
+    expect(h.fetch).toHaveBeenCalledTimes(3);
+    expect(h.last().machines[0]?.status).toBe('down');
+    h.feed.stop();
+  });
+
+  test('an unreachable server keeps the list and says since when', async () => {
+    let up = true;
+    const fetch = vi.fn(async () => {
+      if (!up) throw new TypeError('Failed to fetch');
+      return Response.json(snapshot());
+    });
+    const states: PanelState[] = [];
+    const feed = startFleetPanelFeed({
+      onState: (s) => states.push(s),
+      realtimeFor: () => ({ client: new FakeRealtime(), connected: () => false }),
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      pollMs: 60_000,
+      now: () => Date.parse('2026-11-30T20:29:00Z'),
+    });
+    await vi.waitFor(() => expect(states.at(-1)?.loaded).toBe(true));
+    up = false;
+    await feed.refetch();
+    expect(states.at(-1)?.error).toBe(
+      "Can't reach the farm PC since 3:29 PM: showing last known positions",
+    );
+    expect(states.at(-1)?.machines).toHaveLength(1);
+    up = true;
+    await feed.refetch();
+    expect(states.at(-1)?.error).toBeNull();
+    feed.stop();
+  });
+
   test('nothing is reported after stop', async () => {
     const h = harness([() => Response.json(snapshot())]);
     h.feed.stop();

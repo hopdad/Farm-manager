@@ -140,6 +140,42 @@ describe('startFleetFeed', () => {
     expect(live.subscribers()).toBe(0);
   });
 
+  test('the server gone while realtime is down: unavailable since the first failure, markers kept', async () => {
+    const m = model();
+    let up = true;
+    const patches: FleetFeedPatch[] = [];
+    let wall = 1_000_000;
+    const stop = startFleetFeed({
+      model: m,
+      realtime: deadRealtime(),
+      fetch: (async () => {
+        if (!up) throw new TypeError('Failed to fetch');
+        return Response.json({ ts: new Date(T0).toISOString(), machines: [machine()] });
+      }) as typeof globalThis.fetch,
+      onChange: (p) => patches.push(p),
+      wallNow: () => wall,
+    });
+    await vi.advanceTimersByTimeAsync(FIRST_SNAPSHOT_GRACE_MS);
+    expect(patches.at(-1)).toMatchObject({ connection: 'live', offlineSince: null });
+    up = false;
+    const firstFailure = wall + STALE_CHECK_MS;
+    for (let i = 0; i < 3; i++) {
+      wall += STALE_CHECK_MS;
+      await vi.advanceTimersByTimeAsync(STALE_CHECK_MS);
+    }
+    expect(patches.at(-1)).toMatchObject({
+      connection: 'unavailable',
+      offlineSince: firstFailure,
+      error: 'Failed to fetch',
+    });
+    expect(m.size).toBe(1);
+    up = true;
+    wall += STALE_CHECK_MS;
+    await vi.advanceTimersByTimeAsync(STALE_CHECK_MS);
+    expect(patches.at(-1)).toMatchObject({ connection: 'live', offlineSince: null, error: null });
+    stop();
+  });
+
   test('a failing snapshot reports unavailable while nothing is on the map', async () => {
     const m = model();
     const patches: FleetFeedPatch[] = [];

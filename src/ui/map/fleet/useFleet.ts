@@ -22,6 +22,8 @@ export interface FleetStatus {
   lastSnapshotAt: number | null;
   lastTickAt: number | null;
   error: string | null;
+  /** Since when (wall ms) the server can't be reached; null when fine. */
+  offlineSince: number | null;
 }
 
 export function useFleet(opts: {
@@ -45,6 +47,7 @@ export function useFleet(opts: {
     lastSnapshotAt: null,
     lastTickAt: null,
     error: null,
+    offlineSince: null,
   });
 
   useEffect(

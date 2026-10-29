@@ -36,9 +36,26 @@ import css from './weather.module.css';
 const TOPICS = ['weather', 'spray'] as const;
 const WALL_HOURS = 12;
 
-function ModeBadges({ strip }: { strip: WeatherStripPayload }) {
+/** The strip's hours from the start of the current hour on (an old payload keeps past hours). */
+function upcomingHours(strip: WeatherStripPayload, now: number): WeatherStripHour[] {
+  const hourStart = Math.floor(now / 3_600_000) * 3_600_000;
+  return strip.hours.filter((h) => Date.parse(h.validAt) >= hourStart);
+}
+
+function ModeBadges({
+  strip,
+  notUpdatedSince,
+}: {
+  strip: WeatherStripPayload;
+  notUpdatedSince: number | null;
+}) {
   return (
     <span className={css.badges}>
+      {notUpdatedSince !== null && (
+        <span className={`${css.badge} ${css.badgeWarn}`} data-testid="weather-not-updated">
+          Not updated since {fmtClock(new Date(notUpdatedSince).toISOString())}
+        </span>
+      )}
       {strip.mode === 'sim' && <span className={css.badge}>Simulated weather</span>}
       {strip.mode === 'replay' && <span className={css.badge}>Replay</span>}
       {strip.mode === 'off' && <span className={`${css.badge} ${css.badgeWarn}`}>Weather off</span>}
@@ -51,9 +68,17 @@ function ModeBadges({ strip }: { strip: WeatherStripPayload }) {
   );
 }
 
-function NowBlock({ strip, now }: { strip: WeatherStripPayload; now: number }) {
+function NowBlock({
+  strip,
+  now,
+  notUpdatedSince,
+}: {
+  strip: WeatherStripPayload;
+  now: number;
+  notUpdatedSince: number | null;
+}) {
   const o = strip.now;
-  const first = strip.hours[0] ?? null;
+  const first = upcomingHours(strip, now)[0] ?? null;
   const temp = o?.tempF ?? first?.tempF ?? null;
   const wind = o?.windMph ?? first?.windMph ?? null;
   const gust = o ? o.gustMph : (first?.gustMph ?? null);
@@ -72,7 +97,7 @@ function NowBlock({ strip, now }: { strip: WeatherStripPayload; now: number }) {
             ? `forecast ${fmtClock(strip.issuedAt)}`
             : 'waiting for the first forecast'}
       </span>
-      <ModeBadges strip={strip} />
+      <ModeBadges strip={strip} notUpdatedSince={notUpdatedSince} />
     </div>
   );
 }
@@ -167,10 +192,12 @@ function SprayToggle({ strip }: { strip: WeatherStripPayload }) {
 function PhoneSheet({
   strip,
   now,
+  notUpdatedSince,
   onClose,
 }: {
   strip: WeatherStripPayload;
   now: number;
+  notUpdatedSince: number | null;
   onClose(): void;
 }) {
   const [logging, setLogging] = useState(false);
@@ -182,16 +209,18 @@ function PhoneSheet({
           Close
         </button>
       </div>
-      <NowBlock strip={strip} now={now} />
+      <NowBlock strip={strip} now={now} notUpdatedSince={notUpdatedSince} />
       <div className={css.days}>
         {strip.days.map((d) => (
           <DayBlock key={d.date} d={d} />
         ))}
       </div>
       <div className={css.hours}>
-        {strip.hours.slice(0, WALL_HOURS).map((h) => (
-          <HourCell key={h.validAt} h={h} />
-        ))}
+        {upcomingHours(strip, now)
+          .slice(0, WALL_HOURS)
+          .map((h) => (
+            <HourCell key={h.validAt} h={h} />
+          ))}
       </div>
       <SprayToggle strip={strip} />
       <SoilBlock strip={strip} />
@@ -212,7 +241,11 @@ function PhoneSheet({
 }
 
 export function WeatherStrip({ variant }: { variant: 'wall' | 'phone' }) {
-  const { data: strip, error } = useLiveJson<WeatherStripPayload>('/api/weather/strip', TOPICS);
+  const {
+    data: strip,
+    error,
+    loadedAt,
+  } = useLiveJson<WeatherStripPayload>('/api/weather/strip', TOPICS);
   const now = useNowTick(30_000);
   const [open, setOpen] = useState(false);
 
@@ -227,8 +260,10 @@ export function WeatherStrip({ variant }: { variant: 'wall' | 'phone' }) {
     ) : null;
   }
 
+  // The farm PC can't be reached: keep the last strip, say since when, drop hours gone by.
+  const notUpdatedSince = error ? loadedAt : null;
   if (variant === 'phone') {
-    const first = strip.hours[0] ?? null;
+    const first = upcomingHours(strip, now)[0] ?? null;
     const today = strip.days[0] ?? null;
     return (
       <>
@@ -259,7 +294,14 @@ export function WeatherStrip({ variant }: { variant: 'wall' | 'phone' }) {
             </span>
           )}
         </button>
-        {open && <PhoneSheet strip={strip} now={now} onClose={() => setOpen(false)} />}
+        {open && (
+          <PhoneSheet
+            strip={strip}
+            now={now}
+            notUpdatedSince={notUpdatedSince}
+            onClose={() => setOpen(false)}
+          />
+        )}
       </>
     );
   }
@@ -272,7 +314,7 @@ export function WeatherStrip({ variant }: { variant: 'wall' | 'phone' }) {
       data-issued-at={strip.issuedAt ?? ''}
     >
       <div className={css.stripRow}>
-        <NowBlock strip={strip} now={now} />
+        <NowBlock strip={strip} now={now} notUpdatedSince={notUpdatedSince} />
         {strip.days.map((d) => (
           <DayBlock key={d.date} d={d} />
         ))}
@@ -280,9 +322,11 @@ export function WeatherStrip({ variant }: { variant: 'wall' | 'phone' }) {
         <SprayToggle strip={strip} />
       </div>
       <div className={css.hours} data-testid="weather-hours">
-        {strip.hours.slice(0, WALL_HOURS).map((h) => (
-          <HourCell key={h.validAt} h={h} />
-        ))}
+        {upcomingHours(strip, now)
+          .slice(0, WALL_HOURS)
+          .map((h) => (
+            <HourCell key={h.validAt} h={h} />
+          ))}
       </div>
     </div>
   );

@@ -15,6 +15,8 @@ export interface LiveJson<T> {
   /** Last error (HTTP status text, 'offline'); the last good data stays. */
   error: string | null;
   status: number | null;
+  /** When (wall ms) `data` was loaded; with `error` set, the screen is showing old data. */
+  loadedAt: number | null;
   refetch(): void;
 }
 
@@ -31,6 +33,7 @@ export function useLiveJson<T extends { realtime: RealtimeKind }>(
     data: null,
     error: null,
     status: null,
+    loadedAt: null,
   });
   const refetchRef = useRef<() => void>(() => {});
   const key = topics.join(',');
@@ -59,7 +62,7 @@ export function useLiveJson<T extends { realtime: RealtimeKind }>(
           }));
           return;
         }
-        setState({ data: body, error: null, status: res.status });
+        setState({ data: body, error: null, status: res.status, loadedAt: Date.now() });
         subscribe(body.realtime);
       } catch {
         if (!stopped && !mine.signal.aborted) {

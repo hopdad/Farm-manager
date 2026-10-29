@@ -10,11 +10,18 @@
  * Ticks carry positions, not geofence visits: while ticks keep arriving the list is also
  * refetched at most every `placeRefreshMs`, so "At Kestrel Grain" doesn't outlive the visit.
  *
+ * A `machine` event that arrives while a snapshot is in flight queues one more fetch: that
+ * snapshot may have been read before the change committed and would undo it.
+ *
+ * When the farm PC can't be reached (fetch fails at the network level) the panel keeps the last
+ * list and says since when, instead of the browser's raw "Failed to fetch".
+ *
  * Realtime needs the server's config (which adapter), so the subscription starts after the
  * first snapshot.
  */
 import { fleetTickSchema } from '../../domain/fleet';
 import type { RealtimeClient } from '../../platform/realtime/types';
+import { formatClock } from '../board/format';
 import { type FleetPanelData, fleetPanelDataSchema, MACHINES_URL } from './contract';
 import { initialPanelState, type PanelAction, type PanelState, reducePanel } from './model';
 
@@ -22,6 +29,14 @@ import { initialPanelState, type PanelAction, type PanelState, reducePanel } fro
 export const PANEL_POLL_MS = 5_000;
 /** While ticks arrive, refetch at most this often (geofence places, field names). */
 export const PLACE_REFRESH_MS = 20_000;
+
+/** The notice while the server can't be reached (`since`: wall ms of the first failure). */
+export function unreachableMessage(since: number, haveList: boolean): string {
+  const at = formatClock(new Date(since)).time;
+  return haveList
+    ? `Can't reach the farm PC since ${at}: showing last known positions`
+    : `Can't reach the farm PC (since ${at})`;
+}
 
 export interface PanelRealtime {
   client: RealtimeClient;
@@ -56,6 +71,7 @@ export function startFleetPanelFeed(opts: FleetPanelFeedOptions): FleetPanelFeed
   let realtime: PanelRealtime | null = null;
   const wallNow = opts.now ?? (() => Date.now());
   let lastSnapshotAt = Number.NEGATIVE_INFINITY;
+  let unreachableSince: number | null = null;
   let unsubscribe: (() => void) | null = null;
 
   const dispatch = (action: PanelAction) => {
@@ -73,6 +89,8 @@ export function startFleetPanelFeed(opts: FleetPanelFeedOptions): FleetPanelFeed
       (evt) => {
         if (evt.event === 'machine') {
           dispatch({ type: 'machine', payload: evt.payload });
+          // A snapshot already in flight may predate this change: load one more after it.
+          if (inflight) again = true;
         } else if (evt.event === 'tick') {
           const parsed = fleetTickSchema.safeParse(evt.payload);
           if (!parsed.success) return;
@@ -114,12 +132,20 @@ export function startFleetPanelFeed(opts: FleetPanelFeedOptions): FleetPanelFeed
         if (!parsed.success) throw new Error('Fleet unavailable (unexpected response)');
         if (stopped) return;
         lastSnapshotAt = wallNow();
+        unreachableSince = null;
         dispatch({ type: 'snapshot', data: parsed.data });
         subscribe(parsed.data.config);
       } while (again && !stopped);
     } catch (e) {
       if (stopped || abort.signal.aborted) return;
-      dispatch({ type: 'error', message: (e as Error).message });
+      // fetch() rejects with a TypeError ("Failed to fetch", "Load failed") when the server
+      // can't be reached at all; HTTP and parse problems already have readable messages.
+      if (e instanceof TypeError) {
+        unreachableSince ??= wallNow();
+        dispatch({ type: 'error', message: unreachableMessage(unreachableSince, state.loaded) });
+      } else {
+        dispatch({ type: 'error', message: (e as Error).message });
+      }
     } finally {
       inflight = false;
     }

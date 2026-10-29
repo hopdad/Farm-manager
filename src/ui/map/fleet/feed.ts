@@ -10,6 +10,10 @@
  *    map degrades to polling instead of staying blank or frozen.
  *  - Every `pollMs` staleness is re-evaluated against the browser clock (contracts §7), so
  *    "trucks API down" turns the trucks stale even when no tick arrives.
+ *  - A failed snapshot while realtime can't deliver either (the farm PC is unreachable) reports
+ *    `unavailable` with `offlineSince` (the first failure), even with markers on the map: they
+ *    stay as last known positions, and the status strip says since when. A snapshot that
+ *    succeeds, or a tick, clears it.
  */
 import { fleetTickSchema } from '../../../domain/fleet';
 import type { FleetModel } from './model';
@@ -29,6 +33,8 @@ export interface FleetFeedPatch {
   lastSnapshotAt?: number | null;
   lastTickAt?: number | null;
   error?: string | null;
+  /** Wall clock (ms) of the first failure since the feed last heard from the server; null when fine. */
+  offlineSince?: number | null;
 }
 
 export interface FleetFeedOptions {
@@ -55,6 +61,7 @@ export function startFleetFeed(opts: FleetFeedOptions): () => void {
   let inflight = false;
   let again = false;
   let loaded = false;
+  let offlineSince: number | null = null;
   const abort = new AbortController();
   const report = (patch: FleetFeedPatch) => {
     if (!disposed) onChange(patch);
@@ -80,13 +87,22 @@ export function startFleetFeed(opts: FleetFeedOptions): () => void {
         if (disposed) return;
         model.applySnapshot(parsed.data.machines, animationNow());
         loaded = true;
-        report({ connection: 'live', lastSnapshotAt: wallNow(), error: null });
+        offlineSince = null;
+        report({ connection: 'live', lastSnapshotAt: wallNow(), error: null, offlineSince: null });
       } while (again && !disposed);
     } catch (e) {
       if (disposed || abort.signal.aborted) return;
       const error = (e as Error).message;
       console.warn('[fleet] snapshot failed:', error);
-      report({ connection: model.size > 0 ? 'live' : 'unavailable', error });
+      // Live only while events still arrive and there is something to show; otherwise the
+      // screens say the fleet is not updating (and since when).
+      const live = model.size > 0 && realtime.connected();
+      if (!live) offlineSince ??= wallNow();
+      report({
+        connection: live ? 'live' : 'unavailable',
+        error,
+        offlineSince: live ? null : offlineSince,
+      });
     } finally {
       inflight = false;
     }
@@ -102,7 +118,8 @@ export function startFleetFeed(opts: FleetFeedOptions): () => void {
         return;
       }
       model.applyTick(parsed.data.machines, animationNow());
-      report({ connection: 'live', lastTickAt: wallNow() });
+      offlineSince = null;
+      report({ connection: 'live', lastTickAt: wallNow(), offlineSince: null });
     },
     { onResync: () => void refetch() },
   );
