@@ -51,8 +51,8 @@ function KioskSteps({ kiosk, deviceName }: { kiosk: KioskView; deviceName: strin
     <div className={css.stack} data-testid="enroll-kiosk">
       <h3>On this PC (wall kiosk)</h3>
       <p>
-        1. In PowerShell on this PC, run this once: it opens the kiosk&apos;s own Chrome profile on
-        this code.
+        1. Close the kiosk if it is running (Alt+F4). In PowerShell on this PC, run this once: it
+        opens the kiosk&apos;s own Chrome profile on this code.
       </p>
       <Command text={kiosk.enroll} testId="enroll-kiosk-command" />
       <p>

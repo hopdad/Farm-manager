@@ -48,7 +48,8 @@ the enrollment is opened in the kiosk's profile, on `localhost`:
 
 1. On the PC, open **Devices** (`/admin/devices`), add a device: name `Shop wall`, kind
    **Wall display**. The code panel (valid one hour) starts with **On this PC (wall kiosk)**.
-2. Copy its first command into PowerShell (one line; the panel's has your code in place of
+2. Close the kiosk if it is running (Alt+F4: a running kiosk would swallow the command). Copy
+   the panel's first command into PowerShell (one line; the panel's has your code in place of
    `K7QD2M9XPA`). It opens the kiosk's profile, **without** kiosk mode, on the code:
 
    ```powershell

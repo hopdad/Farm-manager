@@ -91,9 +91,9 @@ after.
 2. **The wall display (this PC):** on **/admin/devices** add a device of kind *Wall display*.
    The kiosk is a Chrome with its own profile on `localhost`, and a sign-in belongs to one
    profile and one address, so don't click the panel's link or scan its QR code (those are for
-   other screens). Instead, once, paste the panel's **On this PC (wall kiosk)** command into
-   PowerShell; it opens the kiosk's profile on the code over `localhost` (your code in place of
-   `K7QD2M9XPA`):
+   other screens). Instead, once, close the kiosk if it is running (Alt+F4), then paste the
+   panel's **On this PC (wall kiosk)** command into PowerShell; it opens the kiosk's profile on
+   the code over `localhost` (your code in place of `K7QD2M9XPA`):
 
    ```powershell
    & "C:\Program Files\Google\Chrome\Application\chrome.exe" --no-first-run "--user-data-dir=$env:LOCALAPPDATA\farm-kiosk" "http://localhost:3000/enroll?code=K7QD2M9XPA"
