@@ -1,0 +1,21 @@
+/* /admin/devices: the one-time enrollment code panel. */
+
+.codeLink {
+  overflow-wrap: anywhere;
+  color: #86efac;
+}
+
+.bigCode {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.qr {
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  background: #fff;
+  border-radius: 12px;
+}

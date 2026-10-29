@@ -6,6 +6,7 @@
  */
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
+import { SessionChip } from '../../app/login/_components/SessionChip';
 import type { FleetFrame } from '../map/fleet/model';
 import { KIND_COLORS, KIND_LABELS } from '../map/fleet/style';
 import { type FleetStatus, useFleet } from '../map/fleet/useFleet';
@@ -172,6 +173,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
       data-testid={variant === 'wall' ? 'board' : 'phone-board'}
     >
       <StatusStrip status={status} variant={variant} />
+      <SessionChip variant={variant} />
       <div className={css.mapArea}>
         <WarRoomMap
           data={data}

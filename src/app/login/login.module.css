@@ -1,0 +1,337 @@
+/*
+ * /login, /login/setup and /enroll: touch-first (the wall's 72 px targets, a gloved thumb on a
+ * cab iPad), readable on a phone. Same palette as the board and the admin pages.
+ */
+
+.page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24px 16px 48px;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 20px;
+}
+
+.brand {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #86efac;
+  font-size: 20px;
+  text-decoration: none;
+}
+
+.title {
+  margin: 0;
+  font-size: 30px;
+  text-align: center;
+}
+
+.lead {
+  margin: 0;
+  color: #9db3a6;
+  text-align: center;
+  max-width: 640px;
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+.cards {
+  width: 100%;
+  max-width: 1100px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.card {
+  background: #111c18;
+  border: 1px solid #1f2d27;
+  border-radius: 18px;
+  padding: 22px;
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.narrow {
+  width: 100%;
+  max-width: 640px;
+  box-sizing: border-box;
+}
+
+.full {
+  width: 100%;
+  max-width: 1100px;
+  box-sizing: border-box;
+}
+
+.spread {
+  justify-content: space-between;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.muted {
+  color: #9db3a6;
+  font-size: 15px;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.banner {
+  width: 100%;
+  max-width: 1100px;
+  box-sizing: border-box;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 1px solid #8b3131;
+  background: #2a1414;
+  color: #fecaca;
+  font-size: 17px;
+}
+
+.bannerOk {
+  border-color: #22a355;
+  background: #0f2a1a;
+  color: #bbf7d0;
+}
+
+.form {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.button {
+  min-height: 64px;
+  min-width: 64px;
+  padding: 0 22px;
+  border-radius: 14px;
+  border: 1px solid #2f4a3e;
+  background: #1a2b24;
+  color: #e7efe9;
+  font-size: 19px;
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button:hover:not(:disabled),
+.button:focus-visible {
+  background: #22392f;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.primary {
+  background: #166534;
+  border-color: #22a355;
+}
+
+.primary:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.danger {
+  background: #4a1d1d;
+  border-color: #8b3131;
+}
+
+.wide {
+  width: 100%;
+}
+
+.input {
+  min-height: 64px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid #2f4a3e;
+  background: #0b1210;
+  color: #e7efe9;
+  font-size: 24px;
+  letter-spacing: 0.08em;
+}
+
+.input:focus-visible {
+  outline: 3px solid #22a355;
+  outline-offset: 1px;
+}
+
+.label {
+  display: grid;
+  gap: 6px;
+  font-size: 16px;
+  color: #cfe3d6;
+}
+
+/* PIN pad: names, then digits. */
+
+.names {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 12px;
+}
+
+.name {
+  min-height: 72px;
+  box-sizing: border-box;
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 14px;
+  border: 1px solid #2f4a3e;
+  background: #15221d;
+  color: #e7efe9;
+  font-size: 20px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.name small {
+  color: #9db3a6;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.nameLocked small {
+  color: #fca5a5;
+}
+
+.picked {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.keys {
+  border: none;
+  padding: 0;
+  min-inline-size: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 420px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.key {
+  min-height: 72px;
+  border-radius: 16px;
+  border: 1px solid #2f4a3e;
+  background: #1a2b24;
+  color: #e7efe9;
+  font-size: 28px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.key:active {
+  background: #22392f;
+}
+
+.pinField {
+  max-width: 420px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.message {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: 17px;
+  color: #fca5a5;
+  text-align: center;
+}
+
+.qr {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  background: #fff;
+  border-radius: 12px;
+}
+
+.code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  overflow-wrap: anywhere;
+}
+
+.link {
+  color: #86efac;
+  overflow-wrap: anywhere;
+}
+
+/* The signed-in chip over the board and /m (one minimal mount in BoardScreen). */
+
+.chip {
+  position: fixed;
+  top: calc(var(--strip, 72px) + 10px);
+  right: 10px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(60vw, 520px);
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  background: rgb(11 18 16 / 88%);
+  color: #e7efe9;
+  font-size: calc(var(--font, 18px) * 0.8);
+  text-decoration: none;
+  white-space: nowrap;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chipPhone {
+  /* /m: the map's controls sit at the top right and its status badges at the top centre. */
+  top: calc(var(--strip, 52px) + 62px);
+  right: auto;
+  left: 10px;
+  min-height: 44px;
+  max-width: min(62vw, 360px);
+}
+
+.chipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 650;
+}
+
+.chipAction {
+  color: #86efac;
+  font-weight: 650;
+}
