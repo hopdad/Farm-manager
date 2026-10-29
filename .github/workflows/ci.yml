@@ -1,0 +1,144 @@
+# CI (docs/build-plan.md §6 M0 "GitHub Actions" and §7 "CI notes").
+#
+#   linux    every push and PR: lint, typecheck, unit tests, bootstrap against the pinned
+#            database image (migrate, configure, seed, synthetic basemap, sim connect), DB tests,
+#            migrations from zero twice (db:lint), production build. Nightly: every scenario
+#            headless with --assert.
+#   e2e      pull requests (and by hand): the same setup, then Playwright (Chromium) against
+#            `pnpm pilot --skip-build`, which playwright.config.ts starts.
+#   windows  pushes to main, nightly and by hand (Windows minutes count double): lint,
+#            typecheck, unit tests and `bootstrap --dry-run` (no Linux database on Windows
+#            runners; the PC covers that).
+#
+# pnpm comes from package.json's exact `packageManager` pin (pnpm/action-setup reads it); Node 24
+# matches .node-version and engines.node.
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '17 6 * * *' # nightly, 06:17 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The CI database container's postgres password (throwaway; the service never leaves the runner).
+  CI_DB_PASSWORD: farm-ci-only-not-a-secret
+  CI_DB_PORT: '15432'
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  linux:
+    name: Linux (lint, types, unit, DB, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      db:
+        image: supabase/postgres:17.11.0.008
+        env:
+          POSTGRES_PASSWORD: farm-ci-only-not-a-secret
+        ports: ['15432:5432']
+        # The image's own healthcheck gives up after ~20 s; the first boot runs Supabase's init
+        # scripts (1-3 min), during which only the Unix socket listens.
+        options: >-
+          --health-cmd "pg_isready -U postgres -h localhost"
+          --health-interval 5s --health-timeout 5s --health-retries 60 --health-start-period 180s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version: package.json "packageManager"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Env files for the service database
+        run: printf 'DB_PASSWORD=%s\nDB_PORT=%s\n' "$CI_DB_PASSWORD" "$CI_DB_PORT" > .env
+      - name: Bootstrap (migrate, configure, db:check, seed, synthetic basemap, sim connect)
+        run: pnpm run bootstrap --db=external --synthetic-basemap
+      - run: pnpm test:db
+      - name: Migrations from zero, twice, in a brand-new database
+        run: pnpm db:lint
+      - run: pnpm build
+      - name: Scenarios headless (nightly)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          for s in harvest-day winter-idle planting-day spray-windy breakdown bad-morning; do
+            pnpm sim:scenario "$s" --speed 60 --days 2 --assert
+          done
+
+  e2e:
+    name: Linux e2e (Playwright, Chromium)
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    services:
+      db:
+        image: supabase/postgres:17.11.0.008
+        env:
+          POSTGRES_PASSWORD: farm-ci-only-not-a-secret
+        ports: ['15432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -h localhost"
+          --health-interval 5s --health-timeout 5s --health-retries 60 --health-start-period 180s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version: package.json "packageManager"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Env files for the service database
+        run: printf 'DB_PASSWORD=%s\nDB_PORT=%s\n' "$CI_DB_PASSWORD" "$CI_DB_PORT" > .env
+      - name: Bootstrap (migrate, configure, seed, synthetic basemap, sim connect)
+        run: pnpm run bootstrap --db=external --synthetic-basemap
+      - name: Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Chromium for Playwright
+        run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - name: End-to-end (starts pnpm pilot --skip-build)
+        run: pnpm test:e2e
+      - name: Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  windows:
+    name: Windows (lint, types, unit, bootstrap --dry-run)
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version: package.json "packageManager"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Bootstrap dry run (no Docker database, no env files)
+        run: pnpm run bootstrap --dry-run
