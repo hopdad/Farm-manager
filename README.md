@@ -214,10 +214,14 @@ to the simulation.
 4. **Weather**: the strip at the bottom of the board. On **/admin/spray** drag the simulated
    wind to 20 mph and press **Apply to the simulated forecast**: within seconds every field turns no-go ("Wind 2x mph (limit
    10)"); turn on *Spray go/no-go* in the layer rail to see the colours. Set it back to 5.
-5. **Your data**: `pnpm import:boundaries tools\import\templates\boundaries-example.geojson` and
-   `pnpm import:seasons tools\import\templates\seasons-example.csv` (two made-up fields west of
-   the demo farm); upload `tools\import\templates\parties-example.csv` on **/admin/parties**.
-   Then `pnpm data:export`, `pnpm db:reset`, `pnpm data:import <the file>`: everything is back.
+5. **Your data**: `pnpm import:boundaries tools\import\templates\boundaries-example.geojson`
+   (two made-up 80s, *Prospect South 80* and *Prospect North 80*, about 20 miles west-southwest
+   of Adrian), then `pnpm import:seasons tools\import\templates\seasons-example.csv` (their
+   crop years 2021-2025). Reload the board (F5): it opens on all the fields, the two prospects
+   at its west edge. Zoom in and tap *Prospect South 80*: its panel lists the five seasons you
+   imported (newest first), and so does its **History** tab. Upload
+   `tools\import\templates\parties-example.csv` on **/admin/parties**. Then `pnpm data:export`,
+   `pnpm db:reset`, `pnpm data:import <the file>`: everything is back.
 6. **Layers**: soils, drainage tile, parcels and aerial photos from the rail. Unplug the
    router's internet (WAN) cable: everything but the online aerial photos keeps working, and
    those say "offline".

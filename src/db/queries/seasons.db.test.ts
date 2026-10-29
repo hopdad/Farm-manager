@@ -110,9 +110,21 @@ describe('importSeasons', () => {
 describe('the README demo files (M1 demo, step 5)', () => {
   test('boundaries-example.geojson, then seasons-example.csv: each new field shows 5 seasons', async () => {
     const { pool } = t();
-    const templates = path.join(import.meta.dirname, '..', '..', '..', 'tools', 'import', 'templates');
-    const geojson = new Uint8Array(await readFile(path.join(templates, 'boundaries-example.geojson')));
-    const parsed = await parseBoundaryFiles([{ name: 'boundaries-example.geojson', bytes: geojson }]);
+    const templates = path.join(
+      import.meta.dirname,
+      '..',
+      '..',
+      '..',
+      'tools',
+      'import',
+      'templates',
+    );
+    const geojson = new Uint8Array(
+      await readFile(path.join(templates, 'boundaries-example.geojson')),
+    );
+    const parsed = await parseBoundaryFiles([
+      { name: 'boundaries-example.geojson', bytes: geojson },
+    ]);
     const b = await importBoundaries(pool, parsed.boundaries);
     expect(b.items.map((i) => [i.name, i.action])).toEqual([
       ['Prospect South 80', 'create'],
@@ -123,7 +135,10 @@ describe('the README demo files (M1 demo, step 5)', () => {
     expect(s).toMatchObject({ written: true, counts: { insert: 10, error: 0 } });
     for (const item of b.items) {
       const detail = await fieldDetail(pool, item.fieldId as string);
-      expect(detail?.seasons.map((x) => x.cropYear), item.name).toEqual([2025, 2024, 2023, 2022, 2021]);
+      expect(
+        detail?.seasons.map((x) => x.cropYear),
+        item.name,
+      ).toEqual([2025, 2024, 2023, 2022, 2021]);
     }
   });
 });
