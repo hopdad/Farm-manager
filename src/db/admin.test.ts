@@ -60,6 +60,7 @@ describe('db admin helpers (no database)', () => {
       '0001_m0_tables',
       '0002_m0_functions',
       '0003_m1_see_it',
+      '0004_m1_integration',
     ]);
     // drizzle-kit applies a migration only when its `when` is later than the last applied one.
     const whens = journal.map((e) => e.when);

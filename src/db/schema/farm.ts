@@ -579,6 +579,12 @@ export const sprayAssessments = farm.table(
       t.forHour.desc(),
       t.assessedAt.desc(),
     ),
+    // Forecast retention's anti-join (weather.nws, contracts-m1 §13; migration 0004).
+    index('spray_assessments_grid_id_forecast_issued_at_for_hour_idx').on(
+      t.gridId,
+      t.forecastIssuedAt,
+      t.forHour,
+    ),
     check('spray_assessments_verdict_check', sql`${t.verdict} in (${inList(SPRAY_VERDICTS)})`),
     check(
       'spray_assessments_for_hour_check',

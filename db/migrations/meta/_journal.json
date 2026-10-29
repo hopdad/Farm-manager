@@ -29,6 +29,13 @@
       "when": 1793188980000,
       "tag": "0003_m1_see_it",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793285110506,
+      "tag": "0004_m1_integration",
+      "breakpoints": true
     }
   ]
 }
