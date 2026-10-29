@@ -1,0 +1,231 @@
+/* Field-data admin pages (/admin/fields, /admin/parties): on top of ../admin.module.css. */
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+}
+
+.label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: #9db3a6;
+}
+
+.input,
+.textarea {
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid #2f4a3e;
+  background: #0b1210;
+  color: #e7efe9;
+  font-size: 16px;
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.textarea {
+  min-height: 96px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.input:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid #4ade80;
+  outline-offset: 1px;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #2f4a3e;
+  background: #15221d;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid #2f4a3e;
+  color: #cfe3d6;
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.tabOn {
+  background: #14532d;
+  border-color: #4ade80;
+  color: #f0fdf4;
+}
+
+.link {
+  color: #86efac;
+}
+
+.note {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid #a16207;
+  background: #2a2008;
+  color: #fde68a;
+  margin-bottom: 12px;
+}
+
+.drop {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 2px dashed #2f4a3e;
+  border-radius: 14px;
+  background: #0f1a16;
+}
+
+.dropActive {
+  border-color: #4ade80;
+}
+
+.report td.create,
+.report td.insert {
+  color: #86efac;
+}
+
+.report td.update {
+  color: #fde68a;
+}
+
+.report td.skip,
+.report td.error {
+  color: #fca5a5;
+}
+
+.report td.unchanged,
+.report td.blocked {
+  color: #9db3a6;
+}
+
+.problems {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.mapWrap {
+  position: relative;
+  height: min(70vh, 640px);
+  min-height: 360px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #1f2d27;
+  background: #18211d;
+}
+
+.map {
+  /* MapLibre makes its container position: relative, so size it explicitly. */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.toolbar {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: calc(100% - 20px);
+}
+
+.toolbar button {
+  box-shadow: 0 4px 14px rgb(0 0 0 / 40%);
+}
+
+.hint {
+  position: absolute;
+  left: 10px;
+  /* Above MapLibre's attribution line. */
+  bottom: 40px;
+  z-index: 2;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgb(11 18 16 / 88%);
+  font-size: 14px;
+  max-width: calc(100% - 20px);
+}
+
+.pieces {
+  display: grid;
+  gap: 8px;
+}
+
+.muted {
+  color: #9db3a6;
+  font-size: 14px;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.splitWide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 900px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.historyTable td,
+.historyTable th {
+  white-space: nowrap;
+}
+
+.wallButton {
+  min-height: 72px;
+  min-width: 72px;
+  font-size: 19px;
+}

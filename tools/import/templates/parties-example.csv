@@ -1,0 +1,5 @@
+display_name,kind,roles,phone,email,address,notes,org
+River Bend Land LLC,org,landlord,517-555-0140,office@riverbend.example,"1200 River Rd, Adrian MI 49221",Cash rent paid each March,
+Joan Albrecht,person,landlord,517-555-0188,,,Prefers a phone call,River Bend Land LLC
+Piotrowski Farms,org,customer,734-555-0102,,,Custom spraying and harvest,
+Casey Morgan,person,crew,517-555-0199,casey@example.com,,Seasonal: April to November,
