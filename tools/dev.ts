@@ -22,8 +22,10 @@
  *  - POSIX: each child runs in its own process group (detached), and the group gets SIGTERM, then
  *    SIGKILL after a grace period.
  *  - Windows: children share this console, so Ctrl+C reaches them directly; whatever is still
- *    running after the grace period is killed as a tree with taskkill /T /F, using a process
- *    snapshot taken at shutdown (so descendants of an already-exited parent are found too).
+ *    running after the grace period is killed as a tree with taskkill /T /F. The tree comes from
+ *    a process snapshot taken at shutdown merged with one kept while running (after each start
+ *    and every 30 s): Ctrl+C makes the Next CLI and its server exit while the shutdown snapshot
+ *    is still being taken, and only the earlier rows still link a surviving grandchild to them.
  * Children are Node entry points run with process.execPath (never .cmd shims).
  *
  * `pnpm pilot` (tools/pilot.ts) reuses this launcher with `next build` + `next start`.
@@ -179,7 +181,14 @@ export interface SupervisorOptions {
   prefixOutput?: boolean;
   /** Called when a non-critical child exits on its own. */
   onChildExit?: (name: string, code: number | null) => void;
+  /** Windows: (pid, parent pid) of every process (default: PowerShell's CIM; tests inject one). */
+  processTable?: () => Promise<ProcessRow[]>;
+  /** Windows: refresh the kept process snapshot this often while running (default 30 s). */
+  snapshotEveryMs?: number;
 }
+
+/** (pid, parent pid). */
+export type ProcessRow = [pid: number, ppid: number];
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -219,6 +228,19 @@ export function descendantsOf(
     }
   }
   return [...out];
+}
+
+/**
+ * A process table for shutdown: the fresh one, plus kept rows of processes that have exited
+ * since (they bridge a living grandchild to a root). A kept row whose pid now has another parent
+ * is dropped: Windows reused that id for an unrelated process.
+ */
+export function mergeProcessTables(
+  kept: readonly ProcessRow[],
+  fresh: readonly ProcessRow[],
+): ProcessRow[] {
+  const now = new Set(fresh.map(([pid]) => pid));
+  return [...fresh, ...kept.filter(([pid]) => !now.has(pid))];
 }
 
 /** Windows: (pid, parent pid) of every process, via PowerShell's CIM (wmic is gone in 24H2). */
@@ -309,7 +331,13 @@ export class Supervisor {
   private readonly graceMs: number;
   private readonly prefixOutput: boolean;
   private readonly onChildExit?: (name: string, code: number | null) => void;
+  private readonly processTable: () => Promise<ProcessRow[]>;
+  private readonly snapshotEveryMs: number;
   private readonly children: Managed[] = [];
+  /** Windows: the process table kept while running (see mergeProcessTables). */
+  private kept: ProcessRow[] = [];
+  private snapshotting = false;
+  private snapshotTimer: ReturnType<typeof setInterval> | null = null;
   private stoppingFlag = false;
   private finished!: (code: number) => void;
   /** Resolves with the exit code once everything has stopped. */
@@ -321,6 +349,8 @@ export class Supervisor {
     this.graceMs = opts.graceMs ?? 5_000;
     this.prefixOutput = opts.prefixOutput ?? true;
     this.onChildExit = opts.onChildExit;
+    this.processTable = opts.processTable ?? (() => windowsProcessTable());
+    this.snapshotEveryMs = opts.snapshotEveryMs ?? 30_000;
     this.done = new Promise((r) => {
       this.finished = r;
     });
@@ -381,7 +411,30 @@ export class Supervisor {
       onGone(1);
     });
     this.children.push(m);
+    if (this.platform === 'win32') this.keepSnapshot();
     return m;
+  }
+
+  /** Windows: refresh the kept process table now and every snapshotEveryMs (never blocks exit). */
+  private keepSnapshot(): void {
+    const refresh = () => {
+      if (this.snapshotting || this.stoppingFlag) return;
+      this.snapshotting = true;
+      this.processTable()
+        .then((rows) => {
+          if (rows.length && !this.stoppingFlag) this.kept = rows;
+        })
+        .catch(() => {})
+        .finally(() => {
+          this.snapshotting = false;
+        });
+    };
+    // A moment after a start, when the child has started its own children (next's server).
+    setTimeout(refresh, 2_000).unref();
+    if (!this.snapshotTimer) {
+      this.snapshotTimer = setInterval(refresh, this.snapshotEveryMs);
+      this.snapshotTimer.unref();
+    }
   }
 
   /** Run a child to completion in the foreground (e.g. `next build`); resolves its exit code. */
@@ -399,6 +452,7 @@ export class Supervisor {
   async shutdown(reason: string, code = 0, opts: { fromCtrlC?: boolean } = {}): Promise<void> {
     if (this.stoppingFlag) return;
     this.stoppingFlag = true;
+    if (this.snapshotTimer) clearInterval(this.snapshotTimer);
     this.log(`stopping (${reason})...`);
     const live = this.children.filter((m) => !m.exited).reverse();
     if (this.platform === 'win32') await this.stopWindows(live, opts.fromCtrlC === true);
@@ -438,12 +492,17 @@ export class Supervisor {
   private async stopWindows(live: Managed[], fromCtrlC: boolean): Promise<void> {
     // Only children alive now: an id of a child that exited earlier may belong to someone else.
     const roots = live.map((m) => m.pid).filter((p) => p > 0);
+    if (!roots.length) {
+      // Nothing left to stop: don't pay for a PowerShell snapshot.
+      await Promise.race([Promise.all(live.map((m) => m.done)), sleep(2_000)]);
+      return;
+    }
     // Snapshot the tree first: once a parent exits, taskkill /T can no longer find its children.
-    const tablePromise = windowsProcessTable();
+    const tablePromise = this.processTable().catch((): ProcessRow[] => []);
     if (fromCtrlC) {
       await Promise.race([Promise.all(live.map((m) => m.done)), sleep(this.graceMs)]);
     }
-    const descendants = descendantsOf(await tablePromise, roots);
+    const descendants = descendantsOf(mergeProcessTables(this.kept, await tablePromise), roots);
     for (const m of live) {
       if (!m.exited) killTree(m.pid, { force: true, platform: 'win32' });
     }

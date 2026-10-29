@@ -20,6 +20,7 @@ import {
   DEV_LAUNCH_MARKER,
   descendantsOf,
   markDevLaunch,
+  mergeProcessTables,
   originsDrift,
   parseLaunchArgs,
   phoneUrls,
@@ -34,6 +35,8 @@ import {
 const ENV = childEnv();
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const posixOnly = process.platform === 'win32' ? test.skip : test;
+/** Supervisor tests that also run on Windows, where a shutdown may take a PowerShell snapshot. */
+const SUPERVISOR_TEST_MS = 20_000;
 
 /** Alive and not a zombie (an orphan may wait for a non-reaping init). */
 function alive(pid: number): boolean {
@@ -205,6 +208,27 @@ describe('descendantsOf (Windows process snapshot)', () => {
     expect(descendantsOf(rows, [10, 99]).sort()).toEqual([11, 12, 13]);
     expect(descendantsOf(rows, [15])).toEqual([]);
   });
+
+  test('Ctrl+C: kept rows link a grandchild whose parents exited before the shutdown snapshot', () => {
+    // Kept while running: root 10 (next CLI) -> 11 (its server) -> 12 (a worker).
+    const kept: [number, number][] = [
+      [10, 1],
+      [11, 10],
+      [12, 11],
+      [20, 1],
+    ];
+    // At Ctrl+C, 10 and 11 exit before CIM enumerates; 12 survives; 20 was reused under 5.
+    const fresh: [number, number][] = [
+      [12, 11],
+      [20, 5],
+      [30, 1],
+    ];
+    expect(descendantsOf(fresh, [10])).toEqual([]); // the fresh table alone loses 12
+    const merged = mergeProcessTables(kept, fresh);
+    expect(descendantsOf(merged, [10]).sort()).toEqual([11, 12]);
+    expect(merged).toContainEqual([20, 5]);
+    expect(merged).not.toContainEqual([20, 1]); // a reused id keeps only its new parent
+  });
 });
 
 describe('portInUse and waitUntil', () => {
@@ -288,76 +312,125 @@ describe('Supervisor', () => {
     expect(alive(grandkid)).toBe(false);
   });
 
-  test('a critical child exiting stops everything with its exit code', async () => {
-    const sup = new Supervisor({ log: () => {}, prefixOutput: false, graceMs: 1_000 });
-    const idle = sup.start({
-      name: 'idle',
-      command: process.execPath,
-      args: ['-e', 'setInterval(() => {}, 1000)'],
-      cwd: process.cwd(),
-      env: ENV,
-      critical: false,
-    });
-    sup.start({
-      name: 'next',
-      command: process.execPath,
-      args: ['-e', 'process.exit(3)'],
-      cwd: process.cwd(),
-      env: ENV,
-      critical: true,
-    });
-    expect(await sup.done).toBe(3);
-    await sleep(100);
-    expect(alive(idle.pid)).toBe(false);
-  });
+  test(
+    'a critical child exiting stops everything with its exit code',
+    async () => {
+      const sup = new Supervisor({ log: () => {}, prefixOutput: false, graceMs: 1_000 });
+      const idle = sup.start({
+        name: 'idle',
+        command: process.execPath,
+        args: ['-e', 'setInterval(() => {}, 1000)'],
+        cwd: process.cwd(),
+        env: ENV,
+        critical: false,
+      });
+      sup.start({
+        name: 'next',
+        command: process.execPath,
+        args: ['-e', 'process.exit(3)'],
+        cwd: process.cwd(),
+        env: ENV,
+        critical: true,
+      });
+      expect(await sup.done).toBe(3);
+      await sleep(100);
+      expect(alive(idle.pid)).toBe(false);
+    },
+    SUPERVISOR_TEST_MS,
+  );
 
-  test('a non-critical exit is reported and the rest keeps running; run() returns the code', async () => {
-    const exits: [string, number | null][] = [];
-    const sup = new Supervisor({
-      log: () => {},
-      prefixOutput: false,
-      onChildExit: (name, code) => exits.push([name, code]),
-    });
-    sup.start({
-      name: 'sim',
-      command: process.execPath,
-      args: ['-e', 'process.exit(2)'],
-      cwd: process.cwd(),
-      env: ENV,
-      critical: false,
-    });
-    expect(
-      await sup.run({
-        name: 'build',
+  test(
+    'a non-critical exit is reported and the rest keeps running; run() returns the code',
+    async () => {
+      const exits: [string, number | null][] = [];
+      const sup = new Supervisor({
+        log: () => {},
+        prefixOutput: false,
+        onChildExit: (name, code) => exits.push([name, code]),
+      });
+      sup.start({
+        name: 'sim',
+        command: process.execPath,
+        args: ['-e', 'process.exit(2)'],
+        cwd: process.cwd(),
+        env: ENV,
+        critical: false,
+      });
+      expect(
+        await sup.run({
+          name: 'build',
+          command: process.execPath,
+          args: ['-e', 'process.exit(0)'],
+          cwd: process.cwd(),
+          env: ENV,
+        }),
+      ).toBe(0);
+      await waitUntil(async () => (exits.length ? true : null), {
+        timeoutMs: 3_000,
+        intervalMs: 10,
+      });
+      expect(exits).toEqual([['sim', 2]]); // the foreground build is not reported
+      expect(sup.stopping).toBe(false);
+      await sup.shutdown('done');
+    },
+    SUPERVISOR_TEST_MS,
+  );
+
+  test(
+    'Windows: no PowerShell snapshot at shutdown when no child is left to stop',
+    async () => {
+      let tables = 0;
+      const sup = new Supervisor({
+        log: () => {},
+        prefixOutput: false,
+        platform: 'win32',
+        processTable: async () => {
+          tables++;
+          return [];
+        },
+      });
+      const kid = sup.start({
+        name: 'sim',
         command: process.execPath,
         args: ['-e', 'process.exit(0)'],
         cwd: process.cwd(),
         env: ENV,
-      }),
-    ).toBe(0);
-    await waitUntil(async () => (exits.length ? true : null), { timeoutMs: 3_000, intervalMs: 10 });
-    expect(exits).toEqual([['sim', 2]]); // the foreground build is not reported
-    expect(sup.stopping).toBe(false);
-    await sup.shutdown('done');
-  });
+        critical: false,
+      });
+      await kid.done;
+      const before = tables;
+      const started = Date.now();
+      await sup.shutdown('done');
+      expect(tables).toBe(before);
+      expect(Date.now() - started).toBeLessThan(1_000);
+    },
+    SUPERVISOR_TEST_MS,
+  );
 
-  test('a child that cannot start is reported, not thrown', async () => {
-    const exits: string[] = [];
-    const sup = new Supervisor({
-      log: () => {},
-      prefixOutput: false,
-      onChildExit: (n) => exits.push(n),
-    });
-    sup.start({
-      name: 'ghost',
-      command: path.join(tmpdir(), 'no-such-binary-farm'),
-      args: [],
-      cwd: process.cwd(),
-      env: ENV,
-      critical: false,
-    });
-    await waitUntil(async () => (exits.length ? true : null), { timeoutMs: 3_000, intervalMs: 10 });
-    expect(exits).toEqual(['ghost']);
-    await sup.shutdown('done');
-  });
+  test(
+    'a child that cannot start is reported, not thrown',
+    async () => {
+      const exits: string[] = [];
+      const sup = new Supervisor({
+        log: () => {},
+        prefixOutput: false,
+        onChildExit: (n) => exits.push(n),
+      });
+      sup.start({
+        name: 'ghost',
+        command: path.join(tmpdir(), 'no-such-binary-farm'),
+        args: [],
+        cwd: process.cwd(),
+        env: ENV,
+        critical: false,
+      });
+      await waitUntil(async () => (exits.length ? true : null), {
+        timeoutMs: 3_000,
+        intervalMs: 10,
+      });
+      expect(exits).toEqual(['ghost']);
+      await sup.shutdown('done');
+    },
+    SUPERVISOR_TEST_MS,
+  );
 });
