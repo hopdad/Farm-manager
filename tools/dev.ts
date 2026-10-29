@@ -633,7 +633,8 @@ async function postControl(baseUrl: string, path: string, body: unknown): Promis
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(5_000),
+    // Generous: at launch the stand-in shares the CPU with next dev compiling the app.
+    signal: AbortSignal.timeout(30_000),
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`POST ${path}: HTTP ${res.status} ${text.slice(0, 200)}`);

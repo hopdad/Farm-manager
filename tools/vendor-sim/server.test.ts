@@ -6,7 +6,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import { samsaraErrorSchema } from '../../src/connectors/samsara/schemas';
 import type { SimStatus } from '../../src/sim/types';
 import {
@@ -35,6 +35,10 @@ describe('vendor stand-in server', () => {
     sim = await startVendorSim({ createWorld: createStubSimWorld, port: 0 });
   });
   afterAll(() => sim.close());
+  // Every test starts from a fresh harvest-day with no faults, whatever the previous one left.
+  beforeEach(() => {
+    sim.control.reset({ scenario: 'harvest-day' });
+  });
 
   test('status, clock pause/resume/speed/jump, scenario and reset', async () => {
     const status = (await (await fetch(`${sim.url}/_control/status`)).json()) as SimStatus;
