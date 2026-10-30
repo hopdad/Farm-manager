@@ -45,13 +45,17 @@ import {
   withDatabase,
   withMaintenance,
 } from '../src/db/admin';
+import { probePort } from '../src/lib/ports';
 import { isMainModule, runNode, tsxBin } from '../src/lib/proc';
 import {
   compose,
+  composeImages,
   containerHealth,
   DB_SERVICE,
   dbContainerId,
   dockerAvailable,
+  explainComposeUpFailure,
+  imagePresent,
   projectVolumes,
   removeVolume,
 } from './lib/docker';
@@ -131,8 +135,21 @@ export async function waitHealthy(timeoutMs = 300_000): Promise<void> {
 export async function up(): Promise<void> {
   await requireDocker();
   requireEnvFile();
-  const code = await compose(getConfig().projectDir, ['up', '-d', DB_SERVICE]);
-  if (code !== 0) throw new Error('docker compose up failed (is port DB_PORT free?)');
+  const cfg = getConfig();
+  const code = await compose(cfg.projectDir, ['up', '-d', DB_SERVICE]);
+  if (code !== 0) {
+    const images = await composeImages(cfg.projectDir);
+    const missing: string[] = [];
+    for (const image of images) if (!(await imagePresent(image))) missing.push(image);
+    throw new Error(
+      explainComposeUpFailure({
+        dockerAnswers: (await dockerAvailable()).ok,
+        missingImages: missing,
+        dbPort: cfg.DB_PORT,
+        dbPortState: (await probePort(cfg.DB_PORT, '127.0.0.1')).state,
+      }),
+    );
+  }
   await waitHealthy();
 }
 
