@@ -37,6 +37,11 @@ describe('parsePartiesCsv', () => {
     expect(parsePartiesCsv(decodeCsvBytes(utf8)).rows[0]?.displayName).toBe('José O’Brien');
   });
 
+  test('Windows-1252 0x80-0x9F decode per WHATWG, whatever the Node build does', () => {
+    const bytes = Uint8Array.from({ length: 32 }, (_, i) => 0x80 + i);
+    expect(decodeCsvBytes(bytes)).toBe('€\x81‚ƒ„…†‡ˆ‰Š‹Œ\x8dŽ\x8f\x90‘’“”•–—˜™š›œ\x9džŸ');
+  });
+
   test('aliases, several roles, problems by line', () => {
     const r = parsePartiesCsv(
       [
