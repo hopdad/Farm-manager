@@ -107,6 +107,7 @@ async function slowRouter(page: Page, gate: Promise<void>) {
     release = r;
   });
   let held = 0;
+  let waiting = 0;
   const handler = async (route: Route) => {
     const req = route.request();
     const h = req.headers();
@@ -115,13 +116,18 @@ async function slowRouter(page: Page, gate: Promise<void>) {
       await new Promise((r) => setTimeout(r, 1_000));
     } else if (req.method() === 'GET' && h.rsc === '1' && !h['next-router-prefetch']) {
       held++;
+      waiting++;
       await released;
+      waiting--;
     }
     await route.continue().catch(() => {}); // the page may be gone by then
   };
   await page.route('**/admin/spray**', handler);
   return {
+    /** Refreshes held so far. */
     held: () => held,
+    /** Refreshes held right now. */
+    waiting: () => waiting,
     release: async () => {
       release();
       await page.unroute('**/admin/spray**', handler);
@@ -267,15 +273,20 @@ async function windSliderFlips(
   const after = await (await request.get(`/api/weather/spray/${one}`)).json();
   expect(after.hours[0].reasons.map((r: { code: string }) => r.code)).not.toContain('wind_high');
 
-  // Back to the scenario's weather while a page refresh is stuck: the confirmation must not wait
-  // for it. (It did: the notice came from useActionState, which React commits only together with
-  // every router refresh started while the action ran, like LiveRefresh's on a realtime event.)
+  // Back to the scenario's weather while a page refresh is stuck: neither the confirmation nor
+  // the pressed button may wait for it. (Both did: the notice came from useActionState and the
+  // button's busy state from useFormStatus, which React commits only together with every router
+  // refresh started while the action ran, like LiveRefresh's on a realtime event.)
   // The action goes out only once a weather event has reached the page and LiveRefresh has
   // started its refresh; that refresh, queued behind the action, is held until the end.
   const weather = await realtimeMessage(page, 'weather');
   const router = await slowRouter(page, weather.seen);
+  const clear = page.getByTestId('sim-weather-clear');
   try {
-    await page.getByTestId('sim-weather-clear').click();
+    await clear.click();
+    // The request is out (held until the weather event below, then 1 s): no second press.
+    await expect(clear).toBeDisabled();
+    await expect(clear).toHaveAttribute('aria-busy', 'true');
     await publish('weather', 'invalidate', { event: 'updated', reason: 'changed' }, e2ePool());
     await expect(page.getByTestId('admin-notice')).toContainText('follows the', {
       timeout: ANSWER_MS,
@@ -283,7 +294,11 @@ async function windSliderFlips(
     await expect
       .poll(router.held, { message: 'the refresh behind the action is held' })
       .toBeGreaterThan(0);
+    // Answered: the button is free again although that refresh is still held.
+    await expect(clear).toBeEnabled({ timeout: 2_000 });
+    await expect(clear).toHaveAttribute('aria-busy', 'false');
     await expect(page.getByTestId('admin-notice')).toContainText('follows the');
+    expect(router.waiting(), 'the refresh is still held').toBeGreaterThan(0);
   } finally {
     await router.release();
   }
