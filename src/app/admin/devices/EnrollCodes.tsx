@@ -6,9 +6,9 @@
  * profile on this PC over localhost, then start the kiosk (src/platform/auth/kiosk.ts).
  */
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { NoticeProvider } from '../_components/controls';
 import css from '../admin.module.css';
 import { detroitTime } from '../format';
-import { ResultProvider } from '../people/forms';
 import type { DeviceActionResult, EnrollCodeView } from './actions';
 import own from './devices.module.css';
 
@@ -147,10 +147,10 @@ export function DeviceActions({ header, children }: { header: ReactNode; childre
     if (r.enroll) setPanel(r.enroll);
   }, []);
   return (
-    <ResultProvider<DeviceActionResult> onResult={onResult}>
+    <NoticeProvider<DeviceActionResult> onResult={onResult}>
       {header}
       {panel && <CodePanel key={panel.code} view={panel} />}
       {children}
-    </ResultProvider>
+    </NoticeProvider>
   );
 }

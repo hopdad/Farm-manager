@@ -18,10 +18,9 @@ import {
 import { type DeviceRow, listDevices, listPeople } from '@/platform/auth/store';
 import { ROLE_FOR, roleAtLeast } from '@/platform/auth/types';
 import { Refused } from '../../login/_components/Refused';
-import { SubmitButton } from '../_components/controls';
+import { ActionForm, SubmitButton } from '../_components/controls';
 import css from '../admin.module.css';
 import { ago, detroitTime } from '../format';
-import { ResultForm } from '../people/forms';
 import own from '../people/people.module.css';
 import { addDeviceAction, newCodeAction, revokeDeviceAction, setDeviceRoleAction } from './actions';
 import { DeviceActions } from './EnrollCodes';
@@ -72,7 +71,7 @@ function DeviceRowView({ d, now }: { d: DeviceRow; now: Date }) {
         ) : d.revokedAt ? (
           d.role
         ) : (
-          <ResultForm action={setDeviceRoleAction} className={css.row}>
+          <ActionForm action={setDeviceRoleAction} className={css.row}>
             <input type="hidden" name="id" value={d.id} />
             <select
               name="role"
@@ -87,7 +86,7 @@ function DeviceRowView({ d, now }: { d: DeviceRow; now: Date }) {
               ))}
             </select>
             <SubmitButton className={css.button}>Save</SubmitButton>
-          </ResultForm>
+          </ActionForm>
         )}
       </td>
       <td>
@@ -97,18 +96,18 @@ function DeviceRowView({ d, now }: { d: DeviceRow; now: Date }) {
       <td>
         {!d.revokedAt && (
           <div className={css.row}>
-            <ResultForm action={newCodeAction}>
+            <ActionForm action={newCodeAction}>
               <input type="hidden" name="id" value={d.id} />
               <SubmitButton className={css.button} testId="device-new-code">
                 New code
               </SubmitButton>
-            </ResultForm>
-            <ResultForm action={revokeDeviceAction}>
+            </ActionForm>
+            <ActionForm action={revokeDeviceAction}>
               <input type="hidden" name="id" value={d.id} />
               <SubmitButton className={`${css.button} ${css.danger}`} testId="device-revoke">
                 Revoke
               </SubmitButton>
-            </ResultForm>
+            </ActionForm>
           </div>
         )}
       </td>
@@ -157,7 +156,7 @@ export default async function DevicesPage() {
       <div className={css.grid}>
         <section className={css.card} data-testid="add-device">
           <h2>Add a device</h2>
-          <ResultForm action={addDeviceAction} className={css.stack} testId="add-device-form">
+          <ActionForm action={addDeviceAction} className={css.stack} testId="add-device-form">
             <label className={css.stack}>
               Name
               <input
@@ -214,7 +213,7 @@ export default async function DevicesPage() {
             <SubmitButton className={`${css.button} ${css.primary}`} testId="add-device-submit">
               Add and show the code
             </SubmitButton>
-          </ResultForm>
+          </ActionForm>
         </section>
         <section className={css.card}>
           <h2>Kiosk and iPads</h2>

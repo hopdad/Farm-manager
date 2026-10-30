@@ -20,7 +20,7 @@ import {
   type Session,
 } from '@/platform/auth/types';
 import { Refused } from '../../login/_components/Refused';
-import { SubmitButton } from '../_components/controls';
+import { ActionForm, NoticeProvider, SubmitButton } from '../_components/controls';
 import css from '../admin.module.css';
 import { ago, detroitTime } from '../format';
 import {
@@ -32,7 +32,6 @@ import {
   signOutEverywhereAction,
   unlockAction,
 } from './actions';
-import { ResultForm, ResultProvider } from './forms';
 import own from './people.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -91,7 +90,7 @@ function PersonRowView({ p, actor, now }: { p: PersonRow; actor: Session; now: D
       </td>
       <td>
         {mayManage && !self ? (
-          <ResultForm action={setRoleAction} className={css.row}>
+          <ActionForm action={setRoleAction} className={css.row}>
             <input type="hidden" name="id" value={p.id} />
             <select
               name="role"
@@ -106,7 +105,7 @@ function PersonRowView({ p, actor, now }: { p: PersonRow; actor: Session; now: D
               ))}
             </select>
             <SubmitButton className={css.button}>Save</SubmitButton>
-          </ResultForm>
+          </ActionForm>
         ) : (
           p.role
         )}
@@ -126,7 +125,7 @@ function PersonRowView({ p, actor, now }: { p: PersonRow; actor: Session; now: D
       <td>
         {(mayManage || self) && (
           <div className={css.stack}>
-            <ResultForm action={setPinAction} className={css.row}>
+            <ActionForm action={setPinAction} className={css.row}>
               <input type="hidden" name="id" value={p.id} />
               <input
                 {...pinInput}
@@ -137,23 +136,23 @@ function PersonRowView({ p, actor, now }: { p: PersonRow; actor: Session; now: D
               <SubmitButton className={css.button} testId="person-set-pin">
                 Set PIN
               </SubmitButton>
-            </ResultForm>
+            </ActionForm>
             {mayManage && (
               <div className={css.row}>
                 {locked && (
-                  <ResultForm action={unlockAction}>
+                  <ActionForm action={unlockAction}>
                     <input type="hidden" name="id" value={p.id} />
                     <SubmitButton className={css.button} testId="person-unlock">
                       Unlock
                     </SubmitButton>
-                  </ResultForm>
+                  </ActionForm>
                 )}
-                <ResultForm action={signOutEverywhereAction}>
+                <ActionForm action={signOutEverywhereAction}>
                   <input type="hidden" name="id" value={p.id} />
                   <SubmitButton className={css.button}>Sign out everywhere</SubmitButton>
-                </ResultForm>
+                </ActionForm>
                 {!self && (
-                  <ResultForm action={setActiveAction}>
+                  <ActionForm action={setActiveAction}>
                     <input type="hidden" name="id" value={p.id} />
                     <input type="hidden" name="active" value={p.active ? 'false' : 'true'} />
                     <SubmitButton
@@ -161,7 +160,7 @@ function PersonRowView({ p, actor, now }: { p: PersonRow; actor: Session; now: D
                     >
                       {p.active ? 'Switch off' : 'Switch on'}
                     </SubmitButton>
-                  </ResultForm>
+                  </ActionForm>
                 )}
               </div>
             )}
@@ -184,7 +183,7 @@ export default async function PeoplePage() {
   const roles = assignable(actor);
 
   return (
-    <ResultProvider>
+    <NoticeProvider>
       <div className={css.pageHead}>
         <h1>People</h1>
         <span className={css.muted} data-testid="people-actor">
@@ -198,11 +197,11 @@ export default async function PeoplePage() {
           {demoOn} demo {demoOn === 1 ? 'person is' : 'people are'} switched on. Their PINs are
           printed on the PC (`pnpm dev`), and one is a manager: switch them off before real use.
           {roleAtLeast(actor.role, ROLE_FOR.manageManagers) && (
-            <ResultForm action={deactivateDemoAction} className={css.row}>
+            <ActionForm action={deactivateDemoAction} className={css.row}>
               <SubmitButton className={`${css.button} ${css.danger}`}>
                 Switch off the demo people
               </SubmitButton>
-            </ResultForm>
+            </ActionForm>
           )}
         </div>
       )}
@@ -210,7 +209,7 @@ export default async function PeoplePage() {
       <div className={css.grid}>
         <section className={css.card} data-testid="add-person">
           <h2>Add a person</h2>
-          <ResultForm action={addPersonAction} className={css.stack}>
+          <ActionForm action={addPersonAction} className={css.stack}>
             <label className={css.stack}>
               Name (someone new)
               <input
@@ -257,7 +256,7 @@ export default async function PeoplePage() {
             <SubmitButton className={`${css.button} ${css.primary}`} testId="add-person-submit">
               Add person
             </SubmitButton>
-          </ResultForm>
+          </ActionForm>
         </section>
         <section className={css.card}>
           <h2>How sign-in works</h2>
@@ -301,6 +300,6 @@ export default async function PeoplePage() {
           </table>
         </div>
       </section>
-    </ResultProvider>
+    </NoticeProvider>
   );
 }
