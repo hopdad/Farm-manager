@@ -1,0 +1,5315 @@
+{
+  "id": "5289659b-e02a-428f-96b9-7774d0685e2a",
+  "prevId": "d07475e0-a1fa-4256-9f5b-56fee68c2807",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "app.settings": {
+      "name": "settings",
+      "schema": "app",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "app.topic_seq": {
+      "name": "topic_seq",
+      "schema": "app",
+      "columns": {
+        "topic": {
+          "name": "topic",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "seq": {
+          "name": "seq",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "farm.app_users": {
+      "name": "app_users",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "party_id": {
+          "name": "party_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auth_user_id": {
+          "name": "auth_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pin_hash": {
+          "name": "pin_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pin_set_at": {
+          "name": "pin_set_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failed_pins": {
+          "name": "failed_pins",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "locked_until": {
+          "name": "locked_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "session_epoch": {
+          "name": "session_epoch",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "last_sign_in_at": {
+          "name": "last_sign_in_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "app_users_party_id_parties_id_fk": {
+          "name": "app_users_party_id_parties_id_fk",
+          "tableFrom": "app_users",
+          "tableTo": "parties",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "app_users_party_id_key": {
+          "name": "app_users_party_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "party_id"
+          ]
+        },
+        "app_users_auth_user_id_key": {
+          "name": "app_users_auth_user_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "auth_user_id"
+          ]
+        },
+        "app_users_source_source_id_key": {
+          "name": "app_users_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "app_users_role_check": {
+          "name": "app_users_role_check",
+          "value": "\"farm\".\"app_users\".\"role\" in ('viewer', 'driver', 'operator', 'manager', 'owner')"
+        },
+        "app_users_failed_pins_check": {
+          "name": "app_users_failed_pins_check",
+          "value": "\"farm\".\"app_users\".\"failed_pins\" >= 0"
+        },
+        "app_users_session_epoch_check": {
+          "name": "app_users_session_epoch_check",
+          "value": "\"farm\".\"app_users\".\"session_epoch\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.boundary_change_requests": {
+      "name": "boundary_change_requests",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proposed_geom": {
+          "name": "proposed_geom",
+          "type": "geometry(MultiPolygon,4326)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_by": {
+          "name": "requested_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_at": {
+          "name": "requested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolved_by": {
+          "name": "resolved_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolution": {
+          "name": "resolution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "boundary_change_requests_open_idx": {
+          "name": "boundary_change_requests_open_idx",
+          "columns": [
+            {
+              "expression": "field_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"farm\".\"boundary_change_requests\".\"resolved_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "boundary_change_requests_proposed_geom_gist": {
+          "name": "boundary_change_requests_proposed_geom_gist",
+          "columns": [
+            {
+              "expression": "proposed_geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "boundary_change_requests_field_id_fields_id_fk": {
+          "name": "boundary_change_requests_field_id_fields_id_fk",
+          "tableFrom": "boundary_change_requests",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "boundary_change_requests_requested_by_app_users_id_fk": {
+          "name": "boundary_change_requests_requested_by_app_users_id_fk",
+          "tableFrom": "boundary_change_requests",
+          "tableTo": "app_users",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "requested_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "boundary_change_requests_resolved_by_app_users_id_fk": {
+          "name": "boundary_change_requests_resolved_by_app_users_id_fk",
+          "tableFrom": "boundary_change_requests",
+          "tableTo": "app_users",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "resolved_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "boundary_change_requests_resolution_check": {
+          "name": "boundary_change_requests_resolution_check",
+          "value": "(\"farm\".\"boundary_change_requests\".\"resolved_at\" is null) = (\"farm\".\"boundary_change_requests\".\"resolution\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.devices": {
+      "name": "devices",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'viewer'"
+        },
+        "app_user_id": {
+          "name": "app_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auth_user_id": {
+          "name": "auth_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "enroll_code_hash": {
+          "name": "enroll_code_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "enroll_expires_at": {
+          "name": "enroll_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "enrolled_at": {
+          "name": "enrolled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "session_epoch": {
+          "name": "session_epoch",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "devices_enroll_code_hash_key": {
+          "name": "devices_enroll_code_hash_key",
+          "columns": [
+            {
+              "expression": "enroll_code_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"farm\".\"devices\".\"enroll_code_hash\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "devices_app_user_id_app_users_id_fk": {
+          "name": "devices_app_user_id_app_users_id_fk",
+          "tableFrom": "devices",
+          "tableTo": "app_users",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "app_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "devices_created_by_app_users_id_fk": {
+          "name": "devices_created_by_app_users_id_fk",
+          "tableFrom": "devices",
+          "tableTo": "app_users",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "devices_auth_user_id_key": {
+          "name": "devices_auth_user_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "auth_user_id"
+          ]
+        },
+        "devices_source_source_id_key": {
+          "name": "devices_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "devices_kind_check": {
+          "name": "devices_kind_check",
+          "value": "\"farm\".\"devices\".\"kind\" in ('wall', 'cab_ipad', 'truck_ipad', 'phone')"
+        },
+        "devices_role_check": {
+          "name": "devices_role_check",
+          "value": "\"farm\".\"devices\".\"role\" in ('viewer', 'driver', 'operator')"
+        },
+        "devices_session_epoch_check": {
+          "name": "devices_session_epoch_check",
+          "value": "\"farm\".\"devices\".\"session_epoch\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.farms": {
+      "name": "farms",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_party_id": {
+          "name": "client_party_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deere_farm_id": {
+          "name": "deere_farm_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "farms_client_party_id_parties_id_fk": {
+          "name": "farms_client_party_id_parties_id_fk",
+          "tableFrom": "farms",
+          "tableTo": "parties",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "client_party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "farms_source_source_id_key": {
+          "name": "farms_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "farm.field_boundaries": {
+      "name": "field_boundaries",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(MultiPolygon,4326)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "acres": {
+          "name": "acres",
+          "type": "numeric(12, 4)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "valid": {
+          "name": "valid",
+          "type": "tstzrange",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "tstzrange(now(), null, '[)')"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_ref": {
+          "name": "source_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "derived_stale": {
+          "name": "derived_stale",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "field_boundaries_geom_gist": {
+          "name": "field_boundaries_geom_gist",
+          "columns": [
+            {
+              "expression": "geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "field_boundaries_field_id_fields_id_fk": {
+          "name": "field_boundaries_field_id_fields_id_fk",
+          "tableFrom": "field_boundaries",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "field_boundaries_source_source_id_key": {
+          "name": "field_boundaries_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "field_boundaries_valid_not_empty": {
+          "name": "field_boundaries_valid_not_empty",
+          "value": "not isempty(\"farm\".\"field_boundaries\".\"valid\")"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.field_lineage": {
+      "name": "field_lineage",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "parent_field_id": {
+          "name": "parent_field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "child_field_id": {
+          "name": "child_field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_on": {
+          "name": "effective_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "field_lineage_child_field_id_idx": {
+          "name": "field_lineage_child_field_id_idx",
+          "columns": [
+            {
+              "expression": "child_field_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "field_lineage_parent_field_id_fields_id_fk": {
+          "name": "field_lineage_parent_field_id_fields_id_fk",
+          "tableFrom": "field_lineage",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "parent_field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "field_lineage_child_field_id_fields_id_fk": {
+          "name": "field_lineage_child_field_id_fields_id_fk",
+          "tableFrom": "field_lineage",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "child_field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "field_lineage_created_by_app_users_id_fk": {
+          "name": "field_lineage_created_by_app_users_id_fk",
+          "tableFrom": "field_lineage",
+          "tableTo": "app_users",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "field_lineage_parent_field_id_child_field_id_key": {
+          "name": "field_lineage_parent_field_id_child_field_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "parent_field_id",
+            "child_field_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "field_lineage_kind_check": {
+          "name": "field_lineage_kind_check",
+          "value": "\"farm\".\"field_lineage\".\"kind\" in ('split', 'merge')"
+        },
+        "field_lineage_not_self_check": {
+          "name": "field_lineage_not_self_check",
+          "value": "\"farm\".\"field_lineage\".\"parent_field_id\" <> \"farm\".\"field_lineage\".\"child_field_id\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.field_seasons": {
+      "name": "field_seasons",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "crop_year": {
+          "name": "crop_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "crop": {
+          "name": "crop",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "variety": {
+          "name": "variety",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "planted_on": {
+          "name": "planted_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "harvested_on": {
+          "name": "harvested_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "yield_bu_ac": {
+          "name": "yield_bu_ac",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "field_seasons_field_id_fields_id_fk": {
+          "name": "field_seasons_field_id_fields_id_fk",
+          "tableFrom": "field_seasons",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "field_seasons_field_id_crop_year_key": {
+          "name": "field_seasons_field_id_crop_year_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "field_id",
+            "crop_year"
+          ]
+        },
+        "field_seasons_source_source_id_key": {
+          "name": "field_seasons_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "field_seasons_crop_year_check": {
+          "name": "field_seasons_crop_year_check",
+          "value": "\"farm\".\"field_seasons\".\"crop_year\" between 1950 and 2100"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.field_weather_grids": {
+      "name": "field_weather_grids",
+      "schema": "farm",
+      "columns": {
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "grid_id": {
+          "name": "grid_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "point": {
+          "name": "point",
+          "type": "geometry(Point,4326)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "looked_up_at": {
+          "name": "looked_up_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "field_weather_grids_point_gist": {
+          "name": "field_weather_grids_point_gist",
+          "columns": [
+            {
+              "expression": "point",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "field_weather_grids_field_id_fields_id_fk": {
+          "name": "field_weather_grids_field_id_fields_id_fk",
+          "tableFrom": "field_weather_grids",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "field_weather_grids_grid_id_weather_grids_id_fk": {
+          "name": "field_weather_grids_grid_id_weather_grids_id_fk",
+          "tableFrom": "field_weather_grids",
+          "tableTo": "weather_grids",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "grid_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "farm.fields": {
+      "name": "fields",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "farm_id": {
+          "name": "farm_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "county_fips": {
+          "name": "county_fips",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tenure": {
+          "name": "tenure",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "landlord_party_id": {
+          "name": "landlord_party_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deere_field_id": {
+          "name": "deere_field_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes_updated_at": {
+          "name": "notes_updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes_updated_by": {
+          "name": "notes_updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "fields_farm_id_idx": {
+          "name": "fields_farm_id_idx",
+          "columns": [
+            {
+              "expression": "farm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fields_farm_id_farms_id_fk": {
+          "name": "fields_farm_id_farms_id_fk",
+          "tableFrom": "fields",
+          "tableTo": "farms",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "farm_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "fields_landlord_party_id_parties_id_fk": {
+          "name": "fields_landlord_party_id_parties_id_fk",
+          "tableFrom": "fields",
+          "tableTo": "parties",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "landlord_party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "fields_notes_updated_by_app_users_id_fk": {
+          "name": "fields_notes_updated_by_app_users_id_fk",
+          "tableFrom": "fields",
+          "tableTo": "app_users",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "notes_updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "fields_source_source_id_key": {
+          "name": "fields_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "fields_tenure_check": {
+          "name": "fields_tenure_check",
+          "value": "\"farm\".\"fields\".\"tenure\" in ('owned', 'cash_rent', 'share', 'custom', 'unknown')"
+        },
+        "fields_county_fips_check": {
+          "name": "fields_county_fips_check",
+          "value": "\"farm\".\"fields\".\"county_fips\" ~ '^[0-9]{5}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.geofence_visits": {
+      "name": "geofence_visits",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "machine_id": {
+          "name": "machine_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "geofence_id": {
+          "name": "geofence_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entered_at": {
+          "name": "entered_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "exited_at": {
+          "name": "exited_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "geofence_visits_open_key": {
+          "name": "geofence_visits_open_key",
+          "columns": [
+            {
+              "expression": "machine_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "geofence_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"farm\".\"geofence_visits\".\"exited_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "geofence_visits_geofence_id_entered_at_idx": {
+          "name": "geofence_visits_geofence_id_entered_at_idx",
+          "columns": [
+            {
+              "expression": "geofence_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entered_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "geofence_visits_machine_id_machines_id_fk": {
+          "name": "geofence_visits_machine_id_machines_id_fk",
+          "tableFrom": "geofence_visits",
+          "tableTo": "machines",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "machine_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "geofence_visits_geofence_id_geofences_id_fk": {
+          "name": "geofence_visits_geofence_id_geofences_id_fk",
+          "tableFrom": "geofence_visits",
+          "tableTo": "geofences",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "geofence_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "geofence_visits_machine_id_geofence_id_entered_at_key": {
+          "name": "geofence_visits_machine_id_geofence_id_entered_at_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "machine_id",
+            "geofence_id",
+            "entered_at"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "geofence_visits_exit_after_entry_check": {
+          "name": "geofence_visits_exit_after_entry_check",
+          "value": "\"farm\".\"geofence_visits\".\"exited_at\" is null or \"farm\".\"geofence_visits\".\"exited_at\" >= \"farm\".\"geofence_visits\".\"entered_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.geofences": {
+      "name": "geofences",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "party_id": {
+          "name": "party_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(Polygon,4326)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "geofences_geom_gist": {
+          "name": "geofences_geom_gist",
+          "columns": [
+            {
+              "expression": "geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "geofences_party_id_parties_id_fk": {
+          "name": "geofences_party_id_parties_id_fk",
+          "tableFrom": "geofences",
+          "tableTo": "parties",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "geofences_field_id_fields_id_fk": {
+          "name": "geofences_field_id_fields_id_fk",
+          "tableFrom": "geofences",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "geofences_source_source_id_key": {
+          "name": "geofences_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "geofences_kind_check": {
+          "name": "geofences_kind_check",
+          "value": "\"farm\".\"geofences\".\"kind\" in ('elevator', 'field_entrance', 'shop', 'bin_site', 'fuel')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.machine_faults": {
+      "name": "machine_faults",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "machine_id": {
+          "name": "machine_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "severity": {
+          "name": "severity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "first_seen_at": {
+          "name": "first_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cleared_at": {
+          "name": "cleared_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "machine_faults_open_key": {
+          "name": "machine_faults_open_key",
+          "columns": [
+            {
+              "expression": "machine_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"farm\".\"machine_faults\".\"cleared_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "machine_faults_machine_id_first_seen_at_idx": {
+          "name": "machine_faults_machine_id_first_seen_at_idx",
+          "columns": [
+            {
+              "expression": "machine_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "first_seen_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "machine_faults_machine_id_machines_id_fk": {
+          "name": "machine_faults_machine_id_machines_id_fk",
+          "tableFrom": "machine_faults",
+          "tableTo": "machines",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "machine_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "machine_faults_severity_check": {
+          "name": "machine_faults_severity_check",
+          "value": "\"farm\".\"machine_faults\".\"severity\" in ('info', 'warning', 'critical')"
+        },
+        "machine_faults_seen_check": {
+          "name": "machine_faults_seen_check",
+          "value": "\"farm\".\"machine_faults\".\"last_seen_at\" >= \"farm\".\"machine_faults\".\"first_seen_at\""
+        },
+        "machine_faults_cleared_check": {
+          "name": "machine_faults_cleared_check",
+          "value": "\"farm\".\"machine_faults\".\"cleared_at\" is null or \"farm\".\"machine_faults\".\"cleared_at\" >= \"farm\".\"machine_faults\".\"first_seen_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.machine_hours": {
+      "name": "machine_hours",
+      "schema": "farm",
+      "columns": {
+        "machine_id": {
+          "name": "machine_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ts": {
+          "name": "ts",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "engine_hours": {
+          "name": "engine_hours",
+          "type": "numeric(10, 1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "odometer_mi": {
+          "name": "odometer_mi",
+          "type": "numeric(10, 1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "machine_hours_machine_id_ts_idx": {
+          "name": "machine_hours_machine_id_ts_idx",
+          "columns": [
+            {
+              "expression": "machine_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ts",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "machine_hours_machine_id_machines_id_fk": {
+          "name": "machine_hours_machine_id_machines_id_fk",
+          "tableFrom": "machine_hours",
+          "tableTo": "machines",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "machine_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "machine_hours_pkey": {
+          "name": "machine_hours_pkey",
+          "columns": [
+            "machine_id",
+            "source",
+            "ts"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "machine_hours_reading_check": {
+          "name": "machine_hours_reading_check",
+          "value": "\"farm\".\"machine_hours\".\"engine_hours\" is not null or \"farm\".\"machine_hours\".\"odometer_mi\" is not null"
+        },
+        "machine_hours_values_check": {
+          "name": "machine_hours_values_check",
+          "value": "(\"farm\".\"machine_hours\".\"engine_hours\" is null or \"farm\".\"machine_hours\".\"engine_hours\" >= 0) and (\"farm\".\"machine_hours\".\"odometer_mi\" is null or \"farm\".\"machine_hours\".\"odometer_mi\" >= 0)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.machine_state": {
+      "name": "machine_state",
+      "schema": "farm",
+      "columns": {
+        "machine_id": {
+          "name": "machine_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ts": {
+          "name": "ts",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(Point,4326)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "speed_mph": {
+          "name": "speed_mph",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "heading": {
+          "name": "heading",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activity": {
+          "name": "activity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'idle'"
+        },
+        "current_field_id": {
+          "name": "current_field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fuel_pct": {
+          "name": "fuel_pct",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "engine_on": {
+          "name": "engine_on",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "position_source": {
+          "name": "position_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position_vendor": {
+          "name": "position_vendor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fault_codes": {
+          "name": "fault_codes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "faults_at": {
+          "name": "faults_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stats_at": {
+          "name": "stats_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "machine_state_geom_gist": {
+          "name": "machine_state_geom_gist",
+          "columns": [
+            {
+              "expression": "geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "machine_state_machine_id_machines_id_fk": {
+          "name": "machine_state_machine_id_machines_id_fk",
+          "tableFrom": "machine_state",
+          "tableTo": "machines",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "machine_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "machine_state_current_field_id_fields_id_fk": {
+          "name": "machine_state_current_field_id_fields_id_fk",
+          "tableFrom": "machine_state",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "current_field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "machine_state_activity_check": {
+          "name": "machine_state_activity_check",
+          "value": "\"farm\".\"machine_state\".\"activity\" in ('working', 'transport', 'idle', 'queued')"
+        },
+        "machine_state_position_source_check": {
+          "name": "machine_state_position_source_check",
+          "value": "\"farm\".\"machine_state\".\"position_source\" in ('eld', 'deere_working', 'cab_device', 'manual')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.machines": {
+      "name": "machines",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_no": {
+          "name": "unit_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "make": {
+          "name": "make",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "year": {
+          "name": "year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vin_serial": {
+          "name": "vin_serial",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "down_reason": {
+          "name": "down_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "down_at": {
+          "name": "down_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "down_by": {
+          "name": "down_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "engine_hours": {
+          "name": "engine_hours",
+          "type": "numeric(10, 1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "odometer_mi": {
+          "name": "odometer_mi",
+          "type": "numeric(10, 1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "machines_down_by_app_users_id_fk": {
+          "name": "machines_down_by_app_users_id_fk",
+          "tableFrom": "machines",
+          "tableTo": "app_users",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "down_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "machines_source_source_id_key": {
+          "name": "machines_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "machines_kind_check": {
+          "name": "machines_kind_check",
+          "value": "\"farm\".\"machines\".\"kind\" in ('combine', 'tractor', 'sprayer', 'planter', 'grain_cart', 'semi', 'trailer', 'drone', 'pickup')"
+        },
+        "machines_status_check": {
+          "name": "machines_status_check",
+          "value": "\"farm\".\"machines\".\"status\" in ('active', 'down', 'retired')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.operations": {
+      "name": "operations",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "crop_year": {
+          "name": "crop_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "crop": {
+          "name": "crop",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "area_reported_ac": {
+          "name": "area_reported_ac",
+          "type": "numeric(12, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "area_clipped_ac": {
+          "name": "area_clipped_ac",
+          "type": "numeric(12, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "products": {
+          "name": "products",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "measurements": {
+          "name": "measurements",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "machine_ids": {
+          "name": "machine_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::uuid[]"
+        },
+        "operator_party_id": {
+          "name": "operator_party_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "weather": {
+          "name": "weather",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'provisional'"
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(MultiPolygon,4326)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_org": {
+          "name": "source_org",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_modified_at": {
+          "name": "source_modified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "operations_field_id_crop_year_started_at_idx": {
+          "name": "operations_field_id_crop_year_started_at_idx",
+          "columns": [
+            {
+              "expression": "field_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "crop_year",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "started_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "operations_geom_gist": {
+          "name": "operations_geom_gist",
+          "columns": [
+            {
+              "expression": "geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "operations_field_id_fields_id_fk": {
+          "name": "operations_field_id_fields_id_fk",
+          "tableFrom": "operations",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "operations_operator_party_id_parties_id_fk": {
+          "name": "operations_operator_party_id_parties_id_fk",
+          "tableFrom": "operations",
+          "tableTo": "parties",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "operator_party_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "operations_source_source_id_key": {
+          "name": "operations_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "operations_kind_check": {
+          "name": "operations_kind_check",
+          "value": "\"farm\".\"operations\".\"kind\" in ('seeding', 'application', 'harvest', 'tillage')"
+        },
+        "operations_status_check": {
+          "name": "operations_status_check",
+          "value": "\"farm\".\"operations\".\"status\" in ('provisional', 'final')"
+        },
+        "operations_crop_year_check": {
+          "name": "operations_crop_year_check",
+          "value": "\"farm\".\"operations\".\"crop_year\" between 1950 and 2100"
+        },
+        "operations_ended_at_check": {
+          "name": "operations_ended_at_check",
+          "value": "\"farm\".\"operations\".\"ended_at\" is null or \"farm\".\"operations\".\"ended_at\" >= \"farm\".\"operations\".\"started_at\""
+        },
+        "operations_area_check": {
+          "name": "operations_area_check",
+          "value": "(\"farm\".\"operations\".\"area_reported_ac\" is null or \"farm\".\"operations\".\"area_reported_ac\" >= 0) and (\"farm\".\"operations\".\"area_clipped_ac\" is null or \"farm\".\"operations\".\"area_clipped_ac\" >= 0)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.parties": {
+      "name": "parties",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "roles": {
+          "name": "roles",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "introduced_by": {
+          "name": "introduced_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "parties_org_id_idx": {
+          "name": "parties_org_id_idx",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "parties_org_id_parties_id_fk": {
+          "name": "parties_org_id_parties_id_fk",
+          "tableFrom": "parties",
+          "tableTo": "parties",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "parties_introduced_by_parties_id_fk": {
+          "name": "parties_introduced_by_parties_id_fk",
+          "tableFrom": "parties",
+          "tableTo": "parties",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "introduced_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "parties_source_source_id_key": {
+          "name": "parties_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "parties_kind_check": {
+          "name": "parties_kind_check",
+          "value": "\"farm\".\"parties\".\"kind\" in ('person', 'org')"
+        },
+        "parties_roles_check": {
+          "name": "parties_roles_check",
+          "value": "\"farm\".\"parties\".\"roles\" <@ array['owner', 'crew', 'landlord', 'customer', 'elevator', 'vendor', 'neighbor']::text[]"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.pins": {
+      "name": "pins",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'note'"
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(Geometry,4326)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "photo_keys": {
+          "name": "photo_keys",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "client_id": {
+          "name": "client_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "read_only": {
+          "name": "read_only",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_org": {
+          "name": "source_org",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_modified_at": {
+          "name": "source_modified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "pins_client_id_key": {
+          "name": "pins_client_id_key",
+          "columns": [
+            {
+              "expression": "client_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"farm\".\"pins\".\"client_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pins_field_id_idx": {
+          "name": "pins_field_id_idx",
+          "columns": [
+            {
+              "expression": "field_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pins_geom_gist": {
+          "name": "pins_geom_gist",
+          "columns": [
+            {
+              "expression": "geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pins_field_id_fields_id_fk": {
+          "name": "pins_field_id_fields_id_fk",
+          "tableFrom": "pins",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pins_created_by_app_users_id_fk": {
+          "name": "pins_created_by_app_users_id_fk",
+          "tableFrom": "pins",
+          "tableTo": "app_users",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "pins_source_source_id_key": {
+          "name": "pins_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "pins_kind_check": {
+          "name": "pins_kind_check",
+          "value": "\"farm\".\"pins\".\"kind\" in ('wet_hole', 'rock', 'tile_blowout', 'washout', 'hazard', 'note')"
+        },
+        "pins_geom_type_check": {
+          "name": "pins_geom_type_check",
+          "value": "extensions.ST_GeometryType(\"farm\".\"pins\".\"geom\") in ('ST_Point', 'ST_LineString', 'ST_Polygon')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.positions": {
+      "name": "positions",
+      "schema": "farm",
+      "columns": {
+        "machine_id": {
+          "name": "machine_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ts": {
+          "name": "ts",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(Point,4326)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "speed_mph": {
+          "name": "speed_mph",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "heading": {
+          "name": "heading",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "engine_on": {
+          "name": "engine_on",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "positions_ts_brin": {
+          "name": "positions_ts_brin",
+          "columns": [
+            {
+              "expression": "ts",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "brin",
+          "with": {}
+        },
+        "positions_geom_gist": {
+          "name": "positions_geom_gist",
+          "columns": [
+            {
+              "expression": "geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "positions_machine_id_machines_id_fk": {
+          "name": "positions_machine_id_machines_id_fk",
+          "tableFrom": "positions",
+          "tableTo": "machines",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "machine_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "positions_pkey": {
+          "name": "positions_pkey",
+          "columns": [
+            "machine_id",
+            "ts"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "farm.soil_temp_readings": {
+      "name": "soil_temp_readings",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "observed_at": {
+          "name": "observed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "depth_in": {
+          "name": "depth_in",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 2
+        },
+        "temp_f": {
+          "name": "temp_f",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(Point,4326)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "entered_by": {
+          "name": "entered_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "soil_temp_readings_field_id_observed_at_idx": {
+          "name": "soil_temp_readings_field_id_observed_at_idx",
+          "columns": [
+            {
+              "expression": "field_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "observed_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "soil_temp_readings_geom_gist": {
+          "name": "soil_temp_readings_geom_gist",
+          "columns": [
+            {
+              "expression": "geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "soil_temp_readings_field_id_fields_id_fk": {
+          "name": "soil_temp_readings_field_id_fields_id_fk",
+          "tableFrom": "soil_temp_readings",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "soil_temp_readings_entered_by_app_users_id_fk": {
+          "name": "soil_temp_readings_entered_by_app_users_id_fk",
+          "tableFrom": "soil_temp_readings",
+          "tableTo": "app_users",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "entered_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "soil_temp_readings_device_id_devices_id_fk": {
+          "name": "soil_temp_readings_device_id_devices_id_fk",
+          "tableFrom": "soil_temp_readings",
+          "tableTo": "devices",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "device_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "soil_temp_readings_source_source_id_key": {
+          "name": "soil_temp_readings_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "soil_temp_readings_source_check": {
+          "name": "soil_temp_readings_source_check",
+          "value": "\"farm\".\"soil_temp_readings\".\"source\" in ('manual', 'station', 'probe')"
+        },
+        "soil_temp_readings_depth_in_check": {
+          "name": "soil_temp_readings_depth_in_check",
+          "value": "\"farm\".\"soil_temp_readings\".\"depth_in\" > 0 and \"farm\".\"soil_temp_readings\".\"depth_in\" <= 72"
+        },
+        "soil_temp_readings_temp_f_check": {
+          "name": "soil_temp_readings_temp_f_check",
+          "value": "\"farm\".\"soil_temp_readings\".\"temp_f\" between -40 and 140"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.spray_assessments": {
+      "name": "spray_assessments",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "for_hour": {
+          "name": "for_hour",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "verdict": {
+          "name": "verdict",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reasons": {
+          "name": "reasons",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "inputs": {
+          "name": "inputs",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "rules_version": {
+          "name": "rules_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "forecast_issued_at": {
+          "name": "forecast_issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "grid_id": {
+          "name": "grid_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assessed_at": {
+          "name": "assessed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "spray_assessments_field_id_for_hour_idx": {
+          "name": "spray_assessments_field_id_for_hour_idx",
+          "columns": [
+            {
+              "expression": "field_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "for_hour",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "assessed_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "spray_assessments_grid_id_forecast_issued_at_for_hour_idx": {
+          "name": "spray_assessments_grid_id_forecast_issued_at_for_hour_idx",
+          "columns": [
+            {
+              "expression": "grid_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "forecast_issued_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "for_hour",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "spray_assessments_field_id_fields_id_fk": {
+          "name": "spray_assessments_field_id_fields_id_fk",
+          "tableFrom": "spray_assessments",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "spray_assessments_run_key": {
+          "name": "spray_assessments_run_key",
+          "nullsNotDistinct": true,
+          "columns": [
+            "field_id",
+            "for_hour",
+            "rules_version",
+            "forecast_issued_at"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "spray_assessments_verdict_check": {
+          "name": "spray_assessments_verdict_check",
+          "value": "\"farm\".\"spray_assessments\".\"verdict\" in ('go', 'caution', 'no_go')"
+        },
+        "spray_assessments_for_hour_check": {
+          "name": "spray_assessments_for_hour_check",
+          "value": "mod(extract(epoch from \"farm\".\"spray_assessments\".\"for_hour\")::numeric, 3600) = 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.tile_lines": {
+      "name": "tile_lines",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(MultiLineString,4326)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'lateral'"
+        },
+        "size_in": {
+          "name": "size_in",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "depth_ft": {
+          "name": "depth_ft",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "installed_on": {
+          "name": "installed_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "installer": {
+          "name": "installer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_ref": {
+          "name": "source_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "tile_lines_field_id_idx": {
+          "name": "tile_lines_field_id_idx",
+          "columns": [
+            {
+              "expression": "field_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tile_lines_geom_gist": {
+          "name": "tile_lines_geom_gist",
+          "columns": [
+            {
+              "expression": "geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tile_lines_field_id_fields_id_fk": {
+          "name": "tile_lines_field_id_fields_id_fk",
+          "tableFrom": "tile_lines",
+          "tableTo": "fields",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "field_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "tile_lines_created_by_app_users_id_fk": {
+          "name": "tile_lines_created_by_app_users_id_fk",
+          "tableFrom": "tile_lines",
+          "tableTo": "app_users",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tile_lines_source_source_id_key": {
+          "name": "tile_lines_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "tile_lines_kind_check": {
+          "name": "tile_lines_kind_check",
+          "value": "\"farm\".\"tile_lines\".\"kind\" in ('main', 'submain', 'lateral', 'unknown')"
+        },
+        "tile_lines_origin_check": {
+          "name": "tile_lines_origin_check",
+          "value": "\"farm\".\"tile_lines\".\"origin\" in ('installer_drawing', 'deere_tile_plow', 'manual')"
+        },
+        "tile_lines_size_in_check": {
+          "name": "tile_lines_size_in_check",
+          "value": "\"farm\".\"tile_lines\".\"size_in\" is null or \"farm\".\"tile_lines\".\"size_in\" > 0"
+        },
+        "tile_lines_depth_ft_check": {
+          "name": "tile_lines_depth_ft_check",
+          "value": "\"farm\".\"tile_lines\".\"depth_ft\" is null or \"farm\".\"tile_lines\".\"depth_ft\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.weather_forecasts": {
+      "name": "weather_forecasts",
+      "schema": "farm",
+      "columns": {
+        "grid_id": {
+          "name": "grid_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valid_at": {
+          "name": "valid_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "temp_f": {
+          "name": "temp_f",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dewpoint_f": {
+          "name": "dewpoint_f",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rh_pct": {
+          "name": "rh_pct",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wind_mph": {
+          "name": "wind_mph",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gust_mph": {
+          "name": "gust_mph",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wind_dir": {
+          "name": "wind_dir",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pop_pct": {
+          "name": "pop_pct",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "qpf_in": {
+          "name": "qpf_in",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sky_pct": {
+          "name": "sky_pct",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mixing_height_ft": {
+          "name": "mixing_height_ft",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transport_wind_mph": {
+          "name": "transport_wind_mph",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'nws'"
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "weather_forecasts_grid_id_valid_at_idx": {
+          "name": "weather_forecasts_grid_id_valid_at_idx",
+          "columns": [
+            {
+              "expression": "grid_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "valid_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "issued_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "weather_forecasts_grid_id_weather_grids_id_fk": {
+          "name": "weather_forecasts_grid_id_weather_grids_id_fk",
+          "tableFrom": "weather_forecasts",
+          "tableTo": "weather_grids",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "grid_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "weather_forecasts_pkey": {
+          "name": "weather_forecasts_pkey",
+          "columns": [
+            "grid_id",
+            "issued_at",
+            "valid_at"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "weather_forecasts_wind_dir_check": {
+          "name": "weather_forecasts_wind_dir_check",
+          "value": "\"farm\".\"weather_forecasts\".\"wind_dir\" is null or (\"farm\".\"weather_forecasts\".\"wind_dir\" >= 0 and \"farm\".\"weather_forecasts\".\"wind_dir\" <= 360)"
+        },
+        "weather_forecasts_pct_check": {
+          "name": "weather_forecasts_pct_check",
+          "value": "(\"farm\".\"weather_forecasts\".\"pop_pct\" is null or \"farm\".\"weather_forecasts\".\"pop_pct\" between 0 and 100) and (\"farm\".\"weather_forecasts\".\"sky_pct\" is null or \"farm\".\"weather_forecasts\".\"sky_pct\" between 0 and 100) and (\"farm\".\"weather_forecasts\".\"rh_pct\" is null or \"farm\".\"weather_forecasts\".\"rh_pct\" between 0 and 100)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.weather_grids": {
+      "name": "weather_grids",
+      "schema": "farm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "wfo": {
+          "name": "wfo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grid_x": {
+          "name": "grid_x",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grid_y": {
+          "name": "grid_y",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stations": {
+          "name": "stations",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(Polygon,4326)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_zone": {
+          "name": "time_zone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "looked_up_at": {
+          "name": "looked_up_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "forecast_checked_at": {
+          "name": "forecast_checked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "forecast_checked_issue": {
+          "name": "forecast_checked_issue",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "weather_grids_geom_gist": {
+          "name": "weather_grids_geom_gist",
+          "columns": [
+            {
+              "expression": "geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "weather_grids_wfo_grid_x_grid_y_key": {
+          "name": "weather_grids_wfo_grid_x_grid_y_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "wfo",
+            "grid_x",
+            "grid_y"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "weather_grids_id_check": {
+          "name": "weather_grids_id_check",
+          "value": "\"farm\".\"weather_grids\".\"id\" = \"farm\".\"weather_grids\".\"wfo\" || '/' || \"farm\".\"weather_grids\".\"grid_x\" || ',' || \"farm\".\"weather_grids\".\"grid_y\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "farm.weather_observations": {
+      "name": "weather_observations",
+      "schema": "farm",
+      "columns": {
+        "station_id": {
+          "name": "station_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "observed_at": {
+          "name": "observed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(Point,4326)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "temp_f": {
+          "name": "temp_f",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dewpoint_f": {
+          "name": "dewpoint_f",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rh_pct": {
+          "name": "rh_pct",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wind_mph": {
+          "name": "wind_mph",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gust_mph": {
+          "name": "gust_mph",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wind_dir": {
+          "name": "wind_dir",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "precip_last_hour_in": {
+          "name": "precip_last_hour_in",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'nws'"
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "weather_observations_geom_gist": {
+          "name": "weather_observations_geom_gist",
+          "columns": [
+            {
+              "expression": "geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "weather_observations_pkey": {
+          "name": "weather_observations_pkey",
+          "columns": [
+            "station_id",
+            "observed_at"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "weather_observations_wind_dir_check": {
+          "name": "weather_observations_wind_dir_check",
+          "value": "\"farm\".\"weather_observations\".\"wind_dir\" is null or (\"farm\".\"weather_observations\".\"wind_dir\" >= 0 and \"farm\".\"weather_observations\".\"wind_dir\" <= 360)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "gis.field_soils": {
+      "name": "field_soils",
+      "schema": "gis",
+      "columns": {
+        "boundary_id": {
+          "name": "boundary_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mukey": {
+          "name": "mukey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "acres": {
+          "name": "acres",
+          "type": "numeric(12, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pct": {
+          "name": "pct",
+          "type": "numeric(7, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "computed_at": {
+          "name": "computed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "field_soils_mukey_idx": {
+          "name": "field_soils_mukey_idx",
+          "columns": [
+            {
+              "expression": "mukey",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "field_soils_boundary_id_field_boundaries_id_fk": {
+          "name": "field_soils_boundary_id_field_boundaries_id_fk",
+          "tableFrom": "field_soils",
+          "tableTo": "field_boundaries",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "boundary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "field_soils_mukey_soil_mapunits_mukey_fk": {
+          "name": "field_soils_mukey_soil_mapunits_mukey_fk",
+          "tableFrom": "field_soils",
+          "tableTo": "soil_mapunits",
+          "schemaTo": "gis",
+          "columnsFrom": [
+            "mukey"
+          ],
+          "columnsTo": [
+            "mukey"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "field_soils_pkey": {
+          "name": "field_soils_pkey",
+          "columns": [
+            "boundary_id",
+            "mukey"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "field_soils_acres_check": {
+          "name": "field_soils_acres_check",
+          "value": "\"gis\".\"field_soils\".\"acres\" >= 0"
+        },
+        "field_soils_pct_check": {
+          "name": "field_soils_pct_check",
+          "value": "\"gis\".\"field_soils\".\"pct\" >= 0 and \"gis\".\"field_soils\".\"pct\" <= 100"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "gis.map_layers": {
+      "name": "map_layers",
+      "schema": "gis",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url_or_key": {
+          "name": "url_or_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cache_policy": {
+          "name": "cache_policy",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'public'"
+        },
+        "minzoom": {
+          "name": "minzoom",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "maxzoom": {
+          "name": "maxzoom",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 22
+        },
+        "attribution": {
+          "name": "attribution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "legend": {
+          "name": "legend",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_vintage": {
+          "name": "source_vintage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "built_at": {
+          "name": "built_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_visible": {
+          "name": "default_visible",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "meta": {
+          "name": "meta",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "map_layers_key_check": {
+          "name": "map_layers_key_check",
+          "value": "\"gis\".\"map_layers\".\"key\" ~ '^[a-z][a-z0-9_]{0,62}$'"
+        },
+        "map_layers_kind_check": {
+          "name": "map_layers_kind_check",
+          "value": "\"gis\".\"map_layers\".\"kind\" in ('pmtiles', 'mvt', 'xyz')"
+        },
+        "map_layers_cache_policy_check": {
+          "name": "map_layers_cache_policy_check",
+          "value": "\"gis\".\"map_layers\".\"cache_policy\" in ('public', 'private')"
+        },
+        "map_layers_zoom_check": {
+          "name": "map_layers_zoom_check",
+          "value": "\"gis\".\"map_layers\".\"minzoom\" >= 0 and \"gis\".\"map_layers\".\"maxzoom\" <= 24 and \"gis\".\"map_layers\".\"minzoom\" <= \"gis\".\"map_layers\".\"maxzoom\""
+        },
+        "map_layers_version_check": {
+          "name": "map_layers_version_check",
+          "value": "\"gis\".\"map_layers\".\"version\" is null or \"gis\".\"map_layers\".\"version\" ~ '^[0-9A-Za-z_.-]{1,64}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "gis.parcel_imports": {
+      "name": "parcel_imports",
+      "schema": "gis",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "county_fips": {
+          "name": "county_fips",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "received_on": {
+          "name": "received_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "license_note": {
+          "name": "license_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feature_count": {
+          "name": "feature_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "imported_at": {
+          "name": "imported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "parcel_imports_county_fips_check": {
+          "name": "parcel_imports_county_fips_check",
+          "value": "\"gis\".\"parcel_imports\".\"county_fips\" ~ '^[0-9]{5}$'"
+        },
+        "parcel_imports_sha256_check": {
+          "name": "parcel_imports_sha256_check",
+          "value": "\"gis\".\"parcel_imports\".\"sha256\" ~ '^[0-9a-f]{64}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "gis.parcels": {
+      "name": "parcels",
+      "schema": "gis",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "import_id": {
+          "name": "import_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "county_fips": {
+          "name": "county_fips",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parcel_no": {
+          "name": "parcel_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_name": {
+          "name": "owner_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "owner_mailing": {
+          "name": "owner_mailing",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "property_address": {
+          "name": "property_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acres": {
+          "name": "acres",
+          "type": "numeric(12, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gis_acres": {
+          "name": "gis_acres",
+          "type": "numeric(12, 4)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "attrs": {
+          "name": "attrs",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(MultiPolygon,4326)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "parcels_import_id_idx": {
+          "name": "parcels_import_id_idx",
+          "columns": [
+            {
+              "expression": "import_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "parcels_geom_gist": {
+          "name": "parcels_geom_gist",
+          "columns": [
+            {
+              "expression": "geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "parcels_import_id_parcel_imports_id_fk": {
+          "name": "parcels_import_id_parcel_imports_id_fk",
+          "tableFrom": "parcels",
+          "tableTo": "parcel_imports",
+          "schemaTo": "gis",
+          "columnsFrom": [
+            "import_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "parcels_county_fips_parcel_no_key": {
+          "name": "parcels_county_fips_parcel_no_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "county_fips",
+            "parcel_no"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "parcels_county_fips_check": {
+          "name": "parcels_county_fips_check",
+          "value": "\"gis\".\"parcels\".\"county_fips\" ~ '^[0-9]{5}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "gis.soil_mapunits": {
+      "name": "soil_mapunits",
+      "schema": "gis",
+      "columns": {
+        "mukey": {
+          "name": "mukey",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "areasymbol": {
+          "name": "areasymbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "musym": {
+          "name": "musym",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "muname": {
+          "name": "muname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dominant_component": {
+          "name": "dominant_component",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "drainage_class": {
+          "name": "drainage_class",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hydgrp": {
+          "name": "hydgrp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "farmland_class": {
+          "name": "farmland_class",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nccpi": {
+          "name": "nccpi",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "components": {
+          "name": "components",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "survey_version": {
+          "name": "survey_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "loaded_at": {
+          "name": "loaded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "soil_mapunits_nccpi_check": {
+          "name": "soil_mapunits_nccpi_check",
+          "value": "\"gis\".\"soil_mapunits\".\"nccpi\" is null or (\"gis\".\"soil_mapunits\".\"nccpi\" >= 0 and \"gis\".\"soil_mapunits\".\"nccpi\" <= 1)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "gis.soil_polygons": {
+      "name": "soil_polygons",
+      "schema": "gis",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "mukey": {
+          "name": "mukey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "areasymbol": {
+          "name": "areasymbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(MultiPolygon,4326)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ssurgo'"
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "loaded_at": {
+          "name": "loaded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "soil_polygons_mukey_idx": {
+          "name": "soil_polygons_mukey_idx",
+          "columns": [
+            {
+              "expression": "mukey",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "soil_polygons_geom_gist": {
+          "name": "soil_polygons_geom_gist",
+          "columns": [
+            {
+              "expression": "geom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "soil_polygons_mukey_soil_mapunits_mukey_fk": {
+          "name": "soil_polygons_mukey_soil_mapunits_mukey_fk",
+          "tableFrom": "soil_polygons",
+          "tableTo": "soil_mapunits",
+          "schemaTo": "gis",
+          "columnsFrom": [
+            "mukey"
+          ],
+          "columnsTo": [
+            "mukey"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "soil_polygons_source_source_id_key": {
+          "name": "soil_polygons_source_source_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "source_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "ingest.api_calls_daily": {
+      "name": "api_calls_daily",
+      "schema": "ingest",
+      "columns": {
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stream": {
+          "name": "stream",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "day": {
+          "name": "day",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "calls": {
+          "name": "calls",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "errors": {
+          "name": "errors",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "rate_limited": {
+          "name": "rate_limited",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "api_calls_daily_pkey": {
+          "name": "api_calls_daily_pkey",
+          "columns": [
+            "source",
+            "stream",
+            "day"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "api_calls_daily_counts_check": {
+          "name": "api_calls_daily_counts_check",
+          "value": "\"ingest\".\"api_calls_daily\".\"calls\" >= 0 and \"ingest\".\"api_calls_daily\".\"errors\" >= 0 and \"ingest\".\"api_calls_daily\".\"rate_limited\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "ingest.connector_orgs": {
+      "name": "connector_orgs",
+      "schema": "ingest",
+      "columns": {
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "org_external_id": {
+          "name": "org_external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "approval_url": {
+          "name": "approval_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "detail": {
+          "name": "detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "first_seen_at": {
+          "name": "first_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "connector_orgs_pkey": {
+          "name": "connector_orgs_pkey",
+          "columns": [
+            "source",
+            "org_external_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "connector_orgs_status_check": {
+          "name": "connector_orgs_status_check",
+          "value": "\"ingest\".\"connector_orgs\".\"status\" in ('connected', 'needs_approval')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "ingest.external_refs": {
+      "name": "external_refs",
+      "schema": "ingest",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_org": {
+          "name": "source_org",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "external_refs_entity_id_idx": {
+          "name": "external_refs_entity_id_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "external_refs_source_kind_external_id_source_org_key": {
+          "name": "external_refs_source_kind_external_id_source_org_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "kind",
+            "external_id",
+            "source_org"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "ingest.job_runs": {
+      "name": "job_runs",
+      "schema": "ingest",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "job": {
+          "name": "job",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "host": {
+          "name": "host",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'app'"
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "finished_at": {
+          "name": "finished_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ok": {
+          "name": "ok",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "items": {
+          "name": "items",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "job_runs_job_started_at_idx": {
+          "name": "job_runs_job_started_at_idx",
+          "columns": [
+            {
+              "expression": "job",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "started_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "job_runs_host_check": {
+          "name": "job_runs_host_check",
+          "value": "\"ingest\".\"job_runs\".\"host\" in ('app', 'pc')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "ingest.oauth_tokens": {
+      "name": "oauth_tokens",
+      "schema": "ingest",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "org_external_id": {
+          "name": "org_external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_expires_at": {
+          "name": "refresh_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scopes": {
+          "name": "scopes",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "oauth_tokens_source_org_external_id_key": {
+          "name": "oauth_tokens_source_org_external_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "org_external_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "ingest.raw_events": {
+      "name": "raw_events",
+      "schema": "ingest",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stream": {
+          "name": "stream",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "raw_events_pending_idx": {
+          "name": "raw_events_pending_idx",
+          "columns": [
+            {
+              "expression": "source",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "stream",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "fetched_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"ingest\".\"raw_events\".\"status\" = 'pending'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "raw_events_source_stream_external_id_sha256_key": {
+          "name": "raw_events_source_stream_external_id_sha256_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "source",
+            "stream",
+            "external_id",
+            "sha256"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "raw_events_status_check": {
+          "name": "raw_events_status_check",
+          "value": "\"ingest\".\"raw_events\".\"status\" in ('pending', 'processed', 'dead')"
+        },
+        "raw_events_sha256_check": {
+          "name": "raw_events_sha256_check",
+          "value": "\"ingest\".\"raw_events\".\"sha256\" ~ '^[0-9a-f]{64}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "ingest.sync_state": {
+      "name": "sync_state",
+      "schema": "ingest",
+      "columns": {
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stream": {
+          "name": "stream",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sim'"
+        },
+        "cursor": {
+          "name": "cursor",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lease_until": {
+          "name": "lease_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lease_token": {
+          "name": "lease_token",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "next_run_at": {
+          "name": "next_run_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_run_at": {
+          "name": "last_run_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_ok_at": {
+          "name": "last_ok_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_error_at": {
+          "name": "last_error_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "extra": {
+          "name": "extra",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "sync_state_pkey": {
+          "name": "sync_state_pkey",
+          "columns": [
+            "source",
+            "stream"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "sync_state_mode_check": {
+          "name": "sync_state_mode_check",
+          "value": "\"ingest\".\"sync_state\".\"mode\" in ('sim', 'replay', 'sandbox', 'live', 'off')"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "app": "app",
+    "farm": "farm",
+    "gis": "gis",
+    "ingest": "ingest"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {
+    "farm.current_boundaries": {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "geom": {
+          "name": "geom",
+          "type": "geometry(MultiPolygon,4326)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "acres": {
+          "name": "acres",
+          "type": "numeric(12, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valid": {
+          "name": "valid",
+          "type": "tstzrange",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_ref": {
+          "name": "source_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "derived_stale": {
+          "name": "derived_stale",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "name": "current_boundaries",
+      "schema": "farm",
+      "isExisting": true,
+      "materialized": false
+    }
+  },
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

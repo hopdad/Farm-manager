@@ -28,7 +28,13 @@ import { insideGrown, metersPerCssPixel, redrawIntervalMs } from './fleet/redraw
 import { DOWN_COLOR, KIND_COLORS, KIND_LABELS, STALE_COLOR, STALE_RING_COLOR } from './fleet/style';
 import type { FleetStatus } from './fleet/useFleet';
 import { setupMapLibre } from './maplibre';
-import { buildMapStyle, FIELD_LAYER_IDS, TENURE_COLORS, TENURE_LABELS } from './style';
+import {
+  buildMapStyle,
+  FIELD_LAYER_IDS,
+  LEGEND_TENURES,
+  TENURE_COLORS,
+  TENURE_LABELS,
+} from './style';
 import { installMapTestApi } from './test-api';
 import type { BasemapFlavor, MapPageData, MapVariant } from './types';
 import css from './war-room-map.module.css';
@@ -393,7 +399,7 @@ export default function WarRoomMap(props: WarRoomMapProps) {
       {props.showLegend !== false && (
         <div className={css.legend} data-testid="map-legend">
           <div className={css.legendTitle}>Fields</div>
-          {(Object.keys(TENURE_COLORS) as (keyof typeof TENURE_COLORS)[]).map((t) => (
+          {LEGEND_TENURES.map((t) => (
             <div key={t} className={css.legendRow}>
               <span
                 className={css.swatch}

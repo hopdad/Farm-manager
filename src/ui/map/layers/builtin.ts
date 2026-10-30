@@ -10,6 +10,7 @@ import {
   FIELDS_LABEL_SOURCE_LAYER,
   FIELDS_SOURCE,
   FIELDS_SOURCE_LAYER,
+  LEGEND_TENURES,
   TENURE_COLORS,
   TENURE_LABELS,
 } from '../style';
@@ -23,7 +24,7 @@ export const fieldsLayer: StyleLayerDef = {
   label: 'Field boundaries',
   // What the colours mean, under the toggle (the rail covers the map's own legend on the wall).
   legend: {
-    items: (Object.keys(TENURE_COLORS) as (keyof typeof TENURE_COLORS)[]).map((t) => ({
+    items: LEGEND_TENURES.map((t) => ({
       label: TENURE_LABELS[t],
       swatch: 'fill' as const,
       color: TENURE_COLORS[t],

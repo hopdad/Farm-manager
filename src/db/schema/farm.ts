@@ -39,7 +39,16 @@ import {
   TILE_LINE_KINDS,
   TILE_LINE_ORIGINS,
 } from '../../domain/farm';
+import { type ActiveFaultCode, FAULT_SEVERITIES } from '../../domain/fault-codes';
 import { ACTIVITIES, MACHINE_KINDS, MACHINE_STATUSES, POSITION_SOURCES } from '../../domain/fleet';
+import {
+  OPERATION_KINDS,
+  OPERATION_STATUSES,
+  type OperationMeasurements,
+  type OperationProduct,
+  type OperationWeather,
+} from '../../domain/operations';
+import { PIN_KINDS, type PinGeometry } from '../../domain/pins';
 import type { SprayReason, WeatherStation } from '../../domain/weather';
 import { SPRAY_VERDICTS } from '../../domain/weather';
 import { geometryColumn } from '../geo';
@@ -246,6 +255,20 @@ export const machineState = farm.table(
     fuelPct: doublePrecision('fuel_pct'),
     engineOn: boolean('engine_on'),
     positionSource: text('position_source', { enum: POSITION_SOURCES }).notNull(),
+    /**
+     * Connector source of the latest fix (samsara, motive, deere; 1f, migration 0007): the
+     * per-machine vendor badge ("Samsara · sim"). Null for manual fixes and rows older than 0007.
+     */
+    positionVendor: text('position_vendor'),
+    /**
+     * Active fault codes (1f), worst first: the summary of the machine's open farm.machine_faults
+     * rows. '[]' = none. Updated only by a fault event newer than `faultsAt`.
+     */
+    faultCodes: jsonb('fault_codes').$type<ActiveFaultCode[]>().notNull().default(sql`'[]'::jsonb`),
+    /** Vendor time of the fault event `faultCodes` reflects (time guard: older pages lose). */
+    faultsAt: tstz('faults_at'),
+    /** Vendor time of the stat `fuelPct` came from (time guard, contracts.md open item). */
+    statsAt: tstz('stats_at'),
     updatedAt: tstz('updated_at').notNull().defaultNow(),
   },
   (t) => [
@@ -684,5 +707,183 @@ export const tileLines = farm.table(
     check('tile_lines_origin_check', sql`${t.origin} in (${inList(TILE_LINE_ORIGINS)})`),
     check('tile_lines_size_in_check', sql`${t.sizeIn} is null or ${t.sizeIn} > 0`),
     check('tile_lines_depth_ft_check', sql`${t.depthFt} is null or ${t.depthFt} > 0`),
+  ],
+);
+
+// =============================================================================================
+// 1f live connectors (db/migrations/0007_m1f_live_connectors.sql; docs/contracts-1f.md §3)
+// =============================================================================================
+
+/**
+ * What a machine did on a field (plan §4): Deere field operations (seeding, application,
+ * harvest, tillage) with products, measured totals and a simplified coverage MultiPolygon.
+ * Synced rows: id = deterministicId('deere', <Deere operation id>), source 'deere', source_id =
+ * the Deere operation id, source_org = the Deere org it was read from. `field_id` is null when
+ * the operation's field isn't mapped (a dq check lists those).
+ */
+export const operations = farm.table(
+  'operations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind', { enum: OPERATION_KINDS }).notNull(),
+    fieldId: uuid('field_id').references(() => fields.id, { onDelete: 'set null' }),
+    cropYear: integer('crop_year').notNull(),
+    /** Normalized crop (src/domain/crops.ts), or null. */
+    crop: text('crop'),
+    startedAt: tstz('started_at').notNull(),
+    endedAt: tstz('ended_at'),
+    /** Area the vendor reported, and the part inside the field's boundary. */
+    areaReportedAc: numeric('area_reported_ac', { precision: 12, scale: 4, mode: 'number' }),
+    areaClippedAc: numeric('area_clipped_ac', { precision: 12, scale: 4, mode: 'number' }),
+    products: jsonb('products').$type<OperationProduct[]>().notNull().default(sql`'[]'::jsonb`),
+    measurements: jsonb('measurements')
+      .$type<OperationMeasurements>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    machineIds: uuid('machine_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    operatorPartyId: uuid('operator_party_id').references(() => parties.id, {
+      onDelete: 'set null',
+    }),
+    /** Observed weather during the operation, with its source (2b). */
+    weather: jsonb('weather').$type<OperationWeather>(),
+    status: text('status', { enum: OPERATION_STATUSES }).notNull().default('provisional'),
+    /** Coverage, simplified (ST_SimplifyPreserveTopology), EPSG:4326. */
+    geom: geometryColumn('geom', 'MultiPolygon'),
+    source: text('source').notNull(),
+    sourceId: text('source_id'),
+    /** The vendor org the row was read from (Deere org id). */
+    sourceOrg: text('source_org'),
+    /** The vendor's modifiedTime: an unchanged operation is not re-read. */
+    sourceModifiedAt: tstz('source_modified_at'),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('operations_source_source_id_key').on(t.source, t.sourceId),
+    index('operations_field_id_crop_year_started_at_idx').on(
+      t.fieldId,
+      t.cropYear,
+      t.startedAt.desc(),
+    ),
+    index('operations_geom_gist').using('gist', t.geom),
+    check('operations_kind_check', sql`${t.kind} in (${inList(OPERATION_KINDS)})`),
+    check('operations_status_check', sql`${t.status} in (${inList(OPERATION_STATUSES)})`),
+    check('operations_crop_year_check', sql`${t.cropYear} between 1950 and 2100`),
+    check('operations_ended_at_check', sql`${t.endedAt} is null or ${t.endedAt} >= ${t.startedAt}`),
+    check(
+      'operations_area_check',
+      sql`(${t.areaReportedAc} is null or ${t.areaReportedAc} >= 0) and (${t.areaClippedAc} is null or ${t.areaClippedAc} >= 0)`,
+    ),
+  ],
+);
+
+/**
+ * Pins on the map (plan §4): 1f brings Deere flags in read-only (source 'deere_flag',
+ * read_only true, id = deterministicId('deere_flag', <Deere flag id>)); 2c adds pins drawn on a
+ * phone (source 'app', photo_keys, client_id for offline dedupe). Geometry: Point, LineString or
+ * Polygon (CHECK).
+ */
+export const pins = farm.table(
+  'pins',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind', { enum: PIN_KINDS }).notNull().default('note'),
+    fieldId: uuid('field_id').references(() => fields.id, { onDelete: 'set null' }),
+    geom: geometryColumn('geom', 'Geometry').$type<PinGeometry>().notNull(),
+    note: text('note'),
+    /** The vendor's category or label (a Deere flag category), shown in the popup. */
+    category: text('category'),
+    photoKeys: text('photo_keys').array().notNull().default(sql`'{}'::text[]`),
+    createdBy: uuid('created_by').references((): AnyPgColumn => appUsers.id, {
+      onDelete: 'set null',
+    }),
+    resolvedAt: tstz('resolved_at'),
+    /** Offline dedupe key from the phone that drew it (2c). */
+    clientId: uuid('client_id'),
+    readOnly: boolean('read_only').notNull().default(false),
+    source: text('source').notNull().default('app'),
+    sourceId: text('source_id'),
+    sourceOrg: text('source_org'),
+    sourceModifiedAt: tstz('source_modified_at'),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('pins_source_source_id_key').on(t.source, t.sourceId),
+    uniqueIndex('pins_client_id_key').on(t.clientId).where(sql`${t.clientId} is not null`),
+    index('pins_field_id_idx').on(t.fieldId),
+    index('pins_geom_gist').using('gist', t.geom),
+    check('pins_kind_check', sql`${t.kind} in (${inList(PIN_KINDS)})`),
+    check(
+      'pins_geom_type_check',
+      sql`extensions.ST_GeometryType(${t.geom}) in ('ST_Point', 'ST_LineString', 'ST_Polygon')`,
+    ),
+  ],
+);
+
+/**
+ * Engine hours and odometer readings over time (plan §4; Deere machine hours in 1f, ELD stats
+ * later). The latest also lands on farm.machines.engine_hours (never decreasing).
+ */
+export const machineHours = farm.table(
+  'machine_hours',
+  {
+    machineId: uuid('machine_id')
+      .notNull()
+      .references(() => machines.id, { onDelete: 'cascade' }),
+    /** Vendor time of the reading. */
+    ts: tstz('ts').notNull(),
+    engineHours: numeric('engine_hours', { precision: 10, scale: 1, mode: 'number' }),
+    odometerMi: numeric('odometer_mi', { precision: 10, scale: 1, mode: 'number' }),
+    /** Connector source ('deere', 'samsara', …). */
+    source: text('source').notNull(),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: 'machine_hours_pkey', columns: [t.machineId, t.source, t.ts] }),
+    index('machine_hours_machine_id_ts_idx').on(t.machineId, t.ts.desc()),
+    check(
+      'machine_hours_reading_check',
+      sql`${t.engineHours} is not null or ${t.odometerMi} is not null`,
+    ),
+    check(
+      'machine_hours_values_check',
+      sql`(${t.engineHours} is null or ${t.engineHours} >= 0) and (${t.odometerMi} is null or ${t.odometerMi} >= 0)`,
+    ),
+  ],
+);
+
+/**
+ * Fault code history (plan §4; Samsara in 1f). One OPEN row (cleared_at null) per machine,
+ * source and code; a code seen again after it cleared opens a new row.
+ */
+export const machineFaults = farm.table(
+  'machine_faults',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    machineId: uuid('machine_id')
+      .notNull()
+      .references(() => machines.id, { onDelete: 'cascade' }),
+    source: text('source').notNull(),
+    code: text('code').notNull(),
+    severity: text('severity', { enum: FAULT_SEVERITIES }).notNull(),
+    description: text('description'),
+    firstSeenAt: tstz('first_seen_at').notNull(),
+    lastSeenAt: tstz('last_seen_at').notNull(),
+    clearedAt: tstz('cleared_at'),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('machine_faults_open_key')
+      .on(t.machineId, t.source, t.code)
+      .where(sql`${t.clearedAt} is null`),
+    index('machine_faults_machine_id_first_seen_at_idx').on(t.machineId, t.firstSeenAt.desc()),
+    check('machine_faults_severity_check', sql`${t.severity} in (${inList(FAULT_SEVERITIES)})`),
+    check('machine_faults_seen_check', sql`${t.lastSeenAt} >= ${t.firstSeenAt}`),
+    check(
+      'machine_faults_cleared_check',
+      sql`${t.clearedAt} is null or ${t.clearedAt} >= ${t.firstSeenAt}`,
+    ),
   ],
 );

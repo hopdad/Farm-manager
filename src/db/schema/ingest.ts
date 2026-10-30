@@ -6,6 +6,7 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -152,4 +153,64 @@ export const oauthTokens = ingest.table(
     updatedAt: tstz('updated_at').notNull().defaultNow(),
   },
   (t) => [unique('oauth_tokens_source_org_external_id_key').on(t.source, t.orgExternalId)],
+);
+
+// =============================================================================================
+// 1f live connectors (db/migrations/0007_m1f_live_connectors.sql; docs/contracts-1f.md §3)
+// =============================================================================================
+
+/**
+ * Vendor API calls per source, stream and UTC day (decision 4): what /admin/connectors shows
+ * against the budget and what fleet.deere paces itself from. Upserted with
+ * `calls = calls + excluded.calls` by the call counter in src/connectors/http.ts (sync-health).
+ * `stream` is '' for calls outside a sync step (the OAuth callback, a CLI).
+ */
+export const apiCallsDaily = ingest.table(
+  'api_calls_daily',
+  {
+    source: text('source').notNull(),
+    stream: text('stream').notNull().default(''),
+    /** UTC calendar day. */
+    day: date('day', { mode: 'string' }).notNull(),
+    /** Every HTTP attempt sent to the vendor (retries count). */
+    calls: integer('calls').notNull().default(0),
+    /** Attempts answered with a non-2xx other than 429, or that never got an answer. */
+    errors: integer('errors').notNull().default(0),
+    /** Attempts answered 429. */
+    rateLimited: integer('rate_limited').notNull().default(0),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: 'api_calls_daily_pkey', columns: [t.source, t.stream, t.day] }),
+    check(
+      'api_calls_daily_counts_check',
+      sql`${t.calls} >= 0 and ${t.errors} >= 0 and ${t.rateLimited} >= 0`,
+    ),
+  ],
+);
+
+/**
+ * The vendor orgs a connection can see and whether each is usable (decision 5): a Deere org
+ * whose listing carries a `connections` link, or that answers 403, `needs_approval` (skipped by
+ * every sync, shown on /admin/connectors with `approval_url`); else `connected`.
+ */
+export const connectorOrgs = ingest.table(
+  'connector_orgs',
+  {
+    source: text('source').notNull(),
+    orgExternalId: text('org_external_id').notNull(),
+    name: text('name'),
+    status: text('status', { enum: ['connected', 'needs_approval'] }).notNull(),
+    /** Where a person approves the connection (Deere Connections), when known. */
+    approvalUrl: text('approval_url'),
+    /** Short reason ("403 from /organizations/{id}/fields"), no secrets. */
+    detail: text('detail'),
+    firstSeenAt: tstz('first_seen_at').notNull().defaultNow(),
+    lastSeenAt: tstz('last_seen_at').notNull().defaultNow(),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: 'connector_orgs_pkey', columns: [t.source, t.orgExternalId] }),
+    check('connector_orgs_status_check', sql`${t.status} in ('connected', 'needs_approval')`),
+  ],
 );

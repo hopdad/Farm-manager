@@ -53,7 +53,7 @@ describe('db admin helpers (no database)', () => {
     );
   });
 
-  test('journal lists the migrations in order (M0, then M1) and the hash is stable', () => {
+  test('journal lists the migrations in order (M0, M1, then 1f) and the hash is stable', () => {
     const journal = readJournal();
     expect(journal.map((e) => e.tag)).toEqual([
       '0000_m0_extensions_roles',
@@ -63,6 +63,7 @@ describe('db admin helpers (no database)', () => {
       '0004_m1_integration',
       '0005_m1_review',
       '0006_m1_forecast_checked',
+      '0007_m1f_live_connectors',
     ]);
     // drizzle-kit applies a migration only when its `when` is later than the last applied one.
     const whens = journal.map((e) => e.when);

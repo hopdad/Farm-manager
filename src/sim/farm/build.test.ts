@@ -63,7 +63,8 @@ describe('buildDemoFarm', () => {
     const byTenure = Object.fromEntries(
       TENURES.map((t) => [t, farm.fields.filter((f) => f.tenure === t).length]),
     );
-    expect(byTenure).toEqual({ owned: 8, cash_rent: 14, share: 7, custom: 11 });
+    // 'unknown' (1f) is only for fields the Deere sync creates: the demo farm has none.
+    expect(byTenure).toEqual({ owned: 8, cash_rent: 14, share: 7, custom: 11, unknown: 0 });
     const parties = new Map(farm.parties.map((p) => [p.id, p]));
     for (const f of farm.fields) {
       if (f.tenure === 'cash_rent' || f.tenure === 'share') {
