@@ -19,6 +19,8 @@ This is milestone **M1 "See it"**, slices 1a-1d: tap a field, the fleet panel an
 the weather strip with an advisory spray go/no-go (1b), your own fields, people, crop history and
 soils (1c), and imagery, parcels, tile maps and the layer rail (1d).
 
+**Working on the PC with a coding agent?** Point it at [`PC-AGENT.md`](PC-AGENT.md): how to launch the demo, what to verify on Windows, and the building that has to happen on the PC.
+
 ## What's new in M1
 
 - **Sign-in (1a).** You become the owner with a one-time link; managers sign in with their name
@@ -64,7 +66,6 @@ soils (1c), and imagery, parcels, tile maps and the layer rail (1d).
 # PowerShell, one command per line
 git clone https://github.com/hopdad/Farm-manager.git C:\dev\farm-manager
 cd C:\dev\farm-manager
-git checkout claude/m1-see-it   # until M1 is merged into main
 pnpm install
 pnpm run bootstrap   # one time, safe to re-run (`setup` is a built-in pnpm command, so it isn't named that)
 pnpm dev             # app + clock + vendor stand-in -> http://localhost:3000/board
@@ -77,7 +78,7 @@ sign-ins, a synthetic soils layer and synthetic parcels); downloads the offline 
 Protomaps extract of SE Michigan plus its fonts and sprites); connects the simulated Deere
 account; and prints the board, sign-in and phone URLs. It only does what's missing.
 
-**Coming from M0:** `git pull`, `git checkout claude/m1-see-it`, `pnpm install`,
+**Coming from M0:** `git checkout main`, `git pull`, `pnpm install`,
 `pnpm run bootstrap`. It applies the three new migrations (`0003`-`0005`) and its demo seed adds
 the M1 extras to the demo farm you already have (demo sign-ins, soils, parcels, field
 entrances), keeping everything else. No `pnpm db:reset` needed (it would wipe what you typed
