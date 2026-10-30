@@ -108,6 +108,22 @@ describe('.dbf text encoding', () => {
     expect(loose.boundaries[0]?.name).toBe('PÉREZ');
   });
 
+  // Node 24.13 decodes 0x80-0x9F as ISO-8859-1 in one-shot TextDecoder calls (tools/import/csv.ts);
+  // parsedbf's streaming decode is right, and this keeps it so.
+  test('Windows-1252 punctuation (0x80-0x9F) survives, with or without a .cpg', async () => {
+    const obrien = [0x4f, 0x92, 0x42, 0x52, 0x49, 0x45, 0x4e]; // "O’BRIEN" in Windows-1252
+    const bare = await parseBoundaryFiles([
+      { name: 'export.zip', bytes: zip(fieldFiles('F', obrien)) },
+    ]);
+    expect(bare.boundaries[0]?.name).toBe('O’BRIEN');
+    const named = {
+      ...fieldFiles('F', obrien),
+      'F.cpg': new TextEncoder().encode('ANSI 1252'),
+    };
+    const b = await parseBoundaryFiles([{ name: 'export.zip', bytes: zip(named) }]);
+    expect(b.boundaries[0]?.name).toBe('O’BRIEN');
+  });
+
   test('a UTF-8 .dbf, and a .cpg that names the code page, are read as they say', async () => {
     const utf8 = fieldFiles('Fields', [...Buffer.from('Pérez', 'utf8')]);
     const a = await parseBoundaryFiles([{ name: 'export.zip', bytes: zip(utf8) }]);

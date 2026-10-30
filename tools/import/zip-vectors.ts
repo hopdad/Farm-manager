@@ -13,7 +13,9 @@
  * It also fixes how attributes are decoded: shpjs reads a .dbf with no .cpg as UTF-8, but a .dbf
  * without a .cpg is in the Windows ANSI code page (Windows-1252), so every é turned into U+FFFD
  * with no error. `guessDbfEncoding` picks UTF-8 only when the records ARE valid UTF-8, else
- * windows-1252; parsedbf hands that label to TextDecoder (Node has full ICU).
+ * windows-1252; parsedbf hands that label to TextDecoder (Node has full ICU). It decodes in
+ * streaming mode, which Node 24.13 gets right for 0x80-0x9F (its one-shot decode doesn't: see
+ * `decodeCsvBytes` in ./csv.ts).
  *
  * Entries are grouped by their path without extension, case-insensitively (an export can carry
  * `Field.SHP` next to `Field.dbf`); `__MACOSX` resource forks are skipped; paths inside a
