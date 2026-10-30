@@ -4,6 +4,7 @@ Oct 29, 2026 · written by the M0 stage 1 (foundation) build · companion to `do
 
 > **M1:** the parallel M1 build's agreements (owners, ports, migration 0003, new contracts) are in
 > [`contracts-m1.md`](contracts-m1.md); everything here still holds unless that page says otherwise.
+> **Slice 1f** (live connectors, sync health, migration 0007): [`contracts-1f.md`](contracts-1f.md).
 >
 > **Status: integrated (M0 stage 3, Oct 29, 2026).** The four branches are merged into
 > `claude/m0-foundation`; the ownership table and the "rules for shared files" in section 1 were
@@ -212,6 +213,8 @@ With **`APP_ENV=production`**, config refuses `sim`/`replay` connector modes, `S
 | `WRITEBACK_DEERE` | `off` | `on` \| `off` → boolean; Work Plan push gate |
 | `DEERE_CLIENT_ID` | optional | real Deere app (sandbox/live); sim uses `SIM_CREDENTIALS.deere` |
 | `DEERE_CLIENT_SECRET` | optional | " |
+| `DEERE_REDIRECT_URI` | optional (http(s) URL; https in production) | 1f decision 6: the Deere OAuth callback when it isn't `${PUBLIC_URL}/api/oauth/deere` (a public page that forwards `code` and `state` to the PC; `docs/contracts-1f.md`) |
+| `DEERE_DAILY_CALL_BUDGET` | optional (integer ≥ 1) | 1f decision 4: Deere API calls a day; unset = limit unknown (jobs keep their cron); set = `fleet.deere` paces itself under 80 % of it |
 | `SAMSARA_API_TOKEN` | optional | real Samsara token; sim uses `SIM_CREDENTIALS.samsara` |
 | `MOTIVE_API_KEY` | optional | real Motive key; sim uses `SIM_CREDENTIALS.motive` |
 | `NWS_USER_AGENT` | `farm-manager (local development)` | NWS requires a User-Agent with contact info |

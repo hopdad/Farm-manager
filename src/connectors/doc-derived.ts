@@ -14,7 +14,10 @@
  * fixtures): the breadcrumb, field, boundary, field-operation, measurement and flag shapes in
  * src/connectors/deere/schemas.ts. Still to confirm against OUR sandbox org (below).
  */
+import { DEERE_FIELDS_DOC_DERIVED } from './deere/fields/doc-derived';
+import { DEERE_OPS_DOC_DERIVED } from './deere/ops/doc-derived';
 import { NWS_DOC_DERIVED } from './nws/doc-derived';
+import { SAMSARA_DOC_DERIVED } from './samsara/doc-derived';
 import type { ConnectorSource } from './types';
 
 export interface DocDerivedItem {
@@ -82,4 +85,9 @@ export const DOC_DERIVED: readonly DocDerivedItem[] = [
   },
   // NWS (1b): api.weather.gov was unreachable from the build machine; one live run confirms.
   ...NWS_DOC_DERIVED,
+  // 1f (docs/contracts-1f.md §1): each builder keeps its own list; this file (sync-health) only
+  // appends them and drops entries a recording confirms.
+  ...DEERE_FIELDS_DOC_DERIVED,
+  ...DEERE_OPS_DOC_DERIVED,
+  ...SAMSARA_DOC_DERIVED,
 ];

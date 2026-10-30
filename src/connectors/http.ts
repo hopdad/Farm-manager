@@ -8,8 +8,33 @@
  *    the stream's next_run_at (contracts §8 `retryAfterFrom`). No retry may cross the deadline.
  *  - Errors carry the vendor, status and request PATH only (never tokens or query strings).
  *  - `vendorJson()` validates the body with the shared zod schema (stand-in and real alike).
+ *  - `onCall` (1f): one `VendorCall` per attempt sent (retries count), for the per-source call
+ *    counts and the call budget (ingest.api_calls_daily, decision 4). The default does nothing;
+ *    a hook that throws is ignored (counting never fails a vendor call).
  */
 import type { z } from 'zod';
+
+/** One HTTP attempt sent to a vendor (what the call counter sees). */
+export interface VendorCall {
+  vendor: string;
+  method: string;
+  /** Request path only (no host, no query string: cursors and codes stay out). */
+  path: string;
+  /** HTTP status; null when no answer came (network error, timeout, abort). */
+  status: number | null;
+  /** ok = 2xx (or 3xx with redirect 'manual'); rate_limited = 429; error = anything else. */
+  outcome: 'ok' | 'rate_limited' | 'error';
+  /** 0 for the first attempt, 1 for the first retry, … */
+  attempt: number;
+  /** Wall time of the attempt. */
+  ms: number;
+}
+
+/** Called once per attempt; must not throw (a throw is caught and ignored) and must be cheap. */
+export type VendorCallHook = (call: VendorCall) => void;
+
+/** The default hook: counts nothing. */
+export const noopVendorCallHook: VendorCallHook = () => {};
 
 export interface VendorHttpOptions {
   /** 'samsara', 'deere', … (error messages, logs). */
@@ -29,6 +54,8 @@ export interface VendorHttpOptions {
   baseBackoffMs?: number;
   fetch?: typeof fetch;
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
+  /** Call counter (1f): one call per attempt. Default `noopVendorCallHook`. */
+  onCall?: VendorCallHook;
 }
 
 /** A non-2xx answer. `retryAfterSeconds` is set from a 429/503 Retry-After header. */
@@ -162,6 +189,23 @@ export async function vendorFetch(
   const inlineMax = opts.maxInlineRetryAfterSeconds ?? 2;
   const backoff = opts.baseBackoffMs ?? 250;
   const path = pathOf(url);
+  const onCall = opts.onCall ?? noopVendorCallHook;
+  const method = (init.method ?? 'GET').toUpperCase();
+  const count = (attempt: number, startedAt: number, status: number | null, ok: boolean) => {
+    try {
+      onCall({
+        vendor: opts.vendor,
+        method,
+        path,
+        status,
+        outcome: ok ? 'ok' : status === 429 ? 'rate_limited' : 'error',
+        attempt,
+        ms: Math.max(0, Date.now() - startedAt),
+      });
+    } catch {
+      // Counting never fails a vendor call.
+    }
+  };
 
   /** Can we wait `ms` and still finish before the deadline? */
   const fits = (ms: number) =>
@@ -171,9 +215,11 @@ export async function vendorFetch(
     const timeout = AbortSignal.timeout(timeoutMs);
     const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
     let res: Response;
+    const startedAt = Date.now();
     try {
       res = await doFetch(url, { ...init, signal });
     } catch (e) {
+      count(attempt, startedAt, null, false);
       if (opts.signal?.aborted) throw opts.signal.reason ?? e;
       const reason = timeout.aborted
         ? `timed out after ${timeoutMs} ms`
@@ -185,9 +231,9 @@ export async function vendorFetch(
       }
       throw new VendorNetworkError(opts.vendor, path, reason, { cause: e });
     }
-    if (res.ok || (init.redirect === 'manual' && res.status >= 300 && res.status < 400)) {
-      return res;
-    }
+    const passed = res.ok || (init.redirect === 'manual' && res.status >= 300 && res.status < 400);
+    count(attempt, startedAt, res.status, passed);
+    if (passed) return res;
     const body = await res.text().catch(() => '');
     const retryAfter =
       res.status === 429 || res.status === 503

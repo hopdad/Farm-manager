@@ -2,11 +2,14 @@ import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 /**
- * Two projects:
+ * Three projects:
  *  - unit: pure tests, no database (`pnpm test`).
  *  - db:   *.db.test.ts against the real supabase/postgres container (`pnpm test:db`). Each file
  *          gets its own database cloned from farm_test_template (src/test/db.ts); the global
  *          setup (re)builds the template when migrations changed.
+ *  - live: *.live.test.ts, the connector contract suites against a vendor's sandbox or live API
+ *          (`pnpm test:live`, plan §5/§7; slice 1f). By hand only, never in CI: they need real
+ *          credentials and reach the vendor. They read config like the app (src/config.ts).
  */
 export default defineConfig({
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
@@ -22,7 +25,7 @@ export default defineConfig({
           // that start servers or child processes went past the 5 s default there.
           testTimeout: process.platform === 'win32' ? 30_000 : 5_000,
           include: ['src/**/*.test.ts', 'scripts/**/*.test.ts', 'tools/**/*.test.ts'],
-          exclude: ['**/*.db.test.ts', '**/node_modules/**'],
+          exclude: ['**/*.db.test.ts', '**/*.live.test.ts', '**/node_modules/**'],
         },
       },
       {
@@ -39,6 +42,22 @@ export default defineConfig({
           globalSetup: ['./src/test/global-setup.db.ts'],
           testTimeout: 60_000,
           hookTimeout: 180_000,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'live',
+          environment: 'node',
+          include: [
+            'src/**/*.live.test.ts',
+            'scripts/**/*.live.test.ts',
+            'tools/**/*.live.test.ts',
+          ],
+          // Real vendors are slow and rate-limited: one file at a time, generous timeouts.
+          fileParallelism: false,
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
         },
       },
     ],

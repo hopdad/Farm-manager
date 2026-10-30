@@ -16,20 +16,23 @@
  *
  * Each org's data is served under that org id (contracts §9), so the org a sync reads from is
  * the external_refs source_org it looks up.
+ *
+ * 1f: every other platform path goes to the route modules (./modules.ts: connections, fields,
+ * ops; one per builder, docs/contracts-1f.md §7), which run before the core routes; their knobs
+ * are served at /_control/vendor/deere/<key>/....
  */
 import { timingSafeEqual } from 'node:crypto';
 import {
   DEERE_AUTH_SERVER_ID,
   DEERE_MEDIA_TYPE,
   type DeereBreadcrumb,
-  type DeereLink,
   type DeereMachine,
   type DeereOrganization,
   type DeereTokenResponse,
 } from '../../../connectors/deere/schemas';
 import { SIM_CREDENTIALS, SIM_DEERE_HOME_ORG, type SimFarm } from '../../types';
 import { currentClock } from '../clock';
-import type { VendorContext, VendorModule } from '../context';
+import type { VendorContext, VendorControlContext, VendorModule } from '../context';
 import { firstOfKind } from '../faults';
 import { round, seededShuffle } from '../feed';
 import {
@@ -43,14 +46,24 @@ import {
   type SimResponse,
 } from '../http';
 import type { IssuedGrant } from '../state';
+import { deereConnectionsRoutes } from './connections-routes';
+import { deereFieldsRoutes } from './fields-routes';
+import type { DeerePlatformRequest, DeereRouteModule } from './modules';
+import { deereOpsRoutes } from './ops-routes';
+import { apiError, collection, paging, platformBase, simDeereOrgs } from './platform';
+
+export { simDeereOrgs } from './platform';
+
+/** The 1f route modules, in dispatch order (./modules.ts). */
+export const DEERE_ROUTE_MODULES: readonly DeereRouteModule[] = [
+  deereConnectionsRoutes,
+  deereFieldsRoutes,
+  deereOpsRoutes,
+];
 
 const OAUTH = `/oauth2/${DEERE_AUTH_SERVER_ID}/v1`;
 /** Query flag of the sim-only unattended consent (never sent to the real Deere). */
 export const SIM_AUTO_CONSENT_PARAM = 'sim_auto_consent';
-
-function apiError(status: number, message: string, headers: Record<string, string> = {}) {
-  return json(status, { errors: [{ message, guid: `sim-${status}` }] }, headers);
-}
 
 function oauthError(status: number, error: string, description: string): SimResponse {
   return json(
@@ -69,21 +82,8 @@ function safeEqual(a: string, b: string): boolean {
 const plusSeconds = (d: Date, s: number) => new Date(d.getTime() + s * 1000).toISOString();
 
 // ---------------------------------------------------------------------------------------------
-// Orgs and machines of the simulated farm
+// Machines of the simulated farm (orgs: ./platform.ts simDeereOrgs)
 // ---------------------------------------------------------------------------------------------
-
-export function simDeereOrgs(farm: SimFarm): { id: string; name: string }[] {
-  const names = new Map<string, string>();
-  const add = (id: string | undefined, name: string) => {
-    if (id && !names.has(id)) names.set(id, name);
-  };
-  for (const u of farm.farms) add(u.deereOrgId, u.name);
-  for (const m of farm.machines) add(m.deereOrgId, `Simulated org ${m.deereOrgId}`);
-  for (const f of farm.fields)
-    add(f.sharedWith?.deereOrgId, `Simulated org ${f.sharedWith?.deereOrgId}`);
-  add(SIM_DEERE_HOME_ORG, 'Home operation (simulated)');
-  return [...names].map(([id, name]) => ({ id, name })).sort((a, b) => a.id.localeCompare(b.id));
-}
 
 function deereMachines(farm: SimFarm) {
   return farm.machines.filter((m) => m.vendorIds.deere);
@@ -318,43 +318,20 @@ function checkAccess(req: SimRequest, ctx: VendorContext): SimResponse | null {
 // Platform API
 // ---------------------------------------------------------------------------------------------
 
-function paging(url: URL, defaultLimit: number): { offset: number; limit: number } | SimResponse {
-  const offset = Number(url.searchParams.get('pageOffset') ?? 0);
-  const limit = Number(url.searchParams.get('itemLimit') ?? defaultLimit);
-  if (!Number.isInteger(offset) || offset < 0) return apiError(400, 'pageOffset must be >= 0');
-  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
-    return apiError(400, 'itemLimit must be 1-100');
-  }
-  return { offset, limit };
-}
-
-function collection<T>(url: URL, all: T[], offset: number, limit: number) {
-  const self = new URL(url);
-  const links: DeereLink[] = [{ rel: 'self', uri: self.toString() }];
-  if (offset + limit < all.length) {
-    const next = new URL(url);
-    next.searchParams.set('pageOffset', String(offset + limit));
-    next.searchParams.set('itemLimit', String(limit));
-    links.push({ rel: 'nextPage', uri: next.toString() });
-  }
-  return { links, total: all.length, values: all.slice(offset, offset + limit) };
-}
-
-function platformBase(req: SimRequest): string {
-  return `${req.url.origin}/deere/platform`;
-}
-
-function organizations(req: SimRequest, ctx: VendorContext): SimResponse {
+function organizations(r: DeerePlatformRequest, mods: readonly DeereRouteModule[]): SimResponse {
+  const { req, ctx, base } = r;
   const pg = paging(req.url, 10);
   if ('kind' in pg) return pg;
-  const base = platformBase(req);
   const orgs: DeereOrganization[] = simDeereOrgs(ctx.world.farm).map((o) => ({
     '@type': 'Organization',
     id: o.id,
     name: o.name,
     type: 'customer',
     member: true,
-    links: [{ rel: 'machines', uri: `${base}/organizations/${encodeURIComponent(o.id)}/machines` }],
+    links: [
+      { rel: 'machines', uri: `${base}/organizations/${encodeURIComponent(o.id)}/machines` },
+      ...mods.flatMap((m) => m.orgLinks?.(o, r) ?? []),
+    ],
   }));
   return json(200, collection(req.url, orgs, pg.offset, pg.limit));
 }
@@ -449,24 +426,63 @@ function breadcrumbs(req: SimRequest, ctx: VendorContext, deereId: string): SimR
   return json(200, body);
 }
 
-export const deereModule: VendorModule = {
-  vendor: 'deere',
-  error: apiError,
-  handle(req, ctx) {
-    if (req.path === `${OAUTH}/authorize`) return authorize(req, ctx);
-    if (req.path === `${OAUTH}/token`) return token(req, ctx);
-    if (!req.path.startsWith('/platform/')) return apiError(404, `Not found: ${req.path}`);
-    if (req.method !== 'GET') return apiError(405, 'Method not allowed');
-    const denied = checkAccess(req, ctx);
-    if (denied) return denied;
-    const parts = req.path.split('/').filter(Boolean).map(decodeURIComponent); // ['platform', …]
-    if (parts.length === 2 && parts[1] === 'organizations') return organizations(req, ctx);
-    if (parts.length === 4 && parts[1] === 'organizations' && parts[3] === 'machines') {
-      return machines(req, ctx, parts[2] as string);
-    }
-    if (parts.length === 4 && parts[1] === 'machines' && parts[3] === 'breadcrumbs') {
-      return breadcrumbs(req, ctx, parts[2] as string);
-    }
-    return apiError(404, `Not found: ${req.path} (not simulated)`);
-  },
-};
+/** The core platform routes (OAuth aside); null when the path isn't one of them. */
+function coreRoute(r: DeerePlatformRequest, mods: readonly DeereRouteModule[]): SimResponse | null {
+  const { req, ctx, parts } = r;
+  if (parts.length === 1 && parts[0] === 'organizations') return organizations(r, mods);
+  if (parts.length === 3 && parts[0] === 'organizations' && parts[2] === 'machines') {
+    return machines(req, ctx, parts[1] as string);
+  }
+  if (parts.length === 3 && parts[0] === 'machines' && parts[2] === 'breadcrumbs') {
+    return breadcrumbs(req, ctx, parts[1] as string);
+  }
+  return null;
+}
+
+async function platform(
+  req: SimRequest,
+  ctx: VendorContext,
+  mods: readonly DeereRouteModule[],
+): Promise<SimResponse> {
+  if (req.method !== 'GET') return apiError(405, 'Method not allowed');
+  const denied = checkAccess(req, ctx);
+  if (denied) return denied;
+  // ['platform', …] → the segments after it
+  const parts = req.path.split('/').filter(Boolean).map(decodeURIComponent).slice(1);
+  const r: DeerePlatformRequest = { req, ctx, parts, base: platformBase(req) };
+  for (const m of mods) {
+    const hit = await m.route?.(r);
+    if (hit) return hit;
+  }
+  return coreRoute(r, mods) ?? apiError(404, `Not found: ${req.path} (not simulated)`);
+}
+
+/** /_control/vendor/deere/<key>/... → that module's control(), with req.path after `/<key>`. */
+async function control(
+  req: SimRequest,
+  ctx: VendorControlContext,
+  mods: readonly DeereRouteModule[],
+): Promise<SimResponse> {
+  const [, key = '', ...rest] = req.path.split('/');
+  const mod = mods.find((m) => m.key === key);
+  const sub = { ...req, path: `/${rest.join('/')}` };
+  const hit = mod?.control ? await mod.control(sub, ctx) : null;
+  return hit ?? json(404, { error: `no Deere control at ${req.path}` });
+}
+
+/** The Deere stand-in with these route modules (tests pass their own; the server uses all). */
+export function deereModuleWith(mods: readonly DeereRouteModule[]): VendorModule {
+  return {
+    vendor: 'deere',
+    error: apiError,
+    handle(req, ctx) {
+      if (req.path === `${OAUTH}/authorize`) return authorize(req, ctx);
+      if (req.path === `${OAUTH}/token`) return token(req, ctx);
+      if (!req.path.startsWith('/platform/')) return apiError(404, `Not found: ${req.path}`);
+      return platform(req, ctx, mods);
+    },
+    control: (req, ctx) => control(req, ctx, mods),
+  };
+}
+
+export const deereModule: VendorModule = deereModuleWith(DEERE_ROUTE_MODULES);

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   errorDetail,
   parseRetryAfter,
+  type VendorCall,
   VendorHttpError,
   VendorNetworkError,
   VendorResponseError,
@@ -168,5 +169,63 @@ describe('vendorJson', () => {
     });
     expect(errorDetail('{"errors":[{"message":"nope"}]}')).toEqual({ detail: 'nope' });
     expect(errorDetail('<html>')).toEqual({});
+  });
+});
+
+describe('onCall (1f call counter)', () => {
+  test('one call per attempt: retries count, outcomes and statuses as sent', async () => {
+    const calls: VendorCall[] = [];
+    const { fn } = stubFetch([status(503), status(429, { 'retry-after': '1' }), ok()]);
+    const { sleep } = recordingSleep();
+    await vendorFetch(
+      URL_,
+      { method: 'get' },
+      { vendor: 'samsara', fetch: fn, sleep, onCall: (c) => calls.push(c) },
+    );
+    expect(calls.map((c) => [c.attempt, c.status, c.outcome])).toEqual([
+      [0, 503, 'error'],
+      [1, 429, 'rate_limited'],
+      [2, 200, 'ok'],
+    ]);
+    for (const c of calls) {
+      expect(c).toMatchObject({ vendor: 'samsara', method: 'GET' });
+      expect(c.path).toBe('/fleet/vehicles/locations/feed'); // no query: the cursor stays out
+      expect(c.ms).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  test('a network error counts as an error with no status; a throwing hook is ignored', async () => {
+    const calls: VendorCall[] = [];
+    const { fn } = stubFetch([new TypeError('fetch failed'), ok()]);
+    const { sleep } = recordingSleep();
+    const res = await vendorFetch(
+      URL_,
+      {},
+      {
+        vendor: 'deere',
+        fetch: fn,
+        sleep,
+        onCall: (c) => {
+          calls.push(c);
+          throw new Error('counter broke');
+        },
+      },
+    );
+    expect(res.status).toBe(200);
+    expect(calls.map((c) => [c.status, c.outcome])).toEqual([
+      [null, 'error'],
+      [200, 'ok'],
+    ]);
+  });
+
+  test('without a hook nothing changes (the default counts nothing)', async () => {
+    const { fn } = stubFetch([ok({ a: 1 })]);
+    const body = await vendorJson(
+      z.object({ a: z.number() }),
+      URL_,
+      {},
+      { vendor: 'x', fetch: fn },
+    );
+    expect(body).toEqual({ a: 1 });
   });
 });

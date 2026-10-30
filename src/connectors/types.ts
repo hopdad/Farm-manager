@@ -6,7 +6,12 @@
  * (src/connectors/sync-step.ts) and the per-source clients (src/connectors/<source>/).
  * Changes to this file go through the stage report, not a direct edit.
  */
+import type { MultiPolygon } from 'geojson';
 import type { DbTx } from '../db/client';
+import type { FaultSeverity } from '../domain/fault-codes';
+import type { MachineKind } from '../domain/fleet';
+import type { OperationKind, OperationMeasurements, OperationProduct } from '../domain/operations';
+import type { PinGeometry } from '../domain/pins';
 import type { ForecastIssue, GridRef, Observation, WeatherStation } from '../domain/weather';
 import type { JobContext } from '../jobs/types';
 
@@ -105,8 +110,9 @@ export function externalRefKey(
 }
 
 // ---------------------------------------------------------------------------------------------
-// Ports (plan §5 "Common shape"). The ones M0 and M1 need are spelled out; the rest arrive with
-// their slices and follow the same `xxxSince(cursor) -> { items, cursor }` shape.
+// Ports (plan §5 "Common shape"). The ones M0, M1 and 1f need are spelled out; the rest arrive
+// with their slices and follow the same `xxxSince(cursor) -> { items, cursor }` shape.
+// No new external_refs kinds in 1f: operations and pins carry their own source_id.
 // ---------------------------------------------------------------------------------------------
 
 /** One page from a cursor feed. `cursor` is opaque to the caller and is stored in ingest.sync_state.cursor. */
@@ -142,11 +148,17 @@ export interface NormalizedVehicleStat {
   externalMachineId: string;
   /** As in NormalizedPosition: the Deere org id, '' for ELDs. */
   sourceOrg: string;
+  /** Vendor time of the reading (wall-clock UTC ISO). */
   ts: string;
   engineHours?: number;
   odometerMi?: number;
   fuelPct?: number;
-  faultCodes?: { code: string; severity: 'info' | 'warning' | 'critical'; description?: string }[];
+  /**
+   * The machine's ACTIVE fault codes at `ts` (1f, src/domain/fault-codes.ts; severity by
+   * decision 2). `[]` = cleared (an event with no codes and no lamps); absent = this event says
+   * nothing about faults (a fuel or hours reading).
+   */
+  faultCodes?: { code: string; severity: FaultSeverity; description?: string }[];
 }
 
 export interface PositionSource {
@@ -154,6 +166,128 @@ export interface PositionSource {
 }
 export interface VehicleStatsSource {
   statsSince(cursor: string | null): Promise<PollResult<NormalizedVehicleStat>>;
+}
+
+// ---- 1f: Deere fields, boundaries, flags, operations, equipment ------------------------------
+// Every item names the vendor org it was read from (`sourceOrg`, the external_refs source_org)
+// and the vendor's own id (`externalId`). Times are UTC ISO strings. Mapped by the deere-data
+// and deere-ops builders (docs/contracts-1f.md §5); upserted with deterministic ids.
+
+/** A vendor-side grouping reference (a Deere farm or client) carried on a field. */
+export interface NormalizedRef {
+  externalId: string;
+  name: string;
+}
+
+/** One field boundary as the vendor holds it (D6: an active Deere boundary is the master). */
+export interface NormalizedBoundary {
+  source: ConnectorSource;
+  sourceOrg: string;
+  /** Vendor boundary id (external_refs kind 'boundary'). */
+  externalId: string;
+  /** Vendor field id the boundary belongs to. */
+  fieldExternalId: string;
+  name: string | null;
+  /** EPSG:4326; Polygon rings from the vendor become one MultiPolygon. */
+  geom: MultiPolygon;
+  /** Area the vendor reports, acres (the app computes its own from `geom`). */
+  areaAc: number | null;
+  active: boolean;
+  archived: boolean;
+  modifiedAt: string | null;
+}
+
+/** One field (FieldSource; external_refs kind 'field', one row per org that has the field). */
+export interface NormalizedField {
+  source: ConnectorSource;
+  sourceOrg: string;
+  /** Vendor field id. */
+  externalId: string;
+  name: string;
+  /** The vendor farm the field is in (Deere farms; null when the vendor doesn't say). */
+  farm: NormalizedRef | null;
+  /** The vendor client (a custom-work customer: farm.parties via kind 'party'), or null. */
+  client: NormalizedRef | null;
+  archived: boolean;
+  /** The field's active boundary, or null when it has none. */
+  boundary: NormalizedBoundary | null;
+  modifiedAt: string | null;
+}
+
+/** One flag → a read-only pin (FlagSource; pins.source 'deere_flag'). */
+export interface NormalizedFlag {
+  source: ConnectorSource;
+  sourceOrg: string;
+  /** Vendor flag id (pins.source_id). */
+  externalId: string;
+  /** Vendor field id the flag is on, or null. */
+  fieldExternalId: string | null;
+  geometry: PinGeometry;
+  note: string | null;
+  /** The vendor's category or label (pins.category), or null. */
+  category: string | null;
+  /** Archived in the vendor = resolved here. */
+  archived: boolean;
+  createdAt: string | null;
+  modifiedAt: string | null;
+}
+
+/** One field operation (OperationSource; farm.operations). */
+export interface NormalizedOperation {
+  source: ConnectorSource;
+  sourceOrg: string;
+  /** Vendor operation id (operations.source_id). */
+  externalId: string;
+  /** Vendor field id, or null when the vendor doesn't link one. */
+  fieldExternalId: string | null;
+  kind: OperationKind;
+  cropYear: number;
+  /** Normalized crop (src/domain/crops.ts, deere-ops), or null. */
+  crop: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  /** Area worked as the vendor reports it, acres. */
+  areaAc: number | null;
+  products: OperationProduct[];
+  measurements: OperationMeasurements;
+  /** Vendor machine ids (resolved through external_refs kind 'machine'). */
+  machineExternalIds: string[];
+  operatorName: string | null;
+  /** Coverage, EPSG:4326 (simplified when stored), or null when the vendor has none. */
+  coverage: MultiPolygon | null;
+  modifiedAt: string | null;
+}
+
+/** One machine of the vendor's equipment list (creates farm.machines rows for unmapped ones). */
+export interface NormalizedMachine {
+  source: ConnectorSource;
+  sourceOrg: string;
+  /** Vendor machine id (external_refs kind 'machine'). */
+  externalId: string;
+  name: string;
+  /** Null when the vendor's type doesn't map to a MachineKind (the row is then skipped, logged). */
+  kind: MachineKind | null;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  vin: string | null;
+}
+
+/** Plan §5: every field the connection can see (with its active boundary). */
+export interface FieldSource {
+  listFields(): Promise<NormalizedField[]>;
+}
+/** Plan §5: flags changed after the cursor. */
+export interface FlagSource {
+  flagsSince(cursor: string | null): Promise<PollResult<NormalizedFlag>>;
+}
+/** Plan §5: operations changed after the cursor. */
+export interface OperationSource {
+  operationsSince(cursor: string | null): Promise<PollResult<NormalizedOperation>>;
+}
+/** The vendor's machines (Deere equipment); engine hours come as NormalizedVehicleStat. */
+export interface MachineSource {
+  listMachines(): Promise<NormalizedMachine[]>;
 }
 
 /**
@@ -244,6 +378,13 @@ export interface SyncStepSpec<TRaw = unknown, TNorm = unknown> {
   leaseSeconds?: number;
   /** Attempts before a raw event goes to 'dead'. Default 5. */
   maxAttempts?: number;
+  /**
+   * 1f, decision 4 (call budget): after a claimed run the stream is not due again sooner than
+   * this many seconds after the run started (released with next_run_at = the later of that and a
+   * Retry-After time). Never makes a stream run faster than its job's cadence. Undefined or null
+   * = no minimum (the job's cadence alone). Implemented by runSyncStep (sync-health).
+   */
+  minIntervalSeconds?: number | null;
   /** Fetch the next page(s) after `cursor`. Must not write to the database. */
   poll(cursor: string | null, ctx: SyncContext): Promise<PollResult<RawItem<TRaw>>>;
   /** Pure mapping of one raw payload. Return [] to skip it (it is still marked processed). */

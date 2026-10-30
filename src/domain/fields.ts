@@ -111,7 +111,8 @@ export const FIELD_PANEL_SEASONS = 5;
 
 /**
  * Parts of a field a change can touch: the `parts` of realtime fields/updated, and what a panel
- * refetches. 'identity' = name, tenure, farm, landlord, active.
+ * refetches. 'identity' = name, tenure, farm, landlord, active. 'operations' (1f): the field's
+ * farm.operations changed (the History tab refetches GET /api/fields/<id>/operations).
  */
 export const FIELD_PARTS = [
   'identity',
@@ -122,6 +123,7 @@ export const FIELD_PARTS = [
   'parcels',
   'lineage',
   'spray',
+  'operations',
 ] as const;
 export type FieldPart = (typeof FIELD_PARTS)[number];
 

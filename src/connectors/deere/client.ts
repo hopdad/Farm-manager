@@ -15,6 +15,11 @@
  * Fields, boundaries, field operations (with measurements and coverage) and flags are read by
  * the 1f syncs; in 1a they back the doc-derived replay fixtures and their contract tests.
  *
+ * 1f seam (docs/contracts-1f.md §5): `apiUrl`, `getOne` and `getPaged` are public, so each 1f
+ * builder adds its own Deere calls (farms, equipment, hours, operations …) in its own files,
+ * with the same bearer token, 401 refresh and paging as the calls below. Their signatures are a
+ * contract: change them only through the integrator.
+ *
  * Replay (CONNECTOR_DEERE=replay, contracts-m1 §10): `DeereClient.forReplay()` is this same
  * client with the fixture transport and a fixed token (no OAuth: there is no token endpoint to
  * talk to).
@@ -140,6 +145,30 @@ export class DeereClient {
       if (e instanceof OAuthReconnectError) return this.connect();
       throw e;
     }
+  }
+
+  /**
+   * The platform API URL below `apiBase`, each segment URI-encoded:
+   * `apiUrl('organizations', orgId, 'farms')` → `<apiBase>/organizations/<orgId>/farms`.
+   */
+  apiUrl(...segments: string[]): string {
+    return [this.endpoints.apiBase, ...segments.map(encodeURIComponent)].join('/');
+  }
+
+  /** GET one resource (public 1f seam): bearer token, one refresh-and-retry on 401, `schema`. */
+  getOne<S extends ZodType>(schema: S, url: string): Promise<z.infer<S>> {
+    return this.get(schema, url);
+  }
+
+  /**
+   * GET every item of a Deere collection (public 1f seam), following `nextPage` links (at most
+   * 50 pages); `schema` is a `deereCollectionSchema(item)` and validates every page.
+   */
+  getPaged<S extends ZodType<{ values: unknown[]; links: DeereLink[] }>>(
+    schema: S,
+    url: string,
+  ): Promise<z.infer<S>['values']> {
+    return this.all(schema, url);
   }
 
   /** GET with the bearer token; one refresh-and-retry on 401. */

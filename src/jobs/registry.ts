@@ -14,11 +14,22 @@
  *                 15 s with JOBS_DEMO_CADENCE=on (sim only: the stand-in has no call budget)
  *   weather.nws   every 30 min (plan §5 NWS); 30 s with JOBS_DEMO_CADENCE=on, so the sim's wind
  *                 slider shows on the board within seconds
+ *   deere.fields  hourly at :17 (plan §1, §5 "Fields hourly"); 45 s in the demo (1f, deere-data:
+ *                 fields, boundaries, flags → pins, equipment, engine hours)
+ *   deere.ops     every 15 min (plan §5 "Operations every 15 min"); 20 s in the demo, so a field
+ *                 the sim finishes shows its operation soon (1f, deere-ops)
+ *
+ * 1f (docs/contracts-1f.md §1): the foundation registered deere.fields and deere.ops with stub
+ * run functions in the builders' own files (./deere-fields.ts, ./deere-ops.ts); the builders
+ * replace the stubs and leave this file alone.
  *
  * `connector` names the mode each job talks through: the demo cadence only applies while that
  * connector is sim, replay or off (src/jobs/schedule.ts `demoCadenceApplies`).
  */
-import { runFleetDeere, runFleetTrucks, TRUCKS_BUDGET_MS } from './fleet';
+import { runDeereFields } from './deere-fields';
+import { runDeereOps } from './deere-ops';
+import { runFleetTrucks, TRUCKS_BUDGET_MS } from './fleet';
+import { runFleetDeere } from './fleet-deere';
 import type { JobRegistry } from './types';
 import { runWeatherNws } from './weather';
 
@@ -41,6 +52,18 @@ export const jobs = {
     demoEvery: '30 seconds',
     connector: 'CONNECTOR_WEATHER',
     run: runWeatherNws,
+  },
+  'deere.fields': {
+    cron: '17 * * * *',
+    demoEvery: '45 seconds',
+    connector: 'CONNECTOR_DEERE',
+    run: runDeereFields,
+  },
+  'deere.ops': {
+    cron: '*/15 * * * *',
+    demoEvery: '20 seconds',
+    connector: 'CONNECTOR_DEERE',
+    run: runDeereOps,
   },
 } satisfies JobRegistry;
 

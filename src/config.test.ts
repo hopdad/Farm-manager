@@ -178,6 +178,37 @@ describe('parseConfig', () => {
     expect(parseConfig(base).FLEET_STALE_SECONDS_DEERE).toBe(600);
   });
 
+  test('Deere redirect override and daily call budget (1f): optional, validated', () => {
+    const c = parseConfig(base);
+    expect(c.DEERE_REDIRECT_URI).toBeUndefined();
+    expect(c.DEERE_DAILY_CALL_BUDGET).toBeUndefined();
+    const set = parseConfig({
+      ...base,
+      DEERE_REDIRECT_URI: 'https://farm.example.com/deere-callback.html',
+      DEERE_DAILY_CALL_BUDGET: '50000',
+    });
+    expect(set.DEERE_REDIRECT_URI).toBe('https://farm.example.com/deere-callback.html');
+    expect(set.DEERE_DAILY_CALL_BUDGET).toBe(50_000);
+    // Empty counts as unset, like every key.
+    expect(parseConfig({ ...base, DEERE_DAILY_CALL_BUDGET: '' }).DEERE_DAILY_CALL_BUDGET).toBe(
+      undefined,
+    );
+    expect(issues({ ...base, DEERE_REDIRECT_URI: 'ftp://x.example.com/cb' }).join('\n')).toMatch(
+      /DEERE_REDIRECT_URI/,
+    );
+    expect(issues({ ...base, DEERE_DAILY_CALL_BUDGET: '0' }).join('\n')).toMatch(
+      /DEERE_DAILY_CALL_BUDGET/,
+    );
+    expect(issues({ ...base, DEERE_DAILY_CALL_BUDGET: '12.5' }).join('\n')).toMatch(
+      /DEERE_DAILY_CALL_BUDGET/,
+    );
+    // Production: the public callback must be https, like PUBLIC_URL.
+    expect(
+      issues({ ...prod, DEERE_REDIRECT_URI: 'http://farm.example.com/cb' }).join('\n'),
+    ).toMatch(/DEERE_REDIRECT_URI: must be https:\/\/ in production/);
+    expect(issues({ ...prod, DEERE_REDIRECT_URI: 'https://farm.example.com/cb' })).toEqual([]);
+  });
+
   test('production allows off and sandbox', () => {
     expect(issues({ ...prod, CONNECTOR_DEERE: 'off', CONNECTOR_ELD: 'sandbox' })).toEqual([]);
   });

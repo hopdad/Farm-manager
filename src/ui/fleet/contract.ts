@@ -9,10 +9,17 @@
  *
  * After a change the server publishes `fleet`/`machine` (MachineStatusPayload) and, in the same
  * transaction, `fleet`/`invalidate` { event: 'machine', reason: 'changed' } (contracts-m1 §6).
+ *
+ * 1f (docs/contracts-1f.md §5.3, fleet-faults): each machine may carry its active fault codes
+ * (`faults`, worst first; a change publishes `fleet`/`invalidate` { event: 'machine', reason:
+ * 'faults' }) and its position the connector it came from (`position.vendor`, for the
+ * "Samsara · sim" badge with `modes`). Both optional so the 1a code keeps compiling; absent =
+ * none known.
  */
 import { z } from 'zod';
 import { CONNECTOR_MODES } from '../../connectors/types';
 import { GEOFENCE_KINDS } from '../../domain/farm';
+import { activeFaultCodeSchema } from '../../domain/fault-codes';
 import { ACTIVITIES, MACHINE_KINDS, MACHINE_STATUSES, POSITION_SOURCES } from '../../domain/fleet';
 
 export const MACHINES_URL = '/api/machines';
@@ -44,6 +51,8 @@ export const panelPositionSchema = z.object({
   ts: iso,
   fieldId: z.uuid().nullable(),
   fieldName: z.string().nullable(),
+  /** 1f: the connector the fix came from (machine_state.position_vendor); null = manual/unknown. */
+  vendor: z.enum(['deere', 'samsara', 'motive']).nullable().optional(),
 });
 export type PanelPosition = z.infer<typeof panelPositionSchema>;
 
@@ -70,6 +79,11 @@ export const panelMachineSchema = z.object({
   /** Null until the first fix arrives. */
   position: panelPositionSchema.nullable(),
   place: panelPlaceSchema.nullable(),
+  /**
+   * 1f: active fault codes (machine_state.fault_codes), worst first. A critical one offers
+   * "Critical fault: mark down?" to `canMarkDown` sessions (decision 2; never automatic).
+   */
+  faults: z.array(activeFaultCodeSchema).optional(),
 });
 export type PanelMachine = z.infer<typeof panelMachineSchema>;
 

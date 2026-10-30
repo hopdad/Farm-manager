@@ -150,6 +150,18 @@ const baseSchema = z.object({
   WRITEBACK_DEERE: onOff.default(false),
   DEERE_CLIENT_ID: z.string().min(1).optional(),
   DEERE_CLIENT_SECRET: z.string().min(1).optional(),
+  /**
+   * The Deere OAuth callback when it isn't `${PUBLIC_URL}/api/oauth/deere` (1f decision 6): a
+   * public HTTPS page registered with the Deere app that forwards `code` and `state` to the PC
+   * (template docs/deere-callback.html). Unset: `${PUBLIC_URL}/api/oauth/deere`.
+   */
+  DEERE_REDIRECT_URI: httpUrl.optional(),
+  /**
+   * Deere API calls the app may make per day (1f decision 4). Unset: the limit is unknown, the
+   * Deere jobs keep their cron and /admin/connectors says "limit unknown". Set: fleet.deere paces
+   * itself to stay under 80 % of it (never faster than its cron).
+   */
+  DEERE_DAILY_CALL_BUDGET: int(1, 100_000_000).optional(),
   SAMSARA_API_TOKEN: z.string().min(1).optional(),
   MOTIVE_API_KEY: z.string().min(1).optional(),
   /** NWS requires a User-Agent with contact info. */
@@ -211,6 +223,13 @@ const configSchema = baseSchema.superRefine((c, ctx) => {
     ctx.addIssue({
       code: 'custom',
       path: ['PUBLIC_URL'],
+      message: 'must be https:// in production',
+    });
+  }
+  if (c.DEERE_REDIRECT_URI && !c.DEERE_REDIRECT_URI.startsWith('https://')) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['DEERE_REDIRECT_URI'],
       message: 'must be https:// in production',
     });
   }

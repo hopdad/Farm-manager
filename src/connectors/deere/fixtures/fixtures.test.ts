@@ -13,7 +13,7 @@ import type { ZodType } from 'zod';
 import { simExternalRefs } from '../../../sim/types';
 import { type ReplayFixture, replayFixtureSchema } from '../../replay';
 import { deereLinkId } from '../mapper';
-import { deereReplayFixtures } from '../replay';
+import { deereDocDerived1aFixtures, deereReplayFixtures } from '../replay';
 import {
   deereBoundariesSchema,
   deereBoundarySchema,
@@ -60,7 +60,9 @@ describe('Deere doc-derived fixtures', () => {
         `${rel} is out of date: run src/connectors/deere/fixtures/write.ts`,
       ).toEqual(JSON.parse(JSON.stringify(fixture)));
     }
-    expect(deereReplayFixtures).toHaveLength(Object.keys(built).length);
+    // 1f: the builders' and the recorded fixtures come first (../replay.ts); the 1a set is all there.
+    expect(deereDocDerived1aFixtures).toHaveLength(Object.keys(built).length);
+    expect(deereReplayFixtures).toEqual(expect.arrayContaining(deereDocDerived1aFixtures));
   });
 
   test('layout and metadata follow the replay contract', () => {

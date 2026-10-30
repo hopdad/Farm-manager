@@ -11,7 +11,7 @@ import { describe, expect, test } from 'vitest';
 import { buildDemoFarm } from '../../../sim/farm/build';
 import { simExternalRefs } from '../../../sim/types';
 import { type ReplayFixture, replayFixtureSchema } from '../../replay';
-import { samsaraReplayFixtures } from '../replay';
+import { samsaraDocDerivedFixtures, samsaraReplayFixtures } from '../replay';
 import { samsaraLocationsFeedSchema, samsaraStatsFeedSchema } from '../schemas';
 import { buildSamsaraDocDerivedFixtures, LOOP_PAGES, loopCursor, STATS_CURSOR } from './build';
 
@@ -29,7 +29,8 @@ describe('Samsara doc-derived fixtures', () => {
         `${rel} is out of date: run src/connectors/samsara/fixtures/write.ts`,
       ).toEqual(JSON.parse(JSON.stringify(fixture)));
     }
-    expect(samsaraReplayFixtures).toHaveLength(2);
+    expect(samsaraDocDerivedFixtures).toHaveLength(Object.keys(built).length);
+    expect(samsaraReplayFixtures).toEqual(expect.arrayContaining(samsaraDocDerivedFixtures));
   });
 
   test('layout, metadata and the live schemas', () => {

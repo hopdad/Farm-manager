@@ -46,6 +46,7 @@ import {
 } from './clock';
 import {
   DEFAULT_TUNING,
+  simDayReportsOf,
   type VendorContext,
   type VendorControlContext,
   type VendorModule,
@@ -422,6 +423,7 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
     const ctx: VendorControlContext = {
       vendor: mod.vendor,
       world,
+      days: simDayReportsOf(world),
       now,
       simAt: (wall) => simAt(state.clock, wall),
       state,
@@ -489,6 +491,7 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
     const ctx: VendorContext = {
       vendor,
       world,
+      days: simDayReportsOf(world),
       tuning,
       now,
       simAt: (wall) => simAt(state.clock, wall),
