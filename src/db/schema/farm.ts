@@ -435,6 +435,8 @@ export const weatherGrids = farm.table(
      * same one again): staleness counts from here (migration 0006). Null: never recorded.
      */
     forecastCheckedAt: tstz('forecast_checked_at'),
+    /** The issue (issued_at) NWS served at that check: the one issue the check vouches for. */
+    forecastCheckedIssue: tstz('forecast_checked_issue'),
   },
   (t) => [
     unique('weather_grids_wfo_grid_x_grid_y_key').on(t.wfo, t.gridX, t.gridY),

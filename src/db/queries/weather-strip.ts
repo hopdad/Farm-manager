@@ -39,7 +39,10 @@ export interface StripData {
   issuedAt: string | null;
   /** When the newest issue was stored (max fetched_at of its rows). */
   fetchedAt: string | null;
-  /** The cell's last good NWS fetch (farm.weather_grids.forecast_checked_at; null: never). */
+  /**
+   * The cell's last good NWS fetch (farm.weather_grids.forecast_checked_at) when it confirmed the
+   * newest stored issue; null: never, or it confirmed another issue.
+   */
   checkedAt: string | null;
   /** The issue's hours from 24 h ago to 5 days ahead (the builder keeps today + 3 days). */
   hours: HourlyForecast[];
@@ -149,7 +152,9 @@ export async function loadStripData(ex: Executor, now: Date): Promise<StripData>
 
   const issue = await exec<{ issued_at: unknown; fetched_at: unknown; checked_at: unknown }>(
     ex,
-    `select i.issued_at, i.fetched_at, g.forecast_checked_at as checked_at
+    `select i.issued_at, i.fetched_at,
+            case when g.forecast_checked_issue = i.issued_at then g.forecast_checked_at end
+              as checked_at
        from farm.weather_grids g
        left join lateral (
          select issued_at, max(fetched_at) as fetched_at from farm.weather_forecasts

@@ -11,9 +11,10 @@
  *  2. Forecasts, as the sync step ('nws', 'forecast'): `/gridpoints/{wfo}/{x},{y}` of every cell
  *     in use; a new `updateTime` lands as one raw event (trimmed to the layers and days the app
  *     uses), which maps to one row per hour in farm.weather_forecasts (`issued_at`). When the
- *     step succeeds, every cell NWS answered for (a new issue or the same one again) gets
- *     farm.weather_grids.forecast_checked_at = now: staleness counts from there, because live
- *     NWS often keeps one `updateTime` for hours.
+ *     step succeeds, every cell NWS answered for whose served issue is stored (a new issue or
+ *     the same one again) gets farm.weather_grids.forecast_checked_at = now, with that issue in
+ *     forecast_checked_issue: staleness counts from there for rows built from that issue,
+ *     because live NWS often keeps one `updateTime` for hours.
  *  3. Observations, as the sync step ('nws', 'observations'): the nearest station of each cell,
  *     since the last one stored (at most 3 h back) -> farm.weather_observations.
  *  4. Spray go/no-go: every active field, the current hour plus the next 12, from the newest

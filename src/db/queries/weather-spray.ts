@@ -135,9 +135,14 @@ function viewOf(x: Record<string, unknown>): SprayAssessmentView {
 }
 
 /**
- * What each field was told last for `forHour` (newest row per field), with its cell's last NWS
- * check now (`forecastCheckedAt`, for `withStaleness`).
+ * The cell's last NWS check (`forecastCheckedAt`, for `withStaleness`), for a row built from the
+ * issue that check confirmed; null for a row whose issue was replaced since (or never checked),
+ * which then counts from its own issue time.
  */
+const CHECKED_AT = `case when g.forecast_checked_issue = s.forecast_issued_at
+                         then g.forecast_checked_at end as forecast_checked_at`;
+
+/** What each field was told last for `forHour` (newest row per field), with `CHECKED_AT`. */
 export async function verdictsForHour(
   ex: Executor,
   forHour: string,
@@ -145,7 +150,8 @@ export async function verdictsForHour(
   const r = await exec<Record<string, unknown>>(
     ex,
     `select distinct on (s.field_id) s.field_id::text as field_id, s.for_hour, s.verdict,
-            s.reasons, s.rules_version, s.forecast_issued_at, g.forecast_checked_at, s.assessed_at
+            s.reasons, s.rules_version, s.forecast_issued_at, s.assessed_at,
+            ${CHECKED_AT}
        from farm.spray_assessments s
        join farm.fields f on f.id = s.field_id and f.active
        left join farm.weather_grids g on g.id = s.grid_id
@@ -156,7 +162,7 @@ export async function verdictsForHour(
   return new Map(r.rows.map((x) => [String(x.field_id), viewOf(x)] as const));
 }
 
-/** One field's newest assessment per hour in [from, to), ascending (with its cell's last check). */
+/** One field's newest assessment per hour in [from, to), ascending (with `CHECKED_AT`). */
 export async function fieldSprayHours(
   ex: Executor,
   fieldId: string,
@@ -166,7 +172,8 @@ export async function fieldSprayHours(
   const r = await exec<Record<string, unknown>>(
     ex,
     `select distinct on (s.for_hour) s.field_id::text as field_id, s.for_hour, s.verdict,
-            s.reasons, s.rules_version, s.forecast_issued_at, g.forecast_checked_at, s.assessed_at
+            s.reasons, s.rules_version, s.forecast_issued_at, s.assessed_at,
+            ${CHECKED_AT}
        from farm.spray_assessments s
        left join farm.weather_grids g on g.id = s.grid_id
       where s.field_id = $1::uuid and s.for_hour >= $2::timestamptz and s.for_hour < $3::timestamptz
@@ -220,7 +227,9 @@ export async function runSprayPass(
   const rows: AssessmentRow[] = [];
   for (const t of targets) {
     const issuedAt = t.gridId ? (issues.get(t.gridId) ?? null) : null;
-    const checkedAt = t.gridId ? (checks.get(t.gridId) ?? null) : null;
+    // The cell's last check vouches only for the issue it confirmed.
+    const check = t.gridId ? checks.get(t.gridId) : undefined;
+    const checkedAt = check && check.issuedAt === issuedAt ? check.checkedAt : null;
     const issueHours = t.gridId ? (byGrid.get(t.gridId) ?? []) : [];
     for (const h of hours) {
       const a = assessSprayHour(

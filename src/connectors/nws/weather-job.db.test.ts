@@ -322,7 +322,7 @@ describe('weather.nws in sim mode', () => {
       expect(v?.reasons.map((r) => r.code)).not.toContain('forecast_stale');
       const shown = v ? withStaleness(v, wall()) : null;
       expect(shown?.reasons.find((r) => r.code === 'forecast_stale')?.message).toBe(
-        'Forecast not checked for 3 h (NWS unreachable)',
+        'Forecast not checked with NWS for 3 h',
       );
       expect(shown?.verdict).not.toBe('go');
       // An hour entering the window now is assessed with the stale issue: stored as such.

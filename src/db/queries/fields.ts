@@ -167,7 +167,9 @@ select json_build_object(
              'reasons', s.reasons, 'rulesVersion', s.rules_version,
              'forecastIssuedAt', ${iso('s.forecast_issued_at')},
              'forecastCheckedAt', (select ${iso('g.forecast_checked_at')}
-                                     from farm.weather_grids g where g.id = s.grid_id),
+                                     from farm.weather_grids g
+                                    where g.id = s.grid_id
+                                      and g.forecast_checked_issue = s.forecast_issued_at),
              'assessedAt', ${iso('s.assessed_at')})
       from farm.spray_assessments s
      where s.field_id = $1::uuid and s.for_hour = date_trunc('hour', $2::timestamptz, 'UTC')

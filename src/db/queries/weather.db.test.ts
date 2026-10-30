@@ -140,8 +140,17 @@ describe('weather storage', () => {
         checkedAt,
       ),
     ).toBe(1);
+    // The time and the issue that check confirmed (the read paths credit only rows from it).
     expect(await forecastCheckTimes(t().pool, [GRID.id, 'DTX/1,1'])).toEqual(
-      new Map([[GRID.id, checkedAt.toISOString()]]),
+      new Map([
+        [
+          GRID.id,
+          {
+            checkedAt: checkedAt.toISOString(),
+            issuedAt: new Date(issue.issuedAt).toISOString(),
+          },
+        ],
+      ]),
     );
 
     const obs = {

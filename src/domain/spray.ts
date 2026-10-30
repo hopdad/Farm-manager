@@ -111,8 +111,8 @@ function hourValues(h: HourlyForecast): SprayHourValues {
 /**
  * Is the forecast stale at `now`? The one rule the assessment, the views (`withStaleness`) and
  * the strip all use. A forecast is current as of the later of its issue time and `checkedAt`,
- * the weather.nws job's last successful fetch of its cell (NWS answered, with a new issue or the
- * same one again):
+ * the weather.nws job's last successful fetch of its cell when that fetch served this very issue
+ * (callers pass null for an issue a newer one has replaced):
  *  - not checked for more than WEATHER_STALE_MINUTES (NWS unreachable, or the job not running);
  *  - else an issue older than FORECAST_ISSUE_MAX_AGE_MINUTES (NWS stopped updating the cell).
  * checkedAt null (never recorded) counts from the issue time alone. Returns the one
@@ -136,9 +136,7 @@ export function forecastStaleness(
       code: 'forecast_stale',
       verdict: 'caution',
       message:
-        checkedAt === null
-          ? `Forecast is ${h} h old`
-          : `Forecast not checked for ${h} h (NWS unreachable)`,
+        checkedAt === null ? `Forecast is ${h} h old` : `Forecast not checked with NWS for ${h} h`,
       value: unchecked,
       threshold: WEATHER_STALE_MINUTES,
     };

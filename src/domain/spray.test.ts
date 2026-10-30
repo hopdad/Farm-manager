@@ -264,7 +264,7 @@ describe('forecast staleness: from the last NWS check, and an 18 h issue-age bac
   const notChecked = (minutes: number, hours: number) => ({
     code: 'forecast_stale',
     verdict: 'caution',
-    message: `Forecast not checked for ${hours} h (NWS unreachable)`,
+    message: `Forecast not checked with NWS for ${hours} h`,
     value: minutes,
     threshold: 120,
   });

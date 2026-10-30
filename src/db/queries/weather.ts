@@ -334,10 +334,11 @@ export async function newestIssues(ex: Executor, gridIds: string[]): Promise<Map
 }
 
 /**
- * NWS answered for these cells at `at` (a new issue or the same one again): their forecast is
- * current as of then (farm.weather_grids.forecast_checked_at; the staleness rule in
- * src/domain/spray.ts counts from it). Only cells whose answered issue is stored are marked: an
- * issue that failed to process doesn't vouch for the older one. Returns cells marked.
+ * NWS answered for these cells at `at` (a new issue or the same one again): the issue it served
+ * is current as of then (farm.weather_grids.forecast_checked_at, with that issue in
+ * forecast_checked_issue; the staleness rule in src/domain/spray.ts counts from it, for rows
+ * built from that issue only). Only cells whose answered issue is stored are marked: an issue
+ * that failed to process doesn't vouch for the older one. Returns cells marked.
  */
 export async function markForecastsChecked(
   ex: Executor,
@@ -348,7 +349,7 @@ export async function markForecastsChecked(
   const r = await exec(
     ex,
     `update farm.weather_grids g
-        set forecast_checked_at = $3::timestamptz
+        set forecast_checked_at = $3::timestamptz, forecast_checked_issue = c.issued_at
        from unnest($1::text[], $2::timestamptz[]) as c(grid_id, issued_at)
       where g.id = c.grid_id
         and exists (select 1 from farm.weather_forecasts f
@@ -358,20 +359,37 @@ export async function markForecastsChecked(
   return r.rowCount;
 }
 
-/** When each cell's forecast was last confirmed with NWS: grid id -> ISO (never: left out). */
+/**
+ * When each cell's forecast was last confirmed with NWS, and the issue that check confirmed:
+ * grid id -> ISO times (never: left out).
+ */
 export async function forecastCheckTimes(
   ex: Executor,
   gridIds: string[],
-): Promise<Map<string, string>> {
+): Promise<Map<string, { checkedAt: string; issuedAt: string }>> {
   if (!gridIds.length) return new Map();
-  const r = await exec<{ id: string; forecast_checked_at: unknown }>(
+  const r = await exec<{
+    id: string;
+    forecast_checked_at: unknown;
+    forecast_checked_issue: unknown;
+  }>(
     ex,
-    `select id, forecast_checked_at from farm.weather_grids
-      where id = any($1::text[]) and forecast_checked_at is not null`,
+    `select id, forecast_checked_at, forecast_checked_issue from farm.weather_grids
+      where id = any($1::text[])
+        and forecast_checked_at is not null and forecast_checked_issue is not null`,
     [gridIds],
   );
   return new Map(
-    r.rows.map((x) => [x.id, (toDate(x.forecast_checked_at) as Date).toISOString()] as const),
+    r.rows.map(
+      (x) =>
+        [
+          x.id,
+          {
+            checkedAt: (toDate(x.forecast_checked_at) as Date).toISOString(),
+            issuedAt: (toDate(x.forecast_checked_issue) as Date).toISOString(),
+          },
+        ] as const,
+    ),
   );
 }
 

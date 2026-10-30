@@ -137,9 +137,7 @@ describe('views add staleness to stored verdicts', () => {
   test('not checked for over 120 min: caution with a reason; checked or no issue: unchanged', () => {
     const shown = withStaleness(view, NOW);
     expect(shown.verdict).toBe('caution');
-    expect(shown.reasons.map((r) => r.message)).toEqual([
-      'Forecast not checked for 3 h (NWS unreachable)',
-    ]);
+    expect(shown.reasons.map((r) => r.message)).toEqual(['Forecast not checked with NWS for 3 h']);
     expect(withStaleness(view, new Date('2026-10-29T16:00:00Z'))).toBe(view);
     // The issue is 200 min old, but NWS served it again 5 min ago.
     expect(withStaleness({ ...view, forecastCheckedAt: '2026-10-29T18:15:00.000Z' }, NOW)).toEqual({
@@ -167,7 +165,7 @@ describe('views add staleness to stored verdicts', () => {
         {
           code: 'forecast_stale',
           verdict: 'caution',
-          message: 'Forecast not checked for 2 h (NWS unreachable)',
+          message: 'Forecast not checked with NWS for 2 h',
           value: 125,
           threshold: 120,
         },

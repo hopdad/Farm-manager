@@ -3,7 +3,8 @@
  * GET /api/weather/spray do: once the forecast it used has not been confirmed with NWS for
  * WEATHER_STALE_MINUTES (NWS unreachable), every view adds forecast_stale (caution), even though
  * the stored row (keyed on the forecast issue) still says go; and once NWS serves the same issue
- * again, every view shows it current, however old the issue itself is.
+ * again, every view shows it current (unless the issue itself is older than
+ * FORECAST_ISSUE_MAX_AGE_MINUTES, 18 h).
  */
 import { describe, expect, test } from 'vitest';
 import { withStaleness } from '../../domain/spray';
@@ -101,7 +102,7 @@ describe('spray verdicts as shown now', () => {
     expect(detail?.spray?.verdict).toBe('caution');
     expect(detail?.spray?.forecastCheckedAt).toBe(T0.toISOString());
     expect(detail?.spray?.reasons.find((r) => r.code === 'forecast_stale')?.message).toBe(
-      'Forecast not checked for 3 h (NWS unreachable)',
+      'Forecast not checked with NWS for 3 h',
     );
     // The hours that entered the window during the outage were stored stale.
     const entered = new Date(start + 15 * H).toISOString();
@@ -127,5 +128,60 @@ describe('spray verdicts as shown now', () => {
     expect(again?.spray).toMatchObject({ verdict: 'go', reasons: [] });
     const shown = (await verdictsForHour(pool, entered)).get(f.fieldId);
     expect(shown && withStaleness(shown, back)).toMatchObject({ verdict: 'go', reasons: [] });
+  });
+
+  test('a check that confirmed a newer issue does not vouch for rows from the replaced one', async () => {
+    const { pool, db } = t();
+    const grid = { id: 'DTX/70,40', wfo: 'DTX', x: 70, y: 40 };
+    const f = await insertField(db, { geom: squareMultiPolygon(-83.9, 41.8, 500) });
+    await upsertGrid(pool, grid, [], 'America/Detroit', T0);
+    await assignFieldGrid(pool, { fieldId: f.fieldId, lng: -83.897, lat: 41.802 }, grid.id, T0);
+    const start = Math.floor(T0.getTime() / H) * H;
+    const x = {
+      grid,
+      issuedAt: new Date(T0.getTime() - 5 * 60_000).toISOString(),
+      hours: Array.from({ length: 24 }, (_, k) => calm(start + k * H)),
+    };
+    await insertForecastIssue(pool, x, null);
+    await markForecastsChecked(pool, [{ gridId: grid.id, issuedAt: x.issuedAt }], T0);
+    await runSprayPass(pool, T0, DEFAULT_SPRAY_THRESHOLDS);
+
+    // Three hours later NWS serves a windy issue Y: stored and checked, but the spray pass fails
+    // before reassessing, so the rows still come from X.
+    const later = new Date(T0.getTime() + 3 * H);
+    const y = {
+      grid,
+      issuedAt: new Date(later.getTime() - 10 * 60_000).toISOString(),
+      hours: Array.from({ length: 24 }, (_, k) => ({ ...calm(start + k * H), windMph: 14 })),
+    };
+    await insertForecastIssue(pool, y, null);
+    await markForecastsChecked(pool, [{ gridId: grid.id, issuedAt: y.issuedAt }], later);
+    const forHour = new Date(start + 3 * H).toISOString();
+    const stored = (await verdictsForHour(pool, forHour)).get(f.fieldId);
+    expect(stored).toMatchObject({
+      verdict: 'go',
+      forecastIssuedAt: x.issuedAt,
+      forecastCheckedAt: null,
+    });
+    // X counts from its own issue time (3 h 5 min): stale, as before checks were recorded.
+    const shown = stored ? withStaleness(stored, later) : null;
+    expect(shown?.verdict).toBe('caution');
+    expect(shown?.reasons.find((r) => r.code === 'forecast_stale')?.message).toBe(
+      'Forecast is 3 h old',
+    );
+    const detail = await fieldDetail(pool, f.fieldId, later);
+    expect(detail?.spray).toMatchObject({ verdict: 'caution', forecastCheckedAt: null });
+
+    // The next pass reassesses from Y, which the check does vouch for.
+    await runSprayPass(pool, later, DEFAULT_SPRAY_THRESHOLDS);
+    const fresh = (await verdictsForHour(pool, forHour)).get(f.fieldId);
+    expect(fresh).toMatchObject({
+      verdict: 'no_go',
+      forecastIssuedAt: y.issuedAt,
+      forecastCheckedAt: later.toISOString(),
+    });
+    expect(fresh && withStaleness(fresh, later).reasons.map((r) => r.code)).not.toContain(
+      'forecast_stale',
+    );
   });
 });
