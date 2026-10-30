@@ -9,9 +9,12 @@
  *    detail query here instead of its inline copy).
  *  - soilsLayerInfo(ex): what is loaded (version, vintage, synthetic or not, counts), from
  *    gis.map_layers 'soils' and the tables.
+ *  - mapUnitDetail(ex, mukey): one map unit with its components, for the map unit sheet
+ *    (GET /api/soils/mapunits/<mukey>, soil map Phase A); null when there is no such map unit.
  */
 
 import type { FieldSoilRow } from '../../domain/soils';
+import { type MapUnitDetail, parseComponents } from '../../ui/soils/protocol';
 import type { Queryable } from '../client';
 
 interface Row {
@@ -87,5 +90,48 @@ export async function soilsLayerInfo(ex: Queryable): Promise<SoilsLayerInfo> {
     fixture: row?.fixture === 'true',
     mapunits: Number(row?.mapunits ?? 0),
     polygons: Number(row?.polygons ?? 0),
+  };
+}
+
+export async function mapUnitDetail(ex: Queryable, mukey: string): Promise<MapUnitDetail | null> {
+  const r = await ex.query<{
+    mukey: string;
+    areasymbol: string;
+    musym: string | null;
+    muname: string;
+    dominant_component: string | null;
+    drainage_class: string | null;
+    hydgrp: string | null;
+    farmland_class: string | null;
+    nccpi: number | null;
+    components: unknown;
+    survey_version: string | null;
+    fixture: string | null;
+  }>(
+    `select u.mukey, u.areasymbol, u.musym, u.muname, u.dominant_component, u.drainage_class,
+            u.hydgrp, u.farmland_class, round(u.nccpi::numeric, 3)::double precision as nccpi,
+            u.components, u.survey_version,
+            (select l.meta->>'fixture' from gis.map_layers l where l.key = 'soils') as fixture
+       from gis.soil_mapunits u
+      where u.mukey = $1`,
+    [mukey],
+  );
+  const x = r.rows[0];
+  if (!x) return null;
+  return {
+    mukey: x.mukey,
+    areasymbol: x.areasymbol,
+    musym: x.musym,
+    muname: x.muname,
+    dominantComponent: x.dominant_component,
+    drainageClass: x.drainage_class,
+    hydgrp: x.hydgrp,
+    farmlandClass: x.farmland_class,
+    nccpi: x.nccpi,
+    components: parseComponents(x.components).sort(
+      (a, b) => b.pct - a.pct || a.name.localeCompare(b.name),
+    ),
+    surveyVersion: x.survey_version,
+    synthetic: x.fixture === 'true',
   };
 }
