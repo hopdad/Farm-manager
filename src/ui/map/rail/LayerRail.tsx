@@ -14,6 +14,11 @@
  *    ('styledata', coalesced to one apply per frame).
  *  - Online-only layers say "offline" when the browser is offline or their tiles fail (the WAN
  *    can be down while the LAN is up), and come back when a tile loads again.
+ *  - A layer drawn more than one way (./modes.ts: the soils colour-by modes) shows a mode picker
+ *    under its toggle while on; the choice is remembered with the rest, its legend follows it,
+ *    and after every applyLayers the layer paints itself for the mode (no tile refetch).
+ *  - Soils also get their label points (../../soils/useSoilLabels.ts) and, under the legend,
+ *    the map units in view (./SoilsInView.tsx).
  *
  * Wall: 72 px targets; phone: 52 px.
  */
@@ -22,18 +27,23 @@ import type {
   Map as MapLibreMap,
   MapSourceDataEvent,
 } from 'maplibre-gl';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicConfig } from '../../../config';
 import type { LayerLegend, ResolvedMapLayer } from '../../../domain/map-layers';
+import { installSoilsTestApi } from '../../soils/test-api';
+import { useSoilLabels } from '../../soils/useSoilLabels';
 import { applyLayers } from '../layers/apply';
 import { LAYER_DEFS } from '../layers/registry';
+import { SOILS_LAYER_KEY } from '../layers/soils';
 import { type LayerDef, resolveLayers } from '../layers/types';
 import { useLayerVisibilityStore } from '../layers/visibility';
 import type { BasemapFlavor, MapVariant } from '../types';
 import { railRealtime, startLayersFeed } from './feed';
 import { layerKeyOfSource, type RailItem, railModel } from './model';
+import { LAYER_MODES, layerModeOf, useLayerModeStore } from './modes';
 import { browserStorage, loadRailPrefs, saveRailPrefs } from './persist';
 import css from './rail.module.css';
+import { SoilsInView } from './SoilsInView';
 
 /** The map type the rail takes (what WarRoomMap's onMapReady hands over). */
 export type RailMap = MapLibreMap;
@@ -42,8 +52,11 @@ export interface LayerRailProps {
   /** The board's map (WarRoomMap onMapReady); null until it has loaded. */
   map: MapLibreMap | null;
   variant: MapVariant;
-  /** Realtime adapter for `layers` updates (publicConfig); default local SSE. */
-  config?: Pick<PublicConfig, 'realtime'>;
+  /**
+   * Realtime adapter for `layers` updates (publicConfig); default local SSE. With an appEnv
+   * other than production, the soils test view (window.__soils) is installed.
+   */
+  config?: Pick<PublicConfig, 'realtime'> & Partial<Pick<PublicConfig, 'appEnv'>>;
   /** Basemap flavour the layers are styled for (default: dark on the wall, light on phones). */
   flavor?: BasemapFlavor;
   /** The defs to offer (tests); default LAYER_DEFS. */
@@ -56,11 +69,12 @@ export interface LayerRailProps {
 interface ApplyState {
   resolved: ReturnType<typeof resolveLayers>;
   overrides: Readonly<Record<string, boolean>>;
+  modes: Readonly<Record<string, string>>;
   loaded: boolean;
   flavor: BasemapFlavor;
 }
 
-const DEFAULT_CONFIG: Pick<PublicConfig, 'realtime'> = { realtime: 'sse' };
+const DEFAULT_CONFIG: NonNullable<LayerRailProps['config']> = { realtime: 'sse' };
 
 function useOnline(): boolean {
   const [online, setOnline] = useState(true);
@@ -123,9 +137,9 @@ function useZoom(map: MapLibreMap | null): number | null {
   return zoom;
 }
 
-function Legend({ legend, testId }: { legend: LayerLegend; testId: string }) {
+function Legend({ legend, testId, mode }: { legend: LayerLegend; testId: string; mode?: string }) {
   return (
-    <div className={css.legend} data-testid={testId}>
+    <div className={css.legend} data-testid={testId} data-mode={mode}>
       {legend.title && <div className={css.legendTitle}>{legend.title}</div>}
       {legend.items.map((it) => (
         <div key={it.label} className={css.legendRow}>
@@ -147,7 +161,39 @@ function Legend({ legend, testId }: { legend: LayerLegend; testId: string }) {
   );
 }
 
-function Toggle({ item, onToggle }: { item: RailItem; onToggle(item: RailItem): void }) {
+function ModePicker({ item, onMode }: { item: RailItem; onMode(key: string, mode: string): void }) {
+  if (!item.mode) return null;
+  const { options, current } = item.mode;
+  return (
+    <fieldset className={css.modes} data-testid={`layer-modes-${item.key}`}>
+      <legend className={css.modesLegend}>Show by</legend>
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          aria-pressed={o.id === current}
+          className={`${css.mode} ${o.id === current ? css.modeOn : ''}`}
+          onClick={() => onMode(item.key, o.id)}
+          data-testid={`layer-mode-${item.key}-${o.id}`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </fieldset>
+  );
+}
+
+function Toggle({
+  item,
+  onToggle,
+  onMode,
+  children,
+}: {
+  item: RailItem;
+  onToggle(item: RailItem): void;
+  onMode(key: string, mode: string): void;
+  children?: ReactNode;
+}) {
   const status = item.zoomHint ?? item.message;
   return (
     <div className={css.entry}>
@@ -173,9 +219,15 @@ function Toggle({ item, onToggle }: { item: RailItem; onToggle(item: RailItem): 
           )}
         </span>
       </button>
+      <ModePicker item={item} onMode={onMode} />
       {item.legend && item.legend.items.length > 0 && (
-        <Legend legend={item.legend} testId={`layer-legend-${item.key}`} />
+        <Legend
+          legend={item.legend}
+          testId={`layer-legend-${item.key}`}
+          mode={item.mode?.current}
+        />
       )}
+      {children}
       {item.on && item.source && (
         <div className={`${css.source} ${item.synthetic ? css.sourceWarn : ''}`}>{item.source}</div>
       )}
@@ -198,6 +250,7 @@ export function LayerRail({
   const [open, setOpen] = useState(variant === 'wall');
   const [hydrated, setHydrated] = useState(false);
   const overrides = useLayerVisibilityStore((s) => s.overrides);
+  const modes = useLayerModeStore((s) => s.modes);
   const online = useOnline();
   const failing = useFailingLayers(map);
   const zoom = useZoom(map);
@@ -206,13 +259,14 @@ export function LayerRail({
   useEffect(() => {
     const prefs = loadRailPrefs(browserStorage(), variant);
     useLayerVisibilityStore.getState().hydrate(prefs.overrides);
+    useLayerModeStore.getState().hydrate(prefs.modes);
     if (prefs.open !== null) setOpen(prefs.open);
     setHydrated(true);
   }, [variant]);
   useEffect(() => {
     if (!hydrated) return;
-    saveRailPrefs(browserStorage(), variant, { overrides, open });
-  }, [hydrated, variant, overrides, open]);
+    saveRailPrefs(browserStorage(), variant, { overrides, modes, open });
+  }, [hydrated, variant, overrides, modes, open]);
   useEffect(() => {
     onOpenChange?.(open);
   }, [open, onOpenChange]);
@@ -237,23 +291,50 @@ export function LayerRail({
   const apply = useCallback(
     (state: ApplyState) => {
       if (!map || !state.loaded) return;
+      const ctx = { flavor: state.flavor, variant };
       try {
         applyLayers(map, state.resolved, (key, def) => state.overrides[key] ?? def, {
           origin: window.location.origin,
-          flavor: state.flavor,
-          variant,
+          ...ctx,
         });
+        // Layers with modes paint themselves for the chosen one (paint only: no refetch).
+        for (const r of state.resolved) {
+          const modesOf = LAYER_MODES[r.def.key];
+          const mode = layerModeOf(state.modes, r.def.key);
+          if (modesOf && mode !== null && r.status === 'ready') modesOf.apply(map, mode, ctx);
+        }
       } catch (e) {
         console.error('[layer rail] could not apply layers', e);
       }
     },
     [map, variant],
   );
-  const latest = useRef<ApplyState>({ resolved, overrides, loaded, flavor: effectiveFlavor });
-  latest.current = { resolved, overrides, loaded, flavor: effectiveFlavor };
+  const latest = useRef<ApplyState>({
+    resolved,
+    overrides,
+    modes,
+    loaded,
+    flavor: effectiveFlavor,
+  });
+  latest.current = { resolved, overrides, modes, loaded, flavor: effectiveFlavor };
   useEffect(() => {
-    apply({ resolved, overrides, loaded, flavor: effectiveFlavor });
-  }, [apply, resolved, overrides, loaded, effectiveFlavor]);
+    apply({ resolved, overrides, modes, loaded, flavor: effectiveFlavor });
+  }, [apply, resolved, overrides, modes, loaded, effectiveFlavor]);
+
+  // Test-only window.__soils (paint, filters, draw order).
+  const appEnv = config.appEnv;
+  useEffect(() => {
+    if (!map || !appEnv || appEnv === 'production') return;
+    return installSoilsTestApi(map);
+  }, [map, appEnv]);
+
+  // Soils: one label point per polygon, while the layer is drawn.
+  const soils = resolved.find((r) => r.def.key === SOILS_LAYER_KEY);
+  useSoilLabels(map, {
+    enabled:
+      soils?.status === 'ready' && (overrides[SOILS_LAYER_KEY] ?? soils.defaultVisible) && loaded,
+    version: soils?.row?.version ?? null,
+  });
   useEffect(() => {
     if (!map) return;
     let frame = 0;
@@ -272,14 +353,31 @@ export function LayerRail({
   }, [map, apply]);
 
   const groups = useMemo(
-    () => railModel({ resolved, overrides, loaded, online, failing, zoom }),
-    [resolved, overrides, loaded, online, failing, zoom],
+    () =>
+      railModel({
+        resolved,
+        overrides,
+        loaded,
+        online,
+        failing,
+        zoom,
+        modes,
+        flavor: effectiveFlavor,
+        variant,
+      }),
+    [resolved, overrides, loaded, online, failing, zoom, modes, effectiveFlavor, variant],
   );
   const toggle = useCallback((item: RailItem) => {
     useLayerVisibilityStore.getState().toggle(item.key, item.defaultVisible);
   }, []);
-  const reset = useCallback(() => useLayerVisibilityStore.getState().reset(), []);
-  const changed = Object.keys(overrides).length > 0;
+  const setMode = useCallback((key: string, mode: string) => {
+    useLayerModeStore.getState().setMode(key, mode);
+  }, []);
+  const reset = useCallback(() => {
+    useLayerVisibilityStore.getState().reset();
+    useLayerModeStore.getState().reset();
+  }, []);
+  const changed = Object.keys(overrides).length > 0 || Object.keys(modes).length > 0;
 
   return (
     <div
@@ -356,7 +454,16 @@ export function LayerRail({
               <div key={g.group} className={css.group} data-testid={`layer-group-${g.group}`}>
                 <div className={css.groupTitle}>{g.label}</div>
                 {g.items.map((item) => (
-                  <Toggle key={item.key} item={item} onToggle={toggle} />
+                  <Toggle key={item.key} item={item} onToggle={toggle} onMode={setMode}>
+                    {item.key === SOILS_LAYER_KEY && item.mode && (
+                      <SoilsInView
+                        map={map}
+                        mode={item.mode.current}
+                        flavor={effectiveFlavor}
+                        zoom={zoom}
+                      />
+                    )}
+                  </Toggle>
                 ))}
                 {g.hint && <div className={css.hint}>{g.hint}</div>}
               </div>

@@ -11,7 +11,15 @@ import { type FieldSoilRow, summarizeFieldSoils } from '../../../domain/soils';
 import { DRAINAGE_COLORS, DRAINAGE_UNKNOWN_COLOR } from '../../map/layers/soils';
 import { FIELD_PANEL_TABS } from '../tab-registry';
 import { orderTabs } from '../tabs';
-import { SLIVER_PCT, SoilsBody, SoilsTab, soilsSourceOf, soilsTab, soilsTabView } from './soils';
+import {
+  mapUnitPreviewOf,
+  SLIVER_PCT,
+  SoilsBody,
+  SoilsTab,
+  soilsSourceOf,
+  soilsTab,
+  soilsTabView,
+} from './soils';
 
 const ROWS: FieldSoilRow[] = [
   {
@@ -183,6 +191,23 @@ describe('rendered', () => {
     const html = render(detail(), 'phone');
     expect(html).not.toContain('<table');
     expect(count(html, 'data-testid="field-soils-row"')).toBe(3);
+  });
+
+  test('each map unit’s symbol opens its sheet (wall and phone)', () => {
+    for (const variant of ['wall', 'phone'] as const) {
+      const html = render(detail(), variant);
+      expect(count(html, 'data-testid="field-soils-open-mapunit"'), variant).toBe(3);
+      expect(html).toContain('aria-label="Map unit BnB: components and series"');
+    }
+    expect(mapUnitPreviewOf(ROWS[0] as FieldSoilRow)).toEqual({
+      mukey: '99901001',
+      musym: 'BnB',
+      muname: 'Blount loam, 1 to 4 percent slopes',
+      drainage_class: 'Somewhat poorly drained',
+      hydgrp: 'C/D',
+      farmland_class: 'Prime farmland if drained',
+      nccpi: 0.615,
+    });
   });
 
   test('empty: says how to load soils', () => {

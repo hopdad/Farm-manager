@@ -56,6 +56,11 @@ export interface WarRoomMapProps {
    * tiles), or null for empty map. Machines win when both are under the finger.
    */
   onFieldTap?(fieldId: string | null): void;
+  /**
+   * A tap or click on empty map: no machine and no field under it (or no field layer drawn),
+   * with its point (soil map: the map unit sheet when soils are on). Called after onFieldTap(null).
+   */
+  onEmptyTap?(lngLat: { lng: number; lat: number }): void;
 }
 
 const MAX_ERRORS = 50;
@@ -79,6 +84,8 @@ export default function WarRoomMap(props: WarRoomMapProps) {
   onMapReadyRef.current = props.onMapReady;
   const onFieldTapRef = useRef(props.onFieldTap);
   onFieldTapRef.current = props.onFieldTap;
+  const onEmptyTapRef = useRef(props.onEmptyTap);
+  onEmptyTapRef.current = props.onEmptyTap;
 
   const origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
   const mapStyle = useMemo(
@@ -245,15 +252,18 @@ export default function WarRoomMap(props: WarRoomMapProps) {
         : null;
       const picked = info?.object as FleetFrame | undefined;
       onSelect(picked ? picked.id : null);
-      // A tap that hit no machine may be a field tap (the field panel, 1a).
+      // A tap that hit no machine may be a field tap (the field panel, 1a), else an empty-map tap.
       const onFieldTap = onFieldTapRef.current;
-      if (!picked && onFieldTap) {
+      const onEmptyTap = onEmptyTapRef.current;
+      if (!picked && (onFieldTap || onEmptyTap)) {
         const map = mapRef.current?.getMap();
         const hit = map?.getLayer(FIELD_LAYER_IDS.fill)
           ? map.queryRenderedFeatures([e.point.x, e.point.y], { layers: [FIELD_LAYER_IDS.fill] })
           : [];
         const id = hit[0]?.properties?.id;
-        onFieldTap(typeof id === 'string' ? id : null);
+        const fieldId = typeof id === 'string' ? id : null;
+        onFieldTap?.(fieldId);
+        if (fieldId === null) onEmptyTap?.({ lng: e.lngLat.lng, lat: e.lngLat.lat });
       }
     },
     [overlay, onSelect, pickRadius, sizes],
