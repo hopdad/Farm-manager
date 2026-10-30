@@ -3,11 +3,16 @@
  * (no history feed), so the cursor is the newest `located_at` seen PER VEHICLE (JSON
  * `{"<vehicle id>":"<iso>"}`); a vehicle's location at or before its own watermark is skipped.
  * (One global watermark would drop every truck whose ELD reports a little later than the
- * fastest one.) Enough for ELD_VENDOR=motive to drive the board in sim mode.
+ * fastest one.) Enough for CONNECTOR_MOTIVE=sim to put Motive's vehicles on the board.
  */
 
 import { normalizeHeading } from '../../domain/fleet';
-import { type ConnectorConfig, type MotiveEndpoint, motiveEndpoint } from '../endpoints';
+import {
+  type ConnectorConfig,
+  type MotiveEndpoint,
+  motiveEndpoint,
+  replayFetch,
+} from '../endpoints';
 import { type VendorHttpOptions, vendorJson } from '../http';
 import type { Mode, NormalizedPosition, PollResult, PositionSource, RawItem } from '../types';
 import {
@@ -69,6 +74,13 @@ export class MotiveClient {
     cfg: ConnectorConfig,
     http: Omit<VendorHttpOptions, 'vendor'> = {},
   ): MotiveClient {
+    // 1f.2: replay is wired (empty fixtures until the trucks builder adds them).
+    if (mode === 'replay') {
+      return new MotiveClient(motiveEndpoint(mode, cfg), {
+        ...http,
+        fetch: replayFetch('motive', { now: http.now }),
+      });
+    }
     return new MotiveClient(motiveEndpoint(mode, cfg), http);
   }
 

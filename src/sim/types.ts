@@ -23,21 +23,28 @@
  * ingest.external_refs row per vendor id below, so synced vendor data maps onto seeded rows.
  *
  * External refs (the seam between the seed and the vendors' syncs): the seed writes EXACTLY the
- * rows `simExternalRefs(farm, ELD_VENDOR)` returns, through upsertExternalRef()
- * (src/db/external-refs.ts); syncs look vendor ids up with the same tuples:
+ * rows `simExternalRefs(farm)` returns, through upsertExternalRef() (src/db/external-refs.ts);
+ * syncs look vendor ids up with the same tuples:
  *   farm      ('deere', 'farm',     SimFarmUnit.deereFarmId,  SimFarmUnit.deereOrgId)     -> SimFarmUnit.id
  *   field     ('deere', 'field',    SimField.deereFieldId,    owning unit's deereOrgId)   -> SimField.id
  *             ('deere', 'field',    sharedWith.deereFieldId,  sharedWith.deereOrgId)      -> SimField.id (same field)
  *   boundary  ('deere', 'boundary', SimField.deereBoundaryId, owning unit's deereOrgId)   -> SimField.boundaryId
  *   machine   ('deere', 'machine',  vendorIds.deere,          SimMachine.deereOrgId)      -> SimMachine.id
- *   machine   (ELD_VENDOR, 'machine', vendorIds.eld,          '')                         -> SimMachine.id
+ *   machine   (telematics.vendor, 'machine', telematics.id,   telematics.provider ?? '')  -> SimMachine.id
+ *             ('aemp', 'machine',   telematics.id, 'samsara') for Samsara equipment too (the AEMP
+ *             stand-in's provider `samsara` serves Samsara's asset-gateway machines, same ids)
  * The Deere stand-in serves each org's data under that org id, so the org a sync reads from IS
  * the source_org it looks up. M0 machines all live in SIM_DEERE_HOME_ORG.
+ *
+ * 1f.2: the demo fleet is mixed (docs/contracts-1f.md part B): every machine names the ONE
+ * telematics connection that serves it (`SimMachine.telematics`), so every vendor's stand-in
+ * lists exactly its own machines (`simTelematicsMachines`), and all of them run at once.
  */
 import type { MultiPolygon, Polygon } from 'geojson';
-import { type EldVendor, type ExternalRef, externalRef as ref } from '../connectors/types';
+import { type ExternalRef, externalRef as ref } from '../connectors/types';
 import type { PartyKind, PartyRole, Tenure } from '../domain/farm';
 import type { Activity, MachineKind } from '../domain/fleet';
+import type { TelematicsVia } from '../domain/vehicles';
 
 export const SCENARIO_NAMES = [
   'harvest-day',
@@ -116,6 +123,33 @@ export interface SimField {
   sharedWith?: { deereOrgId: string; deereFieldId: string };
 }
 
+/** The telematics connections a simulated machine can be served by (1f.2). */
+export const SIM_TELEMATICS_VENDORS = ['samsara', 'motive', 'geotab', 'aemp', 'terminal'] as const;
+export type SimTelematicsVendor = (typeof SIM_TELEMATICS_VENDORS)[number];
+
+/** The AEMP providers the stand-in serves (/aemp/<provider>/…), in sim when AEMP_PROVIDERS is unset. */
+export const SIM_AEMP_PROVIDERS = ['cnh', 'kubota', 'samsara'] as const;
+
+/** How a machine's telematics reaches the app in the simulated world (1f.2). */
+export interface SimTelematics {
+  vendor: SimTelematicsVendor;
+  /** The vendor's vehicle / asset / equipment id (external_refs external_id). */
+  id: string;
+  /** AEMP provider (`cnh`, `kubota`) or Terminal connection: the external_refs source_org. */
+  provider?: string;
+  /** Samsara only: the /fleet/vehicles feeds (trucks, pickups) or /fleet/equipment (gateways). */
+  feed?: 'vehicle' | 'equipment';
+  /** How the vendor gets the data (machines.telematics_via): ford_pro, stellantis, gateway. */
+  via?: TelematicsVia;
+  /**
+   * Wall seconds between the positions the stand-in reports for it (carmaker clouds report
+   * sparser than a plugged-in gateway). Default: the vendor's own grid (Samsara 5 s).
+   */
+  reportEverySeconds?: number;
+  /** The vendor's tags on the vehicle (VEHICLE_KIND_TAGS maps them to a kind). */
+  tags?: string[];
+}
+
 export interface SimMachine {
   id: string;
   key: string;
@@ -126,11 +160,12 @@ export interface SimMachine {
   model: string;
   year: number;
   /**
-   * Vendor ids. `deere` = Equipment API machine id (machines with JDLink).
-   * `eld` = vehicle id in the ELD vendor selected by ELD_VENDOR (trucks, and any machine with an ELD).
-   * A machine with neither has no live position (manual only).
+   * Deere ids: `deere` = Equipment API machine id (machines with JDLink). A machine with neither
+   * this nor `telematics` has no live position (manual only).
    */
-  vendorIds: { deere?: string; eld?: string };
+  vendorIds: { deere?: string };
+  /** 1f.2: the one telematics connection that serves this machine, if any. */
+  telematics?: SimTelematics;
   /** Deere org the machine is registered in. Required when vendorIds.deere is set (M0: SIM_DEERE_HOME_ORG). */
   deereOrgId?: string;
   /** Implement / header width for working passes. */
@@ -194,11 +229,33 @@ export interface SimExternalRefRow {
 }
 
 /**
+ * The machines one telematics stand-in serves (1f.2): its vendor's, optionally one Samsara feed or
+ * one AEMP provider. The AEMP provider `samsara` serves Samsara's equipment (asset gateways).
+ */
+export function simTelematicsMachines(
+  farm: Pick<SimFarm, 'machines'>,
+  vendor: SimTelematicsVendor,
+  opts: { feed?: 'vehicle' | 'equipment'; provider?: string } = {},
+): SimMachine[] {
+  return farm.machines.filter((m) => {
+    const t = m.telematics;
+    if (!t) return false;
+    if (vendor === 'aemp' && opts.provider === 'samsara') {
+      return t.vendor === 'samsara' && t.feed === 'equipment';
+    }
+    if (t.vendor !== vendor) return false;
+    if (opts.feed && (t.feed ?? 'vehicle') !== opts.feed) return false;
+    if (opts.provider !== undefined && (t.provider ?? '') !== opts.provider) return false;
+    return true;
+  });
+}
+
+/**
  * Every external ref of the simulated farm, with the exact tuples documented at the top of this
  * file. The seed writes these; vendor-sync tests can assert that what they read maps through
- * them. Pure: depends only on `farm` and the ELD vendor (config ELD_VENDOR).
+ * them. Pure: depends only on `farm`.
  */
-export function simExternalRefs(farm: SimFarm, eldVendor: EldVendor): SimExternalRefRow[] {
+export function simExternalRefs(farm: SimFarm): SimExternalRefRow[] {
   const orgOfFarm = new Map(farm.farms.map((u) => [u.id, u.deereOrgId]));
   const rows: SimExternalRefRow[] = [];
   for (const u of farm.farms) {
@@ -233,12 +290,20 @@ export function simExternalRefs(farm: SimFarm, eldVendor: EldVendor): SimExterna
         entity: 'machine',
       });
     }
-    if (m.vendorIds.eld) {
+    const t = m.telematics;
+    if (t) {
       rows.push({
-        ref: ref(eldVendor, 'machine', m.vendorIds.eld, ''),
+        ref: ref(t.vendor, 'machine', t.id, t.provider ?? ''),
         entityId: m.id,
         entity: 'machine',
       });
+      if (t.vendor === 'samsara' && t.feed === 'equipment') {
+        rows.push({
+          ref: ref('aemp', 'machine', t.id, 'samsara'),
+          entityId: m.id,
+          entity: 'machine',
+        });
+      }
     }
   }
   return rows;
@@ -322,11 +387,22 @@ export function wallToSim(state: SimClockState, wall: Date): Date {
 
 // ---------------------------------------------------------------------------------------------
 // Vendor stand-in (tools/vendor-sim): one Node server, loopback only, default port 4010
-// (config VENDOR_SIM_URL). Vendor APIs live under /deere, /samsara, /motive, /qbo, /nws;
-// the control API under /_control. /_control/* rejects any request not from loopback (403).
+// (config VENDOR_SIM_URL). Vendor APIs live under /deere, /samsara, /motive, /qbo, /nws and
+// (1f.2) /geotab, /aemp/<provider>, /cnh, /terminal; the control API under /_control.
+// /_control/* rejects any request not from loopback (403).
 // ---------------------------------------------------------------------------------------------
 
-export const SIM_VENDORS = ['deere', 'samsara', 'motive', 'qbo', 'nws'] as const;
+export const SIM_VENDORS = [
+  'deere',
+  'samsara',
+  'motive',
+  'qbo',
+  'nws',
+  'geotab',
+  'aemp',
+  'cnh',
+  'terminal',
+] as const;
 export type SimVendor = (typeof SIM_VENDORS)[number];
 
 /**
@@ -338,6 +414,14 @@ export const SIM_CREDENTIALS = {
   samsara: { apiToken: 'sim-samsara-token' },
   motive: { apiKey: 'sim-motive-key' },
   qbo: { clientId: 'sim-qbo-client', clientSecret: 'sim-qbo-secret' },
+  geotab: { database: 'sim_farm', username: 'sim-geotab-service', password: 'sim-geotab-password' },
+  aemp: { token: 'sim-aemp-token' },
+  cnh: {
+    clientId: 'sim-cnh-client',
+    clientSecret: 'sim-cnh-secret',
+    subscriptionKey: 'sim-cnh-subscription-key',
+  },
+  terminal: { secretKey: 'sim-terminal-secret', connectionToken: 'sim-terminal-connection' },
 } as const;
 
 /** GET /_control/clock and the response of every POST /_control/clock. */

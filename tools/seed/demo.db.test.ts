@@ -10,7 +10,7 @@ import { resolveExternalRef, resolveExternalRefs } from '../../src/db/external-r
 import { demoId } from '../../src/domain/ids';
 import { buildDemoFarm } from '../../src/sim/farm/build';
 import { simFieldSeasons } from '../../src/sim/seasons';
-import { simExternalRefs } from '../../src/sim/types';
+import { simExternalRefs, simTelematicsMachines } from '../../src/sim/types';
 import { setupTestDb } from '../../src/test/db';
 import { tileFor } from '../../src/test/fixtures';
 import { DEMO_VALID_FROM, seedDemo } from './demo';
@@ -43,16 +43,16 @@ async function snapshot(): Promise<Record<string, string[]>> {
 
 describe('pnpm db:seed demo', () => {
   test('a fresh seed writes the SimFarm with demo ids and sources', async () => {
-    const report = await seedDemo(t().pool, { seed: 1, eldVendor: 'samsara' });
+    const report = await seedDemo(t().pool, { seed: 1 });
     const ins = (k: keyof typeof report.tables) => report.tables[k].inserted;
     expect(ins('parties')).toBe(farm.parties.length);
     expect(ins('farms')).toBe(farm.farms.length);
     expect(ins('fields')).toBe(40);
     expect(ins('field_boundaries')).toBe(40);
     expect(ins('field_seasons')).toBe(200);
-    expect(ins('machines')).toBe(11);
+    expect(ins('machines')).toBe(farm.machines.length);
     expect(ins('geofences')).toBe(farm.elevators.length + 1 + farm.binSites.length + 40);
-    expect(ins('external_refs')).toBe(simExternalRefs(farm, 'samsara').length);
+    expect(ins('external_refs')).toBe(simExternalRefs(farm).length);
     expect(report.extraRefs).toEqual([]);
 
     const { pool } = t();
@@ -171,22 +171,34 @@ describe('pnpm db:seed demo', () => {
     const actual = r.rows
       .map((x) => `${externalRefKey(x.source, x.kind, x.external_id, x.source_org)}=${x.entity_id}`)
       .sort();
-    const expected = simExternalRefs(farm, 'samsara')
+    const expected = simExternalRefs(farm)
       .map(
         (x) =>
           `${externalRefKey(x.ref.source, x.ref.kind, x.ref.externalId, x.ref.sourceOrg)}=${x.entityId}`,
       )
       .sort();
     expect(actual).toEqual(expected);
-    const semis = farm.machines.filter((m) => m.vendorIds.eld);
+    const onSamsara = simTelematicsMachines(farm, 'samsara');
     const map = await resolveExternalRefs(
       pool,
       'samsara',
       'machine',
       '',
-      semis.map((m) => m.vendorIds.eld as string),
+      onSamsara.map((m) => m.telematics?.id as string),
     );
-    expect([...map.values()].sort()).toEqual(semis.map((m) => m.id).sort());
+    expect([...map.values()].sort()).toEqual(onSamsara.map((m) => m.id).sort());
+    const kubota = simTelematicsMachines(farm, 'aemp', { provider: 'kubota' });
+    expect([
+      ...(
+        await resolveExternalRefs(
+          pool,
+          'aemp',
+          'machine',
+          'kubota',
+          kubota.map((m) => m.telematics?.id as string),
+        )
+      ).values(),
+    ]).toEqual(kubota.map((m) => m.id));
     const shared = farm.fields.find((f) => f.sharedWith);
     if (!shared?.sharedWith) throw new Error('no shared field');
     expect(
@@ -201,7 +213,7 @@ describe('pnpm db:seed demo', () => {
 
   test('re-running changes nothing, not even xmin', async () => {
     const before = await snapshot();
-    const report = await seedDemo(t().pool, { seed: 1, eldVendor: 'samsara' });
+    const report = await seedDemo(t().pool, { seed: 1 });
     for (const c of Object.values(report.tables)) {
       expect(c.inserted).toBe(0);
       expect(c.updated).toBe(0);
@@ -222,7 +234,7 @@ describe('pnpm db:seed demo', () => {
       `update farm.machines set engine_hours = 9999, status = 'down' where id = $1`,
       [m.id],
     );
-    const report = await seedDemo(pool, { seed: 1, eldVendor: 'samsara' });
+    const report = await seedDemo(pool, { seed: 1 });
     expect(report.tables.fields.updated).toBe(1);
     expect(report.tables.machines.updated).toBe(0);
     const row = await pool.query(`select name, active from farm.fields where id = $1`, [f.id]);
@@ -252,7 +264,7 @@ describe('pnpm db:seed demo', () => {
       f.farmId,
       partyId,
     ]);
-    await seedDemo(pool, { seed: 1, eldVendor: 'samsara' });
+    await seedDemo(pool, { seed: 1 });
     const fr = await pool.query(
       `select landlord_party_id::text as p from farm.fields where id = $1`,
       [f.id],
@@ -264,10 +276,41 @@ describe('pnpm db:seed demo', () => {
     expect(fa.rows[0]?.p).toBe(partyId);
   });
 
-  test("switching ELD_VENDOR adds that vendor's refs and reports the old ones", async () => {
-    const report = await seedDemo(t().pool, { seed: 1, eldVendor: 'motive' });
-    expect(report.tables.external_refs.inserted).toBe(4);
-    expect(report.extraRefs).toHaveLength(4);
-    expect(report.extraRefs.every((k) => k.startsWith('samsara|machine||'))).toBe(true);
+  test('1f.2: telematics_via from the route; a kind set on /admin survives a re-seed', async () => {
+    const { pool } = t();
+    const pu1 = farm.machines.find((m) => m.unitNo === 'PU1');
+    const sp2 = farm.machines.find((m) => m.unitNo === 'SP2');
+    const via = await pool.query(
+      `select unit_no, telematics_via, kind_set_by from farm.machines where id = any($1::uuid[]) order by unit_no`,
+      [[pu1?.id, sp2?.id]],
+    );
+    expect(via.rows).toEqual([
+      { unit_no: 'PU1', telematics_via: 'ford_pro', kind_set_by: 'default' },
+      { unit_no: 'SP2', telematics_via: 'gateway', kind_set_by: 'default' },
+    ]);
+    await pool.query(
+      `update farm.machines set kind = 'service_truck', kind_set_by = 'admin' where id = $1`,
+      [pu1?.id],
+    );
+    const report = await seedDemo(pool, { seed: 1 });
+    expect(report.tables.machines.updated).toBe(0);
+    const after = await pool.query(`select kind from farm.machines where id = $1`, [pu1?.id]);
+    expect(after.rows[0]?.kind).toBe('service_truck');
+    await pool.query(
+      `update farm.machines set kind = 'pickup', kind_set_by = 'default' where id = $1`,
+      [pu1?.id],
+    );
+  });
+
+  test('refs a previous seed wrote that the farm no longer lists are reported, never deleted', async () => {
+    const { pool } = t();
+    const s1 = farm.machines.find((m) => m.unitNo === 'S1');
+    await pool.query(
+      `insert into ingest.external_refs (source, kind, external_id, source_org, entity_id)
+       values ('motive', 'machine', 'old-motive-s1', '', $1)`,
+      [s1?.id],
+    );
+    const report = await seedDemo(pool, { seed: 1 });
+    expect(report.extraRefs).toEqual(['motive|machine||old-motive-s1']);
   });
 });

@@ -37,6 +37,12 @@ import net from 'node:net';
 import path from 'node:path';
 import { devOriginCandidates, privateIPv4Candidates } from '../scripts/env';
 import { type Config, childEnv, getConfig } from '../src/config';
+import {
+  CONNECTIONS,
+  type ConnectionModeKey,
+  connectionEntry,
+  connectionModes,
+} from '../src/connectors/vendors';
 import { createPool } from '../src/db/client';
 import { bindError, probePort, reservedPortHint } from '../src/lib/ports';
 import { isMainModule, tsxBin } from '../src/lib/proc';
@@ -754,6 +760,15 @@ export interface PhoneUrl {
   note: string;
 }
 
+/** One line of every connection's mode (1f.2: one key per vendor), e.g. "Deere sim · Samsara sim · …". */
+export function dataLine(cfg: Pick<Config, ConnectionModeKey | 'CONNECTOR_WEATHER'>): string {
+  const modes = connectionModes(cfg);
+  return [
+    ...CONNECTIONS.map((c) => `${connectionEntry(c).label} ${modes[c]}`),
+    `weather ${cfg.CONNECTOR_WEATHER}`,
+  ].join(' · ');
+}
+
 /** Phone URLs: DEV_ORIGINS (what next dev allows), annotated with adapter names. */
 export function phoneUrls(origins: string[], port: number, pathName = '/m'): PhoneUrl[] {
   const adapters = new Map(privateIPv4Candidates().map((c) => [c.address, c.iface]));
@@ -1022,7 +1037,8 @@ export async function launch(mode: LaunchMode, argv: string[]): Promise<number> 
     ...(await signInLines(cfg, port)),
     `  Admin     ${adminUnlockUrl(`http://localhost:${port}`, cfg.SESSION_SECRET)}`,
     '            (this PC only: opens /admin/* in that browser as the owner, no PIN)',
-    `  Data      Deere ${cfg.CONNECTOR_DEERE} · ELD ${cfg.CONNECTOR_ELD} (${cfg.ELD_VENDOR}) · weather ${cfg.CONNECTOR_WEATHER}`,
+    `  Data      ${dataLine(cfg)}`,
+    ...cfg.connectorAliasNotes.map((n) => `  Warning   ${n.message}`),
     '  Phones on the same Wi-Fi:',
     ...phoneUrls(origins, port).map((p) => `    ${p.url.padEnd(34)} (${p.note})`),
     `  Phone check  http://<pc-ip>:${port}/api/health`,

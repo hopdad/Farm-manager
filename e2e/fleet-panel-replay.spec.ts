@@ -1,11 +1,11 @@
 /**
  * Replay mode on the board (plan 1a done-when "CONNECTOR_DEERE=replay runs on the doc-derived
- * fixtures"; contracts-m1 §10): with CONNECTOR_DEERE=replay and CONNECTOR_ELD=replay the board
+ * fixtures"; contracts-m1 §10): with CONNECTOR_DEERE=replay and CONNECTOR_SAMSARA=replay the board
  * shows the replayed trucks and working machines, fresh (time-shifted to now), moving, without
  * the vendor stand-in. The panel flags the replay so nobody takes it for live data.
  *
  * Runs only against an app started in replay mode; under the default sim stack it skips. To run:
- *   PowerShell:  $env:CONNECTOR_DEERE='replay'; $env:CONNECTOR_ELD='replay'; pnpm pilot
+ *   PowerShell:  $env:CONNECTOR_DEERE='replay'; $env:CONNECTOR_SAMSARA='replay'; pnpm pilot
  *   then, in another window:  pnpm test:e2e e2e/fleet-panel-replay.spec.ts
  * (or put both lines in .env.local / .env.production.local).
  */
@@ -25,8 +25,8 @@ test('replay mode: replayed machines on the board, fresh and moving, flagged as 
   expect(res.status()).toBe(200);
   const { modes } = fleetPanelDataSchema.parse(await res.json());
   test.skip(
-    modes.deere !== 'replay' || modes.eld !== 'replay' || modes.eldVendor !== 'samsara',
-    'start the app with CONNECTOR_DEERE=replay, CONNECTOR_ELD=replay (ELD_VENDOR=samsara)',
+    modes.deere !== 'replay' || modes.samsara !== 'replay',
+    'start the app with CONNECTOR_DEERE=replay and CONNECTOR_SAMSARA=replay',
   );
   test.setTimeout(150_000);
 

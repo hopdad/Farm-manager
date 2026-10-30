@@ -17,8 +17,9 @@ beforeAll(async () => {
   sim = await startVendorSim({ createWorld: createStubSimWorld, port: 0 });
   cfg = {
     CONNECTOR_DEERE: 'sim',
-    CONNECTOR_ELD: 'sim',
-    ELD_VENDOR: 'samsara',
+    CONNECTOR_SAMSARA: 'sim',
+    // The stub world has no Motive vehicle; the Motive check is the same call shape.
+    CONNECTOR_MOTIVE: 'sim',
     VENDOR_SIM_URL: sim.url,
     PUBLIC_URL: 'http://localhost:3000',
     TOKEN_ENC_KEY: 'cd'.repeat(32),
@@ -27,13 +28,16 @@ beforeAll(async () => {
 afterAll(() => sim.close());
 
 describe('connectSimVendors', () => {
-  test('connects Deere once, then only verifies; checks the ELD token', async () => {
+  test('connects Deere once, then only verifies; checks each truck vendor token', async () => {
     const lines: string[] = [];
     const first = await connectSimVendors({ cfg, pool: t().pool, log: (l) => lines.push(l) });
     expect(first.deere).toMatchObject({ status: 'connected' });
     expect(first.deere.status !== 'skipped' && first.deere.machines).toBeGreaterThan(0);
-    expect(first.eld).toMatchObject({ status: 'verified' });
-    expect(first.eld.status === 'verified' && first.eld.vehicles).toBeGreaterThan(0);
+    expect(first.trucks.samsara).toMatchObject({ status: 'verified' });
+    expect(
+      first.trucks.samsara.status === 'verified' && first.trucks.samsara.vehicles,
+    ).toBeGreaterThan(0);
+    expect(first.trucks.motive).toEqual({ status: 'verified', vehicles: 0 });
     const rows = await t().pool.query(
       `select count(*)::int as n from ingest.oauth_tokens where source = 'deere'`,
     );
@@ -48,12 +52,15 @@ describe('connectSimVendors', () => {
 
   test('connectors outside sim mode are skipped', async () => {
     const r = await connectSimVendors({
-      cfg: { ...cfg, CONNECTOR_DEERE: 'off', CONNECTOR_ELD: 'replay' },
+      cfg: { ...cfg, CONNECTOR_DEERE: 'off', CONNECTOR_SAMSARA: 'replay', CONNECTOR_MOTIVE: 'off' },
       pool: t().pool,
     });
     expect(r).toEqual({
       deere: { status: 'skipped', why: 'CONNECTOR_DEERE=off' },
-      eld: { status: 'skipped', why: 'CONNECTOR_ELD=replay' },
+      trucks: {
+        samsara: { status: 'skipped', why: 'CONNECTOR_SAMSARA=replay' },
+        motive: { status: 'skipped', why: 'CONNECTOR_MOTIVE=off' },
+      },
     });
   });
 });

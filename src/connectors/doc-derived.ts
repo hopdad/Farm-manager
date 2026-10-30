@@ -14,11 +14,18 @@
  * fixtures): the breadcrumb, field, boundary, field-operation, measurement and flag shapes in
  * src/connectors/deere/schemas.ts. Still to confirm against OUR sandbox org (below).
  */
+import { AEMP_DOC_DERIVED } from './aemp/doc-derived';
+import { CNH_DOC_DERIVED } from './cnh/doc-derived';
 import { DEERE_FIELDS_DOC_DERIVED } from './deere/fields/doc-derived';
 import { DEERE_OPS_DOC_DERIVED } from './deere/ops/doc-derived';
+import { GEOTAB_DOC_DERIVED } from './geotab/doc-derived';
+import { MOTIVE_DOC_DERIVED } from './motive/doc-derived';
 import { NWS_DOC_DERIVED } from './nws/doc-derived';
 import { SAMSARA_DOC_DERIVED } from './samsara/doc-derived';
+import { SAMSARA_EQUIPMENT_DOC_DERIVED } from './samsara/equipment-doc-derived';
+import { TERMINAL_DOC_DERIVED } from './terminal/doc-derived';
 import type { ConnectorSource } from './types';
+import { VEHICLES_DOC_DERIVED } from './vehicles/doc-derived';
 
 export interface DocDerivedItem {
   source: ConnectorSource;
@@ -84,12 +91,6 @@ export const DOC_DERIVED: readonly DocDerivedItem[] = [
     confirm: 'webhook signature scheme and timestamp header',
     file: 'src/connectors/webhooks.ts',
   },
-  {
-    source: 'motive',
-    what: 'GET https://api.gomotive.com/v1/vehicle_locations (X-Api-Key)',
-    confirm: 'path, auth header, current_location fields (lat, lon, bearing, kph, located_at)',
-    file: 'src/connectors/motive/schemas.ts',
-  },
   // NWS (1b): api.weather.gov was unreachable from the build machine; one live run confirms.
   ...NWS_DOC_DERIVED,
   // 1f (docs/contracts-1f.md §1): each builder keeps its own list; this file (sync-health) only
@@ -97,4 +98,12 @@ export const DOC_DERIVED: readonly DocDerivedItem[] = [
   ...DEERE_FIELDS_DOC_DERIVED,
   ...DEERE_OPS_DOC_DERIVED,
   ...SAMSARA_DOC_DERIVED,
+  // 1f.2 (docs/contracts-1f.md part B): one list per builder file, appended here.
+  ...MOTIVE_DOC_DERIVED,
+  ...GEOTAB_DOC_DERIVED,
+  ...AEMP_DOC_DERIVED,
+  ...SAMSARA_EQUIPMENT_DOC_DERIVED,
+  ...CNH_DOC_DERIVED,
+  ...TERMINAL_DOC_DERIVED,
+  ...VEHICLES_DOC_DERIVED,
 ];

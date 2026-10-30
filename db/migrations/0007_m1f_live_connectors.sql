@@ -14,9 +14,16 @@
 --   deere-data    farm.pins (Deere flags, read-only), farm.machine_hours (engine hours);
 --                 farm.fields.tenure gains 'unknown' (a field the Deere sync created, tenure not
 --                 set by hand yet: decision 7)
---   fleet-faults  farm.machine_faults (fault code history); farm.machine_state.fault_codes /
---                 faults_at (current summary + time guard), stats_at (fuel time guard),
---                 position_vendor (per-machine vendor badge)
+--   fleet-faults  farm.machine_faults (fault code history, one model for J1939, OBD-II and OEM
+--                 codes); farm.machine_state.fault_codes / faults_at (current summary + time
+--                 guard), stats_at (fuel time guard), position_vendor (per-machine vendor badge),
+--                 position_kind (live trail point or last-known snapshot)
+--   1f.2          multi-vendor telematics (docs/contracts-1f.md part B, amended in place while
+--                 0007 is unmerged): position_vendor takes any vendor id of a fixed format (the
+--                 code registry src/connectors/vendors.ts labels it, no migration per vendor);
+--                 farm.machines gains telematics_via (ford_pro, stellantis, gateway, …) and
+--                 kind_set_by (a kind set on /admin wins over a vendor tag), and the kinds
+--                 service_truck and loader
 --   sync-health   ingest.api_calls_daily (vendor calls per source, stream, mode and UTC day:
 --                 decision 4), ingest.connector_orgs (org approval status per mode: decision 5)
 --
@@ -143,17 +150,61 @@ alter table farm.fields add constraint fields_tenure_check
 --> statement-breakpoint
 
 -- ============================================================================================
+-- 1f.2: telematics vehicles (kind from a vendor tag or /admin; how the data reaches the vendor)
+-- ============================================================================================
+
+-- Not every telematics vehicle is a semi: pickups and service trucks (and the yard's loaders)
+-- are kinds of their own. Drop and re-add, so a re-run converges.
+alter table farm.machines drop constraint if exists machines_kind_check;
+--> statement-breakpoint
+alter table farm.machines add constraint machines_kind_check check (
+  kind in ('combine', 'tractor', 'sprayer', 'planter', 'grain_cart', 'semi', 'trailer', 'drone',
+           'pickup', 'service_truck', 'loader'));
+--> statement-breakpoint
+-- telematics_via: how the vendor gets the vehicle's data, where it says (ford_pro, stellantis:
+-- carmaker clouds; gateway: an asset gateway; obd_device). Any id of the vendor-id format.
+alter table farm.machines add column if not exists telematics_via text;
+--> statement-breakpoint
+-- kind_set_by: who set kind last. 'admin' (set on /admin) wins: a vendor tag never changes it.
+alter table farm.machines add column if not exists kind_set_by text default 'default' not null;
+--> statement-breakpoint
+alter table farm.machines drop constraint if exists machines_telematics_via_check;
+--> statement-breakpoint
+alter table farm.machines add constraint machines_telematics_via_check
+  check (telematics_via is null or telematics_via ~ '^[a-z][a-z0-9_]{1,30}$');
+--> statement-breakpoint
+alter table farm.machines drop constraint if exists machines_kind_set_by_check;
+--> statement-breakpoint
+alter table farm.machines add constraint machines_kind_set_by_check
+  check (kind_set_by in ('default', 'vendor', 'admin'));
+--> statement-breakpoint
+
+-- ============================================================================================
 -- fleet-faults: fault code history and the current summary on machine_state
 -- ============================================================================================
 
 -- One OPEN row (cleared_at null) per machine, source and code; a code seen again after it
--- cleared opens a new row. Severity policy: decision 2 (src/domain/fault-codes.ts).
+-- cleared opens a new row. One model for every code system (1f.2, src/domain/fault-codes.ts):
+-- system 'j1939' (spn + fmi, the controller's source address and occurrence count when sent),
+-- 'obd2' (the DTC is `code`; dtc_state confirmed / pending / permanent) or 'oem' (a maker's
+-- caution or fault code: oem_class); lamps = the lamp states as reported (redStop,
+-- amberWarning, protect, malfunction); vendor_severity = the vendor's own label, verbatim.
+-- Severity policy: decision 1f-2, extended per system (faultSeverity).
 create table if not exists farm.machine_faults (
   id uuid primary key default gen_random_uuid() not null,
   machine_id uuid not null,
   source text not null,
   code text not null,
+  system text not null,
+  spn integer,
+  fmi integer,
+  source_address integer,
+  occurrence_count integer,
+  dtc_state text,
+  oem_class text,
+  lamps jsonb,
   severity text not null,
+  vendor_severity text,
   description text,
   first_seen_at timestamp with time zone not null,
   last_seen_at timestamp with time zone not null,
@@ -164,6 +215,45 @@ create table if not exists farm.machine_faults (
   constraint machine_faults_seen_check check (last_seen_at >= first_seen_at),
   constraint machine_faults_cleared_check check (cleared_at is null or cleared_at >= first_seen_at)
 );
+--> statement-breakpoint
+-- 1f.2 columns for a database that ran the first cut of 0007 (re-runnable).
+alter table farm.machine_faults add column if not exists system text;
+--> statement-breakpoint
+update farm.machine_faults set system = case when code ~ '^J1939 ' then 'j1939'
+  when code ~ '^[PBCU][0-9A-F]{4}$' then 'obd2' else 'oem' end
+ where system is null;
+--> statement-breakpoint
+alter table farm.machine_faults alter column system set not null;
+--> statement-breakpoint
+alter table farm.machine_faults add column if not exists spn integer;
+--> statement-breakpoint
+alter table farm.machine_faults add column if not exists fmi integer;
+--> statement-breakpoint
+alter table farm.machine_faults add column if not exists source_address integer;
+--> statement-breakpoint
+alter table farm.machine_faults add column if not exists occurrence_count integer;
+--> statement-breakpoint
+alter table farm.machine_faults add column if not exists dtc_state text;
+--> statement-breakpoint
+alter table farm.machine_faults add column if not exists oem_class text;
+--> statement-breakpoint
+alter table farm.machine_faults add column if not exists lamps jsonb;
+--> statement-breakpoint
+alter table farm.machine_faults add column if not exists vendor_severity text;
+--> statement-breakpoint
+-- The system's own fields only on that system's rows; J1939 SPN 19 bits, FMI 5 bits.
+alter table farm.machine_faults drop constraint if exists machine_faults_system_check;
+--> statement-breakpoint
+alter table farm.machine_faults add constraint machine_faults_system_check check (
+  system in ('j1939', 'obd2', 'oem')
+  and (system = 'j1939') = (spn is not null and fmi is not null)
+  and (spn is null or spn between 0 and 524287)
+  and (fmi is null or fmi between 0 and 31)
+  and (source_address is null or (system = 'j1939' and source_address between 0 and 255))
+  and (occurrence_count is null or occurrence_count >= 0)
+  and (dtc_state is null or (system = 'obd2' and dtc_state in ('confirmed', 'pending', 'permanent')))
+  and (oem_class is null or (system = 'oem' and oem_class in ('caution', 'fault')))
+  and (lamps is null or jsonb_typeof(lamps) = 'object'));
 --> statement-breakpoint
 create unique index if not exists machine_faults_open_key
   on farm.machine_faults using btree (machine_id, source, code) where cleared_at is null;
@@ -184,12 +274,24 @@ alter table farm.machine_state add column if not exists faults_at timestamp with
 --> statement-breakpoint
 alter table farm.machine_state add column if not exists stats_at timestamp with time zone;
 --> statement-breakpoint
--- The panel parses position_vendor as one of these and fault_codes as an array: anything else
--- would break it. Drop and re-add, so a re-run converges.
+-- 1f.2: 'live' = a trail point (also in farm.positions); 'last_known' = a vendor snapshot of where
+-- the machine was last seen (AEMP, Terminal's latest location): machine_state only, its own
+-- stale threshold.
+alter table farm.machine_state add column if not exists position_kind text default 'live' not null;
+--> statement-breakpoint
+alter table farm.machine_state drop constraint if exists machine_state_position_kind_check;
+--> statement-breakpoint
+alter table farm.machine_state add constraint machine_state_position_kind_check
+  check (position_kind in ('live', 'last_known'));
+--> statement-breakpoint
+-- position_vendor: any vendor id of the format (1f.2: a registry id such as samsara, geotab, cnh,
+-- or <route>_<provider> such as aemp_kubota; src/domain/fleet.ts POSITION_VENDOR_PATTERN), so a
+-- new vendor needs no migration; fault_codes must be an array (the panel parses it). Drop and
+-- re-add, so a re-run converges.
 alter table farm.machine_state drop constraint if exists machine_state_position_vendor_check;
 --> statement-breakpoint
 alter table farm.machine_state add constraint machine_state_position_vendor_check
-  check (position_vendor is null or position_vendor in ('deere', 'samsara', 'motive'));
+  check (position_vendor is null or position_vendor ~ '^[a-z][a-z0-9_]{1,30}$');
 --> statement-breakpoint
 alter table farm.machine_state drop constraint if exists machine_state_fault_codes_check;
 --> statement-breakpoint
@@ -290,11 +392,17 @@ comment on table farm.pins is 'Pins on the map: Deere flags read-only (1f, sourc
 --> statement-breakpoint
 comment on table farm.machine_hours is 'Engine hours and odometer readings over time (1f: Deere machine hours).';
 --> statement-breakpoint
-comment on table farm.machine_faults is 'Vehicle fault code history (1f: Samsara); one open row per machine, source and code.';
+comment on table farm.machine_faults is 'Fault code history in one model (1f.2: J1939 SPN/FMI with lamps, OBD-II DTCs, OEM caution/fault codes); one open row per machine, source and code.';
 --> statement-breakpoint
 comment on column farm.machine_state.fault_codes is 'Active fault codes (ActiveFaultCode[], worst first); updated only by a fault event newer than faults_at; the first position insert seeds it from the open machine_faults rows.';
 --> statement-breakpoint
-comment on column farm.machine_state.position_vendor is 'Connector source of the latest fix (samsara, motive, deere); null for manual fixes and rows older than 0007.';
+comment on column farm.machine_state.position_vendor is 'Vendor id of the latest fix (samsara, motive, geotab, deere, cnh, aemp_<provider>, …; labelled by src/connectors/vendors.ts); null for manual fixes and rows older than 0007.';
+--> statement-breakpoint
+comment on column farm.machine_state.position_kind is 'live = a trail point; last_known = a vendor snapshot (AEMP, Terminal latest location), machine_state only (1f.2).';
+--> statement-breakpoint
+comment on column farm.machines.telematics_via is 'How the telematics vendor gets the data: ford_pro, stellantis (carmaker clouds), gateway, obd_device; null = the vendor does not say (1f.2).';
+--> statement-breakpoint
+comment on column farm.machines.kind_set_by is 'Who set kind last: default (seed or sync on create), vendor (a vendor tag, VEHICLE_KIND_TAGS) or admin (/admin; wins over vendor tags) (1f.2).';
 --> statement-breakpoint
 comment on table ingest.api_calls_daily is 'Vendor API calls per source, stream, connector mode and UTC day: calls, errors, rate-limited (1f, decision 4).';
 --> statement-breakpoint

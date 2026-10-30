@@ -25,8 +25,12 @@ const cfg = () => ({
   FLEET_STALE_SECONDS: 600,
   FLEET_STALE_SECONDS_DEERE: 900,
   CONNECTOR_DEERE: 'replay' as const,
-  CONNECTOR_ELD: 'sim' as const,
-  ELD_VENDOR: 'samsara' as const,
+  CONNECTOR_SAMSARA: 'sim' as const,
+  CONNECTOR_MOTIVE: 'off' as const,
+  CONNECTOR_GEOTAB: 'off' as const,
+  CONNECTOR_AEMP: 'off' as const,
+  CONNECTOR_CNH: 'off' as const,
+  CONNECTOR_TERMINAL: 'off' as const,
 });
 
 let combine: string;
@@ -141,7 +145,15 @@ describe('GET /api/machines', () => {
     const data = fleetPanelDataSchema.parse(body);
     expect(data.machines.map((m) => m.unitNo)).toEqual(['C1', 'S1']);
     expect(data.canMarkDown).toBe(false);
-    expect(data.modes).toEqual({ deere: 'replay', eld: 'sim', eldVendor: 'samsara' });
+    expect(data.modes).toEqual({
+      deere: 'replay',
+      samsara: 'sim',
+      motive: 'off',
+      geotab: 'off',
+      aemp: 'off',
+      cnh: 'off',
+      terminal: 'off',
+    });
     expect(data.config).toEqual({
       appEnv: 'development',
       realtime: 'sse',

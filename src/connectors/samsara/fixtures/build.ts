@@ -8,7 +8,7 @@
  * as published in Samsara's official SDK (@samsarahq/samsara 14.11: VehicleLocationsListResponse,
  * VehicleLocation, VehicleStatsListResponse, PaginationResponse; ../schemas.ts). VALUES: the
  * simulated demo farm (src/sim, seed 1, harvest-day): no real farm data, and every vehicle id is
- * one the demo seed maps through ingest.external_refs, so `CONNECTOR_ELD=replay` drives the board.
+ * one the demo seed maps through ingest.external_refs, so `CONNECTOR_SAMSARA=replay` drives the board.
  *
  * The committed JSON under ./doc-derived/ is this module's output; ./fixtures.test.ts fails when
  * they drift. Regenerate with
@@ -24,6 +24,7 @@
  * hauls (into the elevator yards and back out: geofence visits included). A cursor the fixture
  * doesn't know (one saved in sim mode) falls through to the first page.
  */
+import { simTelematicsMachines } from '../../../sim/types';
 import { createDemoWorld, type DemoWorld } from '../../../sim/world';
 import type { ReplayExchange, ReplayFixture } from '../../replay';
 
@@ -48,8 +49,14 @@ const r1 = (v: number) => Math.round(v * 10) / 10;
 export const loopCursor = (k: number) => `replay-loop-${String(k % LOOP_PAGES).padStart(4, '0')}`;
 export const STATS_CURSOR = 'replay-stats-0001';
 
+/**
+ * The trucks on Samsara's vehicle feeds (the four M0 semis). 1f.2's pickups are on the same feeds
+ * in sim; terminal-pickups adds them here (docs/contracts-1f.md part B).
+ */
 function eldVehicles(world: DemoWorld) {
-  return world.farm.machines.filter((m) => m.vendorIds.eld);
+  return simTelematicsMachines(world.farm, 'samsara', { feed: 'vehicle' }).filter(
+    (m) => m.kind === 'semi',
+  );
 }
 
 function page(world: DemoWorld, k: number) {
@@ -59,7 +66,7 @@ function page(world: DemoWorld, k: number) {
     if (!s) return [];
     return [
       {
-        id: m.vendorIds.eld as string,
+        id: m.telematics?.id as string,
         name: m.unitNo,
         locations: [
           {
@@ -112,7 +119,7 @@ function statsFixture(world: DemoWorld): ReplayFixture {
     if (!s) return [];
     return [
       {
-        id: m.vendorIds.eld as string,
+        id: m.telematics?.id as string,
         name: m.unitNo,
         obdEngineSeconds: [{ time: POSITIONS_ANCHOR, value: Math.round(s.engineHours * 3600) }],
         fuelPercents: [{ time: POSITIONS_ANCHOR, value: Math.round(s.fuelPct) }],

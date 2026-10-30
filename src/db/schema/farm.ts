@@ -39,13 +39,21 @@ import {
   TILE_LINE_KINDS,
   TILE_LINE_ORIGINS,
 } from '../../domain/farm';
-import { type ActiveFaultCode, FAULT_SEVERITIES } from '../../domain/fault-codes';
+import {
+  type ActiveFaultCode,
+  FAULT_SEVERITIES,
+  FAULT_SYSTEMS,
+  type FaultLamps,
+  OBD_DTC_STATES,
+  OEM_FAULT_CLASSES,
+} from '../../domain/fault-codes';
 import {
   ACTIVITIES,
   MACHINE_KINDS,
   MACHINE_STATUSES,
+  POSITION_KINDS,
   POSITION_SOURCES,
-  POSITION_VENDORS,
+  POSITION_VENDOR_SQL_PATTERN,
 } from '../../domain/fleet';
 import {
   OPERATION_KINDS,
@@ -55,6 +63,7 @@ import {
   type OperationWeather,
 } from '../../domain/operations';
 import { PIN_KINDS, type PinGeometry } from '../../domain/pins';
+import { KIND_SET_BY } from '../../domain/vehicles';
 import type { SprayReason, WeatherStation } from '../../domain/weather';
 import { SPRAY_VERDICTS } from '../../domain/weather';
 import { geometryColumn } from '../geo';
@@ -234,6 +243,13 @@ export const machines = farm.table(
     odometerMi: numeric('odometer_mi', { precision: 10, scale: 1, mode: 'number' }),
     source: text('source').notNull().default('app'),
     sourceId: text('source_id'),
+    /**
+     * How the telematics vendor gets the data (1f.2, migration 0007): ford_pro, stellantis
+     * (carmaker clouds), gateway, obd_device; any id of the vendor-id format. Null = not said.
+     */
+    telematicsVia: text('telematics_via'),
+    /** Who set `kind` last (1f.2): default, vendor (a vendor tag) or admin (wins over tags). */
+    kindSetBy: text('kind_set_by', { enum: KIND_SET_BY }).notNull().default('default'),
     createdAt: tstz('created_at').notNull().defaultNow(),
     updatedAt: tstz('updated_at').notNull().defaultNow(),
   },
@@ -241,6 +257,11 @@ export const machines = farm.table(
     unique('machines_source_source_id_key').on(t.source, t.sourceId),
     check('machines_kind_check', sql`${t.kind} in (${inList(MACHINE_KINDS)})`),
     check('machines_status_check', sql`${t.status} in (${inList(MACHINE_STATUSES)})`),
+    check(
+      'machines_telematics_via_check',
+      sql`${t.telematicsVia} is null or ${t.telematicsVia} ~ '${sql.raw(POSITION_VENDOR_SQL_PATTERN)}'`,
+    ),
+    check('machines_kind_set_by_check', sql`${t.kindSetBy} in (${inList(KIND_SET_BY)})`),
   ],
 );
 
@@ -262,10 +283,14 @@ export const machineState = farm.table(
     engineOn: boolean('engine_on'),
     positionSource: text('position_source', { enum: POSITION_SOURCES }).notNull(),
     /**
-     * Connector source of the latest fix (samsara, motive, deere; 1f, migration 0007): the
-     * per-machine vendor badge ("Samsara · sim"). Null for manual fixes and rows older than 0007.
+     * Vendor id of the latest fix (1f, migration 0007): the per-machine vendor badge
+     * ("Samsara · sim"). Since 1f.2 any id of the POSITION_VENDOR_PATTERN format (samsara,
+     * geotab, cnh, aemp_kubota, …), labelled by src/connectors/vendors.ts. Null for manual fixes
+     * and rows older than 0007.
      */
-    positionVendor: text('position_vendor', { enum: POSITION_VENDORS }),
+    positionVendor: text('position_vendor'),
+    /** 1f.2: live (a trail point) or last_known (a vendor snapshot; machine_state only). */
+    positionKind: text('position_kind', { enum: POSITION_KINDS }).notNull().default('live'),
     /**
      * Active fault codes (1f), worst first: the summary of the machine's open farm.machine_faults
      * rows. '[]' = none. Updated only by a fault event newer than `faultsAt`; the first position
@@ -287,9 +312,13 @@ export const machineState = farm.table(
     ),
     check(
       'machine_state_position_vendor_check',
-      sql`${t.positionVendor} is null or ${t.positionVendor} in (${inList(POSITION_VENDORS)})`,
+      sql`${t.positionVendor} is null or ${t.positionVendor} ~ '${sql.raw(POSITION_VENDOR_SQL_PATTERN)}'`,
     ),
     check('machine_state_fault_codes_check', sql`jsonb_typeof(${t.faultCodes}) = 'array'`),
+    check(
+      'machine_state_position_kind_check',
+      sql`${t.positionKind} in (${inList(POSITION_KINDS)})`,
+    ),
   ],
 );
 
@@ -868,8 +897,9 @@ export const machineHours = farm.table(
 );
 
 /**
- * Fault code history (plan §4; Samsara in 1f). One OPEN row (cleared_at null) per machine,
- * source and code; a code seen again after it cleared opens a new row.
+ * Fault code history (plan §4; one model for J1939, OBD-II and OEM codes since 1f.2,
+ * src/domain/fault-codes.ts). One OPEN row (cleared_at null) per machine, source and code; a code
+ * seen again after it cleared opens a new row.
  */
 export const machineFaults = farm.table(
   'machine_faults',
@@ -879,8 +909,24 @@ export const machineFaults = farm.table(
       .notNull()
       .references(() => machines.id, { onDelete: 'cascade' }),
     source: text('source').notNull(),
+    /** `faultCodeKey()`: 'J1939 SPN 110 FMI 0', 'P0217', 'OEM caution 1234'. */
     code: text('code').notNull(),
+    system: text('system', { enum: FAULT_SYSTEMS }).notNull(),
+    /** j1939 only (19-bit SPN, 5-bit FMI). */
+    spn: integer('spn'),
+    fmi: integer('fmi'),
+    /** j1939: the controller's source address, when sent. */
+    sourceAddress: integer('source_address'),
+    occurrenceCount: integer('occurrence_count'),
+    /** obd2 only. */
+    dtcState: text('dtc_state', { enum: OBD_DTC_STATES }),
+    /** oem only. */
+    oemClass: text('oem_class', { enum: OEM_FAULT_CLASSES }),
+    /** Lamp states as reported (null = not reported). */
+    lamps: jsonb('lamps').$type<FaultLamps>(),
     severity: text('severity', { enum: FAULT_SEVERITIES }).notNull(),
+    /** The vendor's own severity or priority label, verbatim. */
+    vendorSeverity: text('vendor_severity'),
     description: text('description'),
     firstSeenAt: tstz('first_seen_at').notNull(),
     lastSeenAt: tstz('last_seen_at').notNull(),
@@ -898,6 +944,18 @@ export const machineFaults = farm.table(
     check(
       'machine_faults_cleared_check',
       sql`${t.clearedAt} is null or ${t.clearedAt} >= ${t.firstSeenAt}`,
+    ),
+    check(
+      'machine_faults_system_check',
+      sql`${t.system} in (${inList(FAULT_SYSTEMS)})
+  and (${t.system} = 'j1939') = (${t.spn} is not null and ${t.fmi} is not null)
+  and (${t.spn} is null or ${t.spn} between 0 and 524287)
+  and (${t.fmi} is null or ${t.fmi} between 0 and 31)
+  and (${t.sourceAddress} is null or (${t.system} = 'j1939' and ${t.sourceAddress} between 0 and 255))
+  and (${t.occurrenceCount} is null or ${t.occurrenceCount} >= 0)
+  and (${t.dtcState} is null or (${t.system} = 'obd2' and ${t.dtcState} in (${inList(OBD_DTC_STATES)})))
+  and (${t.oemClass} is null or (${t.system} = 'oem' and ${t.oemClass} in (${inList(OEM_FAULT_CLASSES)})))
+  and (${t.lamps} is null or jsonb_typeof(${t.lamps}) = 'object')`,
     ),
   ],
 );

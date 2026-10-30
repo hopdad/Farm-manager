@@ -8,6 +8,7 @@ import { toGeoRef } from '../geo/georef';
 import { distToSegment, pointInPolygon, type Vec } from '../geo/vec';
 import { SIM_DEERE_HOME_ORG, simExternalRefs } from '../types';
 import { buildDemoFarm, INTERIOR_INSET_M, ROAD_SIDE_INSET_M, TOWNS } from './build';
+import { eldVehicleId } from './fleet';
 import { lngLatToGrid } from './grid';
 import { Router } from './roads';
 
@@ -140,22 +141,74 @@ describe('buildDemoFarm', () => {
     }
   });
 
-  test('the fleet: 2 combines, 2 carts, sprayer, planter, 4 semis, drone; vendor ids per the contract', () => {
-    const count = (k: string) => farm.machines.filter((m) => m.kind === k).length;
+  test('the M0 fleet: 2 combines, 2 carts, sprayer, planter, 4 semis, drone (first, ids unchanged)', () => {
+    const m0 = farm.machines.slice(0, 11);
+    const count = (k: string) => m0.filter((m) => m.kind === k).length;
     expect([count('combine'), count('grain_cart'), count('sprayer'), count('planter')]).toEqual([
       2, 2, 1, 1,
     ]);
     expect([count('semi'), count('drone')]).toEqual([4, 1]);
-    for (const m of farm.machines) {
-      expect(MACHINE_KINDS).toContain(m.kind);
+    for (const m of m0) {
       const deere = ['combine', 'grain_cart', 'sprayer', 'planter'].includes(m.kind);
       expect(Boolean(m.vendorIds.deere)).toBe(deere);
       expect(m.deereOrgId).toBe(deere ? SIM_DEERE_HOME_ORG : undefined);
-      expect(Boolean(m.vendorIds.eld)).toBe(m.kind === 'semi');
+      expect(m.telematics?.vendor ?? null).toBe(m.kind === 'semi' ? 'samsara' : null);
     }
-    const ids = farm.machines.flatMap((m) => [m.vendorIds.deere, m.vendorIds.eld]).filter(Boolean);
-    expect(new Set(ids).size).toBe(ids.length);
+    // The semis keep the Samsara vehicle ids the committed replay fixtures use.
+    expect(m0.filter((m) => m.kind === 'semi').map((m) => m.telematics?.id)).toEqual(
+      ['semi-1', 'semi-2', 'semi-3', 'semi-4'].map((k) => eldVehicleId(k)),
+    );
     expect(farm.machines.find((m) => m.unitNo === 'C1')?.implementWidthFt).toBe(40);
+  });
+
+  test('1f.2 mixed fleet: every vendor of the brief, one telematics connection each, unique ids', () => {
+    const by = (unit: string) => farm.machines.find((m) => m.unitNo === unit);
+    const route = (unit: string) => {
+      const t = by(unit)?.telematics;
+      return t
+        ? [by(unit)?.kind, t.vendor, t.provider ?? null, t.feed ?? null, t.via ?? null]
+        : null;
+    };
+    expect(route('C3')).toEqual(['combine', 'aemp', 'cnh', null, null]);
+    expect(route('T1')).toEqual(['tractor', 'aemp', 'cnh', null, null]);
+    expect(route('SP2')).toEqual(['sprayer', 'samsara', null, 'equipment', 'gateway']);
+    expect(route('L1')).toEqual(['loader', 'aemp', 'kubota', null, null]);
+    expect(route('H1')).toEqual(['semi', 'motive', null, null, null]);
+    expect(route('H2')).toEqual(['semi', 'geotab', null, null, null]);
+    expect(route('PU1')).toEqual(['pickup', 'samsara', null, 'vehicle', 'ford_pro']);
+    expect(route('PU2')).toEqual(['pickup', 'samsara', null, 'vehicle', 'stellantis']);
+    expect(by('PU1')?.telematics?.reportEverySeconds).toBe(30);
+    expect(by('C3')?.make).toBe('Case IH');
+    expect(by('SP2')?.make).toBe('RoGator');
+    expect(by('L1')?.make).toBe('Kubota');
+    for (const m of farm.machines) {
+      expect(MACHINE_KINDS).toContain(m.kind);
+      // A machine is on Deere or on one telematics connection, never both, in the demo.
+      expect(Boolean(m.vendorIds.deere) && Boolean(m.telematics)).toBe(false);
+    }
+    const ids = farm.machines.flatMap((m) => [m.vendorIds.deere, m.telematics?.id]).filter(Boolean);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(farm.machines.map((m) => m.unitNo)).toEqual([
+      'C1',
+      'C2',
+      'GC1',
+      'GC2',
+      'SP1',
+      'P1',
+      'S1',
+      'S2',
+      'S3',
+      'S4',
+      'D1',
+      'C3',
+      'T1',
+      'SP2',
+      'L1',
+      'H1',
+      'H2',
+      'PU1',
+      'PU2',
+    ]);
   });
 
   test('elevators, the shop and bins have yard geofences beside a section-line road', () => {
@@ -223,12 +276,15 @@ describe('buildDemoFarm', () => {
   });
 
   test('simExternalRefs on the real farm: the documented tuples, unique keys', () => {
-    const rows = simExternalRefs(farm, 'samsara');
+    const rows = simExternalRefs(farm);
     const keys = rows.map((r) =>
       externalRefKey(r.ref.source, r.ref.kind, r.ref.externalId, r.ref.sourceOrg),
     );
     expect(new Set(keys).size).toBe(keys.length);
-    expect(rows.length).toBe(7 + 40 + 3 + 40 + 6 + 4);
+    // farms + fields + shared fields + boundaries + Deere machines + telematics machines
+    // (4 semis, 2 pickups, the RoGator twice: Samsara and AEMP provider samsara, 3 on AEMP,
+    // the Motive and Geotab haulers).
+    expect(rows.length).toBe(7 + 40 + 3 + 40 + 6 + 13);
     for (const r of rows) expect(EXTERNAL_REF_KINDS).toContain(r.ref.kind);
     const shared = farm.fields.find((f) => f.sharedWith);
     expect(
@@ -236,8 +292,17 @@ describe('buildDemoFarm', () => {
         .filter((r) => r.ref.kind === 'field' && r.entityId === shared?.id)
         .map((r) => r.ref.sourceOrg),
     ).toEqual([SIM_DEERE_HOME_ORG, 'org-customer-2']);
-    expect(simExternalRefs(farm, 'motive').filter((r) => r.ref.source === 'motive')).toHaveLength(
-      4,
-    );
+    const sources = rows
+      .filter((r) => r.entity === 'machine')
+      .map((r) => `${r.ref.source}/${r.ref.sourceOrg}`);
+    expect([...new Set(sources)].sort()).toEqual([
+      'aemp/cnh',
+      'aemp/kubota',
+      'aemp/samsara',
+      'deere/org-home',
+      'geotab/',
+      'motive/',
+      'samsara/',
+    ]);
   });
 });

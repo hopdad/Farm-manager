@@ -16,6 +16,9 @@ export const KIND_COLORS: Record<MachineKind, string> = {
   trailer: '#94a3b8',
   drone: '#2dd4bf',
   pickup: '#e2e8f0',
+  // 1f.2: placeholders until terminal-pickups styles pickups and service trucks.
+  service_truck: '#cbd5e1',
+  loader: '#a3e635',
 };
 
 export const KIND_LABELS: Record<MachineKind, string> = {
@@ -28,6 +31,8 @@ export const KIND_LABELS: Record<MachineKind, string> = {
   trailer: 'Trailer',
   drone: 'Drone',
   pickup: 'Pickup',
+  service_truck: 'Service truck',
+  loader: 'Loader',
 };
 
 export const STALE_COLOR = '#9ca3af';

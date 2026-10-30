@@ -110,7 +110,7 @@ export async function simFaultAction(
       await simFaults(base, { action: 'remove', id: req.id });
       return `fault ${req.id} removed`;
     }
-    const preset = faultPresets(getConfig().ELD_VENDOR).find((p) => p.key === req.preset);
+    const preset = faultPresets().find((p) => p.key === req.preset);
     if (!preset) throw new Error(`unknown fault '${req.preset}'`);
     if (req.op === 'on') {
       await simFaults(base, { action: 'add', rule: { id: preset.id, ...preset.rule } });

@@ -13,6 +13,7 @@
  *    is JSON and `no-store` (limitedJson).
  */
 import { type Config, getConfig } from '@/config';
+import { type ConnectionModeKey, connectionModes } from '@/connectors/vendors';
 import type { Db } from '@/db/client';
 import type { Executor } from '@/db/exec';
 import { fleetPanelMachines, setMachineStatus } from '@/db/queries/fleet';
@@ -38,10 +39,9 @@ type PanelConfig = Pick<
   | 'NEXT_PUBLIC_REALTIME'
   | 'FLEET_STALE_SECONDS'
   | 'FLEET_STALE_SECONDS_DEERE'
-  | 'CONNECTOR_DEERE'
-  | 'CONNECTOR_ELD'
-  | 'ELD_VENDOR'
->;
+  | ConnectionModeKey
+> &
+  Partial<Pick<Config, 'FLEET_STALE_SECONDS_LAST_KNOWN'>>;
 
 function json(status: number, body: unknown, route = 'api/machines'): Response {
   return limitedJson(body, { status, headers: NO_STORE }, { route });
@@ -66,12 +66,15 @@ export async function handleListMachines(
       builtAt: now.toISOString(),
       machines: await fleetPanelMachines(ex),
       canMarkDown: roleAtLeast(role, ROLE_FOR.markMachineDown),
-      modes: { deere: c.CONNECTOR_DEERE, eld: c.CONNECTOR_ELD, eldVendor: c.ELD_VENDOR },
+      modes: connectionModes(c),
       config: {
         appEnv: c.APP_ENV,
         realtime: c.NEXT_PUBLIC_REALTIME,
         staleAfterSeconds: c.FLEET_STALE_SECONDS,
         deereStaleAfterSeconds: c.FLEET_STALE_SECONDS_DEERE,
+        ...(c.FLEET_STALE_SECONDS_LAST_KNOWN
+          ? { lastKnownStaleAfterSeconds: c.FLEET_STALE_SECONDS_LAST_KNOWN }
+          : {}),
       },
     };
     return json(200, body);

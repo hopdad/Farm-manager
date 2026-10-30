@@ -25,7 +25,7 @@ const prod = {
   TOKEN_ENC_KEY: 'b'.repeat(64),
   NEXT_PUBLIC_REALTIME: 'supabase',
   CONNECTOR_DEERE: 'live',
-  CONNECTOR_ELD: 'live',
+  CONNECTOR_SAMSARA: 'live',
   CONNECTOR_WEATHER: 'live',
 };
 
@@ -50,9 +50,16 @@ describe('parseConfig', () => {
       DEV_ORIGINS: [],
       VENDOR_SIM_URL: 'http://127.0.0.1:4010',
       CONNECTOR_DEERE: 'sim',
-      CONNECTOR_ELD: 'sim',
+      CONNECTOR_SAMSARA: 'sim',
+      CONNECTOR_MOTIVE: 'sim',
+      CONNECTOR_GEOTAB: 'sim',
+      CONNECTOR_AEMP: 'sim',
+      CONNECTOR_CNH: 'sim',
+      CONNECTOR_TERMINAL: 'sim',
       CONNECTOR_WEATHER: 'sim',
-      ELD_VENDOR: 'samsara',
+      connectorAliasNotes: [],
+      AEMP_PROVIDERS: [],
+      FLEET_STALE_SECONDS_LAST_KNOWN: 10_800,
       WRITEBACK_DEERE: false,
       NEXT_PUBLIC_REALTIME: 'sse',
       BASEMAP_STYLE: 'protomaps-local',
@@ -127,7 +134,12 @@ describe('parseConfig', () => {
 
   test.each([
     ['CONNECTOR_DEERE', 'sim'],
-    ['CONNECTOR_ELD', 'replay'],
+    ['CONNECTOR_SAMSARA', 'replay'],
+    ['CONNECTOR_MOTIVE', 'sim'],
+    ['CONNECTOR_GEOTAB', 'replay'],
+    ['CONNECTOR_AEMP', 'sim'],
+    ['CONNECTOR_CNH', 'sim'],
+    ['CONNECTOR_TERMINAL', 'replay'],
     ['CONNECTOR_WEATHER', 'sim'],
   ])('APP_ENV=production refuses %s=%s', (key, mode) => {
     expect(issues({ ...prod, [key]: mode }).join('\n')).toMatch(
@@ -156,7 +168,7 @@ describe('parseConfig', () => {
         ...base,
         JOBS_DEMO_CADENCE: 'on',
         CONNECTOR_DEERE: 'replay',
-        CONNECTOR_ELD: 'off',
+        CONNECTOR_SAMSARA: 'off',
       }).JOBS_DEMO_CADENCE,
     ).toBe(true);
     // A live weather connector keeps weather.nws on its real schedule (src/jobs/schedule.ts);
@@ -171,11 +183,16 @@ describe('parseConfig', () => {
     expect(issues({ ...base, JOBS_DEMO_CADENCE: 'yes' })).toHaveLength(1);
   });
 
-  test('stale thresholds: one for continuous sources, one for Deere working-only fixes', () => {
+  test('stale thresholds: continuous sources, Deere working-only fixes, last-known snapshots', () => {
     const c = parseConfig({ ...base, FLEET_STALE_SECONDS: '60', FLEET_STALE_SECONDS_DEERE: '900' });
     expect([c.FLEET_STALE_SECONDS, c.FLEET_STALE_SECONDS_DEERE]).toEqual([60, 900]);
     expect(publicConfig(c)).toMatchObject({ staleAfterSeconds: 60, deereStaleAfterSeconds: 900 });
     expect(parseConfig(base).FLEET_STALE_SECONDS_DEERE).toBe(600);
+    expect(
+      publicConfig(parseConfig({ ...base, FLEET_STALE_SECONDS_LAST_KNOWN: '7200' })),
+    ).toMatchObject({
+      lastKnownStaleAfterSeconds: 7200,
+    });
   });
 
   test('Deere redirect override and daily call budget (1f): optional, validated', () => {
@@ -223,8 +240,170 @@ describe('parseConfig', () => {
     expect(issues({ ...prod, DEERE_HOME_ORG_ID: '4117350' })).toEqual([]);
   });
 
+  test('1f.2: unset vendor keys are sim locally and off in production (production names only what it uses)', () => {
+    const local = parseConfig(base);
+    const production = parseConfig(prod);
+    for (const k of [
+      'CONNECTOR_MOTIVE',
+      'CONNECTOR_GEOTAB',
+      'CONNECTOR_AEMP',
+      'CONNECTOR_CNH',
+      'CONNECTOR_TERMINAL',
+    ] as const) {
+      expect(local[k]).toBe('sim');
+      expect(production[k]).toBe('off');
+    }
+    expect(production.CONNECTOR_SAMSARA).toBe('live');
+  });
+
+  test('1f.2: the deprecated CONNECTOR_ELD / ELD_VENDOR set the named vendor key, with a warning', () => {
+    const plain = parseConfig({ ...base, CONNECTOR_ELD: 'replay' });
+    expect(plain.CONNECTOR_SAMSARA).toBe('replay');
+    expect(plain.CONNECTOR_MOTIVE).toBe('sim');
+    expect(plain.connectorAliasNotes).toEqual([
+      {
+        keys: ['CONNECTOR_ELD'],
+        sets: 'CONNECTOR_SAMSARA',
+        message: expect.stringMatching(
+          /CONNECTOR_ELD=replay is deprecated: it set CONNECTOR_SAMSARA=replay\. Write CONNECTOR_SAMSARA=replay/,
+        ),
+      },
+    ]);
+    // Derrick's old .env.local: Motive as the ELD.
+    const motive = parseConfig({ ...base, CONNECTOR_ELD: 'live', ELD_VENDOR: 'motive' });
+    expect([motive.CONNECTOR_MOTIVE, motive.CONNECTOR_SAMSARA]).toEqual(['live', 'sim']);
+    expect(motive.connectorAliasNotes[0]?.keys).toEqual(['CONNECTOR_ELD', 'ELD_VENDOR']);
+    // The vendor's own key wins; the alias is then only a warning.
+    const both = parseConfig({ ...base, CONNECTOR_ELD: 'replay', CONNECTOR_SAMSARA: 'off' });
+    expect(both.CONNECTOR_SAMSARA).toBe('off');
+    expect(both.connectorAliasNotes[0]).toMatchObject({ sets: null });
+    expect(both.connectorAliasNotes[0]?.message).toMatch(
+      /ignored: CONNECTOR_SAMSARA is set \(off\)/,
+    );
+    // ELD_VENDOR alone does nothing but warn.
+    const vendorOnly = parseConfig({ ...base, ELD_VENDOR: 'geotab' });
+    expect(vendorOnly.CONNECTOR_GEOTAB).toBe('sim');
+    expect(vendorOnly.connectorAliasNotes[0]?.message).toMatch(/does nothing on its own/);
+    // The raw keys never reach the Config the rest of the app reads.
+    expect('CONNECTOR_ELD' in plain).toBe(false);
+    expect('ELD_VENDOR' in plain).toBe(false);
+    expect(issues({ ...base, ELD_VENDOR: 'omnitracs' }).join('\n')).toMatch(/ELD_VENDOR/);
+    expect(CONFIG_KEYS).toEqual(expect.arrayContaining(['CONNECTOR_ELD', 'ELD_VENDOR']));
+  });
+
+  test('1f.2: production rules apply per key, the alias included', () => {
+    expect(issues({ ...prod, CONNECTOR_SAMSARA: undefined, CONNECTOR_ELD: 'live' })).toEqual([]);
+    expect(
+      issues({ ...prod, CONNECTOR_SAMSARA: undefined, CONNECTOR_ELD: 'replay' }).join('\n'),
+    ).toMatch(
+      /CONNECTOR_SAMSARA: 'replay' is not allowed when APP_ENV=production .*\(set by the deprecated CONNECTOR_ELD\)/,
+    );
+    expect(issues({ ...prod, CNH_REDIRECT_URI: 'http://farm.example.com/cnh' }).join('\n')).toMatch(
+      /CNH_REDIRECT_URI: must be https:\/\/ in production/,
+    );
+  });
+
+  test('1f.2: vendor credentials are optional (sim and replay need none) and validated', () => {
+    const c = parseConfig({
+      ...base,
+      MOTIVE_API_BASE: 'https://api.gomotive.com',
+      GEOTAB_SERVER: 'my.geotab.com',
+      GEOTAB_DATABASE: 'demo_farm',
+      GEOTAB_USERNAME: 'svc@example.com',
+      GEOTAB_PASSWORD: 'pw',
+      CNH_CLIENT_ID: 'id',
+      CNH_CLIENT_SECRET: 'secret',
+      CNH_SUBSCRIPTION_KEY: 'sub',
+      TERMINAL_SECRET_KEY: 'sk_test',
+      TERMINAL_CONNECTION_TOKEN: 'con_tkn',
+    });
+    expect(c.GEOTAB_DATABASE).toBe('demo_farm');
+    expect(c.TERMINAL_CONNECTION_TOKEN).toBe('con_tkn');
+    expect(parseConfig(base).GEOTAB_SERVER).toBeUndefined();
+    expect(issues({ ...base, GEOTAB_SERVER: 'https://my.geotab.com/' }).join('\n')).toMatch(
+      /GEOTAB_SERVER/,
+    );
+    expect(issues({ ...base, TERMINAL_API_BASE: 'not a url' }).join('\n')).toMatch(
+      /TERMINAL_API_BASE/,
+    );
+  });
+
+  test('1f.2: AEMP_PROVIDERS is a JSON list of providers (id, base URL, auth style, credentials)', () => {
+    const c = parseConfig({
+      ...base,
+      AEMP_PROVIDERS: JSON.stringify([
+        {
+          id: 'kubota',
+          baseUrl: 'https://aemp.example.com/iso',
+          auth: 'basic',
+          username: 'u',
+          password: 'p',
+        },
+        {
+          id: 'samsara',
+          label: 'Samsara AEMP',
+          baseUrl: 'https://api.samsara.com/beta/aemp',
+          auth: 'bearer',
+        },
+      ]),
+    });
+    expect(c.AEMP_PROVIDERS.map((p) => [p.id, p.auth, p.format])).toEqual([
+      ['kubota', 'basic', 'auto'],
+      ['samsara', 'bearer', 'auto'],
+    ]);
+    expect(issues({ ...base, AEMP_PROVIDERS: '{not json' }).join('\n')).toMatch(
+      /AEMP_PROVIDERS: must be a JSON array/,
+    );
+    expect(
+      issues({
+        ...base,
+        AEMP_PROVIDERS: JSON.stringify([
+          { id: 'Kubota', baseUrl: 'https://x.example.com', auth: 'none' },
+        ]),
+      }).join('\n'),
+    ).toMatch(/AEMP_PROVIDERS: 0\.id/);
+    expect(
+      issues({
+        ...base,
+        AEMP_PROVIDERS: JSON.stringify([
+          { id: 'cnh', baseUrl: 'https://x.example.com', auth: 'none' },
+          { id: 'cnh', baseUrl: 'https://y.example.com', auth: 'none' },
+        ]),
+      }).join('\n'),
+    ).toMatch(/'cnh' is listed twice/);
+    expect(
+      issues({
+        ...base,
+        AEMP_PROVIDERS: JSON.stringify([
+          { id: 'x1', baseUrl: 'https://x.example.com', auth: 'kerberos' },
+        ]),
+      }).join('\n'),
+    ).toMatch(/AEMP_PROVIDERS/);
+  });
+
+  test('1f.2: VEHICLE_KIND_TAGS maps vendor tags to kinds (default semi/pickup/service truck)', () => {
+    expect(parseConfig(base).VEHICLE_KIND_TAGS).toEqual([
+      { tag: 'semi', kind: 'semi' },
+      { tag: 'pickup', kind: 'pickup' },
+      { tag: 'service truck', kind: 'service_truck' },
+    ]);
+    expect(
+      parseConfig({ ...base, VEHICLE_KIND_TAGS: 'pickup:Pickups, service_truck:Shop Truck' })
+        .VEHICLE_KIND_TAGS,
+    ).toEqual([
+      { tag: 'pickups', kind: 'pickup' },
+      { tag: 'shop truck', kind: 'service_truck' },
+    ]);
+    expect(issues({ ...base, VEHICLE_KIND_TAGS: 'combine:Combines' }).join('\n')).toMatch(
+      /VEHICLE_KIND_TAGS: 'combine:Combines': the kind must be one of semi, pickup, service_truck/,
+    );
+    expect(issues({ ...base, VEHICLE_KIND_TAGS: 'pickup:' }).join('\n')).toMatch(
+      /a tag name is required/,
+    );
+  });
+
   test('production allows off and sandbox', () => {
-    expect(issues({ ...prod, CONNECTOR_DEERE: 'off', CONNECTOR_ELD: 'sandbox' })).toEqual([]);
+    expect(issues({ ...prod, CONNECTOR_DEERE: 'off', CONNECTOR_SAMSARA: 'sandbox' })).toEqual([]);
   });
 
   test('publicConfig exposes only client-safe values', () => {
@@ -233,6 +412,7 @@ describe('parseConfig', () => {
       'appEnv',
       'basemapStyle',
       'deereStaleAfterSeconds',
+      'lastKnownStaleAfterSeconds',
       'realtime',
       'staleAfterSeconds',
     ]);

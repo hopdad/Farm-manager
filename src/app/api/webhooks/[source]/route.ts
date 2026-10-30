@@ -5,6 +5,7 @@
  * the body is read, and the body is read with a 4 MB cap (chunked bodies have no length).
  */
 import { getConfig } from '@/config';
+import { connectionMode, connectionOfSource } from '@/connectors/vendors';
 import {
   handleWebhook,
   isWebhookSource,
@@ -27,12 +28,9 @@ export async function POST(
     return limitedJson({ error: `no webhooks for '${source}'` }, { status: 404, headers });
   }
   const cfg = getConfig();
-  const mode =
-    source === 'deere'
-      ? cfg.CONNECTOR_DEERE
-      : cfg.ELD_VENDOR === source
-        ? cfg.CONNECTOR_ELD
-        : 'off';
+  // Each source's own mode key (1f.2: every telematics vendor has one).
+  const connection = connectionOfSource(source);
+  const mode = connection ? connectionMode(cfg, connection) : 'off';
   const refused = webhookModeRefusal(source, mode);
   if (refused) return limitedJson(refused.body, { status: refused.status, headers });
   const body = await readLimitedText(request, MAX_WEBHOOK_BYTES);

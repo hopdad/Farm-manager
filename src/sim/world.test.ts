@@ -6,16 +6,28 @@ import { localDayTime } from './time';
 import { SCENARIO_NAMES, type ScenarioName, type SimMachineSample } from './types';
 import { createDemoWorld, HORIZON_DAYS } from './world';
 
-/** Samples of every machine every 10 minutes for 16 hours from the scenario start. */
-function sampleHash(scenario: ScenarioName, seed = 1): string {
+/** Samples of every machine (or the first `only`) every 10 minutes for 16 hours from the start. */
+function sampleHash(scenario: ScenarioName, seed = 1, only?: number): string {
   const w = createSimWorld({ scenario, seed });
   const h = createHash('sha256');
   const t0 = w.startsAt.getTime();
+  const machines = only === undefined ? w.farm.machines : w.farm.machines.slice(0, only);
   for (let k = 0; k < 96; k++) {
     const t = new Date(t0 + k * 10 * 60_000);
-    for (const m of w.farm.machines) h.update(JSON.stringify(w.machineAt(m.id, t)));
+    for (const m of machines) h.update(JSON.stringify(w.machineAt(m.id, t)));
   }
   return h.digest('hex');
+}
+
+/** Ray-casting point-in-polygon on one ring of [lng, lat]. */
+function pointInRing([x, y]: [number, number], ring: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i] as [number, number];
+    const [xj, yj] = ring[j] as [number, number];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }
 
 const local = (iso: string) => {
@@ -35,8 +47,36 @@ describe('determinism', () => {
   test('same (scenario, seed, simTime) gives the same sample: golden hash', () => {
     // Update deliberately when the simulation changes on purpose (pnpm test prints the new hash).
     expect(sampleHash('harvest-day')).toBe(
+      '6ad25b579ee5f9e83546dc154270fa59d443321616a87e633a58021084100347',
+    );
+  });
+
+  test("1f.2's mixed fleet changed nothing for the M0 machines (their golden hash before 1f.2)", () => {
+    expect(sampleHash('harvest-day', 1, 11)).toBe(
       '7c1aea5052ffe6aa2dfe0f0e70b0f71e93c1d0e7a9a9678662f76afcd59bd8ca',
     );
+  });
+
+  test('1f.2: the machines no scenario names stay parked in the shop yard, engines off', () => {
+    for (const scenario of SCENARIO_NAMES) {
+      const w = createDemoWorld({ scenario });
+      const yard = w.farm.shop.geofence.coordinates[0] ?? [];
+      for (const m of w.farm.machines.slice(11)) {
+        const seen = new Set<string>();
+        for (let k = 0; k < 48; k++) {
+          const s = w.machineAt(m.id, new Date(w.startsAt.getTime() + k * 20 * 60_000));
+          expect(s, m.unitNo).not.toBeNull();
+          if (!s) continue;
+          expect(s.engineOn, `${scenario} ${m.unitNo}`).toBe(false);
+          expect(s.speedMph).toBe(0);
+          expect(pointInRing([s.lng, s.lat], yard), `${scenario} ${m.unitNo} in the yard`).toBe(
+            true,
+          );
+          seen.add(`${s.lng},${s.lat}`);
+        }
+        expect(seen.size, `${scenario} ${m.unitNo} parked`).toBe(1);
+      }
+    }
   });
 
   test('two fresh worlds agree for every scenario; another seed differs', () => {

@@ -8,18 +8,21 @@
  *    elevator (kind 'elevator', party = the elevator company), the shop (kind 'shop'), its
  *    bin site (kind 'bin_site') and one entrance per field (kind 'field_entrance', field_id set;
  *    src/sim/farm/geofences.ts, plan 1a);
- *  - exactly the external refs simExternalRefs(farm, ELD_VENDOR) returns, via upsertExternalRef.
+ *  - exactly the external refs simExternalRefs(farm) returns, via upsertExternalRef (1f.2: every
+ *    machine's own telematics vendor, so the whole mixed fleet maps at once);
+ *  - machines.telematics_via from the simulated route (ford_pro, stellantis, gateway); `kind` is
+ *    never overwritten once someone set it on /admin (kind_set_by = 'admin').
  *
  * Idempotent: every write is an upsert that changes a row only when a seeded column differs
  * (`... where (cols) is distinct from (excluded cols)`), so a re-run writes nothing. Columns the
  * app or the syncs own are written on insert only and never overwritten: fields.active, notes
  * and landlord_party_id, farms.client_party_id (both linked on /admin/parties or in the field
  * editor, and kept by data:export as overlays), boundaries' valid range and derived_stale,
- * machines' status, engine hours and odometer.
+ * machines' status, engine hours and odometer, and a machine kind set by a vendor tag or on /admin.
  * One transaction; any error rolls everything back.
  */
 import type pg from 'pg';
-import { type EldVendor, externalRefKey } from '../../src/connectors/types';
+import { externalRefKey } from '../../src/connectors/types';
 import { exec } from '../../src/db/exec';
 import { upsertExternalRef } from '../../src/db/external-refs';
 import { demoId } from '../../src/domain/ids';
@@ -51,9 +54,8 @@ export interface SeedCounts {
 
 export interface SeedReport {
   seed: number;
-  eldVendor: EldVendor;
   tables: Record<SeedTable, SeedCounts>;
-  /** External refs that point at demo rows but aren't in simExternalRefs (e.g. a previous ELD_VENDOR). Left alone. */
+  /** External refs that point at demo rows but aren't in simExternalRefs (e.g. an earlier vendor's). Left alone. */
   extraRefs: string[];
 }
 
@@ -84,7 +86,7 @@ const GEOM = (n: number) =>
 /** Write the demo farm for `seed`. The caller owns the pool. */
 export async function seedDemo(
   pool: pg.Pool,
-  opts: { seed: number; eldVendor: EldVendor; farm?: DemoFarm },
+  opts: { seed: number; farm?: DemoFarm },
 ): Promise<SeedReport> {
   const farm = opts.farm ?? buildDemoFarm(opts.seed);
   const tables = Object.fromEntries(
@@ -246,15 +248,21 @@ export async function seedDemo(
         await upsert(
           client,
           `insert into farm.machines as t
-             (id, kind, unit_no, make, model, year, vin_serial, engine_hours, odometer_mi, source, source_id)
-           values ($1::uuid, $2, $3, $4, $5, $6, $7, $8::numeric, $9::numeric, $10, $11)
+             (id, kind, unit_no, make, model, year, vin_serial, engine_hours, odometer_mi, source,
+              source_id, telematics_via)
+           values ($1::uuid, $2, $3, $4, $5, $6, $7, $8::numeric, $9::numeric, $10, $11, $12)
            on conflict (id) do update set
-             kind = excluded.kind, unit_no = excluded.unit_no, make = excluded.make,
+             kind = case when t.kind_set_by = 'default' then excluded.kind else t.kind end,
+             unit_no = excluded.unit_no, make = excluded.make,
              model = excluded.model, year = excluded.year, vin_serial = excluded.vin_serial,
-             source = excluded.source, source_id = excluded.source_id, updated_at = now()
-           where (t.kind, t.unit_no, t.make, t.model, t.year, t.vin_serial, t.source, t.source_id)
+             source = excluded.source, source_id = excluded.source_id,
+             telematics_via = excluded.telematics_via, updated_at = now()
+           where (case when t.kind_set_by = 'default' then t.kind else excluded.kind end,
+                  t.unit_no, t.make, t.model, t.year, t.vin_serial, t.source, t.source_id,
+                  t.telematics_via)
              is distinct from (excluded.kind, excluded.unit_no, excluded.make, excluded.model,
-                               excluded.year, excluded.vin_serial, excluded.source, excluded.source_id)
+                               excluded.year, excluded.vin_serial, excluded.source, excluded.source_id,
+                               excluded.telematics_via)
            returning (xmax = 0) as inserted`,
           [
             m.id,
@@ -268,6 +276,7 @@ export async function seedDemo(
             (spec?.odometerAt2026 ?? 0).toFixed(1),
             DEMO_SOURCE,
             m.key,
+            m.telematics?.via ?? null,
           ],
         ),
       );
@@ -333,7 +342,7 @@ export async function seedDemo(
     }
 
     // External refs: diff against what is there (for the counts), then upsert every one.
-    const refs = simExternalRefs(farm, opts.eldVendor);
+    const refs = simExternalRefs(farm);
     const keyOf = (r: { source: string; kind: string; externalId: string; sourceOrg: string }) =>
       externalRefKey(
         r.source as Parameters<typeof externalRefKey>[0],
@@ -398,7 +407,7 @@ export async function seedDemo(
       .sort();
 
     await client.query('commit');
-    return { seed: farm.seed, eldVendor: opts.eldVendor, tables, extraRefs };
+    return { seed: farm.seed, tables, extraRefs };
   } catch (e) {
     await client.query('rollback').catch(() => {});
     throw e;

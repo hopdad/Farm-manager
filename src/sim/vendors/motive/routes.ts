@@ -1,13 +1,16 @@
 /**
- * Motive stand-in (mounted at /motive): a THIN placeholder until D3 picks the ELD vendor.
+ * Motive stand-in (mounted at /motive): a THIN placeholder until the 1f.2 trucks builder
+ * (docs/contracts-1f.md part B) fills it in (positions v1/v2 and v3 for Vehicle Gateway units,
+ * stats, /v1/fault_codes).
  *
  *   GET /v1/vehicle_locations?per_page=&page_no=   X-Api-Key: SIM_CREDENTIALS.motive.apiKey
  *   // doc-derived, confirm (path, header, field names)
  *
- * Current location of each ELD vehicle at the latest GPS grid instant (no history feed).
+ * Current location of each Motive vehicle (`simTelematicsMachines(farm, 'motive')`: 1f.2's
+ * hired hauler H1) at the latest GPS grid instant (no history feed).
  */
 import type { MotiveVehicleLocations } from '../../../connectors/motive/schemas';
-import { SIM_CREDENTIALS } from '../../types';
+import { SIM_CREDENTIALS, simTelematicsMachines } from '../../types';
 import type { VendorModule } from '../context';
 import { firstOfKind } from '../faults';
 import { round } from '../feed';
@@ -35,12 +38,11 @@ export const motiveModule: VendorModule = {
     const step = ctx.tuning.gpsIntervalMs;
     const t = Math.floor(ctx.now().getTime() / step) * step;
     const all: MotiveVehicleLocations['vehicles'] = [];
-    for (const m of ctx.world.farm.machines) {
-      if (!m.vendorIds.eld) continue;
+    for (const m of simTelematicsMachines(ctx.world.farm, 'motive')) {
       const s = ctx.world.machineAt(m.id, ctx.simAt(new Date(t)));
       all.push({
         vehicle: {
-          id: m.vendorIds.eld,
+          id: m.telematics?.id ?? '',
           number: m.unitNo,
           current_location: s
             ? {

@@ -24,7 +24,15 @@ const snapshot = (status: 'active' | 'down' = 'active'): FleetPanelData => ({
     },
   ],
   canMarkDown: false,
-  modes: { deere: 'replay', eld: 'replay', eldVendor: 'samsara' },
+  modes: {
+    deere: 'replay',
+    samsara: 'replay',
+    motive: 'off',
+    geotab: 'off',
+    aemp: 'off',
+    cnh: 'off',
+    terminal: 'off',
+  },
   config: { appEnv: 'test', realtime: 'sse', staleAfterSeconds: 600, deereStaleAfterSeconds: 900 },
 });
 

@@ -1,7 +1,7 @@
 /**
  * The board in REPLAY mode, end to end against the real database (plan 1a done-when
  * "CONNECTOR_DEERE=replay runs on the doc-derived fixtures"; contracts-m1 §10): the fleet.trucks
- * and fleet.deere jobs with CONNECTOR_ELD=replay and CONNECTOR_DEERE=replay, no stand-in and no
+ * and fleet.deere jobs with CONNECTOR_SAMSARA=replay and CONNECTOR_DEERE=replay, no stand-in and no
  * network, on the demo farm as the seed writes it. Trucks and combines land in
  * farm.machine_state at "now", each run publishes one fleet tick, the trucks move from run to run,
  * and their hauls into the elevator yards become geofence visits.
@@ -25,9 +25,9 @@ const cfg: FleetConfig = {
   VENDOR_SIM_URL: 'http://127.0.0.1:9', // nothing listens: replay must not need the stand-in
   PUBLIC_URL: 'http://localhost:3104',
   TOKEN_ENC_KEY: 'ab'.repeat(32),
-  CONNECTOR_ELD: 'replay',
+  CONNECTOR_SAMSARA: 'replay',
+  CONNECTOR_MOTIVE: 'off',
   CONNECTOR_DEERE: 'replay',
-  ELD_VENDOR: 'samsara',
   FLEET_STALE_SECONDS: 60,
   FLEET_STALE_SECONDS_DEERE: 900,
 };
@@ -52,7 +52,7 @@ async function lastTick(run: () => Promise<unknown>): Promise<FleetTick> {
 }
 
 beforeAll(async () => {
-  await seedSimFarm(t().adminDb, farm, 'samsara');
+  await seedSimFarm(t().adminDb, farm);
   for (const g of fieldEntranceGeofences(farm)) {
     await t().adminDb.insert(geofences).values({
       id: g.id,

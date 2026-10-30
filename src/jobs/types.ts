@@ -71,8 +71,16 @@ export interface JobResult {
   note?: string;
 }
 
-/** Config keys of the connector modes a job can depend on. */
-export type JobConnector = 'CONNECTOR_DEERE' | 'CONNECTOR_ELD' | 'CONNECTOR_WEATHER';
+/** Config keys of the connector modes a job can depend on (1f.2: one per telematics connection). */
+export type JobConnector =
+  | 'CONNECTOR_DEERE'
+  | 'CONNECTOR_SAMSARA'
+  | 'CONNECTOR_MOTIVE'
+  | 'CONNECTOR_GEOTAB'
+  | 'CONNECTOR_AEMP'
+  | 'CONNECTOR_CNH'
+  | 'CONNECTOR_TERMINAL'
+  | 'CONNECTOR_WEATHER';
 
 interface JobBase {
   /** Default 'app'. */

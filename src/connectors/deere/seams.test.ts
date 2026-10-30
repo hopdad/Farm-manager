@@ -10,6 +10,7 @@ import { DeereClient } from './client';
 import {
   DEERE_REPLAY_HOME_ORG,
   deereHomeOrg,
+  deereMayCreateRows,
   deereOrgAccess,
   deniedOrgAccess,
   isDeereOrgDenied,
@@ -121,6 +122,15 @@ describe('Deere home org (decision 8)', () => {
       source: 'unknown',
     });
     expect(deereHomeOrg('off', undefined, orgs).orgId).toBeNull();
+  });
+
+  test('no home org: nothing is created from Deere (farms, fields, machines) until one is known', () => {
+    expect(deereMayCreateRows(deereHomeOrg('sim', undefined, orgs))).toBe(true);
+    expect(deereMayCreateRows(deereHomeOrg('sandbox', undefined, orgs))).toBe(true);
+    expect(
+      deereMayCreateRows(deereHomeOrg('live', undefined, [...orgs, { id: 'org-c', member: true }])),
+    ).toBe(false);
+    expect(deereMayCreateRows(deereHomeOrg('live', '4117350', []))).toBe(true);
   });
 
   test("the replay fixtures' org listing has the replay home org", async () => {

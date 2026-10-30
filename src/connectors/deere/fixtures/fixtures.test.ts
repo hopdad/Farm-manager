@@ -97,7 +97,7 @@ describe('Deere doc-derived fixtures', () => {
   });
 
   test('vendor ids are the ones the demo seed maps (machines, fields, boundaries)', () => {
-    const refs = simExternalRefs(fixtureFarm(), 'samsara');
+    const refs = simExternalRefs(fixtureFarm());
     const known = new Set(refs.map((r) => `${r.ref.kind}|${r.ref.sourceOrg}|${r.ref.externalId}`));
     const body = (stream: string, p: RegExp) =>
       (

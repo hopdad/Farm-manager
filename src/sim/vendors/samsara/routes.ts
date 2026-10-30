@@ -7,7 +7,16 @@
  *   Authorization: Bearer SIM_CREDENTIALS.samsara.apiToken
  *
  * Shapes are typed by the shared zod schemas (src/connectors/samsara/schemas.ts). Vehicles are
- * the SimFarm machines with `vendorIds.eld` (named by unit number).
+ * the SimFarm machines on Samsara's vehicle feeds (`simTelematicsMachines(farm, 'samsara',
+ * { feed: 'vehicle' })`: the semis and, 1f.2, the two pickups), named by unit number.
+ *
+ * 1f.2 (docs/contracts-1f.md part B):
+ *  - Carmaker-cloud vehicles (`telematics.via` ford_pro / stellantis) report positions on their
+ *    own sparser grid (`reportEverySeconds`), and the stats their route doesn't report
+ *    (`statsNotReported`, src/connectors/vendors.ts) are left out (never sent as 0).
+ *  - Route modules (./modules.ts, created empty) answer first: `equipment` (the machines builder:
+ *    /fleet/equipment/* feeds for asset gateways) and `vehicles` (terminal-pickups: the vehicle
+ *    list with tags); the first non-null reply wins, then the routes below.
  */
 import { randomUUID } from 'node:crypto';
 import {
@@ -18,7 +27,14 @@ import {
   type SamsaraStatType,
   type SamsaraVehicleStats,
 } from '../../../connectors/samsara/schemas';
-import { SIM_CREDENTIALS, type SimMachineSample } from '../../types';
+import type { VehicleStatField } from '../../../connectors/types';
+import { statsNotReported } from '../../../connectors/vendors';
+import {
+  SIM_CREDENTIALS,
+  type SimMachine,
+  type SimMachineSample,
+  simTelematicsMachines,
+} from '../../types';
 import type { VendorContext, VendorModule } from '../context';
 import { firstOfKind } from '../faults';
 import {
@@ -30,22 +46,44 @@ import {
   seededShuffle,
 } from '../feed';
 import { bearerToken, json, type SimRequest, type SimResponse } from '../http';
+import { SAMSARA_ROUTE_MODULES } from './modules';
 
 interface FeedVehicle {
   id: string;
   name: string;
   machineId: string;
+  /** Wall ms between this vehicle's position reports (null = every grid instant). */
+  everyMs: number | null;
+  /** Stats its route doesn't report (left out of the stats feed). */
+  notReported: readonly VehicleStatField[];
+}
+
+const STAT_FIELD: Record<SamsaraStatType, VehicleStatField> = {
+  obdEngineSeconds: 'engineHours',
+  fuelPercents: 'fuelPct',
+  obdOdometerMeters: 'odometerMi',
+};
+
+function feedVehicle(m: SimMachine): FeedVehicle {
+  const t = m.telematics;
+  return {
+    id: t?.id ?? '',
+    name: m.unitNo,
+    machineId: m.id,
+    everyMs: t?.reportEverySeconds ? t.reportEverySeconds * 1000 : null,
+    notReported: t?.via ? statsNotReported('samsara', t.via) : [],
+  };
 }
 
 function samsaraError(status: number, message: string, headers: Record<string, string> = {}) {
   return json(status, { message, requestId: randomUUID() }, headers);
 }
 
-/** Machines with an ELD id, optionally filtered by `vehicleIds=a,b`. */
+/** The machines on Samsara's vehicle feeds, optionally filtered by `vehicleIds=a,b`. */
 function vehicles(ctx: VendorContext, url: URL): FeedVehicle[] {
-  const all = ctx.world.farm.machines
-    .filter((m) => m.vendorIds.eld)
-    .map((m) => ({ id: m.vendorIds.eld as string, name: m.unitNo, machineId: m.id }));
+  const all = simTelematicsMachines(ctx.world.farm, 'samsara', { feed: 'vehicle' }).map(
+    feedVehicle,
+  );
   const filter = url.searchParams.get('vehicleIds');
   if (!filter) return all;
   const ids = new Set(filter.split(',').map((s) => s.trim()));
@@ -109,9 +147,10 @@ function locationsFeed(req: SimRequest, ctx: VendorContext): SimResponse {
   const win = windowFor(req, ctx, ctx.tuning.gpsIntervalMs, vs.length);
   if ('kind' in win) return win;
   let data: SamsaraLocationsFeed['data'] = [];
+  const first = !req.url.searchParams.get('after');
   for (const v of vs) {
     const locations: SamsaraLocation[] = [];
-    for (const t of win.instants) {
+    for (const t of reportInstants(v, win.instants, first)) {
       const s = sample(ctx, v.machineId, t);
       if (s) locations.push(toLocation(s, t));
     }
@@ -130,6 +169,20 @@ function locationsFeed(req: SimRequest, ctx: VendorContext): SimResponse {
   };
   ctx.lastPages.set(key, { after: req.url.searchParams.get('after'), body });
   return json(200, body);
+}
+
+/**
+ * The window's instants this vehicle reports at: every one, or (a sparse vehicle) those on its own
+ * grid; the first call (no cursor) answers its latest report, like every other vehicle's.
+ */
+function reportInstants(v: FeedVehicle, instants: readonly number[], first: boolean): number[] {
+  const every = v.everyMs;
+  if (!every) return [...instants];
+  if (first) {
+    const last = instants[instants.length - 1];
+    return last === undefined ? [] : [Math.floor(last / every) * every];
+  }
+  return instants.filter((t) => t % every === 0);
 }
 
 function statValue(type: SamsaraStatType, s: SimMachineSample): number {
@@ -159,12 +212,16 @@ function statsFeed(req: SimRequest, ctx: VendorContext): SimResponse {
   const data: SamsaraStatsFeed['data'] = [];
   for (const v of vs) {
     const row: SamsaraVehicleStats = { id: v.id, name: v.name };
+    const sent = (types as SamsaraStatType[]).filter(
+      (type) => !v.notReported.includes(STAT_FIELD[type]),
+    );
+    if (!sent.length) continue;
     let any = false;
     for (const t of win.instants) {
       const s = sample(ctx, v.machineId, t);
       if (!s) continue;
       any = true;
-      for (const type of types as SamsaraStatType[]) {
+      for (const type of sent) {
         const list = row[type] ?? [];
         list.push({ time: new Date(t).toISOString(), value: statValue(type, s) });
         row[type] = list;
@@ -194,6 +251,10 @@ export const samsaraModule: VendorModule = {
     if (auth) {
       ctx.counters.faults[auth.kind] = (ctx.counters.faults[auth.kind] ?? 0) + 1;
       return samsaraError(401, 'Unauthorized: API token expired or revoked');
+    }
+    for (const mod of SAMSARA_ROUTE_MODULES) {
+      const reply = mod.route(req, ctx);
+      if (reply) return reply;
     }
     if (req.method !== 'GET') return samsaraError(405, 'Method not allowed');
     switch (req.path) {

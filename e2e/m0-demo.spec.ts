@@ -26,6 +26,8 @@ import {
   test,
 } from '@playwright/test';
 import { getConfig, getE2eSettings } from '../src/config';
+import { buildSimFarm } from '../src/sim/index';
+import { simTelematicsMachines } from '../src/sim/types';
 import type { FleetFrame } from '../src/ui/map/fleet/model';
 import { unlockAdmin } from './support/admin';
 import { signInAs } from './support/auth';
@@ -39,6 +41,15 @@ const STALE_S = cfg.FLEET_STALE_SECONDS;
 const DEMO_SPEED = 30;
 const BASE_URL = getE2eSettings().baseURL;
 const isWall = () => test.info().project.name === 'wall';
+/**
+ * The semis on Samsara (the farm's own trucks: "trucks API down" takes Samsara down). 1f.2's
+ * mixed fleet adds hired haulers on Motive and Geotab, which keep reporting through it.
+ */
+const SAMSARA_SEMIS = new Set(
+  simTelematicsMachines(buildSimFarm(cfg.SIM_SEED), 'samsara', { feed: 'vehicle' })
+    .filter((m) => m.kind === 'semi')
+    .map((m) => m.id),
+);
 
 const fleet = (page: Page): Promise<FleetFrame[]> =>
   page.evaluate(() => window.__map?.fleet() ?? []);
@@ -335,13 +346,17 @@ test('"trucks API down": the trucks go stale with a badge; off: they catch up', 
   await setTrucksDown(adminPage, true);
   const downAt = Date.now();
 
+  // Exactly the Samsara semis go stale; a hired hauler on another vendor keeps reporting.
   await expect
-    .poll(async () => (await semis()).filter((m) => m.stale).length, {
-      timeout: STALE_S * 1000 + 60_000,
-      intervals: [2_000],
-      message: 'semis stale',
-    })
-    .toBe(4);
+    .poll(
+      async () =>
+        (await semis())
+          .filter((m) => m.stale)
+          .map((m) => m.id)
+          .sort(),
+      { timeout: STALE_S * 1000 + 60_000, intervals: [2_000], message: 'Samsara semis stale' },
+    )
+    .toEqual([...SAMSARA_SEMIS].sort());
   await expect(page.getByTestId('badge-stale')).toBeVisible();
   await expect(page.getByTestId('badge-stale')).toContainText('stale');
   // Only the trucks: Deere keeps reporting the combines.

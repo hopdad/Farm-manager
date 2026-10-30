@@ -6,6 +6,7 @@
  */
 import { describe, expect, test } from 'vitest';
 import { buildDemoFarm } from '../../sim/farm/build';
+import { simTelematicsMachines } from '../../sim/types';
 import type { ConnectorConfig } from '../endpoints';
 import { REPLAY_ORIGIN } from '../replay';
 import { SamsaraClient } from './client';
@@ -18,7 +19,7 @@ const cfg: ConnectorConfig = {
 };
 const farm = buildDemoFarm();
 const trucks = new Map(
-  farm.machines.filter((m) => m.vendorIds.eld).map((m) => [m.vendorIds.eld, m]),
+  simTelematicsMachines(farm, 'samsara', { feed: 'vehicle' }).map((m) => [m.telematics?.id, m]),
 );
 
 /** The demo area (Lenawee + Monroe around Adrian and Blissfield). */

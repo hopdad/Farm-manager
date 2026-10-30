@@ -27,7 +27,7 @@ const cfg: ConnectorConfig = {
   PUBLIC_URL: 'http://localhost:3104',
 };
 const farm = buildDemoFarm();
-const refs = simExternalRefs(farm, 'samsara');
+const refs = simExternalRefs(farm);
 const mapped = (kind: string, org: string, id: string) =>
   refs.find((r) => r.ref.kind === kind && r.ref.sourceOrg === org && r.ref.externalId === id)
     ?.entityId ?? null;

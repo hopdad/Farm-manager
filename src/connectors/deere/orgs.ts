@@ -87,9 +87,23 @@ export const DEERE_REPLAY_HOME_ORG = SIM_DEERE_HOME_ORG;
 export type DeereHomeOrgSource = 'config' | 'sim' | 'replay' | 'only_member' | 'unknown';
 
 export interface DeereHomeOrg {
-  /** Null = no home org: no machine is created from Deere, every org's farms are customers'. */
+  /**
+   * Null = no home org: no machine, farm or field is created from Deere until one is known
+   * (`deereMayCreateRows`; 1f fix: otherwise farms created in your own org would get a customer
+   * party); rows that already map through external refs are still updated.
+   */
   orgId: string | null;
   source: DeereHomeOrgSource;
+}
+
+/**
+ * Whether a Deere sync may CREATE machines, farms and fields this run (1f fix, docs/contracts-1f.md
+ * §5.4): only once the home org is known. Without one (sandbox/live, several member orgs,
+ * DEERE_HOME_ORG_ID unset) the syncs still match and update rows that already have their external
+ * ref, and create nothing; /admin/connectors asks for DEERE_HOME_ORG_ID.
+ */
+export function deereMayCreateRows(home: DeereHomeOrg): boolean {
+  return home.orgId !== null;
 }
 
 /**

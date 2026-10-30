@@ -100,8 +100,14 @@ export interface FaultPreset {
   rule: Omit<FaultRule, 'id'>;
 }
 
-/** The presets for the configured ELD vendor ("trucks API down" is the M0 demo). */
-export function faultPresets(eldVendor: Extract<SimVendor, 'samsara' | 'motive'>): FaultPreset[] {
+/**
+ * The presets ("trucks API down" is the M0 demo). The truck presets hit the farm's own trucks'
+ * vendor: Samsara by default (D3; 1f.2: every vendor runs at once, so the hired haulers on Motive
+ * and Geotab keep reporting while Samsara is down).
+ */
+export function faultPresets(
+  eldVendor: Extract<SimVendor, 'samsara' | 'motive' | 'geotab'> = 'samsara',
+): FaultPreset[] {
   const p = (
     key: string,
     title: string,

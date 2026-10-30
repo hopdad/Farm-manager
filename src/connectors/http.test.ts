@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
 import {
+  currentCallStream,
   errorDetail,
   parseRetryAfter,
   type VendorCall,
@@ -9,6 +10,7 @@ import {
   VendorResponseError,
   vendorFetch,
   vendorJson,
+  withCallStream,
 } from './http';
 
 type Step = Response | Error;
@@ -216,6 +218,31 @@ describe('onCall (1f call counter)', () => {
       [null, 'error'],
       [200, 'ok'],
     ]);
+  });
+
+  test('withCallStream labels the calls inside it (innermost wins); outside, the label is null', async () => {
+    const calls: VendorCall[] = [];
+    const once = () =>
+      vendorFetch(
+        URL_,
+        {},
+        { vendor: 'deere', fetch: stubFetch([ok()]).fn, onCall: (c) => calls.push(c) },
+      );
+    await once();
+    await withCallStream('backfill', async () => {
+      await once();
+      await withCallStream('record', once);
+      await Promise.all([once(), once()]);
+    });
+    expect(calls.map((c) => c.stream)).toEqual([
+      null,
+      'backfill',
+      'record',
+      'backfill',
+      'backfill',
+    ]);
+    expect(currentCallStream()).toBeNull();
+    expect(await withCallStream('x', async () => currentCallStream())).toBe('x');
   });
 
   test('without a hook nothing changes (the default counts nothing)', async () => {

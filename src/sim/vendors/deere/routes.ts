@@ -117,6 +117,8 @@ const DEERE_EQUIPMENT_TYPE: Record<MachineKind, string> = {
   trailer: 'Trailer',
   drone: 'Other',
   pickup: 'Truck',
+  service_truck: 'Truck',
+  loader: 'Loader',
 };
 
 // ---------------------------------------------------------------------------------------------

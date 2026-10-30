@@ -22,7 +22,8 @@ import path from 'node:path';
 import { parseEnv } from 'node:util';
 import * as nextEnvModule from '@next/env';
 import { z } from 'zod';
-import { CONNECTOR_MODES, type Mode } from './connectors/types';
+import { CONNECTOR_MODES, type Mode, TRUCK_VENDORS, type TruckVendor } from './connectors/types';
+import { parseVehicleKindTags, type VehicleKindTagRule } from './domain/vehicles';
 import { SCENARIO_NAMES } from './sim/types';
 
 // ---------------------------------------------------------------------------------------------
@@ -45,11 +46,119 @@ const csv = z
   );
 const onOff = z.enum(['on', 'off']).transform((v) => v === 'on');
 const connectorMode = z.enum(CONNECTOR_MODES).default('sim');
+/** A per-vendor mode key: unset = sim locally, off in production (resolved below). */
+const vendorMode = z.enum(CONNECTOR_MODES).optional();
+const secret = z.string().min(1).optional();
 const hex = (chars: number) =>
   z.string().regex(new RegExp(`^[0-9a-fA-F]{${chars}}$`), `must be ${chars} hex characters`);
 
 export const APP_ENVS = ['development', 'test', 'production'] as const;
 export type AppEnv = (typeof APP_ENVS)[number];
+
+/**
+ * The per-vendor telematics mode keys (1f.2, docs/contracts-1f.md part B): one connection each,
+ * all of them able to run at once. Deere keeps CONNECTOR_DEERE, weather CONNECTOR_WEATHER.
+ * Pickups have no key of their own: they ride on their telematics vendor's feeds (carmaker-cloud
+ * integrations; decision D3), with VEHICLE_KIND_TAGS naming the vendor tags that make a vehicle a
+ * pickup or a service truck.
+ */
+export const VENDOR_MODE_KEYS = [
+  'CONNECTOR_SAMSARA',
+  'CONNECTOR_MOTIVE',
+  'CONNECTOR_GEOTAB',
+  'CONNECTOR_AEMP',
+  'CONNECTOR_CNH',
+  'CONNECTOR_TERMINAL',
+] as const;
+export type VendorModeKey = (typeof VENDOR_MODE_KEYS)[number];
+
+/** Every connector mode key (the production rules apply to each). */
+export const CONNECTOR_MODE_KEYS = [
+  'CONNECTOR_DEERE',
+  ...VENDOR_MODE_KEYS,
+  'CONNECTOR_WEATHER',
+] as const;
+export type ConnectorModeKey = (typeof CONNECTOR_MODE_KEYS)[number];
+
+const TRUCK_VENDOR_KEY: Record<TruckVendor, VendorModeKey> = {
+  samsara: 'CONNECTOR_SAMSARA',
+  motive: 'CONNECTOR_MOTIVE',
+  geotab: 'CONNECTOR_GEOTAB',
+  terminal: 'CONNECTOR_TERMINAL',
+};
+
+/** How an AEMP provider authenticates (AEMP_PROVIDERS[].auth). */
+export const AEMP_AUTH_STYLES = ['none', 'bearer', 'basic', 'oauth2', 'subscription_key'] as const;
+export type AempAuthStyle = (typeof AEMP_AUTH_STYLES)[number];
+
+/**
+ * One ISO 15143-3 (AEMP 2.0) provider (AEMP_PROVIDERS, a JSON array). The id is lower-case
+ * letters and digits (it becomes the external_refs source_org and `aemp_<id>`). Secrets are
+ * optional here: sim and replay need none; sandbox/live check the ones `auth` needs
+ * (src/connectors/endpoints.ts `aempEndpoints`).
+ */
+export const aempProviderSchema = z.strictObject({
+  id: z.string().regex(/^[a-z][a-z0-9]{1,20}$/, 'lower-case letters and digits, 2-21 long'),
+  label: z.string().trim().min(1).max(60).optional(),
+  /** The ISO 15143-3 root (…/Fleet/{pageNumber} below it), e.g. https://api.samsara.com/beta/aemp. */
+  baseUrl: httpUrl,
+  auth: z.enum(AEMP_AUTH_STYLES),
+  token: secret,
+  username: secret,
+  password: secret,
+  clientId: secret,
+  clientSecret: secret,
+  tokenUrl: httpUrl.optional(),
+  scope: z.string().trim().min(1).optional(),
+  subscriptionKey: secret,
+  /** Header name for `subscription_key` auth (default Ocp-Apim-Subscription-Key). */
+  subscriptionKeyHeader: z.string().trim().min(1).optional(),
+  /** Response format; `auto` follows Content-Type (Deere's example is XML). */
+  format: z.enum(['auto', 'json', 'xml']).default('auto'),
+});
+export type AempProviderConfig = z.infer<typeof aempProviderSchema>;
+
+const aempProviders = z
+  .string()
+  .optional()
+  .transform((v, ctx): AempProviderConfig[] => {
+    if (!v) return [];
+    let raw: unknown;
+    try {
+      raw = JSON.parse(v);
+    } catch {
+      ctx.addIssue({ code: 'custom', message: 'must be a JSON array of providers' });
+      return z.NEVER;
+    }
+    const r = z.array(aempProviderSchema).safeParse(raw);
+    if (!r.success) {
+      const i = r.error.issues[0];
+      ctx.addIssue({
+        code: 'custom',
+        message: `${i?.path.join('.') || '(list)'}: ${i?.message ?? 'invalid'}`,
+      });
+      return z.NEVER;
+    }
+    const ids = r.data.map((p) => p.id);
+    const dup = ids.find((id, k) => ids.indexOf(id) !== k);
+    if (dup) {
+      ctx.addIssue({ code: 'custom', message: `provider '${dup}' is listed twice` });
+      return z.NEVER;
+    }
+    return r.data;
+  });
+
+const vehicleKindTags = z
+  .string()
+  .optional()
+  .transform((v, ctx): VehicleKindTagRule[] => {
+    try {
+      return parseVehicleKindTags(v);
+    } catch (e) {
+      ctx.addIssue({ code: 'custom', message: (e as Error).message });
+      return z.NEVER;
+    }
+  });
 
 const baseSchema = z.object({
   /** development | test | production. `next start` on the PC is still development (pilot). */
@@ -130,6 +239,11 @@ const baseSchema = z.object({
    * positions while a machine is working, so an idle cart has no new fix for minutes at a time.
    */
   FLEET_STALE_SECONDS_DEERE: int(5, 86_400).default(600),
+  /**
+   * 1f.2: the same for `last_known` fixes (AEMP hourly snapshots, cached up to an hour by the
+   * OEM; Terminal's latest location). Default 3 h.
+   */
+  FLEET_STALE_SECONDS_LAST_KNOWN: int(5, 7 * 86_400).default(10_800),
 
   // --- connectors -----------------------------------------------------------------------------
   /**
@@ -143,9 +257,26 @@ const baseSchema = z.object({
     )
     .default('http://127.0.0.1:4010'),
   CONNECTOR_DEERE: connectorMode,
-  CONNECTOR_ELD: connectorMode,
   CONNECTOR_WEATHER: connectorMode,
-  ELD_VENDOR: z.enum(['samsara', 'motive']).default('samsara'),
+  /**
+   * 1f.2: one mode key per telematics connection (sim | replay | sandbox | live | off). Unset =
+   * sim locally (the demo board shows the mixed fleet), off in production. Production refuses
+   * sim and replay per key.
+   */
+  CONNECTOR_SAMSARA: vendorMode,
+  CONNECTOR_MOTIVE: vendorMode,
+  CONNECTOR_GEOTAB: vendorMode,
+  CONNECTOR_AEMP: vendorMode,
+  CONNECTOR_CNH: vendorMode,
+  CONNECTOR_TERMINAL: vendorMode,
+  /**
+   * DEPRECATED (1f.2): read only as an alias. `CONNECTOR_ELD=<mode>` sets the key of the vendor
+   * ELD_VENDOR names (default samsara) unless that key is set itself; /admin/connectors shows a
+   * warning until .env.local uses the new key. Not part of Config after parsing.
+   */
+  CONNECTOR_ELD: z.enum(CONNECTOR_MODES).optional(),
+  /** DEPRECATED (1f.2): the vendor CONNECTOR_ELD applies to (samsara, motive, geotab, terminal). */
+  ELD_VENDOR: z.enum(TRUCK_VENDORS).optional(),
   /** Deere Work Plan push. Off by default: the PC can never push to the real org. */
   WRITEBACK_DEERE: onOff.default(false),
   DEERE_CLIENT_ID: z.string().min(1).optional(),
@@ -171,7 +302,50 @@ const baseSchema = z.object({
    */
   DEERE_HOME_ORG_ID: z.string().trim().min(1).max(200).optional(),
   SAMSARA_API_TOKEN: z.string().min(1).optional(),
+  /** Motive company API key (X-Api-Key; a hauler's key, revocable after the job). */
   MOTIVE_API_KEY: z.string().min(1).optional(),
+  /** Motive API root. Unset: https://api.gomotive.com (doc-derived; api.keeptruckin.com is legacy). */
+  MOTIVE_API_BASE: httpUrl.optional(),
+  /** MyGeotab server host (JSON-RPC at https://<server>/apiv1). Unset: my.geotab.com. */
+  GEOTAB_SERVER: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9.-]+$/i, 'a host name, e.g. my.geotab.com')
+    .optional(),
+  /** MyGeotab database name (sandbox: your free demo database). */
+  GEOTAB_DATABASE: secret,
+  /** MyGeotab service user (a user made for the API, never a person's login). */
+  GEOTAB_USERNAME: secret,
+  GEOTAB_PASSWORD: secret,
+  /**
+   * ISO 15143-3 (AEMP 2.0) providers, a JSON array: `[{"id":"kubota","baseUrl":"https://…",
+   * "auth":"basic","username":"…","password":"…"}]` (aempProviderSchema). Unset: in sim and
+   * replay the stand-in's providers (cnh, kubota, samsara); in sandbox/live nothing to poll.
+   */
+  AEMP_PROVIDERS: aempProviders,
+  /** CNH FieldOps OAuth client (identity.cnhind.com; develop.cnh.com app). */
+  CNH_CLIENT_ID: secret,
+  CNH_CLIENT_SECRET: secret,
+  /** CNH API subscription key (sent as a header on every call). */
+  CNH_SUBSCRIPTION_KEY: secret,
+  /** CNH FieldOps API root. Unset: the doc-derived default in src/connectors/endpoints.ts. */
+  CNH_API_BASE: httpUrl.optional(),
+  /** CNH identity root (…/authorize, …/oauth/token below it). Unset: https://identity.cnhind.com. */
+  CNH_AUTH_BASE: httpUrl.optional(),
+  /** CNH OAuth callback when it isn't `${PUBLIC_URL}/api/oauth/cnh` (https in production). */
+  CNH_REDIRECT_URI: httpUrl.optional(),
+  /** Terminal secret key (Authorization: Bearer). */
+  TERMINAL_SECRET_KEY: secret,
+  /** Terminal connection token (Connection-Token header: one carrier's linked account). */
+  TERMINAL_CONNECTION_TOKEN: secret,
+  /** Terminal API root. Unset: sandbox https://api.sandbox.withterminal.com/tsp/v1, live https://api.withterminal.com/tsp/v1. */
+  TERMINAL_API_BASE: httpUrl.optional(),
+  /**
+   * Pickups and service trucks (1f.2): which vendor tags set a vehicle's kind, as
+   * `<kind>:<tag name>` pairs, e.g. `pickup:Pickups,service_truck:Service,semi:Semi`. Unset:
+   * semi:Semi, pickup:Pickup, service_truck:Service truck. A kind set on /admin always wins.
+   */
+  VEHICLE_KIND_TAGS: vehicleKindTags,
   /** NWS requires a User-Agent with contact info. */
   NWS_USER_AGENT: z.string().min(1).default('farm-manager (local development)'),
 
@@ -187,7 +361,94 @@ const baseSchema = z.object({
     .transform((v) => (v ? new Date(v) : null)),
 });
 
-const configSchema = baseSchema.superRefine((c, ctx) => {
+/** A note for /admin/connectors about the deprecated CONNECTOR_ELD / ELD_VENDOR keys. */
+export interface ConnectorAliasNote {
+  /** The deprecated keys that were set. */
+  keys: ('CONNECTOR_ELD' | 'ELD_VENDOR')[];
+  /** The key CONNECTOR_ELD set (or would have set), if any. */
+  sets: VendorModeKey | null;
+  /** Plain-words warning with the fix. */
+  message: string;
+}
+
+type BaseEnv = z.infer<typeof baseSchema>;
+type ResolvedModes = Record<VendorModeKey, Mode>;
+
+/**
+ * The per-vendor modes from the keys, the deprecated alias and the defaults (pure):
+ *  1. a vendor key that is set wins;
+ *  2. else `CONNECTOR_ELD` sets the key of ELD_VENDOR's vendor (default samsara);
+ *  3. else sim locally, off in production.
+ * Plus the notes /admin/connectors shows while a deprecated key is set.
+ */
+export function resolveConnectorModes(
+  c: {
+    APP_ENV: AppEnv;
+    CONNECTOR_ELD?: Mode;
+    ELD_VENDOR?: TruckVendor;
+  } & Partial<Record<VendorModeKey, Mode | undefined>>,
+): {
+  modes: ResolvedModes;
+  aliasNotes: ConnectorAliasNote[];
+  /** Which keys came from the alias (for production error messages). */
+  fromAlias: VendorModeKey[];
+} {
+  const fallback: Mode = c.APP_ENV === 'production' ? 'off' : 'sim';
+  const modes = {} as ResolvedModes;
+  for (const k of VENDOR_MODE_KEYS) modes[k] = c[k] ?? fallback;
+  const aliasNotes: ConnectorAliasNote[] = [];
+  const fromAlias: VendorModeKey[] = [];
+  const vendor = c.ELD_VENDOR ?? 'samsara';
+  const target = TRUCK_VENDOR_KEY[vendor];
+  if (c.CONNECTOR_ELD !== undefined) {
+    const keys: ConnectorAliasNote['keys'] = c.ELD_VENDOR
+      ? ['CONNECTOR_ELD', 'ELD_VENDOR']
+      : ['CONNECTOR_ELD'];
+    const was = c.ELD_VENDOR
+      ? `CONNECTOR_ELD=${c.CONNECTOR_ELD} (ELD_VENDOR=${vendor})`
+      : `CONNECTOR_ELD=${c.CONNECTOR_ELD}`;
+    if (c[target] === undefined) {
+      modes[target] = c.CONNECTOR_ELD;
+      fromAlias.push(target);
+      aliasNotes.push({
+        keys,
+        sets: target,
+        message: `${was} is deprecated: it set ${target}=${c.CONNECTOR_ELD}. Write ${target}=${c.CONNECTOR_ELD} in .env.local and delete ${keys.join(' and ')}.`,
+      });
+    } else {
+      aliasNotes.push({
+        keys,
+        sets: null,
+        message: `${was} is deprecated and ignored: ${target} is set (${c[target]}). Delete ${keys.join(' and ')} from .env.local.`,
+      });
+    }
+  } else if (c.ELD_VENDOR !== undefined) {
+    aliasNotes.push({
+      keys: ['ELD_VENDOR'],
+      sets: null,
+      message: `ELD_VENDOR=${c.ELD_VENDOR} is deprecated and does nothing on its own: every vendor has its own key now (${target}=…). Delete ELD_VENDOR from .env.local.`,
+    });
+  }
+  return { modes, aliasNotes, fromAlias };
+}
+
+const resolvedSchema = baseSchema.transform((b) => {
+  const { CONNECTOR_ELD, ELD_VENDOR, ...rest } = b;
+  const r = resolveConnectorModes(b);
+  return {
+    ...rest,
+    ...r.modes,
+    /** Deprecated-key warnings (1f.2): shown on /admin/connectors. */
+    connectorAliasNotes: r.aliasNotes,
+    /** Keys whose mode came from CONNECTOR_ELD (for error messages). */
+    connectorModesFromAlias: r.fromAlias,
+    /** The raw deprecated values, for /admin/connectors only (never used to choose a mode). */
+    deprecatedConnectorEld: CONNECTOR_ELD ?? null,
+    deprecatedEldVendor: ELD_VENDOR ?? null,
+  };
+});
+
+const configSchema = resolvedSchema.superRefine((c, ctx) => {
   if (c.BASEMAP_STYLE === 'openfreemap') {
     ctx.addIssue({
       code: 'custom',
@@ -196,11 +457,7 @@ const configSchema = baseSchema.superRefine((c, ctx) => {
         "'openfreemap': the online style is not built yet (plan §1); use protomaps-local (the default)",
     });
   }
-  const modes: [string, Mode][] = [
-    ['CONNECTOR_DEERE', c.CONNECTOR_DEERE],
-    ['CONNECTOR_ELD', c.CONNECTOR_ELD],
-    ['CONNECTOR_WEATHER', c.CONNECTOR_WEATHER],
-  ];
+  const modes: [ConnectorModeKey, Mode][] = CONNECTOR_MODE_KEYS.map((k) => [k, c[k]]);
   // The demo cadence never runs in production. Locally it may stay on while a connector is live:
   // tools/clock applies it only to jobs whose connector is sim, replay or off (src/jobs/schedule.ts
   // `demoCadenceApplies`), so a live vendor is always polled at the job's real schedule.
@@ -214,10 +471,11 @@ const configSchema = baseSchema.superRefine((c, ctx) => {
   if (c.APP_ENV !== 'production') return;
   for (const [key, mode] of modes) {
     if (mode === 'sim' || mode === 'replay') {
+      const viaAlias = (c.connectorModesFromAlias as readonly string[]).includes(key);
       ctx.addIssue({
         code: 'custom',
         path: [key],
-        message: `'${mode}' is not allowed when APP_ENV=production (use live, sandbox or off)`,
+        message: `'${mode}' is not allowed when APP_ENV=production (use live, sandbox or off)${viaAlias ? ' (set by the deprecated CONNECTOR_ELD)' : ''}`,
       });
     }
   }
@@ -234,12 +492,11 @@ const configSchema = baseSchema.superRefine((c, ctx) => {
       message: 'must be https:// in production',
     });
   }
-  if (c.DEERE_REDIRECT_URI && !c.DEERE_REDIRECT_URI.startsWith('https://')) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['DEERE_REDIRECT_URI'],
-      message: 'must be https:// in production',
-    });
+  for (const key of ['DEERE_REDIRECT_URI', 'CNH_REDIRECT_URI'] as const) {
+    const v = c[key];
+    if (v && !v.startsWith('https://')) {
+      ctx.addIssue({ code: 'custom', path: [key], message: 'must be https:// in production' });
+    }
   }
   if (c.NEXT_PUBLIC_REALTIME === 'sse') {
     ctx.addIssue({
@@ -250,7 +507,7 @@ const configSchema = baseSchema.superRefine((c, ctx) => {
   }
 });
 
-type ParsedEnv = z.infer<typeof baseSchema>;
+type ParsedEnv = z.infer<typeof resolvedSchema>;
 
 export interface Config extends ParsedEnv {
   /** Project root the env files were loaded from. */
@@ -260,8 +517,8 @@ export interface Config extends ParsedEnv {
   cookieSecure: boolean;
 }
 
-/** Keys the schema knows about (for docs and tests). */
-export const CONFIG_KEYS = Object.keys(baseSchema.shape) as (keyof ParsedEnv)[];
+/** Keys the schema knows about (for docs and tests): every env key read, the deprecated ones included. */
+export const CONFIG_KEYS = Object.keys(baseSchema.shape) as (keyof BaseEnv)[];
 
 export class ConfigError extends Error {
   readonly issues: string[];
@@ -418,6 +675,8 @@ export interface PublicConfig {
   staleAfterSeconds: number;
   /** FLEET_STALE_SECONDS_DEERE (Deere working-only fixes). */
   deereStaleAfterSeconds: number;
+  /** FLEET_STALE_SECONDS_LAST_KNOWN (1f.2: vendor snapshots, AEMP). */
+  lastKnownStaleAfterSeconds: number;
 }
 export function publicConfig(c: Config): PublicConfig {
   return {
@@ -426,6 +685,7 @@ export function publicConfig(c: Config): PublicConfig {
     basemapStyle: c.BASEMAP_STYLE,
     staleAfterSeconds: c.FLEET_STALE_SECONDS,
     deereStaleAfterSeconds: c.FLEET_STALE_SECONDS_DEERE,
+    lastKnownStaleAfterSeconds: c.FLEET_STALE_SECONDS_LAST_KNOWN,
   };
 }
 

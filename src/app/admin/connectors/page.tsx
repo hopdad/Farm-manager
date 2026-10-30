@@ -6,10 +6,13 @@
  *  - Per connector stream: mode, last OK, last error, lease, raw-event counts, counters.
  *  - Per job: schedule, running, last run, last OK/failure, runs and failures (1 h / 24 h).
  *  - Dead-lettered raw events.
+ *  - Configuration: every connection's mode (1f.2: one key per vendor) and the warning while the
+ *    deprecated CONNECTOR_ELD / ELD_VENDOR are set (sync-health adds the capability matrix).
  * Re-renders on admin realtime events and every 10 s (LiveRefresh).
  */
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { getConfig, publicConfig } from '@/config';
+import { capabilityMatrix } from '@/connectors/vendors';
 import { getPool } from '@/db/client';
 import { registry } from '@/jobs/registry';
 import { SCENARIO_NAMES, type SimStatus } from '@/sim/types';
@@ -93,14 +96,12 @@ function SimCard({
   sim,
   error,
   baseUrl,
-  eldVendor,
 }: {
   sim: SimStatus | null;
   error: string | null;
   baseUrl: string;
-  eldVendor: 'samsara' | 'motive';
 }) {
-  const presets = faultPresets(eldVendor);
+  const presets = faultPresets();
   const on = new Set(sim?.faults.rules.map((r) => r.id) ?? []);
   const presetIds = new Set(presets.map((p) => p.id));
   const otherRules = [
@@ -507,14 +508,7 @@ export default async function ConnectorsPage() {
             clock={cfg.CLOCK}
             hosts={cfg.CLOCK_HOSTS}
           />
-          {!cfg.isProduction && (
-            <SimCard
-              sim={sim}
-              error={simError}
-              baseUrl={cfg.VENDOR_SIM_URL}
-              eldVendor={cfg.ELD_VENDOR}
-            />
-          )}
+          {!cfg.isProduction && <SimCard sim={sim} error={simError} baseUrl={cfg.VENDOR_SIM_URL} />}
         </div>
         {snap && (
           <>
@@ -528,13 +522,24 @@ export default async function ConnectorsPage() {
         <div style={{ height: 16 }} />
         <section className={css.card}>
           <h2>Configuration</h2>
+          {cfg.connectorAliasNotes.map((n) => (
+            <div key={n.message} className={css.banner} data-testid="connector-alias-warning">
+              {n.message}
+            </div>
+          ))}
           <dl className={css.kv}>
-            <dt>Deere</dt>
-            <dd>{cfg.CONNECTOR_DEERE}</dd>
-            <dt>Trucks (ELD)</dt>
-            <dd>
-              {cfg.CONNECTOR_ELD} ({cfg.ELD_VENDOR})
-            </dd>
+            {capabilityMatrix(cfg).map((row) => (
+              <Fragment key={row.connection}>
+                <dt>{row.label}</dt>
+                <dd data-testid={`connector-mode-${row.connection}`}>
+                  {row.mode}{' '}
+                  <span className={css.muted}>
+                    ({row.modeKey}
+                    {row.build === 'built' ? '' : ', client not built yet'})
+                  </span>
+                </dd>
+              </Fragment>
+            ))}
             <dt>Weather</dt>
             <dd>{cfg.CONNECTOR_WEATHER}</dd>
             <dt>Deere write-back</dt>

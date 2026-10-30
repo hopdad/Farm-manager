@@ -160,7 +160,7 @@ describe('core field listing and machine details (1f)', () => {
   test("simDeereFields lists exactly the seed's Deere field refs (owning org, then sharedWith)", () => {
     const farm = buildDemoFarm();
     const listed = simDeereFields(farm).map((f) => `${f.orgId}|${f.deereFieldId}|${f.field.id}`);
-    const refs = simExternalRefs(farm, 'samsara')
+    const refs = simExternalRefs(farm)
       .filter((r) => r.ref.kind === 'field')
       .map((r) => `${r.ref.sourceOrg}|${r.ref.externalId}|${r.entityId}`);
     expect(listed.sort()).toEqual(refs.sort());

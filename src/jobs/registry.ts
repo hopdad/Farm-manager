@@ -19,6 +19,16 @@
  *   deere.ops     every 15 min (plan §5 "Operations every 15 min"); 20 s in the demo, so a field
  *                 the sim finishes shows its operation soon (1f, deere-ops)
  *
+ * 1f.2 (docs/contracts-1f.md part B): one job per telematics connection, each on its own mode
+ * key, all running at once (stubs in the builders' files until they land):
+ *   fleet.motive     every 30 s, 5 s demo (Motive positions; trucks builder adds stats, faults)
+ *   fleet.geotab     every 30 s, 10 s demo (MyGeotab GetFeed: GetFeed is limited to 60/min)
+ *   fleet.equipment  every 60 s, 10 s demo (Samsara asset gateways; machines builder)
+ *   fleet.aemp       every 15 min, 30 s demo (ISO 15143-3 snapshots, hourly at the OEM)
+ *   fleet.cnh        every 5 min, 30 s demo (CNH FieldOps scaffolding)
+ *   fleet.terminal   every 60 s, 15 s demo (Terminal; terminal-pickups)
+ *   fleet.vehicles   hourly at :41, 60 s demo (vendor tags → vehicle kind; terminal-pickups)
+ *
  * 1f (docs/contracts-1f.md §1): the foundation registered deere.fields and deere.ops with stub
  * run functions in the builders' own files (./deere-fields.ts, ./deere-ops.ts); the builders
  * replace the stubs and leave this file alone.
@@ -29,7 +39,14 @@
 import { runDeereFields } from './deere-fields';
 import { runDeereOps } from './deere-ops';
 import { runFleetTrucks, TRUCKS_BUDGET_MS } from './fleet';
+import { runFleetAemp } from './fleet-aemp';
+import { runFleetCnh } from './fleet-cnh';
 import { runFleetDeere } from './fleet-deere';
+import { runFleetEquipment } from './fleet-equipment';
+import { runFleetGeotab } from './fleet-geotab';
+import { MOTIVE_BUDGET_MS, runFleetMotive } from './fleet-motive';
+import { runFleetTerminal } from './fleet-terminal';
+import { runFleetVehicles } from './fleet-vehicles';
 import type { JobRegistry } from './types';
 import { runWeatherNws } from './weather';
 
@@ -38,7 +55,7 @@ export const jobs = {
     every: '30 seconds',
     demoEvery: '5 seconds',
     budgetMs: TRUCKS_BUDGET_MS,
-    connector: 'CONNECTOR_ELD',
+    connector: 'CONNECTOR_SAMSARA',
     run: runFleetTrucks,
   },
   'fleet.deere': {
@@ -64,6 +81,50 @@ export const jobs = {
     demoEvery: '20 seconds',
     connector: 'CONNECTOR_DEERE',
     run: runDeereOps,
+  },
+  'fleet.motive': {
+    every: '30 seconds',
+    demoEvery: '5 seconds',
+    budgetMs: MOTIVE_BUDGET_MS,
+    connector: 'CONNECTOR_MOTIVE',
+    run: runFleetMotive,
+  },
+  'fleet.geotab': {
+    every: '30 seconds',
+    demoEvery: '10 seconds',
+    budgetMs: 25_000,
+    connector: 'CONNECTOR_GEOTAB',
+    run: runFleetGeotab,
+  },
+  'fleet.equipment': {
+    cron: '* * * * *',
+    demoEvery: '10 seconds',
+    connector: 'CONNECTOR_SAMSARA',
+    run: runFleetEquipment,
+  },
+  'fleet.aemp': {
+    cron: '*/15 * * * *',
+    demoEvery: '30 seconds',
+    connector: 'CONNECTOR_AEMP',
+    run: runFleetAemp,
+  },
+  'fleet.cnh': {
+    cron: '*/5 * * * *',
+    demoEvery: '30 seconds',
+    connector: 'CONNECTOR_CNH',
+    run: runFleetCnh,
+  },
+  'fleet.terminal': {
+    cron: '* * * * *',
+    demoEvery: '15 seconds',
+    connector: 'CONNECTOR_TERMINAL',
+    run: runFleetTerminal,
+  },
+  'fleet.vehicles': {
+    cron: '41 * * * *',
+    demoEvery: '59 seconds',
+    connector: 'CONNECTOR_SAMSARA',
+    run: runFleetVehicles,
   },
 } satisfies JobRegistry;
 

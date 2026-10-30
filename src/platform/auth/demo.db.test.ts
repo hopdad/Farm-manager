@@ -44,7 +44,7 @@ describe('demo people', () => {
   });
 
   test('on the demo farm: created once, deterministic ids, and the PINs sign in', async () => {
-    await seedDemo(t().pool, { seed: 1, eldVendor: 'samsara' });
+    await seedDemo(t().pool, { seed: 1 });
     expect(await seedDemoPeople(t().pool, SECRET)).toEqual({
       inserted: DEMO_PEOPLE.length,
       existing: 0,

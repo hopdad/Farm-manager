@@ -11,7 +11,13 @@
  *  - `onCall` (1f): one `VendorCall` per attempt sent (retries count), for the per-source call
  *    counts and the call budget (ingest.api_calls_daily, decision 4). The default does nothing;
  *    a hook that throws is ignored (counting never fails a vendor call).
+ *  - `withCallStream(stream, fn)` (1f fix): label every call made inside `fn` with a stream
+ *    (`VendorCall.stream`), for calls made OUTSIDE a sync step: the CLIs (`deere:backfill` →
+ *    'backfill', `connectors:record` → 'record') and anything else that isn't runSyncStep.
+ *    sync-health's counter counts those under that stream and flushes them when `fn` settles
+ *    (inside a step, the step's stream wins). Frozen export (docs/contracts-1f.md §5.0).
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { z } from 'zod';
 
 /** One HTTP attempt sent to a vendor (what the call counter sees). */
@@ -28,6 +34,24 @@ export interface VendorCall {
   attempt: number;
   /** Wall time of the attempt. */
   ms: number;
+  /** The `withCallStream` label the call was made under, or null (none, or inside a step). */
+  stream: string | null;
+}
+
+const callStream = new AsyncLocalStorage<{ stream: string }>();
+
+/**
+ * Run `fn` with every vendor call inside it labelled `stream` (the CLIs: 'backfill', 'record').
+ * Nests: the innermost label wins. The foundation's version only labels the calls; sync-health
+ * counts and flushes them (docs/contracts-1f.md §5.5).
+ */
+export function withCallStream<T>(stream: string, fn: () => Promise<T>): Promise<T> {
+  return callStream.run({ stream }, fn);
+}
+
+/** The current `withCallStream` label, or null. */
+export function currentCallStream(): string | null {
+  return callStream.getStore()?.stream ?? null;
 }
 
 /** Called once per attempt; must not throw (a throw is caught and ignored) and must be cheap. */
@@ -201,6 +225,7 @@ export async function vendorFetch(
         outcome: ok ? 'ok' : status === 429 ? 'rate_limited' : 'error',
         attempt,
         ms: Math.max(0, Date.now() - startedAt),
+        stream: currentCallStream(),
       });
     } catch {
       // Counting never fails a vendor call.

@@ -42,7 +42,7 @@ async function resetAndResync(admin: pg.Pool, pool: pg.Pool): Promise<void> {
   );
   await admin.query(`truncate ${r.rows.map((x) => x.t).join(', ')} cascade`);
   await admin.query(`delete from app.settings where key <> 'clock.paused'`);
-  await seedDemo(pool, { seed: 1, eldVendor: 'samsara' });
+  await seedDemo(pool, { seed: 1 });
 }
 
 const withoutStamp = (d: ExportDoc) => ({ ...d, exportedAt: 'x' });
@@ -50,7 +50,7 @@ const withoutStamp = (d: ExportDoc) => ({ ...d, exportedAt: 'x' });
 describe('data:export / data:import', () => {
   test('round trip through a reset, with references to synced rows', async () => {
     const { pool, admin } = t();
-    await seedDemo(pool, { seed: 1, eldVendor: 'samsara' });
+    await seedDemo(pool, { seed: 1 });
 
     // Hand-entered data of every kind, some of it pointing at demo (synced) rows.
     const landlord = validateParty({
@@ -202,7 +202,7 @@ describe('data:export / data:import', () => {
 
   test('switched-off demo sign-ins stay off through export, reset and import', async () => {
     const { pool, admin } = t();
-    await seedDemo(pool, { seed: 1, eldVendor: 'samsara' });
+    await seedDemo(pool, { seed: 1 });
     await seedDemoPeople(pool, SECRET);
     const amy = demoUserId('crew-amy');
     const dale = demoUserId('crew-dale');

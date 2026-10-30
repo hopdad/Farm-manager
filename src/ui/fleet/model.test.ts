@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import type { Mode } from '../../connectors/types';
 import type { FleetTick, MachineView } from '../../domain/fleet';
 import type { FleetPanelData, PanelMachine } from './contract';
 import {
@@ -51,7 +52,15 @@ function data(machines: PanelMachine[], over: Partial<FleetPanelData> = {}): Fle
     builtAt: NOW.toISOString(),
     machines,
     canMarkDown: true,
-    modes: { deere: 'sim', eld: 'live', eldVendor: 'samsara' },
+    modes: {
+      deere: 'sim',
+      samsara: 'live',
+      motive: 'live',
+      geotab: 'off',
+      aemp: 'off',
+      cnh: 'off',
+      terminal: 'off',
+    },
     config: {
       appEnv: 'development',
       realtime: 'sse',
@@ -263,16 +272,27 @@ describe('reducePanel', () => {
 });
 
 describe('modeNotices', () => {
-  test('flags anything that is not live, naming the ELD vendor', () => {
+  test('flags every connection that is not live or off, in registry order and words', () => {
+    const all = (mode: Mode) => ({
+      deere: mode,
+      samsara: mode,
+      motive: mode,
+      geotab: mode,
+      aemp: mode,
+      cnh: mode,
+      terminal: mode,
+    });
     expect(modeNotices(null)).toEqual([]);
-    expect(modeNotices({ deere: 'live', eld: 'live', eldVendor: 'samsara' })).toEqual([]);
-    expect(modeNotices({ deere: 'replay', eld: 'replay', eldVendor: 'samsara' })).toEqual([
-      'Deere: replay',
+    expect(modeNotices(all('live'))).toEqual([]);
+    expect(modeNotices(all('off'))).toEqual([]);
+    expect(modeNotices({ ...all('off'), deere: 'replay', samsara: 'replay' })).toEqual([
+      'John Deere: replay',
       'Samsara: replay',
     ]);
-    expect(modeNotices({ deere: 'sandbox', eld: 'sim', eldVendor: 'motive' })).toEqual([
-      'Deere: sandbox',
+    expect(modeNotices({ ...all('live'), deere: 'sandbox', motive: 'sim', aemp: 'sim' })).toEqual([
+      'John Deere: sandbox',
       'Motive: sim',
+      'AEMP (ISO 15143-3): sim',
     ]);
   });
 });

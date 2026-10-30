@@ -7,7 +7,11 @@
  *    position source (FLEET_STALE_SECONDS, or FLEET_STALE_SECONDS_DEERE for Deere fixes).
  *  - `upsertPosition()`: one fix → farm.positions (PK (machine_id, ts): duplicates are no-ops)
  *    and farm.machine_state (only when the fix is newer, so out-of-order pages never move a
- *    machine back). The current field and the activity are derived in PostGIS:
+ *    machine back), with the fix's vendor id (`position_vendor`: `positionVendorId(source,
+ *    provider)`, 1f.2) and kind. A `last_known` fix (a vendor snapshot: AEMP, Terminal's latest
+ *    location) updates machine_state only: never farm.positions (it isn't a trail point), so it
+ *    never reports `inserted` and never runs geofence detection. The current field and the
+ *    activity are derived in PostGIS:
  *      deere_working → working; inside an elevator geofence below 5 mph → queued;
  *      >= 3 mph → transport; else idle.
  *  - `upsertVehicleStat()`: engine hours / odometer (never decreasing) and fuel.
@@ -21,6 +25,8 @@ import {
   isMachineStale,
   type MachineView,
   normalizeHeading,
+  type PositionKind,
+  positionVendorId,
   type StaleThresholds,
 } from '../../domain/fleet';
 import { publish } from '../../platform/realtime/publish';
@@ -48,6 +54,7 @@ interface SnapshotRow {
   activity: MachineView['activity'];
   field_id: string | null;
   position_source: MachineView['positionSource'];
+  position_kind: PositionKind | null;
   ts: Date | string;
 }
 
@@ -62,7 +69,7 @@ export async function fleetMachines(
     `select m.id::text as id, m.unit_no, m.kind, m.status,
             extensions.ST_X(s.geom) as lng, extensions.ST_Y(s.geom) as lat,
             s.heading, s.speed_mph, s.activity, s.current_field_id::text as field_id,
-            s.position_source, s.ts
+            s.position_source, s.position_kind, s.ts
        from farm.machines m
        join farm.machine_state s on s.machine_id = m.id
       where m.status <> 'retired'
@@ -70,6 +77,7 @@ export async function fleetMachines(
   );
   return r.rows.map((row) => {
     const ts = (toDate(row.ts) as Date).toISOString();
+    const positionKind = row.position_kind ?? 'live';
     return {
       id: row.id,
       unitNo: row.unit_no,
@@ -81,9 +89,11 @@ export async function fleetMachines(
       activity: row.activity,
       fieldId: row.field_id,
       positionSource: row.position_source,
+      // Only said for snapshots, so a tick of live fixes stays as small as before (1f.2).
+      ...(positionKind === 'last_known' ? { positionKind } : {}),
       ts,
       status: row.status,
-      stale: isMachineStale({ ts, positionSource: row.position_source }, now, stale),
+      stale: isMachineStale({ ts, positionSource: row.position_source, positionKind }, now, stale),
     };
   });
 }
@@ -97,14 +107,18 @@ export async function fleetSnapshot(
   return { ts: now.toISOString(), machines: await fleetMachines(ex, now, stale) };
 }
 
-/** The stale thresholds from config (FLEET_STALE_SECONDS / FLEET_STALE_SECONDS_DEERE). */
+/** The stale thresholds from config (FLEET_STALE_SECONDS / _DEERE / _LAST_KNOWN). */
 export function staleThresholdsOf(cfg: {
   FLEET_STALE_SECONDS: number;
   FLEET_STALE_SECONDS_DEERE: number;
+  FLEET_STALE_SECONDS_LAST_KNOWN?: number;
 }): StaleThresholds {
   return {
     staleAfterSeconds: cfg.FLEET_STALE_SECONDS,
     deereStaleAfterSeconds: cfg.FLEET_STALE_SECONDS_DEERE,
+    ...(cfg.FLEET_STALE_SECONDS_LAST_KNOWN
+      ? { lastKnownStaleAfterSeconds: cfg.FLEET_STALE_SECONDS_LAST_KNOWN }
+      : {}),
   };
 }
 
@@ -123,15 +137,20 @@ export async function upsertPosition(
 ): Promise<UpsertPositionResult> {
   const heading = p.heading === null ? null : normalizeHeading(p.heading);
   const speed = p.speedMph === null ? null : Math.max(0, p.speedMph);
-  const ins = await exec(
-    ex,
-    `insert into farm.positions (machine_id, ts, geom, speed_mph, heading, engine_on, source)
-     values ($1::uuid, $2::timestamptz,
-             extensions.ST_SetSRID(extensions.ST_MakePoint($3::float8, $4::float8), 4326),
-             $5::float8, $6::float8, $7::boolean, $8)
-     on conflict (machine_id, ts) do nothing`,
-    [machineId, p.ts, p.lng, p.lat, speed, heading, p.engineOn, p.source],
-  );
+  const kind: PositionKind = p.positionKind ?? 'live';
+  const vendor = positionVendorId(p.source, p.provider);
+  const ins =
+    kind === 'live'
+      ? await exec(
+          ex,
+          `insert into farm.positions (machine_id, ts, geom, speed_mph, heading, engine_on, source)
+           values ($1::uuid, $2::timestamptz,
+                   extensions.ST_SetSRID(extensions.ST_MakePoint($3::float8, $4::float8), 4326),
+                   $5::float8, $6::float8, $7::boolean, $8)
+           on conflict (machine_id, ts) do nothing`,
+          [machineId, p.ts, p.lng, p.lat, speed, heading, p.engineOn, p.source],
+        )
+      : { rowCount: 0 };
   const st = await exec(
     ex,
     `with pt as (
@@ -139,7 +158,7 @@ export async function upsertPosition(
      )
      insert into farm.machine_state as ms
        (machine_id, ts, geom, speed_mph, heading, activity, current_field_id, engine_on,
-        position_source, updated_at)
+        position_source, position_vendor, position_kind, updated_at)
      select $1::uuid, $2::timestamptz, pt.g, $5::float8, $6::float8,
             case
               when $8 = 'deere_working' then 'working'
@@ -155,16 +174,18 @@ export async function upsertPosition(
               where extensions.ST_Intersects(b.geom, pt.g)
               order by b.field_id
               limit 1),
-            $7::boolean, $8, now()
+            $7::boolean, $8, $9, $10, now()
        from pt
      on conflict (machine_id) do update
        set ts = excluded.ts, geom = excluded.geom, speed_mph = excluded.speed_mph,
            heading = excluded.heading, activity = excluded.activity,
            current_field_id = excluded.current_field_id,
            engine_on = coalesce(excluded.engine_on, ms.engine_on),
-           position_source = excluded.position_source, updated_at = now()
+           position_source = excluded.position_source,
+           position_vendor = excluded.position_vendor,
+           position_kind = excluded.position_kind, updated_at = now()
      where ms.ts < excluded.ts`,
-    [machineId, p.ts, p.lng, p.lat, speed, heading, p.engineOn, p.positionSource],
+    [machineId, p.ts, p.lng, p.lat, speed, heading, p.engineOn, p.positionSource, vendor, kind],
   );
   return { inserted: ins.rowCount === 1, stateUpdated: st.rowCount === 1 };
 }

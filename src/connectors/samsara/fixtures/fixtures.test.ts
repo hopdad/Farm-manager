@@ -74,9 +74,11 @@ describe('Samsara doc-derived fixtures', () => {
     expect((statsAfter?.response.body as { data: unknown[] } | undefined)?.data).toEqual([]);
   });
 
-  test('every vehicle is an ELD vehicle the demo seed maps; all four trucks every page', () => {
-    const refs = simExternalRefs(buildDemoFarm(), 'samsara').filter(
-      (r) => r.ref.source === 'samsara',
+  test('every vehicle is a Samsara truck the demo seed maps; all four trucks every page', () => {
+    const farm = buildDemoFarm();
+    const semis = new Set(farm.machines.filter((m) => m.kind === 'semi').map((m) => m.id));
+    const refs = simExternalRefs(farm).filter(
+      (r) => r.ref.source === 'samsara' && semis.has(r.entityId),
     );
     const known = new Set(refs.map((r) => r.ref.externalId));
     expect(known.size).toBe(4);

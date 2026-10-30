@@ -10,6 +10,7 @@
  *    (FLEET_STALE_SECONDS, or FLEET_STALE_SECONDS_DEERE for Deere's working-only fixes), is
  *    "stale"; otherwise working or on the road is "moving", idle or in line is "idle".
  */
+import { CONNECTIONS, connectionEntry } from '../../connectors/vendors';
 import {
   type FleetTick,
   isMachineStale,
@@ -97,6 +98,9 @@ function applyTickMachine(m: PanelMachine, v: MachineView): { next: PanelMachine
       ts: v.ts,
       fieldId: v.fieldId,
       fieldName: sameField ? (m.position?.fieldName ?? null) : null,
+      // The tick doesn't carry the vendor: keep the last one the snapshot said (1f.2).
+      ...(m.position?.vendor !== undefined ? { vendor: m.position.vendor } : {}),
+      ...(v.positionKind ? { positionKind: v.positionKind } : {}),
     },
   };
   const newField = !sameField && v.fieldId !== null;
@@ -184,7 +188,11 @@ export function groupOf(
   const stale =
     m.position !== null &&
     isMachineStale(
-      { ts: m.position.ts, positionSource: m.position.positionSource },
+      {
+        ts: m.position.ts,
+        positionSource: m.position.positionSource,
+        positionKind: m.position.positionKind,
+      },
       now,
       thresholds,
     );
@@ -220,15 +228,19 @@ export function thresholdsOf(config: FleetPanelData['config'] | null): StaleThre
   return {
     staleAfterSeconds: config?.staleAfterSeconds ?? 600,
     deereStaleAfterSeconds: config?.deereStaleAfterSeconds ?? 600,
+    ...(config?.lastKnownStaleAfterSeconds
+      ? { lastKnownStaleAfterSeconds: config.lastKnownStaleAfterSeconds }
+      : {}),
   };
 }
 
-/** Connector modes worth flagging on the panel ("replay", "sim"): never shown for live. */
+/**
+ * Connector modes worth flagging on the panel ("replay", "sim"), one per connection in
+ * CONNECTIONS order, labelled from the vendor registry: never shown for live or off.
+ */
 export function modeNotices(modes: FleetPanelData['modes'] | null): string[] {
   if (!modes) return [];
-  const notes: string[] = [];
-  const name = { samsara: 'Samsara', motive: 'Motive' }[modes.eldVendor];
-  if (modes.deere !== 'live') notes.push(`Deere: ${modes.deere}`);
-  if (modes.eld !== 'live') notes.push(`${name}: ${modes.eld}`);
-  return notes;
+  return CONNECTIONS.filter((c) => modes[c] !== 'live' && modes[c] !== 'off').map(
+    (c) => `${connectionEntry(c).label}: ${modes[c]}`,
+  );
 }

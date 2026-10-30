@@ -6,7 +6,8 @@
  *    (`simAutoConnect`, sim only), tokens stored encrypted in ingest.oauth_tokens with
  *    TOKEN_ENC_KEY. An existing grant the stand-in still accepts is kept (refreshed if needed).
  *    Then one organizations + machines read proves the token works.
- *  - Trucks (ELD_VENDOR): sim bearer tokens are fixed (SIM_CREDENTIALS); one feed read proves them.
+ *  - Trucks (1f.2: each telematics vendor on its own key; Samsara and Motive have sim clients
+ *    today): sim bearer tokens are fixed (SIM_CREDENTIALS); one feed read proves each.
  *
  * It uses the stand-in already answering at VENDOR_SIM_URL, or starts one in-process on that
  * port for the duration, with the same state file (.data/vendor-sim/state.json), so the grant is
@@ -35,12 +36,16 @@ import { fileStateStore, STATE_FILE } from './state-file';
 export type ConnectConfig = Pick<
   Config,
   | 'CONNECTOR_DEERE'
-  | 'CONNECTOR_ELD'
-  | 'ELD_VENDOR'
+  | 'CONNECTOR_SAMSARA'
+  | 'CONNECTOR_MOTIVE'
   | 'VENDOR_SIM_URL'
   | 'PUBLIC_URL'
   | 'TOKEN_ENC_KEY'
 >;
+
+/** The truck vendors with a sim client today (the 1f.2 builders add theirs). */
+export const CONNECT_TRUCK_VENDORS = ['samsara', 'motive'] as const;
+type TruckCheck = { status: 'skipped'; why: string } | { status: 'verified'; vehicles: number };
 
 export interface ConnectSimOptions {
   cfg: ConnectConfig;
@@ -53,7 +58,7 @@ export interface ConnectSimResult {
   deere:
     | { status: 'skipped'; why: string }
     | { status: 'connected' | 'verified'; orgs: number; machines: number };
-  eld: { status: 'skipped'; why: string } | { status: 'verified'; vehicles: number };
+  trucks: Record<(typeof CONNECT_TRUCK_VENDORS)[number], TruckCheck>;
 }
 
 /** Connect (or verify) every sim-mode vendor account against the stand-in at VENDOR_SIM_URL. */
@@ -62,7 +67,10 @@ export async function connectSimVendors(o: ConnectSimOptions): Promise<ConnectSi
   const log = o.log ?? (() => {});
   const result: ConnectSimResult = {
     deere: { status: 'skipped', why: `CONNECTOR_DEERE=${cfg.CONNECTOR_DEERE}` },
-    eld: { status: 'skipped', why: `CONNECTOR_ELD=${cfg.CONNECTOR_ELD}` },
+    trucks: {
+      samsara: { status: 'skipped', why: `CONNECTOR_SAMSARA=${cfg.CONNECTOR_SAMSARA}` },
+      motive: { status: 'skipped', why: `CONNECTOR_MOTIVE=${cfg.CONNECTOR_MOTIVE}` },
+    },
   };
 
   if (cfg.CONNECTOR_DEERE === 'sim') {
@@ -86,19 +94,20 @@ export async function connectSimVendors(o: ConnectSimOptions): Promise<ConnectSi
     log(`Deere: ${cfg.CONNECTOR_DEERE} mode, skipped (connect a real account at /api/oauth/deere)`);
   }
 
-  if (cfg.CONNECTOR_ELD === 'sim') {
-    let vehicles: number;
-    if (cfg.ELD_VENDOR === 'samsara') {
-      const page = await SamsaraClient.forMode('sim', cfg).locationsFeed(null);
-      vehicles = page.data.length;
-    } else {
-      const r = await MotiveClient.forMode('sim', cfg).pollPositions(null);
-      vehicles = new Set(r.items.map((i) => i.externalId)).size;
-    }
-    result.eld = { status: 'verified', vehicles };
-    log(`${cfg.ELD_VENDOR} (sim): API token works; ${vehicles} vehicle(s)`);
+  if (cfg.CONNECTOR_SAMSARA === 'sim') {
+    const page = await SamsaraClient.forMode('sim', cfg).locationsFeed(null);
+    result.trucks.samsara = { status: 'verified', vehicles: page.data.length };
+    log(`Samsara (sim): API token works; ${page.data.length} vehicle(s)`);
   } else {
-    log(`Trucks: ${cfg.CONNECTOR_ELD} mode, skipped`);
+    log(`Samsara: ${cfg.CONNECTOR_SAMSARA} mode, skipped`);
+  }
+  if (cfg.CONNECTOR_MOTIVE === 'sim') {
+    const r = await MotiveClient.forMode('sim', cfg).pollPositions(null);
+    const vehicles = new Set(r.items.map((i) => i.externalId)).size;
+    result.trucks.motive = { status: 'verified', vehicles };
+    log(`Motive (sim): API key works; ${vehicles} vehicle(s)`);
+  } else {
+    log(`Motive: ${cfg.CONNECTOR_MOTIVE} mode, skipped`);
   }
   return result;
 }
@@ -118,7 +127,11 @@ async function runningStandIn(baseUrl: string): Promise<SimStatus | null> {
 export async function main(): Promise<number> {
   const cfg = getConfig();
   const say = (line: string) => console.log(`[vendor-sim:connect] ${line}`);
-  if (cfg.CONNECTOR_DEERE !== 'sim' && cfg.CONNECTOR_ELD !== 'sim') {
+  if (
+    cfg.CONNECTOR_DEERE !== 'sim' &&
+    cfg.CONNECTOR_SAMSARA !== 'sim' &&
+    cfg.CONNECTOR_MOTIVE !== 'sim'
+  ) {
     say('no connector is in sim mode; nothing to do');
     return 0;
   }

@@ -115,10 +115,10 @@ jobs:
         run: pnpm test:e2e
       # Plan 1a done-when: CONNECTOR_DEERE=replay runs on the doc-derived fixtures (the replay
       # spec skips itself under the default sim stack, so it runs here against a replay app).
-      - name: End-to-end in replay mode (Deere and the ELD from doc-derived fixtures)
+      - name: End-to-end in replay mode (Deere and the Samsara trucks from doc-derived fixtures)
         env:
           CONNECTOR_DEERE: replay
-          CONNECTOR_ELD: replay
+          CONNECTOR_SAMSARA: replay
         run: pnpm test:e2e e2e/fleet-panel-replay.spec.ts e2e/fleet-panel.spec.ts --project=wall
       - name: Playwright report
         if: failure()

@@ -5,7 +5,7 @@
  * into the database DATABASE_URL names, as farm_app, then the M1 extras (tools/seed/extras.ts:
  * demo people with their PINs, soils, synthetic parcels, the online NAIP layer row). `pnpm db:reset` runs `scripts/seed.ts demo`
  * after migrating. Idempotent: running it again changes nothing. Refuses any database that
- * isn't on this machine (plan §1). The seed defaults to SIM_SEED; ELD refs use ELD_VENDOR.
+ * isn't on this machine (plan §1). The seed defaults to SIM_SEED; every machine's refs use its own vendor.
  */
 import { parseArgs } from 'node:util';
 import { getConfig } from '../src/config';
@@ -62,10 +62,10 @@ async function main(): Promise<void> {
   const pool = createPool({ max: 2, applicationName: 'farm-seed' });
   try {
     const started = performance.now();
-    const report = await seedDemo(pool, { seed: args.seed, eldVendor: cfg.ELD_VENDOR });
+    const report = await seedDemo(pool, { seed: args.seed });
     const db = new URL(cfg.DATABASE_URL).pathname.slice(1) || 'postgres';
     console.log(
-      `[seed] ${args.set} (seed ${report.seed}, ELD ${report.eldVendor}) into ${db} in ${Math.round(performance.now() - started)} ms`,
+      `[seed] ${args.set} (seed ${report.seed}) into ${db} in ${Math.round(performance.now() - started)} ms`,
     );
     console.log(formatSeedReport(report));
     const extras = await seedDemoExtras(pool, {

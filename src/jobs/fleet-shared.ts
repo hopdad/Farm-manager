@@ -24,16 +24,31 @@ import { publish } from '../platform/realtime/publish';
 import { detectGeofenceVisits } from './geofences';
 import type { JobContext } from './types';
 
-/** What the fleet jobs read from config (tests pass their own). */
+/**
+ * What the fleet jobs read from config (tests pass their own). 1f.2: one mode key per telematics
+ * connection (CONNECTOR_SAMSARA, CONNECTOR_MOTIVE, …); the deprecated CONNECTOR_ELD alias is
+ * resolved by src/config.ts and never read here.
+ */
 export type FleetConfig = ConnectorConfig &
   Pick<
     Config,
-    | 'CONNECTOR_ELD'
     | 'CONNECTOR_DEERE'
-    | 'ELD_VENDOR'
+    | 'CONNECTOR_SAMSARA'
+    | 'CONNECTOR_MOTIVE'
     | 'FLEET_STALE_SECONDS'
     | 'FLEET_STALE_SECONDS_DEERE'
     | 'DEERE_DAILY_CALL_BUDGET'
+  > &
+  Partial<
+    Pick<
+      Config,
+      | 'CONNECTOR_GEOTAB'
+      | 'CONNECTOR_AEMP'
+      | 'CONNECTOR_CNH'
+      | 'CONNECTOR_TERMINAL'
+      | 'FLEET_STALE_SECONDS_LAST_KNOWN'
+      | 'VEHICLE_KIND_TAGS'
+    >
   >;
 
 export interface FleetJobOptions {

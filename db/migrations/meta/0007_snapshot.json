@@ -1632,11 +1632,65 @@
           "primaryKey": false,
           "notNull": true
         },
+        "system": {
+          "name": "system",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "spn": {
+          "name": "spn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fmi": {
+          "name": "fmi",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_address": {
+          "name": "source_address",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occurrence_count": {
+          "name": "occurrence_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dtc_state": {
+          "name": "dtc_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "oem_class": {
+          "name": "oem_class",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lamps": {
+          "name": "lamps",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "severity": {
           "name": "severity",
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "vendor_severity": {
+          "name": "vendor_severity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "description": {
           "name": "description",
@@ -1759,6 +1813,10 @@
         "machine_faults_cleared_check": {
           "name": "machine_faults_cleared_check",
           "value": "\"farm\".\"machine_faults\".\"cleared_at\" is null or \"farm\".\"machine_faults\".\"cleared_at\" >= \"farm\".\"machine_faults\".\"first_seen_at\""
+        },
+        "machine_faults_system_check": {
+          "name": "machine_faults_system_check",
+          "value": "\"farm\".\"machine_faults\".\"system\" in ('j1939', 'obd2', 'oem')\n  and (\"farm\".\"machine_faults\".\"system\" = 'j1939') = (\"farm\".\"machine_faults\".\"spn\" is not null and \"farm\".\"machine_faults\".\"fmi\" is not null)\n  and (\"farm\".\"machine_faults\".\"spn\" is null or \"farm\".\"machine_faults\".\"spn\" between 0 and 524287)\n  and (\"farm\".\"machine_faults\".\"fmi\" is null or \"farm\".\"machine_faults\".\"fmi\" between 0 and 31)\n  and (\"farm\".\"machine_faults\".\"source_address\" is null or (\"farm\".\"machine_faults\".\"system\" = 'j1939' and \"farm\".\"machine_faults\".\"source_address\" between 0 and 255))\n  and (\"farm\".\"machine_faults\".\"occurrence_count\" is null or \"farm\".\"machine_faults\".\"occurrence_count\" >= 0)\n  and (\"farm\".\"machine_faults\".\"dtc_state\" is null or (\"farm\".\"machine_faults\".\"system\" = 'obd2' and \"farm\".\"machine_faults\".\"dtc_state\" in ('confirmed', 'pending', 'permanent')))\n  and (\"farm\".\"machine_faults\".\"oem_class\" is null or (\"farm\".\"machine_faults\".\"system\" = 'oem' and \"farm\".\"machine_faults\".\"oem_class\" in ('caution', 'fault')))\n  and (\"farm\".\"machine_faults\".\"lamps\" is null or jsonb_typeof(\"farm\".\"machine_faults\".\"lamps\") = 'object')"
         }
       },
       "isRLSEnabled": false
@@ -1939,6 +1997,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "position_kind": {
+          "name": "position_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'live'"
+        },
         "fault_codes": {
           "name": "fault_codes",
           "type": "jsonb",
@@ -2027,11 +2092,15 @@
         },
         "machine_state_position_vendor_check": {
           "name": "machine_state_position_vendor_check",
-          "value": "\"farm\".\"machine_state\".\"position_vendor\" is null or \"farm\".\"machine_state\".\"position_vendor\" in ('deere', 'samsara', 'motive')"
+          "value": "\"farm\".\"machine_state\".\"position_vendor\" is null or \"farm\".\"machine_state\".\"position_vendor\" ~ '^[a-z][a-z0-9_]{1,30}$'"
         },
         "machine_state_fault_codes_check": {
           "name": "machine_state_fault_codes_check",
           "value": "jsonb_typeof(\"farm\".\"machine_state\".\"fault_codes\") = 'array'"
+        },
+        "machine_state_position_kind_check": {
+          "name": "machine_state_position_kind_check",
+          "value": "\"farm\".\"machine_state\".\"position_kind\" in ('live', 'last_known')"
         }
       },
       "isRLSEnabled": false
@@ -2133,6 +2202,19 @@
           "primaryKey": false,
           "notNull": false
         },
+        "telematics_via": {
+          "name": "telematics_via",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind_set_by": {
+          "name": "kind_set_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2180,11 +2262,19 @@
       "checkConstraints": {
         "machines_kind_check": {
           "name": "machines_kind_check",
-          "value": "\"farm\".\"machines\".\"kind\" in ('combine', 'tractor', 'sprayer', 'planter', 'grain_cart', 'semi', 'trailer', 'drone', 'pickup')"
+          "value": "\"farm\".\"machines\".\"kind\" in ('combine', 'tractor', 'sprayer', 'planter', 'grain_cart', 'semi', 'trailer', 'drone', 'pickup', 'service_truck', 'loader')"
         },
         "machines_status_check": {
           "name": "machines_status_check",
           "value": "\"farm\".\"machines\".\"status\" in ('active', 'down', 'retired')"
+        },
+        "machines_telematics_via_check": {
+          "name": "machines_telematics_via_check",
+          "value": "\"farm\".\"machines\".\"telematics_via\" is null or \"farm\".\"machines\".\"telematics_via\" ~ '^[a-z][a-z0-9_]{1,30}$'"
+        },
+        "machines_kind_set_by_check": {
+          "name": "machines_kind_set_by_check",
+          "value": "\"farm\".\"machines\".\"kind_set_by\" in ('default', 'vendor', 'admin')"
         }
       },
       "isRLSEnabled": false

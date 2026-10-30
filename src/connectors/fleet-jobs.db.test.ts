@@ -81,13 +81,13 @@ beforeAll(async () => {
     VENDOR_SIM_URL: sim.url,
     PUBLIC_URL: 'http://localhost:3103',
     TOKEN_ENC_KEY: 'ef'.repeat(32),
-    CONNECTOR_ELD: 'sim',
+    CONNECTOR_SAMSARA: 'sim',
+    CONNECTOR_MOTIVE: 'sim',
     CONNECTOR_DEERE: 'sim',
-    ELD_VENDOR: 'samsara',
     FLEET_STALE_SECONDS: 600,
     FLEET_STALE_SECONDS_DEERE: 600,
   };
-  await seedSimFarm(t().adminDb, farm, 'samsara');
+  await seedSimFarm(t().adminDb, farm);
   listener = await listenAppEvents(t().appUrl);
 });
 afterAll(async () => {
@@ -225,7 +225,10 @@ describe('fleet.trucks (Samsara, sim)', () => {
   });
 
   test("mode 'off' polls nothing", async () => {
-    const off = createFleetTrucksJob({ config: () => ({ ...cfg, CONNECTOR_ELD: 'off' }), http });
+    const off = createFleetTrucksJob({
+      config: () => ({ ...cfg, CONNECTOR_SAMSARA: 'off' }),
+      http,
+    });
     expect(await off(ctx('fleet.trucks'))).toEqual({ items: 0, note: 'off' });
     await t().pool.query(`select app.ensure_stream('samsara', 'positions', 'sim')`);
     await t().pool.query(`select app.ensure_stream('samsara', 'stats', 'sim')`);

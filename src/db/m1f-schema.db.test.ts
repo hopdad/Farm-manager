@@ -234,6 +234,9 @@ describe('farm.machine_hours and farm.machine_faults', () => {
       machineId: id,
       source: 'samsara',
       code: 'J1939 SPN 110 FMI 0',
+      system: 'j1939' as const,
+      spn: 110,
+      fmi: 0,
       severity: 'critical' as const,
       firstSeenAt: at,
       lastSeenAt: at,
@@ -279,16 +282,34 @@ describe('farm.machine_hours and farm.machine_faults', () => {
       faultsAt: null,
       statsAt: null,
       positionVendor: null,
+      positionKind: 'live',
     });
-    // The panel parses these, so the database refuses anything it couldn't.
+    // 1f.2: any vendor id of the format (no migration per vendor); the panel labels it.
+    for (const v of ['samsara', 'geotab', 'aemp_kubota', 'terminal_omnitracs']) {
+      await t().pool.query(
+        `update farm.machine_state set position_vendor = $2 where machine_id = $1`,
+        [id, v],
+      );
+    }
+    for (const bad of ['Geotab', 'a', 'aemp-kubota', `x${'y'.repeat(31)}`]) {
+      expect(
+        await pgCode(
+          t().pool.query(
+            `update farm.machine_state set position_vendor = $2 where machine_id = $1`,
+            [id, bad],
+          ),
+        ),
+        bad,
+      ).toBe('23514');
+    }
     await t().pool.query(
-      `update farm.machine_state set position_vendor = 'samsara' where machine_id = $1`,
+      `update farm.machine_state set position_kind = 'last_known' where machine_id = $1`,
       [id],
     );
     expect(
       await pgCode(
         t().pool.query(
-          `update farm.machine_state set position_vendor = 'geotab' where machine_id = $1`,
+          `update farm.machine_state set position_kind = 'snapshot' where machine_id = $1`,
           [id],
         ),
       ),
@@ -301,6 +322,93 @@ describe('farm.machine_hours and farm.machine_faults', () => {
         ),
       ),
     ).toBe('23514');
+  });
+});
+
+describe('1f.2: one fault model, telematics vehicles', () => {
+  const at = new Date('2026-10-15T14:00:00Z');
+  const base = { source: 'motive', severity: 'warning' as const, firstSeenAt: at, lastSeenAt: at };
+
+  test('each code system keeps its own fields; the CHECK refuses a mixed row', async () => {
+    const id = await machine('S4');
+    const ok = [
+      {
+        code: 'J1939 SPN 110 FMI 0',
+        system: 'j1939' as const,
+        spn: 110,
+        fmi: 0,
+        sourceAddress: 0,
+        occurrenceCount: 3,
+        lamps: { redStop: true },
+      },
+      {
+        code: 'P0217',
+        system: 'obd2' as const,
+        dtcState: 'confirmed' as const,
+        lamps: { malfunction: true },
+      },
+      {
+        code: 'OEM caution 1234',
+        system: 'oem' as const,
+        oemClass: 'caution' as const,
+        vendorSeverity: 'Medium',
+      },
+    ];
+    for (const f of ok)
+      await t()
+        .db.insert(machineFaults)
+        .values({ ...base, machineId: id, ...f });
+    const bad = [
+      { code: 'J1939 SPN ? FMI 0', system: 'j1939' as const, fmi: 0 }, // no SPN
+      { code: 'P0300', system: 'obd2' as const, spn: 1, fmi: 1 }, // SPN/FMI on an OBD row
+      { code: 'P0301', system: 'obd2' as const, oemClass: 'fault' as const },
+      { code: 'OEM 1', system: 'oem' as const, dtcState: 'pending' as const },
+      { code: 'J1939 SPN 600000 FMI 0', system: 'j1939' as const, spn: 600_000, fmi: 0 },
+      { code: 'J1939 SPN 1 FMI 40', system: 'j1939' as const, spn: 1, fmi: 40 },
+      { code: 'OEM 2', system: 'oem' as const, lamps: [] as unknown as { redStop: boolean } },
+    ];
+    for (const f of bad) {
+      expect(
+        await pgCode(
+          t()
+            .db.insert(machineFaults)
+            .values({ ...base, machineId: id, ...f }),
+        ),
+        f.code,
+      ).toBe('23514');
+    }
+    expect(
+      await pgCode(
+        t().pool.query(
+          `insert into farm.machine_faults (machine_id, source, code, system, severity, first_seen_at, last_seen_at)
+           values ($1, 'motive', 'x', 'can', 'info', now(), now())`,
+          [id],
+        ),
+      ),
+    ).toBe('23514');
+  });
+
+  test('machines: the new kinds, telematics_via of the vendor-id format, kind_set_by', async () => {
+    const id = await machine('PU1');
+    const [row] = await t().db.select().from(machines).where(eq(machines.id, id));
+    expect(row).toMatchObject({ telematicsVia: null, kindSetBy: 'default' });
+    await t().pool.query(
+      `update farm.machines set kind = 'pickup', telematics_via = 'ford_pro', kind_set_by = 'vendor' where id = $1`,
+      [id],
+    );
+    for (const k of ['service_truck', 'loader']) {
+      await t().pool.query(`update farm.machines set kind = $2 where id = $1`, [id, k]);
+    }
+    for (const [col, v] of [
+      ['kind', 'skid_steer'],
+      ['telematics_via', 'Ford Pro'],
+      ['kind_set_by', 'tag'],
+    ]) {
+      expect(
+        await pgCode(t().pool.query(`update farm.machines set ${col} = $2 where id = $1`, [id, v])),
+        `${col}=${v}`,
+      ).toBe('23514');
+    }
   });
 });
 
