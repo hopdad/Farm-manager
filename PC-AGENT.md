@@ -16,7 +16,9 @@ The plan is `docs/build-plan.md`, and the code-level rules are `docs/contracts.m
 ## Ground rules
 
 - **Shell:** PowerShell, one command per line (Windows PowerShell 5.1 has no `&&`). Node **24**
-  and pnpm **12** (`node -v`, `pnpm -v`). Docker Desktop must be running.
+  and pnpm **12** (`node -v`, `pnpm -v`). Docker Desktop must be running. If PowerShell refuses
+  `pnpm` with "running scripts is disabled", type `pnpm.cmd` instead; don't change Derrick's
+  execution policy without asking him.
 - **Branches:** work on a branch named `pc/<topic>` made from `main`, and push it. Merge into
   `main` only when Derrick asks. Never force-push `main`.
 - **Never commit:**
@@ -74,7 +76,7 @@ Do these with Derrick at the PC. Record each result in `docs/status.md`.
 | 2 | Live weather | In `.env.local` set `CONNECTOR_WEATHER=live` and `NWS_USER_AGENT="farm-manager (<Derrick's email>)"`, then restart `pnpm dev` | The strip shows a real NWS forecast for the demo fields within a few minutes, and `/admin/connectors` shows the weather stream OK |
 | 3 | Real soils | `pnpm gis:soils` (NRCS Soil Data Access, Lenawee MI091 and Monroe MI115) | It finishes without errors; tapping a field's **Soils** tab shows real map units with percentages summing to about 100 |
 | 4 | NAIP close-ups | `pnpm gis:naip` | It builds the AOI imagery; the aerial-photo layer shows sub-meter photos offline |
-| 5 | Ctrl+C on Windows | Stop `pnpm dev` with Ctrl+C, then run `Get-Process node -ErrorAction SilentlyContinue` | No node processes are left from the app, the clock or the stand-in |
+| 5 | Ctrl+C on Windows | Stop `pnpm dev` with Ctrl+C, then run `Get-CimInstance Win32_Process -Filter "Name='node.exe'" \| Where-Object CommandLine -like '*farm-manager*'` (a bare `Get-Process node` also lists other Node apps, such as Claude's plugins) | It lists nothing: no node processes are left from the app, the clock or the stand-in |
 | 6 | Production build | `pnpm pilot`, then repeat demo steps 3-4 | Same behaviour as `pnpm dev` |
 | 7 | Phone on shop Wi-Fi | Open `http://<pc-ip>:3000/m` on a phone; if blocked, add the firewall rule `pnpm dev` prints | The phone shows the same machines as the wall within 2 seconds |
 | 8 | Wall kiosk | The two PowerShell commands on `/admin/devices` ("On this PC (wall kiosk)") | The kiosk opens straight onto the board, not the sign-in page |
