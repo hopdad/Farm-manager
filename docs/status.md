@@ -7,7 +7,7 @@ Oct 30, 2026. Update this file at the end of each build session.
 | Branch | State |
 |---|---|
 | `main` | M0 + M1 (slices 1a-1d), the e2e flake fixes and the follow-up to the PC checks (`claude/pc-followups`, below). Work from here; the PC agent follows `PC-AGENT.md`. |
-| `claude/pc-followups` | From `main`: Derrick's `pc/section2-checks` merged, plus the cloud follow-up to its findings (below). |
+| `claude/pc-followups` | Derrick's `pc/section2-checks` plus the cloud follow-up to its findings (below). CI fully green at `3f5976e`; merged into `main` on Oct 30. Safe to delete. |
 | `pc/section2-checks` | The PC agent's section 2 results and its Windows-1252 CSV fix. Merged through `claude/pc-followups`; safe to delete. |
 | `claude/m0-foundation` | M0 done. CI green on Linux, Windows and e2e at `7f492dc`. |
 | `claude/m1-see-it` | M1 slices 1a-1d built, reviewed (36 findings fixed) and verified on an M0 upgrade. CI fully green at `4492708` (Linux, Windows, e2e and e2e in replay mode). Then the polish commits (see below). |
@@ -31,8 +31,13 @@ Its proxy blocks the real Protomaps basemap, live NWS weather, real SSURGO soils
 
 ## Next
 
-- On the PC: `git pull` on `main`, `pnpm install`, `pnpm run bootstrap` (applies migration `0006`). Then re-check PC-AGENT.md check 2 with `CONNECTOR_WEATHER=live`: after one good weather run, spray verdicts and the strip no longer say the forecast is stale.
-- PC-AGENT.md section 3: slice 1e (lidar, crop history) on the PC, then Derrick's own data.
+- On the PC: `PC-AGENT.md` "Round 2", in this order:
+  - A: update and bootstrap (migration `0006`);
+  - B: re-check live weather;
+  - C: Windows re-checks;
+  - D: slice 1e on `pc/slice-1e`, pushed in pieces for the cloud to review and fold into migration `0007`;
+  - E: branch cleanup, if Derrick agrees.
+- Then Derrick's own data (PC-AGENT.md section 3, item 2).
 - Open decisions with their current defaults: `docs/decisions.md` (D3 Samsara or Motive by Nov 15, D4 spray thresholds, D8 testers and devices; the new "Forecast stale" defaults).
 - Then M1 slices 1f (live connectors, sync health) and 1g (replay, hardening), per `docs/build-plan.md` §6.
 

@@ -13,6 +13,120 @@ Your job is those parts. Read `docs/status.md` first: it says what is built and 
 The plan is `docs/build-plan.md`, and the code-level rules are `docs/contracts.md` and
 `docs/contracts-m1.md`.
 
+**This round starts at "Round 2" just below.** Sections 1-4 are the standing reference.
+
+## Round 2 (Oct 30, 2026): start here
+
+`main` now has your section 2 results plus the cloud's follow-up to them. Read
+`docs/status.md`, "Oct 30, 2026: cloud follow-up to the PC checks", for what changed. Work on a
+branch `pc/round2` made from `main` (slice 1e gets its own branch, step D). Record each step's
+result in one new dated entry under `## PC findings` in `docs/status.md`.
+
+### A. Update
+
+```powershell
+cd C:\dev\farm-manager
+git checkout main
+git pull
+pnpm install
+pnpm run bootstrap
+```
+
+Pass when bootstrap ends with "Ready." and its migrations line says `7 of 7 applied`. The new
+one is `0006_m1_forecast_checked`. Then `pnpm db:check` says "all PASS". Leave Node as it is (24.13 works: the code no longer depends on
+its Windows-1252 decoder); updating Node is Derrick's call.
+
+### B. Re-check live weather (section 2, check 2)
+
+The "forecast stale" caution now counts from the app's last successful NWS check, not from when
+NWS issued the forecast.
+
+1. In `.env.local`, uncomment `CONNECTOR_WEATHER=live` (`NWS_USER_AGENT` is already set), then
+   restart `pnpm dev`.
+2. Live weather runs at :00 and :30 (the 30-second demo cadence never applies to a live source).
+   Switching the source looks the cells up again, so wait for one complete run.
+3. Pass when, after that run:
+   - **Board:** the weather strip has no "Forecast stale" badge.
+   - **Field panel:** a field's Spray tab reads "NWS forecast issued <time>, checked <time>", with
+     no "forecast stale" reason. Real reasons such as gusts can still show.
+   - **`/admin/spray`:** shows "issued …, checked …".
+   - **Next run:** the "checked" time moves on 30 minutes later.
+   - **Evidence:** paste this into the status entry:
+
+     ```powershell
+     docker compose exec db psql -U postgres -c "select id, forecast_checked_at, forecast_checked_issue from farm.weather_grids order by id limit 5"
+     ```
+4. Leave weather on `live` only if Derrick wants it. Otherwise comment the line out again
+   (demo step 4, the wind slider, needs `sim`) and restart.
+
+Don't wait 2 hours to see the outage warning. The cloud's tests cover it: with no NWS check for
+more than 2 hours, every view says "Forecast not checked with NWS for N h".
+
+### C. Windows re-checks of this round's changes
+
+| # | Check | How | Pass when |
+|---|---|---|---|
+| C1 | Tests on this PC | `pnpm lint`, `pnpm typecheck`, `pnpm test`, then `pnpm test:db` **three times** | All pass. Report the counts. A failure in `src/connectors/nws/weather-job.db.test.ts` matters most: its clock was the likely cause of the one-off failure in section 2 |
+| C2 | What `db:up` asks Docker after a failed start | `docker compose config --images` | It prints `supabase/postgres:17.11.0.008`. Don't stop or break Docker to test the failure messages unless Derrick wants to |
+| C3 | Check 5's new command | Ctrl+C in `pnpm dev`, then `Get-CimInstance Win32_Process -Filter "Name='node.exe'" \| Where-Object CommandLine -like '*farm-manager*'` | It lists nothing |
+| C4 | e2e on the PC | `pnpm test:e2e e2e/weather.spec.ts e2e/m1-demo.spec.ts --project=wall` with weather on `sim` | All pass |
+
+If something fails, fix it on `pc/round2` when the fix is clear and small. Otherwise describe
+it, with the output, in the status entry. Push `pc/round2` when A-C are done.
+
+### D. Then slice 1e (lidar and crop history) on the PC
+
+Do section 3, item 1, on a branch `pc/slice-1e`, with these specifics:
+
+- **Answer the plan's 1e questions first** (plan §8, the "1e" bullet: the CSB release format and
+  size, the latest CDL year, and whether WhiteboxTools runs in Docker here). Put the answers in the
+  status entry before building.
+- **Order:**
+  1. `gis:cdl` first. It's county-wide, small and quick, and it gives rotation history.
+  2. `gis:csb`.
+  3. `gis:dem`. It downloads about 18 GB: check free disk space (`Get-PSDrive C`) and tell Derrick
+     before downloading.
+  4. Terrain stats.
+  5. The demo swap to CSB shapes.
+  6. Flow paths last. If they fight you, they move to 4b with a note in `docs/decisions.md` (plan
+     §6 says so).
+- **Schema:** never edit `db/migrations/` or `src/db/schema/`. Put new tables in
+  `db/pending/pc-1e.sql`, following the rules in `db/pending/README.md` (idempotent; `gis`
+  schema; EPSG:4326 with GiST). Then `pnpm db:pending` applies them to your database, and the
+  tests apply them on their own. Describe the Drizzle mirror you'd want in the status entry.
+  The cloud agent turns the file into migration `0007` and writes the mirror when it merges.
+- **Data:**
+  - Raw downloads go under `data/raw/` (gitignored), and work files in the `gis_work` volume.
+  - Cache every CropScape download: it has had outages and certificate problems.
+  - Never commit full rasters. Commit only small test fixtures (a CDL clip, a 1 km² DEM tile;
+    plan §7), so CI tests the loaders without the internet. The pre-clipped CDL for the demo
+    fields is the plan's one exception.
+- **Rules from plan §5:**
+  - Warp every 3DEP tile to EPSG:3078 before mosaicking: Lenawee mixes UTM 16 and 17.
+  - Count CDL pixels in EPSG:5070.
+  - Give raster PMTiles content-addressed names (`hillshade.<sha8>.pmtiles`), registered in
+    `gis.map_layers`.
+  - GDAL and pmtiles run in Docker, like the other `gis:*` loaders. Follow how
+    `tools/gis/naip.ts` and `tools/gis/soils.ts` are built.
+- **Push pieces as they land.** For example, push when `gis:cdl` and its tests pass, record it in
+  status, and tell Derrick the cloud can review and merge it. Don't hold everything for one big
+  push.
+- **Done when:** plan §6 1e "Done when" holds on this PC.
+
+### E. Cleanup (only if Derrick says so)
+
+These remote branches are merged and can go:
+
+```powershell
+git push origin --delete pc/section2-checks
+git push origin --delete claude/fix-e2e-flakes
+git push origin --delete claude/m0-win-debug
+git push origin --delete claude/pc-followups
+```
+
+The cloud's proxy can't delete branches, so this has to happen on the PC (or on GitHub's
+website).
+
 ## Ground rules
 
 - **Shell:** PowerShell, one command per line (Windows PowerShell 5.1 has no `&&`). Node **24**
