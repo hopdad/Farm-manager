@@ -2,7 +2,7 @@
  * Zips under limits (a zip bomb can't take the server down) and .dbf text decoding (a .dbf
  * without a .cpg is Windows-1252 unless it is valid UTF-8), through the boundary importer too.
  */
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { BoundaryFileError, parseBoundaryFiles, readBoundaryFiles } from './boundary-file';
 import { rectangle, shapefileFiles, zip } from './testing/shapefile';
 import { guessDbfEncoding, unzipVectors, ZipReadError } from './zip-vectors';
@@ -108,20 +108,41 @@ describe('.dbf text encoding', () => {
     expect(loose.boundaries[0]?.name).toBe('PÉREZ');
   });
 
-  // Node 24.13 decodes 0x80-0x9F as ISO-8859-1 in one-shot TextDecoder calls (tools/import/csv.ts);
-  // parsedbf's streaming decode is right, and this keeps it so.
+  // Node 24.13 decodes 0x80-0x9F as ISO-8859-1 in one-shot TextDecoder calls (Derrick's PC; see
+  // tools/import/csv.ts); its streaming decode, which parsedbf uses, is right. The test plays
+  // 24.13's one-shot bug on any Node, so a switch to one-shot decoding fails here, on CI too.
   test('Windows-1252 punctuation (0x80-0x9F) survives, with or without a .cpg', async () => {
-    const obrien = [0x4f, 0x92, 0x42, 0x52, 0x49, 0x45, 0x4e]; // "O’BRIEN" in Windows-1252
-    const bare = await parseBoundaryFiles([
-      { name: 'export.zip', bytes: zip(fieldFiles('F', obrien)) },
-    ]);
-    expect(bare.boundaries[0]?.name).toBe('O’BRIEN');
-    const named = {
-      ...fieldFiles('F', obrien),
-      'F.cpg': new TextEncoder().encode('ANSI 1252'),
-    };
-    const b = await parseBoundaryFiles([{ name: 'export.zip', bytes: zip(named) }]);
-    expect(b.boundaries[0]?.name).toBe('O’BRIEN');
+    const decode = TextDecoder.prototype.decode;
+    const spy = vi.spyOn(TextDecoder.prototype, 'decode').mockImplementation(function (
+      this: TextDecoder,
+      input,
+      options,
+    ) {
+      if (this.encoding === 'windows-1252' && !options?.stream && input) {
+        const view = ArrayBuffer.isView(input)
+          ? new Uint8Array(input.buffer, input.byteOffset, input.byteLength)
+          : new Uint8Array(input);
+        return Buffer.from(view).toString('latin1');
+      }
+      return decode.call(this, input, options);
+    });
+    try {
+      // The stand-in really misreads one-shot calls, as 24.13 does.
+      expect(new TextDecoder('windows-1252').decode(Uint8Array.of(0x92))).toBe('\u0092');
+      const obrien = [0x4f, 0x92, 0x42, 0x52, 0x49, 0x45, 0x4e]; // "O’BRIEN" in Windows-1252
+      const bare = await parseBoundaryFiles([
+        { name: 'export.zip', bytes: zip(fieldFiles('F', obrien)) },
+      ]);
+      expect(bare.boundaries[0]?.name).toBe('O’BRIEN');
+      const named = {
+        ...fieldFiles('F', obrien),
+        'F.cpg': new TextEncoder().encode('ANSI 1252'),
+      };
+      const b = await parseBoundaryFiles([{ name: 'export.zip', bytes: zip(named) }]);
+      expect(b.boundaries[0]?.name).toBe('O’BRIEN');
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   test('a UTF-8 .dbf, and a .cpg that names the code page, are read as they say', async () => {
