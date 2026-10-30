@@ -243,8 +243,15 @@ test('a phone at /m (over the LAN address) shows the same fixes within 2 s of th
   const ip = lanAddress();
   if (ip && ['localhost', '127.0.0.1'].includes(base.hostname)) base.hostname = ip;
   const phone = await openMap(browser, `${base.origin}/m`, { ...devices['Pixel 7'] });
-  opened.push(phone);
+  try {
+    await phoneMatchesWall(phone);
+  } finally {
+    // The later tests use the wall only: a phone map left drawing WebGL in software slows them.
+    await phone.context.close();
+  }
+});
 
+async function phoneMatchesWall(phone: Opened): Promise<void> {
   /** When each page first showed a new fix of S1 (ms since epoch, test clock). */
   const seenAt = async (p: Page, after: string) => {
     const deadline = Date.now() + 45_000;
@@ -268,7 +275,7 @@ test('a phone at /m (over the LAN address) shows the same fixes within 2 s of th
   };
   await expect.poll(sameFixes, { timeout: 10_000 }).toBe(true);
   expect(phone.blocked, 'requests to non-local hosts').toEqual([]);
-});
+}
 
 /** The largest distance (m) any machine moved between two looks at the map. */
 function largestMove(before: FleetFrame[], after: FleetFrame[]): number {

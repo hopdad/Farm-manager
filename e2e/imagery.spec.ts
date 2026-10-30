@@ -18,7 +18,7 @@ import type { Pool } from 'pg';
 import { getConfig } from '../src/config';
 import { assertLocalUrl } from '../src/db/admin';
 import { createPool } from '../src/db/client';
-import type { TileLineView } from '../src/db/queries/tile-lines-schema';
+import type { TileLinesResponse, TileLineView } from '../src/db/queries/tile-lines-schema';
 import { storageRoot } from '../src/platform/storage/local';
 import { LocalStorageWriter } from '../src/platform/storage/writer';
 import { tileFor } from '../src/test/fixtures';
@@ -282,7 +282,7 @@ test.describe('tile lines', () => {
     browser,
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'wall', 'the draw tool is exercised on the wall');
-    test.setTimeout(240_000); // three boards with WebGL in software
+    test.setTimeout(240_000); // three boards with WebGL in software, two at a time
     const drawer = await browser.newContext({
       viewport: { width: 1920, height: 1080 },
       hasTouch: true,
@@ -301,20 +301,30 @@ test.describe('tile lines', () => {
       await signInAs(watcher, 'manager');
       await signInAs(viewer);
       const page = await drawer.newPage();
-      const other = await watcher.newPage();
-      const view = await viewer.newPage();
-
       await page.goto('/board');
       await waitForMap(page);
       const f = await quietField(page);
-      // One at a time: three software-WebGL boards starting together starve each other.
-      for (const p of [page, other, view]) await openBoardAt(p, f);
+      await openBoardAt(page, f);
 
-      // The viewer has no Tile tool (the API says canEdit: false).
+      // The viewer's board has no Tile tool: checked once that board has asked the server
+      // (GET /api/tile-lines answers canEdit: false), then closed. Never three software-WebGL
+      // boards live at once: on CI's runner the third one starved past 90 s to load. The
+      // viewer's tiles are checked below through its session, without a map.
+      const view = await viewer.newPage();
+      const viewerAsked = view.waitForResponse(
+        (r) => r.url().includes('/api/tile-lines?') && r.request().method() === 'GET',
+      );
+      await openBoardAt(view, f);
+      const asked = await viewerAsked;
+      expect(asked.status()).toBe(200);
+      expect(((await asked.json()) as TileLinesResponse).canEdit).toBe(false);
       await expect(page.getByTestId('tile-tool-toggle')).toBeVisible();
       await expect(view.getByTestId('tile-tool-toggle')).toHaveCount(0);
+      await view.close();
 
       // The second manager opens the tool and watches.
+      const other = await watcher.newPage();
+      await openBoardAt(other, f);
       await other.getByTestId('tile-tool-toggle').click();
       await expect(other.getByTestId('tile-tool-panel')).toBeVisible();
       const before = new Set(await drawnIds(other));
