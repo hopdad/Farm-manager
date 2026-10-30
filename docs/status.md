@@ -7,20 +7,12 @@ Oct 29, 2026, evening. Update this file at the end of each build session.
 | Branch | State |
 |---|---|
 | `claude/m0-foundation` | M0 done. CI green on Linux, Windows and e2e at `7f492dc`. |
-| `claude/m1-see-it` | M1 slices 1a-1d built, reviewed (36 findings fixed) and verified on an M0 upgrade. CI fully green at `4492708` (Linux, Windows, e2e and e2e in replay mode). The last commit is a **WIP** polish commit (see below). |
+| `claude/m1-see-it` | M1 slices 1a-1d built, reviewed (36 findings fixed) and verified on an M0 upgrade. CI fully green at `4492708` (Linux, Windows, e2e and e2e in replay mode). Then the polish commits (see below). |
 | `claude/m0-win-debug` | Temporary diagnostic branch. Safe to delete on GitHub. |
 
-## In progress when saved (WIP commit on `claude/m1-see-it`)
+## Finished after the save
 
-Polish from the M1 verifier, changes made but checks not yet run:
-1. Enrolling the wall PC itself: a localhost enrollment link for the kiosk profile, alongside the LAN link and QR for other devices (`src/platform/auth/kiosk.ts`, `/admin/devices`, README "First run", `docs/kiosk.md`).
-2. README "Coming from M0": bootstrap applies three migrations (0003-0005), and no `pnpm db:reset` is needed.
-3. Bootstrap with only the synthetic basemap and Protomaps unreachable: keep it with a warning instead of failing.
-4. `docs/kiosk.md`: drop the stale reset-owner note (`pnpm auth:reset-owner` exists).
-5. README: the way back from `--hide-demo` (/admin/fields, "Show demo fields").
-6. README demo step 5: the seasons example and its text should agree.
-
-To finish: run `pnpm lint`, `typecheck`, `test` (also in a clean clone with no env files, as CI does), `test:db`, `build`, `test:e2e`, then commit and push, and check CI (push runs Linux only; dispatch the workflow for Windows and e2e).
+The M1 verifier's polish items are done (commits `8d629f3`..`f4dfe72`, on top of the two WIP commits): the wall kiosk enrolls on a localhost link from /admin/devices with exact PowerShell commands; README "Coming from M0" (three migrations, no `db:reset`); a plain bootstrap keeps an installed synthetic basemap; the stale reset-owner note; the way back from `--hide-demo`; the seasons example now fills the imported prospect fields. Lint, typecheck, unit (also in a clean clone with no env files), DB tests, build and the auth/M1/M0 e2e specs passed locally. Full GitHub CI on the new head was started on Oct 30.
 
 ## Not verifiable from the cloud build machine
 
