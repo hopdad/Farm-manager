@@ -28,16 +28,22 @@ export async function compose(projectDir: string, args: string[]): Promise<numbe
   return r.code;
 }
 
-/** The images the compose services use. */
+/** The images the compose services use (empty when Docker doesn't answer within the timeout). */
 export async function composeImages(projectDir: string): Promise<string[]> {
-  const r = await run('docker', ['compose', 'config', '--images'], { cwd: projectDir });
+  const r = await run('docker', ['compose', 'config', '--images'], {
+    cwd: projectDir,
+    timeoutMs: 15_000,
+  });
   return r.code === 0 ? r.stdout.split(/\s+/).filter(Boolean) : [];
 }
 
-/** Whether an image is in the local image store. */
-export async function imagePresent(image: string): Promise<boolean> {
-  const r = await run('docker', ['image', 'inspect', '--format', '{{.Id}}', image]);
-  return r.code === 0;
+/** Whether an image is in the local image store (null: Docker didn't answer in time). */
+export async function imagePresent(image: string): Promise<boolean | null> {
+  const r = await run('docker', ['image', 'inspect', '--format', '{{.Id}}', image], {
+    timeoutMs: 15_000,
+  });
+  if (r.code === 0) return true;
+  return r.stderr.includes('[timed out') ? null : false;
 }
 
 /** What can be checked after `docker compose up` failed (its own output streamed above). */
@@ -47,6 +53,8 @@ export interface ComposeUpFacts {
   missingImages: string[];
   dbPort: number;
   dbPortState: PortState;
+  /** This project's database container is running (it holds DB_PORT itself). */
+  ownDbRunning: boolean;
 }
 
 /**
@@ -69,13 +77,16 @@ export function explainComposeUpFailure(f: ComposeUpFacts): string {
       'the layers it already has.'
     );
   }
-  if (f.dbPortState === 'in_use') {
+  if (f.dbPortState === 'in_use' && !f.ownDbRunning) {
     return (
-      `Port ${f.dbPort} (DB_PORT in .env) is in use by another program. Stop that program, or set ` +
-      'DB_PORT in .env to a free port, then run the same command again.'
+      `Port ${f.dbPort} (DB_PORT) is in use by another program (another Postgres?). Stop it, or ` +
+      'set DB_PORT in .env and the port in both database URLs in .env.local, then run the same ' +
+      'command again.'
     );
   }
-  if (f.dbPortState === 'reserved') return reservedPortHint(f.dbPort, 'DB_PORT in .env');
+  if (f.dbPortState === 'reserved') {
+    return reservedPortHint(f.dbPort, 'DB_PORT in .env and both database URLs in .env.local');
+  }
   return "docker compose up failed: see Docker's message above.";
 }
 

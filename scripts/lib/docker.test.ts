@@ -6,6 +6,7 @@ const ok: ComposeUpFacts = {
   missingImages: [],
   dbPort: 15432,
   dbPortState: 'free',
+  ownDbRunning: false,
 };
 
 describe('explainComposeUpFailure', () => {
@@ -24,10 +25,17 @@ describe('explainComposeUpFailure', () => {
   });
 
   test('the port is blamed only when it is taken or reserved', () => {
-    expect(explainComposeUpFailure({ ...ok, dbPortState: 'in_use' })).toMatch(
-      /Port 15432 \(DB_PORT in \.env\) is in use/,
+    const busy = explainComposeUpFailure({ ...ok, dbPortState: 'in_use' });
+    expect(busy).toMatch(/Port 15432 \(DB_PORT\) is in use by another program/);
+    // Moving the database means the URLs in .env.local too (env:init doesn't rewrite them).
+    expect(busy).toMatch(/DB_PORT in \.env and the port in both database URLs in \.env\.local/);
+    expect(explainComposeUpFailure({ ...ok, dbPortState: 'reserved' })).toMatch(
+      /15432.*both database URLs in \.env\.local/,
     );
-    expect(explainComposeUpFailure({ ...ok, dbPortState: 'reserved' })).toMatch(/15432/);
+    // This project's own running container holds the port: not "another program".
+    expect(explainComposeUpFailure({ ...ok, dbPortState: 'in_use', ownDbRunning: true })).toBe(
+      "docker compose up failed: see Docker's message above.",
+    );
     expect(explainComposeUpFailure(ok)).toBe(
       "docker compose up failed: see Docker's message above.",
     );
