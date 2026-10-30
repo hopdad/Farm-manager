@@ -167,7 +167,7 @@ SELECT/INSERT/UPDATE/DELETE on all of it, EXECUTE on `app.*`, `gis.rebuild_field
 | `farm.machines` + | `down_at`, `down_by` → app_users | with M0's `status`, `down_reason` |
 | `farm.fields` + | `notes_updated_at`, `notes_updated_by` → app_users | optimistic saves use `updated_at` (FieldNotes.version) |
 | `farm.geofence_visits` (1a) | `machine_id`, `geofence_id`, `entered_at`, `exited_at` (≥ entered) | unique (machine, geofence, entered_at); **one open visit** per machine and geofence (partial unique index) |
-| `farm.weather_grids` (1b) | PK `id` = `'<WFO>/<x>,<y>'` (CHECKed), `wfo`, `grid_x`, `grid_y`, `stations` jsonb `WeatherStation[]` nearest first, `geom` Polygon null, `time_zone`, `looked_up_at`, `forecast_checked_at` and `forecast_checked_issue` (migration 0006) | the cached NWS cell; `forecast_checked_at` = the job's last successful fetch of its forecast, `forecast_checked_issue` = the issue that fetch served (§5.4 staleness) |
+| `farm.weather_grids` (1b) | PK `id` = `'<WFO>/<x>,<y>'` (CHECKed), `wfo`, `grid_x`, `grid_y`, `stations` jsonb `WeatherStation[]` nearest first, `geom` Polygon null, `time_zone`, `looked_up_at`, `forecast_checked_at` and `forecast_checked_issue` (migration 0006) | the cached NWS cell; `forecast_checked_at` = the job's last successful fetch of its forecast, `forecast_checked_issue` = the newest issue a fetch confirmed, never moving back to an older one NWS served again (§5.4 staleness) |
 | `farm.field_weather_grids` (1b) | PK `field_id`, `grid_id`, `point` (the point looked up), `looked_up_at` | redo when the boundary moves |
 | `farm.weather_forecasts` (1b) | PK (`grid_id`, `issued_at`, `valid_at`); `temp_f`, `dewpoint_f`, `rh_pct`, `wind_mph`, `gust_mph`, `wind_dir`, `pop_pct`, `qpf_in`, `sky_pct`, `mixing_height_ft`, `transport_wind_mph`, `source` ('nws'), `fetched_at` | one row per hour per issue; `valid_at` = hour start UTC. Pruned by the job (§13): issues older than 48 h go, except the hours an assessment used |
 | `farm.weather_observations` (1b) | PK (`station_id`, `observed_at`); `geom` Point, `temp_f`, `dewpoint_f`, `rh_pct`, `wind_mph`, `gust_mph`, `wind_dir`, `precip_last_hour_in`, `source`, `fetched_at` | |
@@ -654,7 +654,8 @@ PMTiles: `tools/gis/pmtiles-writer.ts` now has `PmTileType.Jpeg/Webp/Avif`.
 `src/jobs/weather.ts`. Each run: grid lookups (cached), the newest forecast issue (when the
 forecast step succeeds, every cell NWS answered for whose served issue is stored, a new issue or
 the same one again, gets `farm.weather_grids.forecast_checked_at` = the run's time and
-`forecast_checked_issue` = that issue: staleness counts from it for rows built from that issue,
+`forecast_checked_issue` = that issue (never an older one), written with the spray pass's rows in
+its transaction: staleness counts from it for rows built from that issue,
 §5.4; a failed or unclaimed step marks nothing, a partial one only the cells that answered) and the
 observations, then the spray assessment of **each field's current hour plus the next 12**
 (`sprayAssessmentHours(now)`: 13 rows per field per new forecast issue or rules version; up to

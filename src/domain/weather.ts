@@ -373,8 +373,10 @@ export interface SprayAssessmentView {
   rulesVersion: string;
   forecastIssuedAt: string | null;
   /**
-   * The cell's farm.weather_grids.forecast_checked_at at read time (not stored per row): with
-   * forecastIssuedAt, what `withStaleness` judges. Null: never recorded, or no cell.
+   * The cell's farm.weather_grids.forecast_checked_at at read time, when that check confirmed
+   * this row's issue (forecast_checked_issue = forecastIssuedAt); not stored per row. With
+   * forecastIssuedAt, what `withStaleness` judges. Null: never checked, no cell, or the check
+   * confirmed another issue (the row then counts from its own issue time).
    */
   forecastCheckedAt: string | null;
   assessedAt: string;

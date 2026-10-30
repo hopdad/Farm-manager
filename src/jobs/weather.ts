@@ -13,8 +13,9 @@
  *     uses), which maps to one row per hour in farm.weather_forecasts (`issued_at`). When the
  *     step succeeds, every cell NWS answered for whose served issue is stored (a new issue or
  *     the same one again) gets farm.weather_grids.forecast_checked_at = now, with that issue in
- *     forecast_checked_issue: staleness counts from there for rows built from that issue,
- *     because live NWS often keeps one `updateTime` for hours.
+ *     forecast_checked_issue (written with step 4's rows, in its transaction): staleness counts
+ *     from there for rows built from that issue, because live NWS often keeps one `updateTime`
+ *     for hours.
  *  3. Observations, as the sync step ('nws', 'observations'): the nearest station of each cell,
  *     since the last one stored (at most 3 h back) -> farm.weather_observations.
  *  4. Spray go/no-go: every active field, the current hour plus the next 12, from the newest
@@ -360,9 +361,19 @@ async function recordPrune(
 }
 
 /** Step 4 + its realtime, in one transaction (published on commit). */
-async function sprayPass(ctx: JobContext): Promise<SprayPassResult> {
+/**
+ * Step 4. `checked`: the cells NWS answered for this run, marked in the same transaction as the
+ * rows built from their issues, so no view sees a new issue checked while the fields still show
+ * rows from the issue it replaced (those count from their own issue time). If the pass fails,
+ * the mark rolls back with it and the previous check still vouches for the rows there are.
+ */
+async function sprayPass(
+  ctx: JobContext,
+  checked: readonly { gridId: string; issuedAt: string }[],
+): Promise<SprayPassResult> {
   const setting = await readSprayThresholds(ctx.pool);
   return ctx.db.transaction(async (tx) => {
+    await markForecastsChecked(tx, checked, ctx.now());
     const pass = await runSprayPass(tx, ctx.now(), setting.thresholds);
     if (pass.written > 0) {
       await publish(
@@ -418,11 +429,6 @@ export function createWeatherNwsJob(opts: WeatherJobOptions = {}) {
       forecastSpec(ctx, client, mode, grids, landed, partial, checked),
       ctx,
     );
-    // The cells NWS answered for are current as of now (the spray pass below and every view
-    // count staleness from here). Not when the step failed or another run held it.
-    if (forecast.claimed && forecast.ok) {
-      await markForecastsChecked(ctx.pool, checked, ctx.now());
-    }
     let observations: SyncStepResult | null = null;
     if (timeLeft(ctx)) {
       observations = await runSyncStep(observationsSpec(ctx, client, mode, grids, partial), ctx);
@@ -442,7 +448,9 @@ export function createWeatherNwsJob(opts: WeatherJobOptions = {}) {
       );
     }
 
-    const pass = await sprayPass(ctx);
+    // The cells NWS answered for are current as of now (the spray pass and every view count
+    // staleness from there). Not when the step failed or another run held it.
+    const pass = await sprayPass(ctx, forecast.claimed && forecast.ok ? checked : []);
 
     const hour = new Date(Math.floor(ctx.now().getTime() / HOUR_MS) * HOUR_MS).toISOString();
     if (timeLeft(ctx) && (await claimPruneHour(ctx, hour))) {

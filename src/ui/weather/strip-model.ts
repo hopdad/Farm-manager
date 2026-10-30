@@ -47,7 +47,10 @@ export interface StripInputs {
   issuedAt: string | null;
   /** When the newest issue was stored. */
   fetchedAt: string | null;
-  /** The cell's last good NWS fetch (farm.weather_grids.forecast_checked_at; null: never). */
+  /**
+   * The cell's last good NWS fetch (farm.weather_grids.forecast_checked_at) when it confirmed
+   * `issuedAt`; null: never checked, or the check confirmed another issue.
+   */
   checkedAt: string | null;
   hours: readonly HourlyForecast[];
   observation: Observation | null;

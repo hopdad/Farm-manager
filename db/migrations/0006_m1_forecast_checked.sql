@@ -9,9 +9,10 @@
 --       is current as of the later of the two (src/domain/spray.ts `forecastStaleness`). Null:
 --       never recorded (cells cached before this migration): staleness falls back to the issue
 --       time until the job's next good run.
---       farm.weather_grids.forecast_checked_issue: the issue (issued_at) NWS served at that check.
---       The check vouches only for that issue: a spray row still built from an older, replaced
---       issue (the spray pass failed after a newer issue landed) counts from its own issue time.
+--       farm.weather_grids.forecast_checked_issue: the newest issue (issued_at) a check confirmed
+--       (it never moves back to an older one NWS served again). The check vouches only for that
+--       issue: a spray row still built from an older, replaced issue counts from its own issue
+--       time.
 --       Both mirrored in src/db/schema/farm.ts (weatherGrids). farm_app's table grants (0000
 --       default privileges, 0003) cover the new columns.
 
@@ -23,4 +24,4 @@ comment on column farm.weather_grids.forecast_checked_at is
   'Last successful NWS fetch of this cell''s forecast by weather.nws (new issue or the same again); forecast staleness counts from the later of this and the issue time, for the issue in forecast_checked_issue only. Null: never recorded.';
 --> statement-breakpoint
 comment on column farm.weather_grids.forecast_checked_issue is
-  'The forecast issue (issued_at) NWS served at forecast_checked_at: the one issue that check vouches for.';
+  'The newest forecast issue (issued_at) a check confirmed (never moves back): the one issue forecast_checked_at vouches for.';

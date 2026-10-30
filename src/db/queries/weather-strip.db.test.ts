@@ -183,5 +183,23 @@ describe('spray verdicts as shown now', () => {
     expect(fresh && withStaleness(fresh, later).reasons.map((r) => r.code)).not.toContain(
       'forecast_stale',
     );
+
+    // NWS answers with the older X again (a stale cache): still in touch, and Y stays the issue
+    // the check vouches for, so Y's rows keep their credit.
+    const cached = new Date(later.getTime() + 30 * 60_000);
+    await markForecastsChecked(pool, [{ gridId: grid.id, issuedAt: x.issuedAt }], cached);
+    await runSprayPass(pool, cached, DEFAULT_SPRAY_THRESHOLDS);
+    const kept = (await verdictsForHour(pool, forHour)).get(f.fieldId);
+    expect(kept).toMatchObject({
+      verdict: 'no_go',
+      forecastIssuedAt: y.issuedAt,
+      forecastCheckedAt: cached.toISOString(),
+    });
+    expect(kept && withStaleness(kept, cached).reasons.map((r) => r.code)).not.toContain(
+      'forecast_stale',
+    );
+
+    // The other test reads farm-wide counts: leave no active field behind.
+    await pool.query('update farm.fields set active = false where id = $1', [f.fieldId]);
   });
 });

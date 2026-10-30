@@ -47,7 +47,10 @@ export interface SprayHourInput {
   gridId: string | null;
   /** The forecast issue used (null: none for this field's cell). */
   forecastIssuedAt: string | null;
-  /** The cell's last good NWS fetch (farm.weather_grids.forecast_checked_at; null: unknown). */
+  /**
+   * The cell's last good NWS fetch (farm.weather_grids.forecast_checked_at) when it confirmed
+   * `forecastIssuedAt`; null: never checked, or the check confirmed another issue.
+   */
   forecastCheckedAt: string | null;
   /** That issue's hours (any order; at least H and the rain window when available). */
   hours: readonly HourlyForecast[];

@@ -435,7 +435,7 @@ export const weatherGrids = farm.table(
      * same one again): staleness counts from here (migration 0006). Null: never recorded.
      */
     forecastCheckedAt: tstz('forecast_checked_at'),
-    /** The issue (issued_at) NWS served at that check: the one issue the check vouches for. */
+    /** The newest issue (issued_at) a check confirmed (never moves back): the one it vouches for. */
     forecastCheckedIssue: tstz('forecast_checked_issue'),
   },
   (t) => [

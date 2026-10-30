@@ -338,7 +338,9 @@ export async function newestIssues(ex: Executor, gridIds: string[]): Promise<Map
  * is current as of then (farm.weather_grids.forecast_checked_at, with that issue in
  * forecast_checked_issue; the staleness rule in src/domain/spray.ts counts from it, for rows
  * built from that issue only). Only cells whose answered issue is stored are marked: an issue
- * that failed to process doesn't vouch for the older one. Returns cells marked.
+ * that failed to process doesn't vouch for the older one. The confirmed issue never moves back:
+ * NWS answering with an older stored issue (a stale cache) still confirms the newer one we
+ * hold, so its rows keep their credit. Returns cells marked.
  */
 export async function markForecastsChecked(
   ex: Executor,
@@ -349,7 +351,8 @@ export async function markForecastsChecked(
   const r = await exec(
     ex,
     `update farm.weather_grids g
-        set forecast_checked_at = $3::timestamptz, forecast_checked_issue = c.issued_at
+        set forecast_checked_at = $3::timestamptz,
+            forecast_checked_issue = greatest(g.forecast_checked_issue, c.issued_at)
        from unnest($1::text[], $2::timestamptz[]) as c(grid_id, issued_at)
       where g.id = c.grid_id
         and exists (select 1 from farm.weather_forecasts f
