@@ -248,6 +248,25 @@ of one.
    - If not, build them per the plan, with small test fixtures. Mind the plan's warning about
      Lenawee's mixed UTM zones 16 and 17 (warp every tile to EPSG:3078 before mosaicking).
    - Done when the plan's 1e done-when holds on the PC.
+   - **Then, in the same branch or a `pc/soils-b` branch: soil properties (soil map Phase B).**
+     Extend `gis:soils` to pull, per map unit, the properties Derrick's research
+     (`docs/research/soil-types-and-prescriptions.md`) says the soil map and a future
+     prescription engine need:
+     - from `muaggatt`: drainage, hydrologic group, flooding, water-table depth, AWS;
+     - from `component`: slope, hydric, capability class;
+     - depth-weighted 0-30 cm horizons: OM, pH, CEC, AWC, sand/silt/clay and texture class;
+     - subsoil pH: Blount and Del Rey run acid, which changes lime targets;
+     - NCCPI corn, soybean and small grain.
+
+     Rules:
+     - Key everything to `mukey`, never series names (Lenawee's 1961 survey uses legacy names).
+     - An empty SDA response is a failure, not "no data".
+     - Stay under SDA's 100,000-row cap per query.
+     - Record the survey save date and re-pull when it changes.
+     - Label every value "typical for these soils, not a soil test" wherever it's shown.
+
+     Schema goes in `db/pending/pc-soils-b.sql`; the cloud folds it into a migration. Report
+     which interpretations are actually rated in MI091 and MI115.
 2. **Derrick's own data** (stays local, never committed):
    - his Operations Center boundary export: `pnpm import:boundaries <file>`;
    - crop history: `pnpm import:seasons <csv>`, with the template in `tools/import/templates/`;
