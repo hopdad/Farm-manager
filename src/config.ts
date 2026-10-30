@@ -162,6 +162,14 @@ const baseSchema = z.object({
    * itself to stay under 80 % of it (never faster than its cron).
    */
   DEERE_DAILY_CALL_BUDGET: int(1, 100_000_000).optional(),
+  /**
+   * The Deere organization that is your own operation (1f, docs/contracts-1f.md §5.4): machines
+   * are created only from it, and farms from any other org belong to that org's customer. Unset:
+   * sim and replay use their simulated home org; sandbox and live use the only org you are a
+   * member of when there is exactly one, else there is no home org and /admin/connectors asks
+   * for this setting (src/connectors/deere/orgs.ts `deereHomeOrg`).
+   */
+  DEERE_HOME_ORG_ID: z.string().trim().min(1).max(200).optional(),
   SAMSARA_API_TOKEN: z.string().min(1).optional(),
   MOTIVE_API_KEY: z.string().min(1).optional(),
   /** NWS requires a User-Agent with contact info. */

@@ -7,7 +7,13 @@ import { describe, expect, test } from 'vitest';
 import type { ConnectorConfig } from '../endpoints';
 import { VendorHttpError } from '../http';
 import { DeereClient } from './client';
-import { deereOrgAccess, deniedOrgAccess, isDeereOrgDenied } from './orgs';
+import {
+  DEERE_REPLAY_HOME_ORG,
+  deereHomeOrg,
+  deereOrgAccess,
+  deniedOrgAccess,
+  isDeereOrgDenied,
+} from './orgs';
 import { deereFieldsSchema, deereOrganizationsSchema } from './schemas';
 
 const cfg: ConnectorConfig = {
@@ -80,5 +86,46 @@ describe('Deere org access (decision 5)', () => {
       status: 'needs_approval',
       detail: '403 from /platform/organizations/org-customer-1/fields',
     });
+  });
+});
+
+describe('Deere home org (decision 8)', () => {
+  const orgs = [
+    { id: 'org-a', member: true },
+    { id: 'org-b', member: false },
+  ];
+
+  test('DEERE_HOME_ORG_ID wins in every mode', () => {
+    for (const mode of ['sim', 'replay', 'sandbox', 'live'] as const) {
+      expect(deereHomeOrg(mode, '4117350', orgs)).toEqual({ orgId: '4117350', source: 'config' });
+    }
+  });
+
+  test('unset: sim and replay use their simulated home org, whatever the listing says', () => {
+    expect(deereHomeOrg('sim', undefined, orgs)).toEqual({ orgId: 'org-home', source: 'sim' });
+    expect(deereHomeOrg('replay', '', [])).toEqual({ orgId: 'org-home', source: 'replay' });
+  });
+
+  test('unset in sandbox/live: the only member org, else none (the page asks for the setting)', () => {
+    expect(deereHomeOrg('sandbox', undefined, orgs)).toEqual({
+      orgId: 'org-a',
+      source: 'only_member',
+    });
+    expect(deereHomeOrg('live', null, [...orgs, { id: 'org-c', member: true }])).toEqual({
+      orgId: null,
+      source: 'unknown',
+    });
+    // Deere says nothing about membership: no guess.
+    expect(deereHomeOrg('live', undefined, [{ id: 'org-a' }])).toEqual({
+      orgId: null,
+      source: 'unknown',
+    });
+    expect(deereHomeOrg('off', undefined, orgs).orgId).toBeNull();
+  });
+
+  test("the replay fixtures' org listing has the replay home org", async () => {
+    const c = DeereClient.forReplay(cfg, { timeoutMs: 2_000 });
+    const listed = await c.getPaged(deereOrganizationsSchema, c.apiUrl('organizations'));
+    expect(listed.map((o) => o.id)).toContain(DEERE_REPLAY_HOME_ORG);
   });
 });

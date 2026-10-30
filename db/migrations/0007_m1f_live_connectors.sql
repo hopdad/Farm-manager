@@ -17,8 +17,8 @@
 --   fleet-faults  farm.machine_faults (fault code history); farm.machine_state.fault_codes /
 --                 faults_at (current summary + time guard), stats_at (fuel time guard),
 --                 position_vendor (per-machine vendor badge)
---   sync-health   ingest.api_calls_daily (vendor calls per source, stream and UTC day: decision
---                 4), ingest.connector_orgs (org approval status: decision 5)
+--   sync-health   ingest.api_calls_daily (vendor calls per source, stream, mode and UTC day:
+--                 decision 4), ingest.connector_orgs (org approval status per mode: decision 5)
 --
 -- No new ingest.external_refs kinds: operations and pins carry their own source_id.
 -- Slice 1e (the PC's lidar and crop history, db/pending/pc-1e.sql) takes the next free number
@@ -32,7 +32,9 @@
 -- deterministicId('deere', <Deere operation id>), source 'deere', source_id = that id,
 -- source_org = the Deere org it was read from. field_id is null when the operation's field
 -- isn't mapped (plan §7 dq: "operations with no field"). products / measurements / weather are
--- jsonb shaped by src/domain/operations.ts. geom = the coverage, simplified.
+-- jsonb shaped by src/domain/operations.ts. geom = the coverage, simplified. operator_name = the
+-- operator as the vendor names them (operator_party_id stays null until a party-matching rule
+-- exists).
 create table if not exists farm.operations (
   id uuid primary key default gen_random_uuid() not null,
   kind text not null,
@@ -47,6 +49,7 @@ create table if not exists farm.operations (
   measurements jsonb default '{}'::jsonb not null,
   machine_ids uuid[] default '{}'::uuid[] not null,
   operator_party_id uuid,
+  operator_name text,
   weather jsonb,
   status text default 'provisional' not null,
   geom extensions.geometry(MultiPolygon, 4326),
@@ -181,33 +184,52 @@ alter table farm.machine_state add column if not exists faults_at timestamp with
 --> statement-breakpoint
 alter table farm.machine_state add column if not exists stats_at timestamp with time zone;
 --> statement-breakpoint
+-- The panel parses position_vendor as one of these and fault_codes as an array: anything else
+-- would break it. Drop and re-add, so a re-run converges.
+alter table farm.machine_state drop constraint if exists machine_state_position_vendor_check;
+--> statement-breakpoint
+alter table farm.machine_state add constraint machine_state_position_vendor_check
+  check (position_vendor is null or position_vendor in ('deere', 'samsara', 'motive'));
+--> statement-breakpoint
+alter table farm.machine_state drop constraint if exists machine_state_fault_codes_check;
+--> statement-breakpoint
+alter table farm.machine_state add constraint machine_state_fault_codes_check
+  check (jsonb_typeof(fault_codes) = 'array');
+--> statement-breakpoint
 
 -- ============================================================================================
 -- sync-health: vendor call counts and org approval status
 -- ============================================================================================
 
--- Vendor API calls per source, stream and UTC day (decision 4). Every HTTP attempt counts
--- (retries too); errors = non-2xx other than 429 plus attempts that got no answer;
--- rate_limited = 429s. stream '' = calls outside a sync step (OAuth callback, CLIs). Upserted
--- with `calls = calls + excluded.calls`.
+-- Vendor API calls per source, stream, connector mode and UTC day (decision 4). Every HTTP
+-- attempt counts (retries too); errors = non-2xx other than 429 plus attempts that got no
+-- answer; rate_limited = 429s. stream '' = calls outside a sync step (OAuth callback); the CLIs
+-- count under 'backfill' and 'record'. mode = the connector mode the calls went through, so sim
+-- and replay calls never count against a real budget (the budget reads sandbox/live rows only).
+-- Upserted with `calls = calls + excluded.calls`.
 create table if not exists ingest.api_calls_daily (
   source text not null,
   stream text default '' not null,
+  mode text not null,
   day date not null,
   calls integer default 0 not null,
   errors integer default 0 not null,
   rate_limited integer default 0 not null,
   updated_at timestamp with time zone default now() not null,
-  constraint api_calls_daily_pkey primary key (source, stream, day),
+  constraint api_calls_daily_pkey primary key (source, stream, mode, day),
+  constraint api_calls_daily_mode_check check (mode in ('sim', 'replay', 'sandbox', 'live')),
   constraint api_calls_daily_counts_check check (calls >= 0 and errors >= 0 and rate_limited >= 0)
 );
 --> statement-breakpoint
 
 -- The vendor orgs a connection sees (decision 5): a Deere org whose listing carries a
 -- `connections` link, or that answers 403, is needs_approval (skipped by every sync, shown on
--- /admin/connectors with its approval link); else connected.
+-- /admin/connectors with its approval link); else connected. Per connector mode: the page shows
+-- the current mode's rows, and each successful org listing deletes that source and mode's rows
+-- it no longer lists (so sim's orgs never show as connected after a switch to sandbox).
 create table if not exists ingest.connector_orgs (
   source text not null,
+  mode text not null,
   org_external_id text not null,
   name text,
   status text not null,
@@ -216,7 +238,8 @@ create table if not exists ingest.connector_orgs (
   first_seen_at timestamp with time zone default now() not null,
   last_seen_at timestamp with time zone default now() not null,
   updated_at timestamp with time zone default now() not null,
-  constraint connector_orgs_pkey primary key (source, org_external_id),
+  constraint connector_orgs_pkey primary key (source, mode, org_external_id),
+  constraint connector_orgs_mode_check check (mode in ('sim', 'replay', 'sandbox', 'live')),
   constraint connector_orgs_status_check check (status in ('connected', 'needs_approval'))
 );
 --> statement-breakpoint
@@ -269,10 +292,10 @@ comment on table farm.machine_hours is 'Engine hours and odometer readings over 
 --> statement-breakpoint
 comment on table farm.machine_faults is 'Vehicle fault code history (1f: Samsara); one open row per machine, source and code.';
 --> statement-breakpoint
-comment on column farm.machine_state.fault_codes is 'Active fault codes (ActiveFaultCode[], worst first); updated only by a fault event newer than faults_at.';
+comment on column farm.machine_state.fault_codes is 'Active fault codes (ActiveFaultCode[], worst first); updated only by a fault event newer than faults_at; the first position insert seeds it from the open machine_faults rows.';
 --> statement-breakpoint
 comment on column farm.machine_state.position_vendor is 'Connector source of the latest fix (samsara, motive, deere); null for manual fixes and rows older than 0007.';
 --> statement-breakpoint
-comment on table ingest.api_calls_daily is 'Vendor API calls per source, stream and UTC day: calls, errors, rate-limited (1f, decision 4).';
+comment on table ingest.api_calls_daily is 'Vendor API calls per source, stream, connector mode and UTC day: calls, errors, rate-limited (1f, decision 4).';
 --> statement-breakpoint
-comment on table ingest.connector_orgs is 'Vendor orgs a connection sees and whether each is connected or needs approval (1f, decision 5).';
+comment on table ingest.connector_orgs is 'Vendor orgs a connection sees (per connector mode) and whether each is connected or needs approval (1f, decision 5).';

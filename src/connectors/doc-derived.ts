@@ -46,6 +46,13 @@ export const DOC_DERIVED: readonly DocDerivedItem[] = [
   },
   {
     source: 'deere',
+    what: "Deere's Equipment API host (equipmentapi.deere.com/isg/…), the replacement for the /platform machines paths",
+    confirm:
+      '1f reads equipment from GET /platform/organizations/{orgId}/machines (equipmentType, equipmentMake, equipmentModel names) and engine hours from GET /platform/machines/{id}/engineHours; if our app must use the Equipment API host instead, sync-health adds an equipmentBase to DeereEndpoints and the stand-in serves it (docs/contracts-1f.md §7.1)',
+    file: 'src/connectors/endpoints.ts, src/connectors/deere/client.ts, src/sim/vendors/deere/routes.ts',
+  },
+  {
+    source: 'deere',
     what: 'GET /platform/machines/{principalId}/breadcrumbs?startDate&endDate',
     confirm:
       'shapes are from the Machine Locations OpenAPI (speed {valueAsDouble, unit km1hr-1}, heading {valueAsInteger}, machineState {value}); confirm units as our org sends them, page size, whether startDate/endDate are inclusive (the client filters to its window); the stand-in sends these shapes since M1',

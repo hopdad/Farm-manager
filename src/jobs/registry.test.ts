@@ -27,12 +27,21 @@ describe('job registry', () => {
     ]);
   });
 
-  test('the 1f Deere jobs are registered with stubs until their builders land (clock stays green)', async () => {
-    const ctx = {} as Parameters<(typeof jobs)['deere.fields']['run']>[0];
-    expect(await jobs['deere.fields'].run(ctx)).toEqual({ items: 0, note: 'not built yet' });
-    expect(await jobs['deere.ops'].run(ctx)).toEqual({ items: 0, note: 'not built yet' });
-    expect(jobs['deere.fields'].connector).toBe('CONNECTOR_DEERE');
-    expect(jobs['deere.ops'].connector).toBe('CONNECTOR_DEERE');
+  // Only what stays true when deere-data and deere-ops swap their real run functions in
+  // (docs/contracts-1f.md §1.1): registration, connector, schedules, a run function.
+  test('the 1f Deere jobs are registered on the Deere connector with their schedules', () => {
+    expect(jobs['deere.fields']).toMatchObject({
+      cron: '17 * * * *',
+      demoEvery: '45 seconds',
+      connector: 'CONNECTOR_DEERE',
+    });
+    expect(jobs['deere.ops']).toMatchObject({
+      cron: '*/15 * * * *',
+      demoEvery: '20 seconds',
+      connector: 'CONNECTOR_DEERE',
+    });
+    expect(typeof jobs['deere.fields'].run).toBe('function');
+    expect(typeof jobs['deere.ops'].run).toBe('function');
   });
 
   test('fleet.trucks runs never overlap and its stream lease outlives its budget', () => {

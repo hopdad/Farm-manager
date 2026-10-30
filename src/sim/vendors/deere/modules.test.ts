@@ -6,16 +6,22 @@
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { DeereClient } from '../../../connectors/deere/client';
-import { deereFieldsSchema, deereOrganizationsSchema } from '../../../connectors/deere/schemas';
+import {
+  deereFieldsSchema,
+  deereMachinesSchema,
+  deereOrganizationsSchema,
+} from '../../../connectors/deere/schemas';
 import { type ConnectorConfig, deereEndpoints } from '../../../connectors/endpoints';
 import { MemoryTokenStore } from '../../../connectors/oauth/memory-store';
+import { buildDemoFarm } from '../../farm/build';
 import { createSimWorld } from '../../index';
+import { simExternalRefs } from '../../types';
 import { simDayReportsOf } from '../context';
 import { json } from '../http';
 import { startVendorSim, type VendorSim } from '../server';
 import { createStubSimWorld } from '../stub-world';
 import { type DeereRouteModule, deereModuleState } from './modules';
-import { pagedReply } from './platform';
+import { pagedReply, simDeereFields } from './platform';
 import { DEERE_ROUTE_MODULES, deereModuleWith } from './routes';
 
 const seen: { days: boolean | null } = { days: null };
@@ -129,6 +135,73 @@ describe('Deere stand-in route modules', () => {
     await block('org-home');
     sim.control.reset(); // also drops the grants: sign in again
     expect(await newClient().machines('org-home')).toEqual(expect.any(Array));
+  });
+});
+
+describe('core field listing and machine details (1f)', () => {
+  let bare: VendorSim;
+  let c: DeereClient;
+  beforeAll(async () => {
+    // No modules: what deere-ops sees in sim before deere-data's fields module lands.
+    bare = await startVendorSim({
+      createWorld: createStubSimWorld,
+      port: 0,
+      modules: { deere: deereModuleWith([]) },
+    });
+    const cfg: ConnectorConfig = { VENDOR_SIM_URL: bare.url, PUBLIC_URL: 'http://localhost:3112' };
+    c = new DeereClient({
+      endpoints: deereEndpoints('sim', cfg),
+      tokens: new MemoryTokenStore('deere', null),
+      http: { timeoutMs: 2_000, maxRetries: 0 },
+    });
+  });
+  afterAll(() => bare.close());
+
+  test("simDeereFields lists exactly the seed's Deere field refs (owning org, then sharedWith)", () => {
+    const farm = buildDemoFarm();
+    const listed = simDeereFields(farm).map((f) => `${f.orgId}|${f.deereFieldId}|${f.field.id}`);
+    const refs = simExternalRefs(farm, 'samsara')
+      .filter((r) => r.ref.kind === 'field')
+      .map((r) => `${r.ref.sourceOrg}|${r.ref.externalId}|${r.entityId}`);
+    expect(listed.sort()).toEqual(refs.sort());
+    expect(simDeereFields(farm).filter((f) => f.shared).length).toBeGreaterThan(0);
+  });
+
+  test('the core serves each org its fields, paged, and refuses unknown orgs', async () => {
+    const list = await c.getPaged(
+      deereFieldsSchema,
+      `${c.apiUrl('organizations', 'org-home', 'fields')}?itemLimit=1`,
+    );
+    expect(list.map((f) => [f.id, f.name, f.archived])).toEqual([
+      ['stub-fld-north', expect.any(String), false],
+    ]);
+    expect(list[0]?.links?.map((l) => l.rel)).toEqual([
+      'self',
+      'owningOrganization',
+      'fieldOperation',
+    ]);
+    await expect(c.fields('org-nobody')).rejects.toMatchObject({ status: 403 });
+  });
+
+  test("the core's machines carry equipment type, make and model from the simulated machine", async () => {
+    const page = await c.getOne(
+      deereMachinesSchema,
+      c.apiUrl('organizations', 'org-home', 'machines'),
+    );
+    expect(page.values.length).toBeGreaterThan(0);
+    for (const m of page.values) {
+      expect(m).toMatchObject({
+        equipmentType: { name: expect.any(String) },
+        equipmentMake: { name: expect.any(String) },
+        equipmentModel: { name: expect.any(String) },
+      });
+    }
+  });
+
+  test('a module answers the fields path before the core (shadowing)', async () => {
+    // The shared `sim` above has the test fields module: its reply, not the core's.
+    const list = await newClient().fields('org-home');
+    expect(list.map((f) => f.id)).toEqual(['org-home-f1', 'org-home-f2']);
   });
 });
 

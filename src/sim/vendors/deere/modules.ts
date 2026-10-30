@@ -1,7 +1,8 @@
 /**
  * The Deere stand-in's route modules (1f seam, docs/contracts-1f.md §7): the core router
- * (./routes.ts: OAuth, organizations, machines, breadcrumbs) dispatches every other platform
- * call to one module per 1f builder, so each builder adds its endpoints in its own file:
+ * (./routes.ts: OAuth, organizations, machines with their equipment type, make and model, a
+ * minimal `/organizations/{org}/fields` listing, breadcrumbs) dispatches every platform call to
+ * one module per 1f builder first, so each builder adds its endpoints in its own file:
  *
  *   connections  ./connections-routes.ts  sync-health: org approval (decision 5) — an org set to
  *                                         "needs approval" carries a `connections` link and answers
@@ -15,7 +16,10 @@
  *      non-null reply wins, so connections can refuse an org before anyone serves it;
  *   2. the core routes; 3. 404 "not simulated".
  * A module answers only the paths contracts-1f §7 gives it and returns null for everything else.
- * GET /organizations is the core's: modules add links to each org through `orgLinks()`.
+ * GET /organizations is the core's: modules add links to each org through `orgLinks()`. The
+ * fields module shadows the core's minimal fields listing (same ids: ./platform.ts
+ * simDeereFields); the core machines listing is never shadowed (deere-data reads it with its own
+ * looser schema).
  *
  * Knobs: `control()` is served at `/_control/vendor/deere/<key>/...` (req.path is the part after
  * `/<key>`), behind the stand-in's loopback/Origin/JSON guard; a module keeps its state in

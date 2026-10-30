@@ -1,11 +1,13 @@
 /**
  * Shared helpers of the Deere stand-in's platform API (`/deere/platform/...`): the vendor-shaped
- * error body, `pageOffset` / `itemLimit` paging with `nextPage` links, the simulated orgs. Used
- * by the core router (./routes.ts) and by the 1f route modules (./modules.ts), which must not
- * import ./routes.ts (it imports them). Integrator-owned in 1f (docs/contracts-1f.md §7).
+ * error body, `pageOffset` / `itemLimit` paging with `nextPage` links, the simulated orgs and
+ * which org lists which demo field (`simDeereFields`, so the core fields listing, the fields
+ * module and the ops module agree). Used by the core router (./routes.ts) and by the 1f route
+ * modules (./modules.ts), which must not import ./routes.ts (it imports them). Integrator-owned
+ * in 1f (docs/contracts-1f.md §7).
  */
 import type { DeereLink } from '../../../connectors/deere/schemas';
-import { SIM_DEERE_HOME_ORG, type SimFarm } from '../../types';
+import { SIM_DEERE_HOME_ORG, type SimFarm, type SimField } from '../../types';
 import { json, type SimRequest, type SimResponse } from '../http';
 
 /** Deere's API error body (`{ errors: [{ message, guid }] }`). */
@@ -68,4 +70,39 @@ export function simDeereOrgs(farm: SimFarm): { id: string; name: string }[] {
     add(f.sharedWith?.deereOrgId, `Simulated org ${f.sharedWith?.deereOrgId}`);
   add(SIM_DEERE_HOME_ORG, 'Home operation (simulated)');
   return [...names].map(([id, name]) => ({ id, name })).sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/** One entry of a simulated org's Deere field listing. */
+export interface SimDeereField {
+  /** The org that lists the field. */
+  orgId: string;
+  /** The field's id in that org (SimField.deereFieldId, or sharedWith.deereFieldId). */
+  deereFieldId: string;
+  field: SimField;
+  /** True for the second org's copy (SimField.sharedWith); false for the owning org's. */
+  shared: boolean;
+}
+
+/**
+ * Every (org, Deere field id) under which Deere knows a demo field, in farm order: the owning
+ * unit's org with SimField.deereFieldId, plus SimField.sharedWith's org and id. These are
+ * exactly the field tuples of `simExternalRefs`, so whatever a sync reads maps onto the seed.
+ */
+export function simDeereFields(farm: SimFarm): SimDeereField[] {
+  const orgOfFarm = new Map(farm.farms.map((u) => [u.id, u.deereOrgId]));
+  const out: SimDeereField[] = [];
+  for (const field of farm.fields) {
+    const orgId = orgOfFarm.get(field.farmId);
+    if (!orgId) continue;
+    out.push({ orgId, deereFieldId: field.deereFieldId, field, shared: false });
+    if (field.sharedWith) {
+      out.push({
+        orgId: field.sharedWith.deereOrgId,
+        deereFieldId: field.sharedWith.deereFieldId,
+        field,
+        shared: true,
+      });
+    }
+  }
+  return out;
 }

@@ -209,6 +209,20 @@ describe('parseConfig', () => {
     expect(issues({ ...prod, DEERE_REDIRECT_URI: 'https://farm.example.com/cb' })).toEqual([]);
   });
 
+  test('Deere home org (1f): optional, any non-blank org id', () => {
+    expect(parseConfig(base).DEERE_HOME_ORG_ID).toBeUndefined();
+    expect(parseConfig({ ...base, DEERE_HOME_ORG_ID: '4117350' }).DEERE_HOME_ORG_ID).toBe(
+      '4117350',
+    );
+    expect(parseConfig({ ...base, DEERE_HOME_ORG_ID: '  4117350 ' }).DEERE_HOME_ORG_ID).toBe(
+      '4117350',
+    );
+    // Empty counts as unset, like every key; blanks alone are refused.
+    expect(parseConfig({ ...base, DEERE_HOME_ORG_ID: '' }).DEERE_HOME_ORG_ID).toBeUndefined();
+    expect(issues({ ...base, DEERE_HOME_ORG_ID: '   ' }).join('\n')).toMatch(/DEERE_HOME_ORG_ID/);
+    expect(issues({ ...prod, DEERE_HOME_ORG_ID: '4117350' })).toEqual([]);
+  });
+
   test('production allows off and sandbox', () => {
     expect(issues({ ...prod, CONNECTOR_DEERE: 'off', CONNECTOR_ELD: 'sandbox' })).toEqual([]);
   });

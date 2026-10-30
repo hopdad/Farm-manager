@@ -17,7 +17,7 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { CONNECTOR_MODES } from '../../connectors/types';
+import { CONNECTOR_MODES, COUNTED_MODES } from '../../connectors/types';
 
 export const ingest = pgSchema('ingest');
 
@@ -160,16 +160,20 @@ export const oauthTokens = ingest.table(
 // =============================================================================================
 
 /**
- * Vendor API calls per source, stream and UTC day (decision 4): what /admin/connectors shows
- * against the budget and what fleet.deere paces itself from. Upserted with
- * `calls = calls + excluded.calls` by the call counter in src/connectors/http.ts (sync-health).
- * `stream` is '' for calls outside a sync step (the OAuth callback, a CLI).
+ * Vendor API calls per source, stream, connector mode and UTC day (decision 4): what
+ * /admin/connectors shows against the budget and what fleet.deere and deere.ops pace themselves
+ * from (sandbox/live rows only: sim and replay calls never count against a real budget).
+ * Upserted with `calls = calls + excluded.calls` by the call counter in src/connectors/http.ts
+ * (sync-health). `stream` is '' for calls outside a sync step (the OAuth callback); the CLIs
+ * count under 'backfill' and 'record'.
  */
 export const apiCallsDaily = ingest.table(
   'api_calls_daily',
   {
     source: text('source').notNull(),
     stream: text('stream').notNull().default(''),
+    /** The connector mode the calls went through. */
+    mode: text('mode', { enum: COUNTED_MODES }).notNull(),
     /** UTC calendar day. */
     day: date('day', { mode: 'string' }).notNull(),
     /** Every HTTP attempt sent to the vendor (retries count). */
@@ -181,7 +185,8 @@ export const apiCallsDaily = ingest.table(
     updatedAt: tstz('updated_at').notNull().defaultNow(),
   },
   (t) => [
-    primaryKey({ name: 'api_calls_daily_pkey', columns: [t.source, t.stream, t.day] }),
+    primaryKey({ name: 'api_calls_daily_pkey', columns: [t.source, t.stream, t.mode, t.day] }),
+    check('api_calls_daily_mode_check', sql`${t.mode} in ('sim', 'replay', 'sandbox', 'live')`),
     check(
       'api_calls_daily_counts_check',
       sql`${t.calls} >= 0 and ${t.errors} >= 0 and ${t.rateLimited} >= 0`,
@@ -192,12 +197,16 @@ export const apiCallsDaily = ingest.table(
 /**
  * The vendor orgs a connection can see and whether each is usable (decision 5): a Deere org
  * whose listing carries a `connections` link, or that answers 403, `needs_approval` (skipped by
- * every sync, shown on /admin/connectors with `approval_url`); else `connected`.
+ * every sync, shown on /admin/connectors with `approval_url`); else `connected`. Per connector
+ * mode: the page shows the current mode's rows, and each successful org listing deletes the rows
+ * of that source and mode it no longer lists.
  */
 export const connectorOrgs = ingest.table(
   'connector_orgs',
   {
     source: text('source').notNull(),
+    /** The connector mode the org was seen through. */
+    mode: text('mode', { enum: COUNTED_MODES }).notNull(),
     orgExternalId: text('org_external_id').notNull(),
     name: text('name'),
     status: text('status', { enum: ['connected', 'needs_approval'] }).notNull(),
@@ -210,7 +219,8 @@ export const connectorOrgs = ingest.table(
     updatedAt: tstz('updated_at').notNull().defaultNow(),
   },
   (t) => [
-    primaryKey({ name: 'connector_orgs_pkey', columns: [t.source, t.orgExternalId] }),
+    primaryKey({ name: 'connector_orgs_pkey', columns: [t.source, t.mode, t.orgExternalId] }),
+    check('connector_orgs_mode_check', sql`${t.mode} in ('sim', 'replay', 'sandbox', 'live')`),
     check('connector_orgs_status_check', sql`${t.status} in ('connected', 'needs_approval')`),
   ],
 );

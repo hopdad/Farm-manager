@@ -34,6 +34,13 @@ export type Activity = (typeof ACTIVITIES)[number];
 export const POSITION_SOURCES = ['eld', 'deere_working', 'cab_device', 'manual'] as const;
 export type PositionSource = (typeof POSITION_SOURCES)[number];
 
+/**
+ * The connector a fix came from (1f: machine_state.position_vendor, CHECKed; the fleet panel's
+ * "Samsara · sim" badge). Null = a manual fix or a row older than 0007.
+ */
+export const POSITION_VENDORS = ['deere', 'samsara', 'motive'] as const;
+export type PositionVendor = (typeof POSITION_VENDORS)[number];
+
 /** A machine older than this (wall clock) is `stale` (plan 1a: 10 min). Config: FLEET_STALE_SECONDS. */
 export const DEFAULT_STALE_AFTER_SECONDS = 600;
 

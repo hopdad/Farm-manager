@@ -35,6 +35,7 @@ import {
   TENURE_COLORS,
   TENURE_LABELS,
 } from './style';
+import { type FeatureTap, resolveTap, tapLayerIds, toFeatureTap } from './tap';
 import { installMapTestApi } from './test-api';
 import type { BasemapFlavor, MapPageData, MapVariant } from './types';
 import css from './war-room-map.module.css';
@@ -58,11 +59,22 @@ export interface WarRoomMapProps {
   /** Draw the deck.gl fleet (default true; the rail's 'fleet' toggle). */
   fleetVisible?: boolean;
   /**
-   * A tap or click that picked no machine: the field under it (farm.fields.id from the fields
-   * tiles), or null for empty map. Machines win when both are under the finger.
+   * A tap or click that picked no machine and no `tapLayers` feature: the field under it
+   * (farm.fields.id from the fields tiles), or null for empty map. Machines win when both are
+   * under the finger.
    */
   onFieldTap?(fieldId: string | null): void;
+  /**
+   * 1f seam (./tap.ts): MapLibre layer ids, or prefixes ending in `*` (deere-data's pins:
+   * `layer:pins:*`), whose features a tap may hit. Precedence: machine > a feature of these
+   * layers (`onFeatureTap`, and onFieldTap is not called) > field. Default none.
+   */
+  tapLayers?: readonly string[];
+  /** A tap that hit no machine but a feature of `tapLayers` (the topmost one). */
+  onFeatureTap?(hit: FeatureTap): void;
 }
+
+const NO_TAP_LAYERS: readonly string[] = [];
 
 const MAX_ERRORS = 50;
 
@@ -85,6 +97,10 @@ export default function WarRoomMap(props: WarRoomMapProps) {
   onMapReadyRef.current = props.onMapReady;
   const onFieldTapRef = useRef(props.onFieldTap);
   onFieldTapRef.current = props.onFieldTap;
+  const tapLayersRef = useRef(props.tapLayers ?? NO_TAP_LAYERS);
+  tapLayersRef.current = props.tapLayers ?? NO_TAP_LAYERS;
+  const onFeatureTapRef = useRef(props.onFeatureTap);
+  onFeatureTapRef.current = props.onFeatureTap;
 
   const origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
   const mapStyle = useMemo(
@@ -251,16 +267,39 @@ export default function WarRoomMap(props: WarRoomMapProps) {
         : null;
       const picked = info?.object as FleetFrame | undefined;
       onSelect(picked ? picked.id : null);
-      // A tap that hit no machine may be a field tap (the field panel, 1a).
+      // Machine > a feature of the tap layers (1f pins) > the field under the finger (./tap.ts).
+      const map = mapRef.current?.getMap();
+      const onFeatureTap = onFeatureTapRef.current;
       const onFieldTap = onFieldTapRef.current;
-      if (!picked && onFieldTap) {
-        const map = mapRef.current?.getMap();
+      let features: FeatureTap[] = [];
+      if (!picked && map && onFeatureTap) {
+        const ids = tapLayerIds(
+          tapLayersRef.current,
+          (map.getStyle()?.layers ?? []).map((l) => l.id),
+        );
+        if (ids.length > 0) {
+          const r = pickRadius;
+          const box: [[number, number], [number, number]] = [
+            [e.point.x - r, e.point.y - r],
+            [e.point.x + r, e.point.y + r],
+          ];
+          features = map
+            .queryRenderedFeatures(box, { layers: ids })
+            .map((f) => toFeatureTap(f, e.lngLat))
+            .filter((f): f is FeatureTap => f !== null);
+        }
+      }
+      const target = resolveTap(picked?.id ?? null, features, () => {
+        if (!onFieldTap) return null;
         const hit = map?.getLayer(FIELD_LAYER_IDS.fill)
           ? map.queryRenderedFeatures([e.point.x, e.point.y], { layers: [FIELD_LAYER_IDS.fill] })
           : [];
         const id = hit[0]?.properties?.id;
-        onFieldTap(typeof id === 'string' ? id : null);
-      }
+        return typeof id === 'string' ? id : null;
+      });
+      if (target.kind === 'feature') onFeatureTap?.(target.feature);
+      // A tap that hit no machine and no tap-layer feature may be a field tap (the field panel, 1a).
+      else if (target.kind === 'field') onFieldTap?.(target.fieldId);
     },
     [overlay, onSelect, pickRadius, sizes],
   );

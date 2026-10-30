@@ -1,6 +1,6 @@
 /**
  * The 1f additions to the fleet panel contract (docs/contracts-1f.md §5.3) are optional: a 1a
- * payload (no faults, no vendor) still parses, and a 1f one carries both.
+ * payload (no faults, no vendor, no hours) still parses, and a 1f one carries them.
  */
 import { describe, expect, test } from 'vitest';
 import { panelMachineSchema } from './contract';
@@ -30,10 +30,29 @@ const machine = {
 };
 
 describe('fleet panel contract (1f fields)', () => {
-  test('a 1a machine (no faults, no vendor) still parses', () => {
+  test('a 1a machine (no faults, no vendor, no hours) still parses', () => {
     const m = panelMachineSchema.parse(machine);
     expect(m.faults).toBeUndefined();
     expect(m.position?.vendor).toBeUndefined();
+    expect(m.engineHours).toBeUndefined();
+  });
+
+  test('a 1f machine may carry engine hours, odometer and fuel (null = none known)', () => {
+    const m = panelMachineSchema.parse({
+      ...machine,
+      engineHours: 4312.5,
+      odometerMi: 182_340.2,
+      fuelPct: 62,
+    });
+    expect([m.engineHours, m.odometerMi, m.fuelPct]).toEqual([4312.5, 182_340.2, 62]);
+    const none = panelMachineSchema.parse({
+      ...machine,
+      engineHours: null,
+      odometerMi: null,
+      fuelPct: null,
+    });
+    expect(none.engineHours).toBeNull();
+    expect(panelMachineSchema.safeParse({ ...machine, engineHours: '4312' }).success).toBe(false);
   });
 
   test('a 1f machine carries its active fault codes and the vendor of its fix', () => {

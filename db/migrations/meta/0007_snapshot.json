@@ -2024,6 +2024,14 @@
         "machine_state_position_source_check": {
           "name": "machine_state_position_source_check",
           "value": "\"farm\".\"machine_state\".\"position_source\" in ('eld', 'deere_working', 'cab_device', 'manual')"
+        },
+        "machine_state_position_vendor_check": {
+          "name": "machine_state_position_vendor_check",
+          "value": "\"farm\".\"machine_state\".\"position_vendor\" is null or \"farm\".\"machine_state\".\"position_vendor\" in ('deere', 'samsara', 'motive')"
+        },
+        "machine_state_fault_codes_check": {
+          "name": "machine_state_fault_codes_check",
+          "value": "jsonb_typeof(\"farm\".\"machine_state\".\"fault_codes\") = 'array'"
         }
       },
       "isRLSEnabled": false
@@ -2264,6 +2272,12 @@
         "operator_party_id": {
           "name": "operator_party_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "operator_name": {
+          "name": "operator_name",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -4577,6 +4591,12 @@
           "notNull": true,
           "default": "''"
         },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "day": {
           "name": "day",
           "type": "date",
@@ -4620,6 +4640,7 @@
           "columns": [
             "source",
             "stream",
+            "mode",
             "day"
           ]
         }
@@ -4627,6 +4648,10 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "api_calls_daily_mode_check": {
+          "name": "api_calls_daily_mode_check",
+          "value": "\"ingest\".\"api_calls_daily\".\"mode\" in ('sim', 'replay', 'sandbox', 'live')"
+        },
         "api_calls_daily_counts_check": {
           "name": "api_calls_daily_counts_check",
           "value": "\"ingest\".\"api_calls_daily\".\"calls\" >= 0 and \"ingest\".\"api_calls_daily\".\"errors\" >= 0 and \"ingest\".\"api_calls_daily\".\"rate_limited\" >= 0"
@@ -4640,6 +4665,12 @@
       "columns": {
         "source": {
           "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mode": {
+          "name": "mode",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -4703,6 +4734,7 @@
           "name": "connector_orgs_pkey",
           "columns": [
             "source",
+            "mode",
             "org_external_id"
           ]
         }
@@ -4710,6 +4742,10 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "connector_orgs_mode_check": {
+          "name": "connector_orgs_mode_check",
+          "value": "\"ingest\".\"connector_orgs\".\"mode\" in ('sim', 'replay', 'sandbox', 'live')"
+        },
         "connector_orgs_status_check": {
           "name": "connector_orgs_status_check",
           "value": "\"ingest\".\"connector_orgs\".\"status\" in ('connected', 'needs_approval')"

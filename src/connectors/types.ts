@@ -30,6 +30,18 @@ export type { ClaimedLease } from '../db/leases';
 export const CONNECTOR_MODES = ['sim', 'replay', 'sandbox', 'live', 'off'] as const;
 export type Mode = (typeof CONNECTOR_MODES)[number];
 
+/**
+ * The modes that make vendor calls (a stream that is 'off' makes none): the `mode` of
+ * ingest.api_calls_daily and ingest.connector_orgs rows (1f). Budgets read sandbox/live only.
+ */
+export const COUNTED_MODES = [
+  'sim',
+  'replay',
+  'sandbox',
+  'live',
+] as const satisfies readonly Mode[];
+export type CountedMode = (typeof COUNTED_MODES)[number];
+
 /** Every outside source the app syncs from or writes to. Used as `source` in ingest.* and farm.* rows. */
 export const CONNECTOR_SOURCES = [
   'deere',

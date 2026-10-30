@@ -11,6 +11,11 @@
  *                                                  tokens (a used one is invalid_grant)
  *   GET      /platform/organizations               orgs the token can see
  *   GET      /platform/organizations/{org}/machines
+ *                                                  with equipmentType / equipmentMake /
+ *                                                  equipmentModel (1f; doc-derived, confirm)
+ *   GET      /platform/organizations/{org}/fields  the org's demo fields (1f minimal listing,
+ *                                                  ./platform.ts simDeereFields; the fields
+ *                                                  module shadows it with the full shape)
  *   GET      /platform/machines/{id}/breadcrumbs?startDate=&endDate=&pageOffset=&itemLimit=
  *                                                  positions only while WORKING (plan §5)
  *
@@ -26,10 +31,12 @@ import {
   DEERE_AUTH_SERVER_ID,
   DEERE_MEDIA_TYPE,
   type DeereBreadcrumb,
+  type DeereField,
   type DeereMachine,
   type DeereOrganization,
   type DeereTokenResponse,
 } from '../../../connectors/deere/schemas';
+import type { MachineKind } from '../../../domain/fleet';
 import { SIM_CREDENTIALS, SIM_DEERE_HOME_ORG, type SimFarm } from '../../types';
 import { currentClock } from '../clock';
 import type { VendorContext, VendorControlContext, VendorModule } from '../context';
@@ -50,9 +57,16 @@ import { deereConnectionsRoutes } from './connections-routes';
 import { deereFieldsRoutes } from './fields-routes';
 import type { DeerePlatformRequest, DeereRouteModule } from './modules';
 import { deereOpsRoutes } from './ops-routes';
-import { apiError, collection, paging, platformBase, simDeereOrgs } from './platform';
+import {
+  apiError,
+  collection,
+  paging,
+  platformBase,
+  simDeereFields,
+  simDeereOrgs,
+} from './platform';
 
-export { simDeereOrgs } from './platform';
+export { simDeereFields, simDeereOrgs } from './platform';
 
 /** The 1f route modules, in dispatch order (./modules.ts). */
 export const DEERE_ROUTE_MODULES: readonly DeereRouteModule[] = [
@@ -88,6 +102,22 @@ const plusSeconds = (d: Date, s: number) => new Date(d.getTime() + s * 1000).toI
 function deereMachines(farm: SimFarm) {
   return farm.machines.filter((m) => m.vendorIds.deere);
 }
+
+/**
+ * Deere's equipment type name for a simulated machine (JDLink sits in the tractor that pulls a
+ * grain cart or a planter). // doc-derived, confirm (Deere equipment type names)
+ */
+const DEERE_EQUIPMENT_TYPE: Record<MachineKind, string> = {
+  combine: 'Combine',
+  tractor: 'Tractor',
+  sprayer: 'Sprayer',
+  planter: 'Tractor',
+  grain_cart: 'Tractor',
+  semi: 'Truck',
+  trailer: 'Trailer',
+  drone: 'Other',
+  pickup: 'Truck',
+};
 
 // ---------------------------------------------------------------------------------------------
 // OAuth
@@ -350,6 +380,10 @@ function machines(req: SimRequest, ctx: VendorContext, orgId: string): SimRespon
       id: m.vendorIds.deere as string,
       name: m.unitNo,
       modelYear: m.year,
+      // 1f: what the equipment sync maps a machine's kind from (from the simulated machine).
+      equipmentType: { '@type': 'EquipmentType', name: DEERE_EQUIPMENT_TYPE[m.kind] },
+      equipmentMake: { '@type': 'EquipmentMake', name: m.make },
+      equipmentModel: { '@type': 'EquipmentModel', name: m.model },
       links: [
         {
           rel: 'breadcrumbs',
@@ -357,6 +391,37 @@ function machines(req: SimRequest, ctx: VendorContext, orgId: string): SimRespon
         },
       ],
     }));
+  return json(200, collection(req.url, list, pg.offset, pg.limit));
+}
+
+/**
+ * The org's demo fields, minimal (1f): enough for deere.ops and the backfill to list fields in
+ * sim before the fields module (deere-data) lands; that module answers this path first once it
+ * does. Ids and orgs from ./platform.ts simDeereFields (the seed's external refs).
+ */
+function fields(req: SimRequest, ctx: VendorContext, orgId: string): SimResponse {
+  if (!simDeereOrgs(ctx.world.farm).some((o) => o.id === orgId)) {
+    return apiError(403, `No access to organization ${orgId}`);
+  }
+  const pg = paging(req.url, 10);
+  if ('kind' in pg) return pg;
+  const base = platformBase(req);
+  const list: DeereField[] = simDeereFields(ctx.world.farm)
+    .filter((f) => f.orgId === orgId)
+    .map((f) => {
+      const self = `${base}/organizations/${encodeURIComponent(orgId)}/fields/${encodeURIComponent(f.deereFieldId)}`;
+      return {
+        '@type': 'Field',
+        id: f.deereFieldId,
+        name: f.field.name,
+        archived: false,
+        links: [
+          { rel: 'self', uri: self },
+          { rel: 'owningOrganization', uri: `${base}/organizations/${encodeURIComponent(orgId)}` },
+          { rel: 'fieldOperation', uri: `${self}/fieldOperations` },
+        ],
+      };
+    });
   return json(200, collection(req.url, list, pg.offset, pg.limit));
 }
 
@@ -432,6 +497,9 @@ function coreRoute(r: DeerePlatformRequest, mods: readonly DeereRouteModule[]): 
   if (parts.length === 1 && parts[0] === 'organizations') return organizations(r, mods);
   if (parts.length === 3 && parts[0] === 'organizations' && parts[2] === 'machines') {
     return machines(req, ctx, parts[1] as string);
+  }
+  if (parts.length === 3 && parts[0] === 'organizations' && parts[2] === 'fields') {
+    return fields(req, ctx, parts[1] as string);
   }
   if (parts.length === 3 && parts[0] === 'machines' && parts[2] === 'breadcrumbs') {
     return breadcrumbs(req, ctx, parts[1] as string);

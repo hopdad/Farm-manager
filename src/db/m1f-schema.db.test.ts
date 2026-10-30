@@ -82,13 +82,20 @@ describe('farm.operations', () => {
           },
         ],
         measurements: { areaAc: 79.6, yieldBuAc: 212.4, moisturePct: 18.2 },
+        operatorName: 'Dan Kovach',
         geom: ADRIAN_QUARTER_SECTION,
         source: 'deere',
         sourceId: 'op-1',
         sourceOrg: 'org-home',
       });
     const [row] = await t().db.select().from(operations).where(eq(operations.id, id));
-    expect(row).toMatchObject({ kind: 'harvest', status: 'provisional', crop: 'corn' });
+    expect(row).toMatchObject({
+      kind: 'harvest',
+      status: 'provisional',
+      crop: 'corn',
+      operatorName: 'Dan Kovach',
+      operatorPartyId: null,
+    });
     expect(row?.measurements.yieldBuAc).toBe(212.4);
     expect(row?.machineIds).toEqual([]);
     expect(row?.geom?.type).toBe('MultiPolygon');
@@ -273,48 +280,100 @@ describe('farm.machine_hours and farm.machine_faults', () => {
       statsAt: null,
       positionVendor: null,
     });
-  });
-});
-
-describe('ingest.api_calls_daily and ingest.connector_orgs', () => {
-  test('call counts add up per source, stream and day', async () => {
-    const add = (calls: number, errors = 0) =>
-      t().pool.query(
-        `insert into ingest.api_calls_daily (source, stream, day, calls, errors)
-         values ('deere', 'locations', '2026-10-30', $1, $2)
-         on conflict (source, stream, day) do update
-           set calls = api_calls_daily.calls + excluded.calls,
-               errors = api_calls_daily.errors + excluded.errors, updated_at = now()`,
-        [calls, errors],
-      );
-    await add(11);
-    await add(12, 1);
-    const rows = await t().db.select().from(apiCallsDaily);
-    expect(rows.map((r) => [r.source, r.stream, r.day, r.calls, r.errors, r.rateLimited])).toEqual([
-      ['deere', 'locations', '2026-10-30', 23, 1, 0],
-    ]);
+    // The panel parses these, so the database refuses anything it couldn't.
+    await t().pool.query(
+      `update farm.machine_state set position_vendor = 'samsara' where machine_id = $1`,
+      [id],
+    );
     expect(
       await pgCode(
         t().pool.query(
-          `insert into ingest.api_calls_daily (source, day, calls) values ('deere', '2026-10-30', -1)`,
+          `update farm.machine_state set position_vendor = 'geotab' where machine_id = $1`,
+          [id],
+        ),
+      ),
+    ).toBe('23514');
+    expect(
+      await pgCode(
+        t().pool.query(
+          `update farm.machine_state set fault_codes = '{"code": "x"}'::jsonb where machine_id = $1`,
+          [id],
         ),
       ),
     ).toBe('23514');
   });
+});
 
-  test('an org is connected or needs approval', async () => {
+describe('ingest.api_calls_daily and ingest.connector_orgs', () => {
+  test('call counts add up per source, stream, mode and day; sim never mixes with sandbox', async () => {
+    const add = (mode: string, calls: number, errors = 0) =>
+      t().pool.query(
+        `insert into ingest.api_calls_daily (source, stream, mode, day, calls, errors)
+         values ('deere', 'locations', $1, '2026-10-30', $2, $3)
+         on conflict (source, stream, mode, day) do update
+           set calls = api_calls_daily.calls + excluded.calls,
+               errors = api_calls_daily.errors + excluded.errors, updated_at = now()`,
+        [mode, calls, errors],
+      );
+    await add('sandbox', 11);
+    await add('sandbox', 12, 1);
+    await add('sim', 500);
+    const rows = await t().db.select().from(apiCallsDaily).orderBy(apiCallsDaily.mode);
+    expect(
+      rows.map((r) => [r.source, r.stream, r.mode, r.day, r.calls, r.errors, r.rateLimited]),
+    ).toEqual([
+      ['deere', 'locations', 'sandbox', '2026-10-30', 23, 1, 0],
+      ['deere', 'locations', 'sim', '2026-10-30', 500, 0, 0],
+    ]);
+    expect(
+      await pgCode(
+        t().pool.query(
+          `insert into ingest.api_calls_daily (source, mode, day, calls) values ('deere', 'live', '2026-10-30', -1)`,
+        ),
+      ),
+    ).toBe('23514');
+    // 'off' makes no calls; the mode is required.
+    expect(
+      await pgCode(
+        t().pool.query(
+          `insert into ingest.api_calls_daily (source, mode, day, calls) values ('deere', 'off', '2026-10-30', 1)`,
+        ),
+      ),
+    ).toBe('23514');
+    expect(
+      await pgCode(
+        t().pool.query(
+          `insert into ingest.api_calls_daily (source, day, calls) values ('deere', '2026-10-30', 1)`,
+        ),
+      ),
+    ).toBe('23502');
+  });
+
+  test('an org is connected or needs approval, per connector mode', async () => {
     await t().db.insert(connectorOrgs).values({
       source: 'deere',
+      mode: 'sandbox',
       orgExternalId: 'org-customer-1',
       status: 'needs_approval',
       approvalUrl: 'https://connections.deere.com/x',
     });
-    const [row] = await t().db.select().from(connectorOrgs);
-    expect(row).toMatchObject({ status: 'needs_approval', name: null, detail: null });
+    // The same org id seen through sim is a row of its own.
+    await t().db.insert(connectorOrgs).values({
+      source: 'deere',
+      mode: 'sim',
+      orgExternalId: 'org-customer-1',
+      status: 'connected',
+    });
+    const rows = await t().db.select().from(connectorOrgs).orderBy(connectorOrgs.mode);
+    expect(rows.map((r) => [r.mode, r.status])).toEqual([
+      ['sandbox', 'needs_approval'],
+      ['sim', 'connected'],
+    ]);
+    expect(rows[0]).toMatchObject({ name: null, detail: null });
     expect(
       await pgCode(
         t().pool.query(
-          `insert into ingest.connector_orgs (source, org_external_id, status) values ('deere', 'o', 'pending')`,
+          `insert into ingest.connector_orgs (source, mode, org_external_id, status) values ('deere', 'live', 'o', 'pending')`,
         ),
       ),
     ).toBe('23514');

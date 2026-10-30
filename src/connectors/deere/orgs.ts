@@ -12,10 +12,18 @@
  * never fails the other orgs' sync. Customer orgs are connected only after a data-rights
  * agreement (plan 2a, D17): /admin/connectors says so; nothing here blocks the home org.
  *
+ * The home org (decision 8, `deereHomeOrg`): the org that is your own operation. Machines are
+ * created only from it; farms and fields read from any other org belong to that org's customer
+ * (farms.client_party_id = the org's party). DEERE_HOME_ORG_ID names it; unset, sim and replay
+ * use their simulated home org and sandbox/live the only org you are a member of (none when
+ * there are several: /admin/connectors asks for the setting).
+ *
  * The rel name is doc-derived (Deere's Connections docs, unconfirmed): confirm with
  * `pnpm connectors:record`. Owned by the 1f foundation (contract file).
  */
+import { SIM_DEERE_HOME_ORG } from '../../sim/types';
 import { VendorHttpError } from '../http';
+import type { Mode } from '../types';
 import type { DeereLink } from './schemas';
 
 /** Link rel on an organization that still needs approval. // doc-derived, confirm */
@@ -63,4 +71,41 @@ export function deniedOrgAccess(
 ): DeereOrgAccess {
   const base = deereOrgAccess(org);
   return { ...base, status: 'needs_approval', detail: `403 from ${err.path}` };
+}
+
+// ---------------------------------------------------------------------------------------------
+// The home org (decision 8)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The home org of the replay fixtures: they are built from the demo farm
+ * (./fixtures/build.ts), whose own operation is the simulated home org.
+ */
+export const DEERE_REPLAY_HOME_ORG = SIM_DEERE_HOME_ORG;
+
+/** Where the home org came from (/admin/connectors shows it; `unknown` asks for the setting). */
+export type DeereHomeOrgSource = 'config' | 'sim' | 'replay' | 'only_member' | 'unknown';
+
+export interface DeereHomeOrg {
+  /** Null = no home org: no machine is created from Deere, every org's farms are customers'. */
+  orgId: string | null;
+  source: DeereHomeOrgSource;
+}
+
+/**
+ * Which Deere org is your own operation. `configured` = DEERE_HOME_ORG_ID (wins in every mode);
+ * `orgs` = the org listing (GET /organizations) of this run, used only in sandbox and live.
+ */
+export function deereHomeOrg(
+  mode: Mode,
+  configured: string | null | undefined,
+  orgs: readonly { id: string; member?: boolean }[],
+): DeereHomeOrg {
+  if (configured) return { orgId: configured, source: 'config' };
+  if (mode === 'sim') return { orgId: SIM_DEERE_HOME_ORG, source: 'sim' };
+  if (mode === 'replay') return { orgId: DEERE_REPLAY_HOME_ORG, source: 'replay' };
+  if (mode === 'off') return { orgId: null, source: 'unknown' };
+  const members = orgs.filter((o) => o.member === true);
+  const only = members.length === 1 ? members[0] : undefined;
+  return only ? { orgId: only.id, source: 'only_member' } : { orgId: null, source: 'unknown' };
 }

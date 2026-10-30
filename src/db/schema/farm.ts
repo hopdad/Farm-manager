@@ -40,7 +40,13 @@ import {
   TILE_LINE_ORIGINS,
 } from '../../domain/farm';
 import { type ActiveFaultCode, FAULT_SEVERITIES } from '../../domain/fault-codes';
-import { ACTIVITIES, MACHINE_KINDS, MACHINE_STATUSES, POSITION_SOURCES } from '../../domain/fleet';
+import {
+  ACTIVITIES,
+  MACHINE_KINDS,
+  MACHINE_STATUSES,
+  POSITION_SOURCES,
+  POSITION_VENDORS,
+} from '../../domain/fleet';
 import {
   OPERATION_KINDS,
   OPERATION_STATUSES,
@@ -259,10 +265,11 @@ export const machineState = farm.table(
      * Connector source of the latest fix (samsara, motive, deere; 1f, migration 0007): the
      * per-machine vendor badge ("Samsara · sim"). Null for manual fixes and rows older than 0007.
      */
-    positionVendor: text('position_vendor'),
+    positionVendor: text('position_vendor', { enum: POSITION_VENDORS }),
     /**
      * Active fault codes (1f), worst first: the summary of the machine's open farm.machine_faults
-     * rows. '[]' = none. Updated only by a fault event newer than `faultsAt`.
+     * rows. '[]' = none. Updated only by a fault event newer than `faultsAt`; the first position
+     * insert seeds it from the open machine_faults rows.
      */
     faultCodes: jsonb('fault_codes').$type<ActiveFaultCode[]>().notNull().default(sql`'[]'::jsonb`),
     /** Vendor time of the fault event `faultCodes` reflects (time guard: older pages lose). */
@@ -278,6 +285,11 @@ export const machineState = farm.table(
       'machine_state_position_source_check',
       sql`${t.positionSource} in (${inList(POSITION_SOURCES)})`,
     ),
+    check(
+      'machine_state_position_vendor_check',
+      sql`${t.positionVendor} is null or ${t.positionVendor} in (${inList(POSITION_VENDORS)})`,
+    ),
+    check('machine_state_fault_codes_check', sql`jsonb_typeof(${t.faultCodes}) = 'array'`),
   ],
 );
 
@@ -744,6 +756,8 @@ export const operations = farm.table(
     operatorPartyId: uuid('operator_party_id').references(() => parties.id, {
       onDelete: 'set null',
     }),
+    /** The operator as the vendor names them; operator_party_id stays null until a matching rule exists. */
+    operatorName: text('operator_name'),
     /** Observed weather during the operation, with its source (2b). */
     weather: jsonb('weather').$type<OperationWeather>(),
     status: text('status', { enum: OPERATION_STATUSES }).notNull().default('provisional'),

@@ -12,15 +12,21 @@
  *
  * 1f (docs/contracts-1f.md §5.3, fleet-faults): each machine may carry its active fault codes
  * (`faults`, worst first; a change publishes `fleet`/`invalidate` { event: 'machine', reason:
- * 'faults' }) and its position the connector it came from (`position.vendor`, for the
- * "Samsara · sim" badge with `modes`). Both optional so the 1a code keeps compiling; absent =
- * none known.
+ * 'faults' }), its position the connector it came from (`position.vendor`, for the
+ * "Samsara · sim" badge with `modes`), and its engine hours, odometer and fuel. All optional so
+ * the 1a code keeps compiling; absent = none known.
  */
 import { z } from 'zod';
 import { CONNECTOR_MODES } from '../../connectors/types';
 import { GEOFENCE_KINDS } from '../../domain/farm';
 import { activeFaultCodeSchema } from '../../domain/fault-codes';
-import { ACTIVITIES, MACHINE_KINDS, MACHINE_STATUSES, POSITION_SOURCES } from '../../domain/fleet';
+import {
+  ACTIVITIES,
+  MACHINE_KINDS,
+  MACHINE_STATUSES,
+  POSITION_SOURCES,
+  POSITION_VENDORS,
+} from '../../domain/fleet';
 
 export const MACHINES_URL = '/api/machines';
 export const machineStatusUrl = (id: string) => `${MACHINES_URL}/${encodeURIComponent(id)}/status`;
@@ -52,7 +58,7 @@ export const panelPositionSchema = z.object({
   fieldId: z.uuid().nullable(),
   fieldName: z.string().nullable(),
   /** 1f: the connector the fix came from (machine_state.position_vendor); null = manual/unknown. */
-  vendor: z.enum(['deere', 'samsara', 'motive']).nullable().optional(),
+  vendor: z.enum(POSITION_VENDORS).nullable().optional(),
 });
 export type PanelPosition = z.infer<typeof panelPositionSchema>;
 
@@ -84,6 +90,15 @@ export const panelMachineSchema = z.object({
    * "Critical fault: mark down?" to `canMarkDown` sessions (decision 2; never automatic).
    */
   faults: z.array(activeFaultCodeSchema).optional(),
+  /**
+   * 1f: the hour meter (machines.engine_hours: the greatest reading any connector reported, Deere
+   * engine hours or Samsara stats; never decreasing). Null = none known.
+   */
+  engineHours: z.number().nullable().optional(),
+  /** 1f: the odometer in miles (machines.odometer_mi, never decreasing). Null = none known. */
+  odometerMi: z.number().nullable().optional(),
+  /** 1f: fuel level, percent 0-100 (machine_state.fuel_pct, time-guarded by stats_at). Null = none known. */
+  fuelPct: z.number().nullable().optional(),
 });
 export type PanelMachine = z.infer<typeof panelMachineSchema>;
 
