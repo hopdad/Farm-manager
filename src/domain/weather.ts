@@ -105,8 +105,19 @@ export interface Observation {
   precipLastHourIn: number | null;
 }
 
-/** A forecast older than this (from issuedAt) shows as stale on the strip. Job runs every 30 min. */
+/**
+ * A forecast not confirmed with NWS for longer than this is stale (`forecast_stale`, the strip's
+ * badge). It counts from the later of the issue time and the weather.nws job's last successful
+ * fetch of the cell (farm.weather_grids.forecast_checked_at), not from the issue time alone: live
+ * NWS often keeps one `updateTime` for hours. The job runs every 30 min.
+ */
 export const WEATHER_STALE_MINUTES = 120;
+
+/**
+ * An issue older than this is stale even while NWS still serves it: a backstop for a cell NWS
+ * stopped updating (it updates every grid at least twice a day).
+ */
+export const FORECAST_ISSUE_MAX_AGE_MINUTES = 18 * 60;
 
 // ---------------------------------------------------------------------------------------------
 // The weather strip (view model; built on the server, rendered by src/ui/weather)
@@ -154,8 +165,15 @@ export interface WeatherStrip {
   /** The grid cell shown: the one most fields share (null before the first lookup). */
   grid: GridRef | null;
   issuedAt: string | null;
+  /**
+   * When the forecast was last confirmed with NWS: the job's last successful fetch of the cell
+   * (a new issue or the same one again), else when the newest issue was stored.
+   */
   fetchedAt: string | null;
-  /** issuedAt older than WEATHER_STALE_MINUTES, or no forecast at all. */
+  /**
+   * No forecast at all, or `forecastStaleness` (src/domain/spray.ts) says stale: not checked
+   * for WEATHER_STALE_MINUTES, or an issue older than FORECAST_ISSUE_MAX_AGE_MINUTES.
+   */
   stale: boolean;
   /** CONNECTOR_WEATHER at build time ('sim' shows a "simulated weather" badge). */
   mode: 'sim' | 'replay' | 'sandbox' | 'live' | 'off';
@@ -319,12 +337,15 @@ export function parseSprayThresholdsSetting(value: unknown): SprayThresholdsSett
   return r.success ? r.data : defaultSprayThresholdsSetting();
 }
 
-/** Bump when the RULES change (not the thresholds: those are hashed into the version). */
-export const SPRAY_RULES = 'v0';
+/**
+ * Bump when the RULES change (not the thresholds: those are hashed into the version).
+ * v0.1: forecast staleness counts from the last NWS check, plus the 18 h issue-age backstop.
+ */
+export const SPRAY_RULES = 'v0.1';
 
 /**
  * farm.spray_assessments.rules_version: the rules generation plus a hash of the thresholds,
- * e.g. 'v0-1a2b3c4d'. Equal inputs give equal versions, so a re-run is a no-op (unique key).
+ * e.g. 'v0.1-1a2b3c4d'. Equal inputs give equal versions, so a re-run is a no-op (unique key).
  */
 export function sprayRulesVersion(t: SprayThresholds, rules: string = SPRAY_RULES): string {
   const keys = Object.keys(t).sort() as (keyof SprayThresholds)[];
@@ -351,6 +372,11 @@ export interface SprayAssessmentView {
   reasons: SprayReason[];
   rulesVersion: string;
   forecastIssuedAt: string | null;
+  /**
+   * The cell's farm.weather_grids.forecast_checked_at at read time (not stored per row): with
+   * forecastIssuedAt, what `withStaleness` judges. Null: never recorded, or no cell.
+   */
+  forecastCheckedAt: string | null;
   assessedAt: string;
 }
 

@@ -325,6 +325,8 @@ describe('fieldDetail', () => {
       ],
       rulesVersion: 'v0-b',
       forecastIssuedAt: '2026-10-29T12:00:00.000Z',
+      // No cell on the row: never checked, so the issue's age decides (the v0 rule).
+      forecastCheckedAt: null,
       assessedAt: '2026-10-29T13:30:00.000Z',
     });
     expect(d.openJobs).toEqual({ count: 0, placeholder: true });

@@ -8,7 +8,8 @@
  *      farm.fields pkey · farm.field_boundaries field_boundaries_no_overlap (gist field_id, valid)
  *      · farm.field_seasons (field_id, crop_year) · gis.field_soils pkey (boundary_id, mukey)
  *      · gis.parcels geom gist · farm.field_lineage (parent, child) / child_field_id
- *      · farm.boundary_change_requests open index · farm.spray_assessments (field_id, for_hour).
+ *      · farm.boundary_change_requests open index · farm.spray_assessments (field_id, for_hour)
+ *      · farm.weather_grids pkey (the verdict's cell, for its last NWS check).
  *    The JSON is built in SQL with the contract's camelCase keys; timestamps leave as UTC ISO.
  *  - `saveFieldNotes()`: the notes edit (manager+, checked by the caller), optimistic on
  *    `FieldNotes.version` (farm.fields.updated_at, microseconds), publishing `fields`/`updated`
@@ -165,6 +166,8 @@ select json_build_object(
              'fieldId', s.field_id, 'forHour', ${iso('s.for_hour')}, 'verdict', s.verdict,
              'reasons', s.reasons, 'rulesVersion', s.rules_version,
              'forecastIssuedAt', ${iso('s.forecast_issued_at')},
+             'forecastCheckedAt', (select ${iso('g.forecast_checked_at')}
+                                     from farm.weather_grids g where g.id = s.grid_id),
              'assessedAt', ${iso('s.assessed_at')})
       from farm.spray_assessments s
      where s.field_id = $1::uuid and s.for_hour = date_trunc('hour', $2::timestamptz, 'UTC')
@@ -216,7 +219,7 @@ export async function fieldDetail(
   const row = r.rows[0];
   if (!row) return null;
   const detail = toFieldDetail(parseJson<RawFieldDetail>(row.detail));
-  // The stored verdict as shown now: an old forecast adds forecast_stale (caution), exactly as
+  // The stored verdict as shown now: a stale forecast adds forecast_stale (caution), exactly as
   // GET /api/weather/spray and the map do (src/domain/spray.ts withStaleness).
   return detail.spray ? { ...detail, spray: withStaleness(detail.spray, now) } : detail;
 }

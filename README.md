@@ -172,7 +172,7 @@ NWS_USER_AGENT="farm-manager (your email or website)"
 The first run looks up each field's NWS grid cell (about 40 calls, once), then refreshes every
 30 minutes even while `JOBS_DEMO_CADENCE=on` speeds up the simulated fleet. Switching back to
 `sim` forgets the cached cells again. The forecast is stored, so the strip keeps working when
-the internet drops (it shows how old the forecast is).
+the internet drops (it says "Forecast stale" once NWS hasn't been reached for 2 hours).
 
 ## Replay mode (Deere and the trucks from recorded fixtures)
 
@@ -260,7 +260,7 @@ for the plan's defaults (trucks every 30 s, stale after 10 minutes).
 | The Soils tab says "Synthetic test fixture, not survey data" | Real SSURGO hasn't been loaded yet: `pnpm gis:soils`. After `pnpm db:reset`, `pnpm gis:soils --offline` reloads your last download without the internet. |
 | An import says a column wasn't found | `pnpm import:boundaries <file> --dry-run` lists what it detected; name the column with `--name-attr`, `--farm-attr`, `--id-attr` (shapefile column names are cut to 10 characters, e.g. `CLIENT_NAM`). |
 | `data:import` stops with "NOTHING WRITTEN" | It lists each row that failed. Fix them, or `--partial` to keep what worked. A note (not an error) about a person "not in this database" means the row came back without saying who entered it. |
-| The weather strip says "Simulated weather" | That's the default; see "Live weather" above. A strip that says the forecast is hours old: is `pnpm dev` running, and does the PC have internet (live mode)? |
+| The weather strip says "Simulated weather" | That's the default; see "Live weather" above. A strip that says "Forecast stale": is `pnpm dev` running, and does the PC have internet (live mode)? |
 | The board shows "Fleet unavailable" or nothing moves | Is `pnpm dev` still running, and is the job clock running on `/admin/connectors` (not paused)? The simulation may be paused there too. |
 | A page keeps reloading under `pnpm dev` | A Next 16 dev-cache glitch after `pnpm pilot` built the app; `pnpm dev` now clears `.next\dev` itself when a production build ran since its last start. If it still happens: Ctrl+C, `Remove-Item -Recurse -Force .next\dev`, `pnpm dev`. |
 

@@ -1,7 +1,7 @@
 /**
  * Weather storage (plan 1b; docs/contracts-m1.md §3.1, §13): the cached NWS grid cells and each
- * field's cell, forecast issues, station observations, the spray thresholds setting and the
- * retention the weather.nws job runs. Raw SQL through `exec` (pg pool/client or Drizzle tx).
+ * field's cell, forecast issues and when NWS last confirmed them, station observations, the
+ * spray thresholds setting and the retention the weather.nws job runs. Raw SQL through `exec` (pg pool/client or Drizzle tx).
  *
  * Tables: farm.weather_grids, farm.field_weather_grids, farm.weather_forecasts,
  * farm.weather_observations, app.settings 'spray.thresholds', ingest.raw_events (source 'nws').
@@ -330,6 +330,48 @@ export async function newestIssues(ex: Executor, gridIds: string[]): Promise<Map
   );
   return new Map(
     r.rows.map((x) => [x.grid_id, (toDate(x.issued_at) as Date).toISOString()] as const),
+  );
+}
+
+/**
+ * NWS answered for these cells at `at` (a new issue or the same one again): their forecast is
+ * current as of then (farm.weather_grids.forecast_checked_at; the staleness rule in
+ * src/domain/spray.ts counts from it). Only cells whose answered issue is stored are marked: an
+ * issue that failed to process doesn't vouch for the older one. Returns cells marked.
+ */
+export async function markForecastsChecked(
+  ex: Executor,
+  checked: readonly { gridId: string; issuedAt: string }[],
+  at: Date,
+): Promise<number> {
+  if (!checked.length) return 0;
+  const r = await exec(
+    ex,
+    `update farm.weather_grids g
+        set forecast_checked_at = $3::timestamptz
+       from unnest($1::text[], $2::timestamptz[]) as c(grid_id, issued_at)
+      where g.id = c.grid_id
+        and exists (select 1 from farm.weather_forecasts f
+                     where f.grid_id = c.grid_id and f.issued_at = c.issued_at)`,
+    [checked.map((c) => c.gridId), checked.map((c) => c.issuedAt), at.toISOString()],
+  );
+  return r.rowCount;
+}
+
+/** When each cell's forecast was last confirmed with NWS: grid id -> ISO (never: left out). */
+export async function forecastCheckTimes(
+  ex: Executor,
+  gridIds: string[],
+): Promise<Map<string, string>> {
+  if (!gridIds.length) return new Map();
+  const r = await exec<{ id: string; forecast_checked_at: unknown }>(
+    ex,
+    `select id, forecast_checked_at from farm.weather_grids
+      where id = any($1::text[]) and forecast_checked_at is not null`,
+    [gridIds],
+  );
+  return new Map(
+    r.rows.map((x) => [x.id, (toDate(x.forecast_checked_at) as Date).toISOString()] as const),
   );
 }
 

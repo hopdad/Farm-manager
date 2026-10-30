@@ -12,9 +12,11 @@ import { buildWeatherStrip } from '../../ui/weather/strip-model';
 import { exec } from '../exec';
 import {
   assignFieldGrid,
+  forecastCheckTimes,
   forecastHours,
   gridsInUse,
   insertForecastIssue,
+  markForecastsChecked,
   newestIssues,
   pruneWeather,
   readSprayThresholds,
@@ -65,6 +67,9 @@ async function count(sql: string, values: unknown[] = []): Promise<number> {
 
 describe('weather storage', () => {
   test('grids, forecasts and observations round-trip; issues are stored once', async () => {
+    // One instant for the whole test: an hour starting between two `new Date()`s would move
+    // the strip's first hour.
+    const now = new Date();
     const f = await insertField(t().db, { geom: squareMultiPolygon(-84.06, 41.89, 500) });
     await upsertGrid(
       t().pool,
@@ -83,7 +88,7 @@ describe('weather storage', () => {
       [GRID.id, 1, 'KADG'],
     ]);
 
-    const start = floorHour(Date.now());
+    const start = floorHour(now.getTime());
     const issue = {
       grid: GRID,
       issuedAt: new Date(start - 10 * 60_000).toISOString(),
@@ -114,6 +119,31 @@ describe('weather storage', () => {
     );
     expect(back).toEqual(issue.hours.slice(0, 2));
 
+    // NWS checks are recorded for a stored issue only (one that failed to land vouches for
+    // nothing), and only for cells that exist.
+    const checkedAt = new Date(now.getTime() - 60_000);
+    expect(
+      await markForecastsChecked(
+        t().pool,
+        [
+          { gridId: GRID.id, issuedAt: new Date(start).toISOString() },
+          { gridId: 'DTX/1,1', issuedAt: issue.issuedAt },
+        ],
+        checkedAt,
+      ),
+    ).toBe(0);
+    expect(await forecastCheckTimes(t().pool, [GRID.id])).toEqual(new Map());
+    expect(
+      await markForecastsChecked(
+        t().pool,
+        [{ gridId: GRID.id, issuedAt: issue.issuedAt }],
+        checkedAt,
+      ),
+    ).toBe(1);
+    expect(await forecastCheckTimes(t().pool, [GRID.id, 'DTX/1,1'])).toEqual(
+      new Map([[GRID.id, checkedAt.toISOString()]]),
+    );
+
     const obs = {
       stationId: 'KADG',
       stationName: 'Adrian',
@@ -137,15 +167,15 @@ describe('weather storage', () => {
       fieldId: f.fieldId,
       tempF: 52.5,
       depthIn: 2,
-      observedAt: new Date(Date.now() - 90 * 60_000).toISOString(),
+      observedAt: new Date(now.getTime() - 90 * 60_000).toISOString(),
       note: 'north end',
       enteredBy: null,
       deviceId: null,
     });
-    const now = new Date();
     const data = await loadStripData(t().pool, now);
     expect(data.grid).toEqual(GRID);
     expect(data.issuedAt).toBe(issue.issuedAt);
+    expect(data.checkedAt).toBe(checkedAt.toISOString());
     expect(data.now).toMatchObject({ stationId: 'KADG', windMph: 8, stationName: 'Adrian' });
     expect(data.soilTemp).toMatchObject({ tempF: 52.5, fieldId: f.fieldId, source: 'manual' });
     const strip = buildWeatherStrip({
@@ -154,6 +184,7 @@ describe('weather storage', () => {
       grid: data.grid,
       issuedAt: data.issuedAt,
       fetchedAt: data.fetchedAt,
+      checkedAt: data.checkedAt,
       hours: data.hours,
       observation: data.now,
       soilTemp: data.soilTemp,
@@ -161,8 +192,9 @@ describe('weather storage', () => {
       referenceVerdicts: data.referenceVerdicts,
     });
     expect(strip.stale).toBe(false);
+    expect(strip.fetchedAt).toBe(checkedAt.toISOString());
     expect(strip.hours[0]?.validAt).toBe(new Date(start).toISOString());
-    expect(strip.soilTemp?.ageMinutes).toBeGreaterThanOrEqual(89);
+    expect(strip.soilTemp?.ageMinutes).toBe(90);
     expect((await latestSoilTemp(t().pool))?.tempF).toBe(52.5);
     expect((await soilTempFieldOptions(t().pool)).map((o) => o.id)).toContain(f.fieldId);
     const geom = await exec<{ inside: boolean }>(

@@ -10,7 +10,10 @@
  *     `/gridpoints/{wfo}/{x},{y}/stations` lists its stations (farm.weather_grids).
  *  2. Forecasts, as the sync step ('nws', 'forecast'): `/gridpoints/{wfo}/{x},{y}` of every cell
  *     in use; a new `updateTime` lands as one raw event (trimmed to the layers and days the app
- *     uses), which maps to one row per hour in farm.weather_forecasts (`issued_at`).
+ *     uses), which maps to one row per hour in farm.weather_forecasts (`issued_at`). When the
+ *     step succeeds, every cell NWS answered for (a new issue or the same one again) gets
+ *     farm.weather_grids.forecast_checked_at = now: staleness counts from there, because live
+ *     NWS often keeps one `updateTime` for hours.
  *  3. Observations, as the sync step ('nws', 'observations'): the nearest station of each cell,
  *     since the last one stored (at most 3 h back) -> farm.weather_observations.
  *  4. Spray go/no-go: every active field, the current hour plus the next 12, from the newest
@@ -21,9 +24,9 @@
  *     were written; fields/updated {parts: ['spray']} for each field whose current verdict
  *     changed (more than FIELD_UPDATE_LIMIT: one fields/invalidate instead).
  *
- * A failed forecast or observation step still lets the spray pass run (it marks old forecasts
- * stale), then the job throws so ingest.job_runs records the failure. CONNECTOR_WEATHER=off: the
- * job does nothing.
+ * A failed forecast or observation step still lets the spray pass run (a forecast not checked
+ * for WEATHER_STALE_MINUTES is assessed stale), then the job throws so ingest.job_runs records
+ * the failure. CONNECTOR_WEATHER=off: the job does nothing.
  */
 
 import type { Polygon } from 'geojson';
@@ -49,6 +52,7 @@ import {
   gridSourceOf,
   gridsInUse,
   insertForecastIssue,
+  markForecastsChecked,
   pruneWeather,
   readSprayThresholds,
   switchGridSource,
@@ -186,7 +190,10 @@ async function publishSyncStatus(result: SyncStepResult, sctx: SyncContext): Pro
   );
 }
 
-/** Step 2: the forecast sync step's spec. `landed` collects the issues stored this run. */
+/**
+ * Step 2: the forecast sync step's spec. `landed` collects the issues stored this run, `checked`
+ * every cell NWS answered for (with the issue it served: new or the same one again).
+ */
 export function forecastSpec(
   ctx: JobContext,
   client: NwsClient,
@@ -194,6 +201,7 @@ export function forecastSpec(
   grids: readonly GridInUse[],
   landed: { gridId: string; issuedAt: string }[],
   partial: string[],
+  checked: { gridId: string; issuedAt: string }[],
 ): SyncStepSpec<NwsGridpoint, ForecastItem> {
   return {
     source: NWS_SOURCE,
@@ -211,6 +219,7 @@ export function forecastSpec(
         try {
           const raw = await client.gridpoint(g);
           const issuedAt = new Date(Date.parse(raw.properties.updateTime)).toISOString();
+          checked.push({ gridId: g.id, issuedAt });
           if (seen[g.id] === issuedAt) return;
           const start = Math.floor(Date.parse(issuedAt) / HOUR_MS) * HOUR_MS;
           items.push({
@@ -403,10 +412,16 @@ export function createWeatherNwsJob(opts: WeatherJobOptions = {}) {
     const grids = await gridsInUse(ctx.pool);
 
     const landed: { gridId: string; issuedAt: string }[] = [];
+    const checked: { gridId: string; issuedAt: string }[] = [];
     const forecast = await runSyncStep(
-      forecastSpec(ctx, client, mode, grids, landed, partial),
+      forecastSpec(ctx, client, mode, grids, landed, partial, checked),
       ctx,
     );
+    // The cells NWS answered for are current as of now (the spray pass below and every view
+    // count staleness from here). Not when the step failed or another run held it.
+    if (forecast.claimed && forecast.ok) {
+      await markForecastsChecked(ctx.pool, checked, ctx.now());
+    }
     let observations: SyncStepResult | null = null;
     if (timeLeft(ctx)) {
       observations = await runSyncStep(observationsSpec(ctx, client, mode, grids, partial), ctx);

@@ -80,6 +80,7 @@ export async function handleStrip(
       grid: data.grid,
       issuedAt: data.issuedAt,
       fetchedAt: data.fetchedAt,
+      checkedAt: data.checkedAt,
       hours: data.hours,
       observation: data.now,
       soilTemp: data.soilTemp,
