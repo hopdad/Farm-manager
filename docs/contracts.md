@@ -214,7 +214,8 @@ With **`APP_ENV=production`**, config refuses `sim`/`replay` connector modes, `S
 | `DEERE_CLIENT_ID` | optional | real Deere app (sandbox/live); sim uses `SIM_CREDENTIALS.deere` |
 | `DEERE_CLIENT_SECRET` | optional | " |
 | `DEERE_REDIRECT_URI` | optional (http(s) URL; https in production) | 1f decision 6: the Deere OAuth callback when it isn't `${PUBLIC_URL}/api/oauth/deere` (a public page that forwards `code` and `state` to the PC; `docs/contracts-1f.md`) |
-| `DEERE_DAILY_CALL_BUDGET` | optional (integer ≥ 1) | 1f decision 4: Deere API calls a day; unset = limit unknown (jobs keep their cron); set = `fleet.deere` paces itself under 80 % of it |
+| `DEERE_DAILY_CALL_BUDGET` | optional (integer ≥ 1) | 1f decision 4: Deere API calls a day; unset = limit unknown (jobs keep their cron); set = `fleet.deere` and `deere.ops` pace themselves so the Deere jobs stay under 80 % of it (sandbox/live calls only) |
+| `DEERE_HOME_ORG_ID` | optional (Deere org id) | 1f decision 8: your own Deere organization (machines are created only from it; farms in other orgs belong to that org's customer). Unset: sim and replay use their simulated home org; sandbox/live use the only org you are a member of, else `/admin/connectors` asks for it |
 | `SAMSARA_API_TOKEN` | optional | real Samsara token; sim uses `SIM_CREDENTIALS.samsara` |
 | `MOTIVE_API_KEY` | optional | real Motive key; sim uses `SIM_CREDENTIALS.motive` |
 | `NWS_USER_AGENT` | `farm-manager (local development)` | NWS requires a User-Agent with contact info |
