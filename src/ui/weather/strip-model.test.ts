@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { withStaleness } from '../../domain/spray';
-import type { HourlyForecast, SprayAssessmentView } from '../../domain/weather';
+import type { HourlyForecast, SprayAssessmentView, SprayReason } from '../../domain/weather';
 import { buildWeatherStrip, localDate, type StripInputs } from './strip-model';
 
 const H = 3_600_000;
@@ -43,6 +43,7 @@ function inputs(over: Partial<StripInputs> = {}): StripInputs {
     grid: { id: 'DTX/64,39', wfo: 'DTX', x: 64, y: 39 },
     issuedAt: new Date(NOW.getTime() - 40 * 60_000).toISOString(),
     fetchedAt: new Date(NOW.getTime() - 35 * 60_000).toISOString(),
+    checkedAt: new Date(NOW.getTime() - 5 * 60_000).toISOString(),
     hours,
     observation: null,
     soilTemp: null,
@@ -81,11 +82,25 @@ describe('weather strip view model', () => {
     expect(s.builtAt).toBe(NOW.toISOString());
   });
 
-  test('stale: an old issue, or none at all; soil temperature carries its age', () => {
-    expect(
-      buildWeatherStrip(inputs({ issuedAt: new Date(NOW.getTime() - 3 * H).toISOString() })).stale,
-    ).toBe(true);
-    const none = buildWeatherStrip(inputs({ issuedAt: null, hours: [], grid: null }));
+  test('stale: not checked with NWS for 2 h, an issue over 18 h old, or no forecast at all', () => {
+    const ago = (minutes: number) => new Date(NOW.getTime() - minutes * 60_000).toISOString();
+    // Live NWS: the issue is hours old, but the job fetched it again 5 min ago.
+    const live = buildWeatherStrip(inputs({ issuedAt: ago(283), checkedAt: ago(5) }));
+    expect(live).toMatchObject({ stale: false, issuedAt: ago(283), fetchedAt: ago(5) });
+    // The same issue, last checked 3 h ago (NWS unreachable).
+    expect(buildWeatherStrip(inputs({ issuedAt: ago(283), checkedAt: ago(180) })).stale).toBe(true);
+    // Checked just now, but NWS hasn't updated the cell for 19 h.
+    expect(buildWeatherStrip(inputs({ issuedAt: ago(19 * 60), checkedAt: ago(0) })).stale).toBe(
+      true,
+    );
+    // Never checked (cells cached before forecast_checked_at existed): the issue's age decides,
+    // and fetchedAt is when the issue was stored.
+    const legacy = buildWeatherStrip(inputs({ issuedAt: ago(180), checkedAt: null }));
+    expect(legacy).toMatchObject({ stale: true, fetchedAt: ago(35) });
+    expect(buildWeatherStrip(inputs({ checkedAt: null })).stale).toBe(false);
+    const none = buildWeatherStrip(
+      inputs({ issuedAt: null, fetchedAt: null, checkedAt: ago(5), hours: [], grid: null }),
+    );
     expect(none).toMatchObject({ stale: true, days: [], hours: [], spray: null });
     const soil = buildWeatherStrip(
       inputs({
@@ -114,16 +129,62 @@ describe('views add staleness to stored verdicts', () => {
     forHour: '2026-10-29T18:00:00.000Z',
     verdict: 'go',
     reasons: [],
-    rulesVersion: 'v0-x',
+    rulesVersion: 'v0.1-x',
     forecastIssuedAt: '2026-10-29T15:00:00.000Z',
+    forecastCheckedAt: '2026-10-29T15:05:00.000Z',
     assessedAt: '2026-10-29T15:05:00.000Z',
   };
-  test('older than 120 min: caution with a reason; fresh or no issue: unchanged', () => {
+  test('not checked for over 120 min: caution with a reason; checked or no issue: unchanged', () => {
     const shown = withStaleness(view, NOW);
     expect(shown.verdict).toBe('caution');
-    expect(shown.reasons.map((r) => r.message)).toEqual(['Forecast is 3 h old']);
+    expect(shown.reasons.map((r) => r.message)).toEqual([
+      'Forecast not checked for 3 h (NWS unreachable)',
+    ]);
     expect(withStaleness(view, new Date('2026-10-29T16:00:00Z'))).toBe(view);
+    // The issue is 200 min old, but NWS served it again 5 min ago.
+    expect(withStaleness({ ...view, forecastCheckedAt: '2026-10-29T18:15:00.000Z' }, NOW)).toEqual({
+      ...view,
+      forecastCheckedAt: '2026-10-29T18:15:00.000Z',
+    });
+    // Never checked: the issue's age, as before.
+    expect(
+      withStaleness({ ...view, forecastCheckedAt: null }, NOW).reasons.map((r) => r.message),
+    ).toEqual(['Forecast is 3 h old']);
     expect(withStaleness({ ...view, forecastIssuedAt: null }, NOW).verdict).toBe('go');
     expect(withStaleness({ ...view, verdict: 'no_go' }, NOW).verdict).toBe('no_go');
+  });
+
+  test('a forecast_stale stored during an outage is dropped once NWS confirms the issue', () => {
+    const wind: SprayReason = {
+      code: 'wind_caution',
+      verdict: 'caution',
+      message: 'Wind 9 mph (caution above 8)',
+    };
+    const stored: SprayAssessmentView = {
+      ...view,
+      verdict: 'caution',
+      reasons: [
+        {
+          code: 'forecast_stale',
+          verdict: 'caution',
+          message: 'Forecast not checked for 2 h (NWS unreachable)',
+          value: 125,
+          threshold: 120,
+        },
+      ],
+    };
+    const confirmed = { ...stored, forecastCheckedAt: '2026-10-29T18:15:00.000Z' };
+    expect(withStaleness(confirmed, NOW)).toMatchObject({ verdict: 'go', reasons: [] });
+    expect(withStaleness({ ...confirmed, reasons: [wind, ...stored.reasons] }, NOW)).toMatchObject({
+      verdict: 'caution',
+      reasons: [wind],
+    });
+    // Still unreachable: one reason, as of now.
+    const still = withStaleness({ ...stored, reasons: [wind, ...stored.reasons] }, NOW);
+    expect(still.verdict).toBe('caution');
+    expect(still.reasons.map((r) => [r.code, r.value])).toEqual([
+      ['wind_caution', undefined],
+      ['forecast_stale', 195],
+    ]);
   });
 });

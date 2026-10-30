@@ -20,7 +20,7 @@ import {
   sprayRulesVersion,
 } from '../../domain/weather';
 import { type Executor, exec, toDate } from '../exec';
-import { forecastHours, newestIssues } from './weather';
+import { forecastCheckTimes, forecastHours, newestIssues } from './weather';
 
 const HOUR_MS = 3_600_000;
 /** Rows per insert statement. */
@@ -129,11 +129,15 @@ function viewOf(x: Record<string, unknown>): SprayAssessmentView {
     reasons: (x.reasons as SprayReason[]) ?? [],
     rulesVersion: String(x.rules_version),
     forecastIssuedAt: toDate(x.forecast_issued_at)?.toISOString() ?? null,
+    forecastCheckedAt: toDate(x.forecast_checked_at)?.toISOString() ?? null,
     assessedAt: (toDate(x.assessed_at) as Date).toISOString(),
   };
 }
 
-/** What each field was told last for `forHour` (newest row per field). */
+/**
+ * What each field was told last for `forHour` (newest row per field), with its cell's last NWS
+ * check now (`forecastCheckedAt`, for `withStaleness`).
+ */
 export async function verdictsForHour(
   ex: Executor,
   forHour: string,
@@ -141,9 +145,10 @@ export async function verdictsForHour(
   const r = await exec<Record<string, unknown>>(
     ex,
     `select distinct on (s.field_id) s.field_id::text as field_id, s.for_hour, s.verdict,
-            s.reasons, s.rules_version, s.forecast_issued_at, s.assessed_at
+            s.reasons, s.rules_version, s.forecast_issued_at, g.forecast_checked_at, s.assessed_at
        from farm.spray_assessments s
        join farm.fields f on f.id = s.field_id and f.active
+       left join farm.weather_grids g on g.id = s.grid_id
       where s.for_hour = $1::timestamptz
       order by s.field_id, s.assessed_at desc, s.id desc`,
     [forHour],
@@ -151,7 +156,7 @@ export async function verdictsForHour(
   return new Map(r.rows.map((x) => [String(x.field_id), viewOf(x)] as const));
 }
 
-/** One field's newest assessment per hour in [from, to), ascending. */
+/** One field's newest assessment per hour in [from, to), ascending (with its cell's last check). */
 export async function fieldSprayHours(
   ex: Executor,
   fieldId: string,
@@ -161,8 +166,9 @@ export async function fieldSprayHours(
   const r = await exec<Record<string, unknown>>(
     ex,
     `select distinct on (s.for_hour) s.field_id::text as field_id, s.for_hour, s.verdict,
-            s.reasons, s.rules_version, s.forecast_issued_at, s.assessed_at
+            s.reasons, s.rules_version, s.forecast_issued_at, g.forecast_checked_at, s.assessed_at
        from farm.spray_assessments s
+       left join farm.weather_grids g on g.id = s.grid_id
       where s.field_id = $1::uuid and s.for_hour >= $2::timestamptz and s.for_hour < $3::timestamptz
       order by s.for_hour, s.assessed_at desc, s.id desc`,
     [fieldId, from, to],
@@ -186,7 +192,9 @@ export interface SprayPassResult {
 
 /**
  * Assess every active field for the current hour plus SPRAY_ASSESS_AHEAD_HOURS
- * (`sprayAssessmentHours(now)`) from the newest forecast issue of its cell, and store the rows.
+ * (`sprayAssessmentHours(now)`) from the newest forecast issue of its cell, judged stale or not
+ * with the cell's last NWS check (the job marks the cells NWS answered for before this pass),
+ * and store the rows.
  */
 export async function runSprayPass(
   ex: Executor,
@@ -199,6 +207,7 @@ export async function runSprayPass(
   const targets = await sprayTargets(ex);
   const gridIds = [...new Set(targets.map((t) => t.gridId).filter((g): g is string => !!g))];
   const issues = await newestIssues(ex, gridIds);
+  const checks = await forecastCheckTimes(ex, gridIds);
   const from = new Date(forHour);
   const to = new Date(
     Date.parse(hours.at(-1) as string) + (thresholds.rainFreeHours + 1) * HOUR_MS,
@@ -211,6 +220,7 @@ export async function runSprayPass(
   const rows: AssessmentRow[] = [];
   for (const t of targets) {
     const issuedAt = t.gridId ? (issues.get(t.gridId) ?? null) : null;
+    const checkedAt = t.gridId ? (checks.get(t.gridId) ?? null) : null;
     const issueHours = t.gridId ? (byGrid.get(t.gridId) ?? []) : [];
     for (const h of hours) {
       const a = assessSprayHour(
@@ -219,6 +229,7 @@ export async function runSprayPass(
           location: { lng: t.lng, lat: t.lat },
           gridId: t.gridId,
           forecastIssuedAt: issuedAt,
+          forecastCheckedAt: checkedAt,
           hours: issueHours,
           now,
         },

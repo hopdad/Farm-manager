@@ -266,7 +266,13 @@ export default async function SprayAdminPage() {
                     ) : null}
                   </td>
                   <td className={css.muted}>
-                    {view?.forecastIssuedAt ? `issued ${detroitTime(view.forecastIssuedAt)}` : '—'}
+                    {view?.forecastIssuedAt
+                      ? `issued ${detroitTime(view.forecastIssuedAt)}${
+                          view.forecastCheckedAt
+                            ? `, checked ${detroitTime(view.forecastCheckedAt)}`
+                            : ''
+                        }`
+                      : '—'}
                   </td>
                 </tr>
               ))}

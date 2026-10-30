@@ -2,13 +2,15 @@
  * weather.nws end to end in sim mode: the live NWS client against the stand-in (in-process,
  * stub world), the real database. Grid lookups cached per cell, forecast issues stored once,
  * observations, spray assessments for the current hour + 12, the wind slider flipping
- * verdicts with reasons, thresholds from app.settings (and back again), realtime, and the
- * replay mode on the doc-derived fixtures.
+ * verdicts with reasons, thresholds from app.settings (and back again), realtime, staleness
+ * (counted from the last NWS check, not the issue time), and the replay mode on the
+ * doc-derived fixtures.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
-import { exec } from '../../db/exec';
+import { exec, toDate } from '../../db/exec';
 import { readSprayThresholds, writeSprayThresholds } from '../../db/queries/weather';
 import { verdictsForHour } from '../../db/queries/weather-spray';
+import { loadStripData } from '../../db/queries/weather-strip';
 import { withStaleness } from '../../domain/spray';
 import {
   DEFAULT_SPRAY_THRESHOLDS,
@@ -22,11 +24,21 @@ import { startVendorSim, type VendorSim } from '../../sim/vendors/server';
 import { createStubSimWorld } from '../../sim/vendors/stub-world';
 import { setupTestDb } from '../../test/db';
 import { insertField, squareMultiPolygon } from '../../test/fixtures';
+import { buildWeatherStrip } from '../../ui/weather/strip-model';
 import { listenAppEvents, testJobContext } from '../testkit';
 
 const t = setupTestDb(import.meta.url);
 
-const base = Date.now();
+const H = 3_600_000;
+/**
+ * The test clock: the stand-in and the job both run on wall(). It starts 2 min into the current
+ * UTC hour so no step below crosses an hour by accident: the spray window and the pruning follow
+ * the UTC hour (a run just past one assesses a 13th hour and prunes), so with `Date.now()` here a
+ * run started within a minute of the hour stored rows "a second run" must not. The stand-in's
+ * forecast issues follow ITS hours (harvest-day starts 07:00 EDT sharp at speed 1, at
+ * wall() = base): a new issue every hour after base, and when a knob changes.
+ */
+const base = Math.floor(Date.now() / H) * H + 2 * 60_000;
 let offset = 0;
 const wall = () => new Date(base + offset);
 
@@ -59,6 +71,25 @@ async function count(sql: string, values: unknown[] = []): Promise<number> {
 
 const currentHour = () => sprayAssessmentHours(wall(), 0)[0] as string;
 const nwsRequests = () => sim.counters.requests.nws ?? 0;
+
+/** farm.weather_grids.forecast_checked_at per cell (ISO; null: never checked). */
+async function checkTimes(): Promise<Map<string, string | null>> {
+  const r = await exec<{ id: string; at: unknown }>(
+    t().pool,
+    'select id, forecast_checked_at as at from farm.weather_grids order by id',
+  );
+  return new Map(r.rows.map((x) => [x.id, toDate(x.at)?.toISOString() ?? null]));
+}
+
+/** The cell of a field. */
+async function cellOf(fieldId: string): Promise<string> {
+  const r = await exec<{ grid_id: string }>(
+    t().pool,
+    'select grid_id from farm.field_weather_grids where field_id = $1',
+    [fieldId],
+  );
+  return r.rows[0]?.grid_id ?? '';
+}
 
 beforeAll(async () => {
   sim = await startVendorSim({ createWorld: createStubSimWorld, port: 0, now: wall });
@@ -111,6 +142,11 @@ describe('weather.nws in sim mode', () => {
     expect(cells.rows.every((c) => c.has_geom && c.stations.length === 4)).toBe(true);
     const aCell = cells.rows.find((c) => c.id === byField.get(fieldIds.a));
     expect(aCell?.stations[0]?.id).toBe('KADG');
+    // NWS answered for both cells: their forecasts are current as of this run.
+    expect([...(await checkTimes()).values()]).toEqual([
+      wall().toISOString(),
+      wall().toISOString(),
+    ]);
 
     // One issue per cell, ~5 days of hours each.
     const issues = await exec<{ grid_id: string; n: number }>(
@@ -159,6 +195,11 @@ describe('weather.nws in sim mode', () => {
     expect(result.note).toMatch(/0 new forecasts/);
     expect(await count('select 1 from farm.spray_assessments')).toBe(rows);
     expect(await count('select 1 from farm.weather_forecasts')).toBe(forecasts);
+    // The same issues again: still checked, as of this run.
+    expect([...(await checkTimes()).values()]).toEqual([
+      wall().toISOString(),
+      wall().toISOString(),
+    ]);
     await listener.settle();
     expect(listener.of('spray', 'assessed')).toHaveLength(0);
     expect(listener.of('fields', 'updated')).toHaveLength(0);
@@ -271,19 +312,110 @@ describe('weather.nws in sim mode', () => {
       rule: { vendor: 'nws', kind: 'outage', label: 'nws down' },
     });
     try {
-      offset += 3 * 3_600_000; // the newest issue is now 3 h old
+      const checked = await checkTimes();
+      offset += 3 * 3_600_000; // the last good NWS check is now 3 h ago
       await expect(run()).rejects.toThrow(/nws/);
+      expect(await checkTimes()).toEqual(checked);
       // The current hour was first assessed while the issue was fresh: its row stays, and the
       // views add the staleness.
       const v = (await verdictsForHour(t().pool, currentHour())).get(fieldIds.a);
       expect(v?.reasons.map((r) => r.code)).not.toContain('forecast_stale');
       const shown = v ? withStaleness(v, wall()) : null;
-      expect(shown?.reasons.map((r) => r.code)).toContain('forecast_stale');
+      expect(shown?.reasons.find((r) => r.code === 'forecast_stale')?.message).toBe(
+        'Forecast not checked for 3 h (NWS unreachable)',
+      );
       expect(shown?.verdict).not.toBe('go');
       // An hour entering the window now is assessed with the stale issue: stored as such.
       const last = sprayAssessmentHours(wall()).at(-1) as string;
       const newest = (await verdictsForHour(t().pool, last)).get(fieldIds.a);
       expect(newest?.reasons.map((r) => r.code)).toContain('forecast_stale');
+    } finally {
+      sim.control.faults({ action: 'clear' });
+    }
+  });
+
+  test('NWS serving the same issue for hours: current while every run checks it', async () => {
+    // Live NWS keeps a grid's updateTime for hours (seen: issued 20:24Z, fetched 01:07Z). The
+    // stand-in does the same while its clock is paused: it serves the issue of the paused hour.
+    offset += 60_000;
+    await run(); // NWS is back: this hour's issue lands
+    sim.control.clock({ action: 'pause' });
+    try {
+      offset += 5 * H;
+      const result = await run();
+      expect(result.note).toMatch(/0 new forecasts/);
+      const issues = await exec<{ issued_at: Date }>(
+        t().pool,
+        'select max(issued_at) as issued_at from farm.weather_forecasts group by grid_id',
+      );
+      expect(issues.rows).toHaveLength(2);
+      for (const r of issues.rows) {
+        expect(wall().getTime() - (toDate(r.issued_at) as Date).getTime()).toBeGreaterThan(5 * H);
+      }
+      expect([...(await checkTimes()).values()]).toEqual([
+        wall().toISOString(),
+        wall().toISOString(),
+      ]);
+
+      // Every hour of the window, as stored (the last 5 assessed now, with the 5 h old issue)
+      // and as shown: no forecast_stale.
+      for (const hour of sprayAssessmentHours(wall())) {
+        const v = (await verdictsForHour(t().pool, hour)).get(fieldIds.a);
+        expect(v?.forecastCheckedAt).toBe(wall().toISOString());
+        expect(v?.reasons.map((r) => r.code)).not.toContain('forecast_stale');
+        expect(v && withStaleness(v, wall()).reasons.map((r) => r.code)).not.toContain(
+          'forecast_stale',
+        );
+      }
+      const data = await loadStripData(t().pool, wall());
+      const strip = buildWeatherStrip({
+        now: wall(),
+        mode: 'sim',
+        grid: data.grid,
+        issuedAt: data.issuedAt,
+        fetchedAt: data.fetchedAt,
+        checkedAt: data.checkedAt,
+        hours: data.hours,
+        observation: data.now,
+        soilTemp: data.soilTemp,
+        verdicts: data.verdicts,
+        referenceVerdicts: data.referenceVerdicts,
+      });
+      expect(strip).toMatchObject({ stale: false, fetchedAt: wall().toISOString() });
+    } finally {
+      sim.control.clock({ action: 'resume' });
+    }
+  });
+
+  test('failed forecasts leave forecast_checked_at alone; a partial run marks who answered', async () => {
+    const before = await checkTimes();
+    sim.control.faults({
+      action: 'add',
+      rule: { vendor: 'nws', pathPrefix: '/gridpoints', kind: 'outage', label: 'forecasts down' },
+    });
+    try {
+      offset += 60_000;
+      await expect(run()).rejects.toThrow(/nws/);
+      expect(await checkTimes()).toEqual(before);
+    } finally {
+      sim.control.faults({ action: 'clear' });
+    }
+
+    // Only C's cell is down: A's (and B's) is checked, C's keeps its last good check.
+    const aCell = await cellOf(fieldIds.a);
+    const cCell = await cellOf(fieldIds.c);
+    const [wfo, xy] = cCell.split('/');
+    sim.control.faults({
+      action: 'add',
+      rule: { vendor: 'nws', pathPrefix: `/gridpoints/${wfo}/${xy}`, kind: 'outage' },
+    });
+    try {
+      offset += 60_000;
+      const result = await run();
+      expect(result.note).toMatch(/1 of 2 forecasts failed/);
+      const after = await checkTimes();
+      expect(after.get(aCell)).toBe(wall().toISOString());
+      expect(after.get(cCell)).toBe(before.get(cCell));
     } finally {
       sim.control.faults({ action: 'clear' });
     }

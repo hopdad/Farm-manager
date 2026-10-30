@@ -64,7 +64,11 @@ export function FieldWeatherTab({ fieldId, detail, variant }: FieldPanelTabProps
           )}
           <p className={css.muted}>
             {current.forecastIssuedAt
-              ? `NWS forecast issued ${fmtClock(current.forecastIssuedAt)}`
+              ? `NWS forecast issued ${fmtClock(current.forecastIssuedAt)}${
+                  current.forecastCheckedAt
+                    ? `, checked ${fmtClock(current.forecastCheckedAt)}`
+                    : ''
+                }`
               : 'No forecast'}{' '}
             · rules {current.rulesVersion}
           </p>

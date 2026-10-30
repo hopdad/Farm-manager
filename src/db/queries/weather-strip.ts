@@ -1,8 +1,9 @@
 /**
  * Reads behind the weather strip (GET /api/weather/strip) and the soil temperature form
- * (plan 1b): the cell most fields share, its newest forecast issue, the nearest station's latest
- * observation, the latest soil temperature reading, and the spray verdicts. The strip itself is
- * assembled by the pure `buildWeatherStrip` (src/ui/weather/strip-model.ts).
+ * (plan 1b): the cell most fields share, its newest forecast issue and when NWS last confirmed
+ * it, the nearest station's latest observation, the latest soil temperature reading, and the
+ * spray verdicts. The strip itself is assembled by the pure `buildWeatherStrip`
+ * (src/ui/weather/strip-model.ts).
  */
 
 import { withStaleness } from '../../domain/spray';
@@ -36,7 +37,10 @@ export interface SoilTempRow {
 export interface StripData {
   grid: GridRef | null;
   issuedAt: string | null;
+  /** When the newest issue was stored (max fetched_at of its rows). */
   fetchedAt: string | null;
+  /** The cell's last good NWS fetch (farm.weather_grids.forecast_checked_at; null: never). */
+  checkedAt: string | null;
   /** The issue's hours from 24 h ago to 5 days ahead (the builder keeps today + 3 days). */
   hours: HourlyForecast[];
   now: Observation | null;
@@ -132,24 +136,30 @@ export async function loadStripData(ex: Executor, now: Date): Promise<StripData>
     grid: main ? { id: main.id, wfo: main.wfo, x: main.x, y: main.y } : null,
     issuedAt: null,
     fetchedAt: null,
+    checkedAt: null,
     hours: [],
     now: null,
     soilTemp,
-    // As shown now (forecast_stale once the issue is old), so the strip and the map agree.
+    // As shown now (forecast_stale while the forecast is stale), so the strip and the map agree.
     verdicts: [...verdicts.values()].map((v) => withStaleness(v, now).verdict),
     referenceVerdicts: new Map(),
     referenceField: null,
   };
   if (!main) return out;
 
-  const issue = await exec<{ issued_at: unknown; fetched_at: unknown }>(
+  const issue = await exec<{ issued_at: unknown; fetched_at: unknown; checked_at: unknown }>(
     ex,
-    `select issued_at, max(fetched_at) as fetched_at from farm.weather_forecasts
-      where grid_id = $1 group by issued_at order by issued_at desc limit 1`,
+    `select i.issued_at, i.fetched_at, g.forecast_checked_at as checked_at
+       from farm.weather_grids g
+       left join lateral (
+         select issued_at, max(fetched_at) as fetched_at from farm.weather_forecasts
+          where grid_id = g.id group by issued_at order by issued_at desc limit 1) i on true
+      where g.id = $1`,
     [main.id],
   );
   const row = issue.rows[0];
-  if (row) {
+  out.checkedAt = toDate(row?.checked_at)?.toISOString() ?? null;
+  if (row?.issued_at) {
     out.issuedAt = (toDate(row.issued_at) as Date).toISOString();
     out.fetchedAt = toDate(row.fetched_at)?.toISOString() ?? null;
     out.hours = await forecastHours(

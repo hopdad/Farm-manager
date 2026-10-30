@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { assessSprayHour, countVerdicts, type SprayHourInput } from './spray';
+import { assessSprayHour, countVerdicts, forecastStaleness, type SprayHourInput } from './spray';
 import { sunAt, sunContext } from './spray-sun';
 import {
   DEFAULT_SPRAY_THRESHOLDS,
   type HourlyForecast,
+  SPRAY_RULES,
   type SprayReasonCode,
   type SprayThresholds,
   type SprayVerdict,
@@ -55,6 +56,7 @@ function input(
     location: ADRIAN,
     gridId: 'DTX/64,40',
     forecastIssuedAt: new Date(Date.parse(forHour) - 30 * 60_000).toISOString(),
+    forecastCheckedAt: new Date(Date.parse(forHour) - 25 * 60_000).toISOString(),
     hours,
     now: new Date(Date.parse(forHour) - 20 * 60_000),
     ...extra,
@@ -169,10 +171,19 @@ const TABLE: Row[] = [
     codes: ['wind_low', 'inversion_risk'],
   },
   {
-    name: 'stale forecast',
+    name: 'stale forecast (not checked for 3 h)',
     extra: { now: new Date(Date.parse(AFTERNOON) + 3 * H) },
     verdict: 'caution',
     codes: ['forecast_stale'],
+  },
+  {
+    name: 'an issue hours old, checked just now',
+    extra: {
+      forecastIssuedAt: new Date(Date.parse(AFTERNOON) - 6 * H).toISOString(),
+      forecastCheckedAt: new Date(Date.parse(AFTERNOON) - 21 * 60_000).toISOString(),
+    },
+    verdict: 'go',
+    codes: [],
   },
   { name: 'no wind layer', at: { windMph: null }, verdict: 'caution', codes: ['no_forecast'] },
   {
@@ -189,7 +200,7 @@ const TABLE: Row[] = [
   },
 ];
 
-describe('spray go/no-go v0 (default thresholds unless the row says)', () => {
+describe('spray go/no-go v0.1 (default thresholds unless the row says)', () => {
   test.each(TABLE)('$name -> $verdict', (row) => {
     const forHour = row.forHour ?? AFTERNOON;
     const t = { ...DEFAULT_SPRAY_THRESHOLDS, ...row.t };
@@ -206,11 +217,12 @@ describe('spray go/no-go v0 (default thresholds unless the row says)', () => {
     const at = { windMph: 12, gustMph: 18 };
     const r = assessSprayHour(input(AFTERNOON, forecast(AFTERNOON, at)), DEFAULT_SPRAY_THRESHOLDS);
     expect(r.inputs).toMatchObject({
-      rules: 'v0',
+      rules: SPRAY_RULES,
       rulesVersion: sprayRulesVersion(DEFAULT_SPRAY_THRESHOLDS),
       forHour: AFTERNOON,
       gridId: 'DTX/64,40',
       forecastAgeMinutes: 10,
+      forecastCheckedAt: '2026-06-09T17:35:00.000Z',
       hour: { windMph: 12, gustMph: 18, skyPct: 40, popPct: 5 },
       thresholds: DEFAULT_SPRAY_THRESHOLDS,
     });
@@ -233,6 +245,82 @@ describe('spray go/no-go v0 (default thresholds unless the row says)', () => {
 
   test('countVerdicts', () => {
     expect(countVerdicts(['go', 'go', 'caution', 'no_go'])).toEqual({ go: 2, caution: 1, noGo: 1 });
+  });
+});
+
+describe('forecast staleness: from the last NWS check, and an 18 h issue-age backstop', () => {
+  /** 13:40 EDT, 20 min before the assessed hour. */
+  const now = new Date(Date.parse(AFTERNOON) - 20 * 60_000);
+  const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000).toISOString();
+  const assess = (issuedAt: string, checkedAt: string | null) =>
+    assessSprayHour(
+      input(AFTERNOON, forecast(AFTERNOON, {}), {
+        forecastIssuedAt: issuedAt,
+        forecastCheckedAt: checkedAt,
+        now,
+      }),
+      DEFAULT_SPRAY_THRESHOLDS,
+    );
+  const notChecked = (minutes: number, hours: number) => ({
+    code: 'forecast_stale',
+    verdict: 'caution',
+    message: `Forecast not checked for ${hours} h (NWS unreachable)`,
+    value: minutes,
+    threshold: 120,
+  });
+
+  test('an issue 283 min old that NWS served again 5 min ago is current (live NWS)', () => {
+    expect(forecastStaleness(ago(283), ago(5), now)).toBeNull();
+    const r = assess(ago(283), ago(5));
+    expect(r).toMatchObject({ verdict: 'go', reasons: [] });
+    expect(r.inputs).toMatchObject({ forecastAgeMinutes: 283, forecastCheckedAt: ago(5) });
+  });
+
+  test('the same issue last checked 3 h ago: not checked (NWS unreachable)', () => {
+    expect(forecastStaleness(ago(283), ago(180), now)).toEqual(notChecked(180, 3));
+    const r = assess(ago(283), ago(180));
+    expect(r.verdict).toBe('caution');
+    expect(r.reasons).toEqual([notChecked(180, 3)]);
+  });
+
+  test('an issue 19 h old checked just now: NWS stopped updating the cell', () => {
+    const old = {
+      code: 'forecast_stale',
+      verdict: 'caution',
+      message: 'NWS forecast is 19 h old',
+      value: 19 * 60,
+      threshold: 18 * 60,
+    };
+    expect(forecastStaleness(ago(19 * 60), ago(0), now)).toEqual(old);
+    expect(assess(ago(19 * 60), ago(0)).reasons).toEqual([old]);
+  });
+
+  test('both at once: one reason, the not-checked one', () => {
+    expect(assess(ago(20 * 60), ago(180)).reasons).toEqual([notChecked(180, 3)]);
+  });
+
+  test('checkedAt unknown (null) counts from the issue time, as v0 did', () => {
+    expect(forecastStaleness(ago(119), null, now)).toBeNull();
+    expect(forecastStaleness(ago(180), null, now)).toEqual({
+      code: 'forecast_stale',
+      verdict: 'caution',
+      message: 'Forecast is 3 h old',
+      value: 180,
+      threshold: 120,
+    });
+    expect(assess(ago(283), null).reasons.map((x) => x.code)).toEqual(['forecast_stale']);
+  });
+
+  test('the limits themselves are current; a check before the issue counts from the issue', () => {
+    expect(forecastStaleness(ago(120), ago(120), now)).toBeNull();
+    expect(forecastStaleness(ago(121), ago(121), now)?.value).toBe(121);
+    expect(forecastStaleness(ago(18 * 60), ago(1), now)).toBeNull();
+    expect(forecastStaleness(ago(18 * 60 + 1), ago(1), now)?.message).toBe(
+      'NWS forecast is 18 h old',
+    );
+    expect(forecastStaleness(ago(60), ago(300), now)).toBeNull();
+    // No issue at all: no_forecast covers it.
+    expect(forecastStaleness(null, ago(5), now)).toBeNull();
   });
 });
 

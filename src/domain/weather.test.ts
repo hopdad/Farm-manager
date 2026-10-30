@@ -73,7 +73,7 @@ describe('spray thresholds (D4 defaults pending)', () => {
 
   test('rules version: stable for equal thresholds, different for different ones', () => {
     const a = sprayRulesVersion(DEFAULT_SPRAY_THRESHOLDS);
-    expect(a).toMatch(/^v0-[0-9a-f]{8}$/);
+    expect(a).toMatch(/^v0\.1-[0-9a-f]{8}$/);
     expect(sprayRulesVersion({ ...DEFAULT_SPRAY_THRESHOLDS })).toBe(a);
     expect(sprayRulesVersion({ ...DEFAULT_SPRAY_THRESHOLDS, gustMaxMph: 16 })).not.toBe(a);
     expect(sprayRulesVersion(DEFAULT_SPRAY_THRESHOLDS, 'v1')).toMatch(/^v1-/);

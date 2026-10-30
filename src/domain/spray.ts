@@ -1,11 +1,13 @@
 /**
- * Spray go/no-go v0 (plan 1b, pulled forward from Phase 2): pure rules over one forecast hour
+ * Spray go/no-go v0.1 (plan 1b, pulled forward from Phase 2): pure rules over one forecast hour
  * and the D4 thresholds (src/domain/weather.ts). ADVISORY: the app says what the forecast and
  * the thresholds imply; the applicator decides (labels, the field, the licence).
  *
  * For field F and hour H (whole UTC hour), from the newest forecast issue of F's grid cell:
  *   no forecast for H                         -> no_forecast   (caution; nothing else checked)
- *   the issue is older than 120 min           -> forecast_stale (caution)
+ *   stale (`forecastStaleness`): not confirmed with NWS for 120 min, counted from the later of
+ *     the issue time and the job's last good fetch of the cell; else an issue older than 18 h
+ *                                             -> forecast_stale (caution)
  *   sustained wind > windMaxMph               -> wind_high     (no-go)
  *                  > windCautionMph           -> wind_caution  (caution)
  *                  < windMinMph               -> wind_low      (caution: drift travels in still air)
@@ -22,6 +24,7 @@
  */
 import { sunContext } from './spray-sun';
 import {
+  FORECAST_ISSUE_MAX_AGE_MINUTES,
   type HourlyForecast,
   SPRAY_RULES,
   type SprayAssessmentView,
@@ -44,6 +47,8 @@ export interface SprayHourInput {
   gridId: string | null;
   /** The forecast issue used (null: none for this field's cell). */
   forecastIssuedAt: string | null;
+  /** The cell's last good NWS fetch (farm.weather_grids.forecast_checked_at; null: unknown). */
+  forecastCheckedAt: string | null;
   /** That issue's hours (any order; at least H and the rain window when available). */
   hours: readonly HourlyForecast[];
   /** When the assessment is made (staleness). */
@@ -62,7 +67,10 @@ export interface SprayInputs {
   location: { lng: number; lat: number };
   gridId: string | null;
   forecastIssuedAt: string | null;
+  /** The issue's age at the assessment (minutes). */
   forecastAgeMinutes: number | null;
+  /** The cell's last good NWS fetch as the assessment saw it (null: unknown). */
+  forecastCheckedAt: string | null;
   /** The hour's forecast (null: not in the issue). */
   hour: SprayHourValues | null;
   /** PoP and QPF of H and the rainFreeHours after it, as far as the issue reaches. */
@@ -100,6 +108,54 @@ function hourValues(h: HourlyForecast): SprayHourValues {
   };
 }
 
+/**
+ * Is the forecast stale at `now`? The one rule the assessment, the views (`withStaleness`) and
+ * the strip all use. A forecast is current as of the later of its issue time and `checkedAt`,
+ * the weather.nws job's last successful fetch of its cell (NWS answered, with a new issue or the
+ * same one again):
+ *  - not checked for more than WEATHER_STALE_MINUTES (NWS unreachable, or the job not running);
+ *  - else an issue older than FORECAST_ISSUE_MAX_AGE_MINUTES (NWS stopped updating the cell).
+ * checkedAt null (never recorded) counts from the issue time alone. Returns the one
+ * `forecast_stale` reason, or null (also with no issue at all: no_forecast covers that).
+ */
+export function forecastStaleness(
+  issuedAt: string | null,
+  checkedAt: string | null,
+  now: Date,
+): SprayReason | null {
+  if (issuedAt === null) return null;
+  const issuedMs = Date.parse(issuedAt);
+  const checkedMs = checkedAt === null ? Number.NaN : Date.parse(checkedAt);
+  const minutesSince = (ms: number) => Math.round((now.getTime() - ms) / 60_000);
+  const unchecked = minutesSince(
+    Number.isFinite(checkedMs) ? Math.max(issuedMs, checkedMs) : issuedMs,
+  );
+  if (unchecked > WEATHER_STALE_MINUTES) {
+    const h = Math.round(unchecked / 60);
+    return {
+      code: 'forecast_stale',
+      verdict: 'caution',
+      message:
+        checkedAt === null
+          ? `Forecast is ${h} h old`
+          : `Forecast not checked for ${h} h (NWS unreachable)`,
+      value: unchecked,
+      threshold: WEATHER_STALE_MINUTES,
+    };
+  }
+  const age = minutesSince(issuedMs);
+  if (age > FORECAST_ISSUE_MAX_AGE_MINUTES) {
+    return {
+      code: 'forecast_stale',
+      verdict: 'caution',
+      message: `NWS forecast is ${Math.round(age / 60)} h old`,
+      value: age,
+      threshold: FORECAST_ISSUE_MAX_AGE_MINUTES,
+    };
+  }
+  return null;
+}
+
 /** Assess one field-hour (see the header for the rules). */
 export function assessSprayHour(input: SprayHourInput, t: SprayThresholds): SprayAssessment {
   const forMs = Date.parse(input.forHour);
@@ -130,6 +186,7 @@ export function assessSprayHour(input: SprayHourInput, t: SprayThresholds): Spra
     gridId: input.gridId,
     forecastIssuedAt: input.forecastIssuedAt,
     forecastAgeMinutes: ageMinutes,
+    forecastCheckedAt: input.forecastCheckedAt,
     hour: hour ? hourValues(hour) : null,
     rainWindow,
     sun,
@@ -145,15 +202,8 @@ export function assessSprayHour(input: SprayHourInput, t: SprayThresholds): Spra
     return { verdict: worstVerdict(reasons.map((r) => r.verdict)), reasons, inputs };
   }
 
-  if (ageMinutes !== null && ageMinutes > WEATHER_STALE_MINUTES) {
-    reasons.push({
-      code: 'forecast_stale',
-      verdict: 'caution',
-      message: `Forecast is ${Math.round(ageMinutes / 60)} h old`,
-      value: ageMinutes,
-      threshold: WEATHER_STALE_MINUTES,
-    });
-  }
+  const stale = forecastStaleness(input.forecastIssuedAt, input.forecastCheckedAt, input.now);
+  if (stale) reasons.push(stale);
 
   const wind = hour.windMph;
   if (wind === null) {
@@ -239,26 +289,28 @@ export function assessSprayHour(input: SprayHourInput, t: SprayThresholds): Spra
 
 /**
  * A stored assessment as shown now. Rows are keyed on (field, hour, rules, forecast issue), so
- * an hour first assessed while its forecast was fresh keeps that row while NWS is unreachable;
- * the views add `forecast_stale` (caution) once the issue it used is older than
- * WEATHER_STALE_MINUTES at `now`. Nothing is stored: the audit shows what was assessed when.
+ * an hour first assessed while its forecast was current keeps that row while NWS is unreachable,
+ * and an hour first assessed during an outage keeps its `forecast_stale` once the same issue is
+ * confirmed again. Staleness belongs to the moment, so the views judge it at `now`
+ * (`forecastStaleness` of the row's issue and the cell's last check): a stale forecast adds the
+ * reason (caution), a current one drops a stored one. Nothing is stored: the audit shows what
+ * was assessed when.
  */
 export function withStaleness<T extends SprayAssessmentView>(view: T, now: Date): T {
-  if (!view.forecastIssuedAt || view.reasons.some((r) => r.code === 'forecast_stale')) return view;
-  const age = Math.round((now.getTime() - Date.parse(view.forecastIssuedAt)) / 60_000);
-  if (!(age > WEATHER_STALE_MINUTES)) return view;
-  const stale: SprayReason = {
-    code: 'forecast_stale',
-    verdict: 'caution',
-    message: `Forecast is ${Math.round(age / 60)} h old`,
-    value: age,
-    threshold: WEATHER_STALE_MINUTES,
-  };
-  return {
-    ...view,
-    verdict: worstVerdict([view.verdict, 'caution']),
-    reasons: [...view.reasons, stale],
-  };
+  const stale = forecastStaleness(view.forecastIssuedAt, view.forecastCheckedAt, now);
+  const stored = view.reasons.some((r) => r.code === 'forecast_stale');
+  if (!stale && !stored) return view;
+  if (!stored && stale) {
+    return {
+      ...view,
+      verdict: worstVerdict([view.verdict, stale.verdict]),
+      reasons: [...view.reasons, stale],
+    };
+  }
+  // A stored reason: the verdict is the worst of the others plus the staleness now.
+  const reasons = view.reasons.filter((r) => r.code !== 'forecast_stale');
+  if (stale) reasons.push(stale);
+  return { ...view, verdict: worstVerdict(reasons.map((r) => r.verdict)), reasons };
 }
 
 /** Fields per verdict. */

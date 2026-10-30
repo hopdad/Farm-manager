@@ -430,6 +430,11 @@ export const weatherGrids = farm.table(
     timeZone: text('time_zone'),
     lookedUpAt: tstz('looked_up_at').notNull().defaultNow(),
     updatedAt: tstz('updated_at').notNull().defaultNow(),
+    /**
+     * The weather.nws job's last successful fetch of this cell's forecast (a new issue or the
+     * same one again): staleness counts from here (migration 0006). Null: never recorded.
+     */
+    forecastCheckedAt: tstz('forecast_checked_at'),
   },
   (t) => [
     unique('weather_grids_wfo_grid_x_grid_y_key').on(t.wfo, t.gridX, t.gridY),

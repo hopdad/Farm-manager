@@ -7,18 +7,19 @@
  *    (high/low temperature, rain total, highest PoP, wind and gusts);
  *  - hours: from the current hour, up to 36, each with the reference field's spray verdict
  *    where one is stored (null past the stored window);
- *  - stale: no forecast, or its issue older than WEATHER_STALE_MINUTES.
+ *  - stale: no forecast, or `forecastStaleness` (the spray rules' own) of the issue and the
+ *    cell's last NWS check: the strip's badge and the verdicts always agree;
+ *  - fetchedAt: that last check, else when the newest issue was stored.
  */
-import { countVerdicts } from '../../domain/spray';
-import {
-  type GridRef,
-  type HourlyForecast,
-  type Observation,
-  type SprayVerdict,
-  WEATHER_STALE_MINUTES,
-  type WeatherStrip,
-  type WeatherStripDay,
-  type WeatherStripHour,
+import { countVerdicts, forecastStaleness } from '../../domain/spray';
+import type {
+  GridRef,
+  HourlyForecast,
+  Observation,
+  SprayVerdict,
+  WeatherStrip,
+  WeatherStripDay,
+  WeatherStripHour,
 } from '../../domain/weather';
 
 export const FARM_TIME_ZONE = 'America/Detroit';
@@ -44,7 +45,10 @@ export interface StripInputs {
   mode: WeatherStrip['mode'];
   grid: GridRef | null;
   issuedAt: string | null;
+  /** When the newest issue was stored. */
   fetchedAt: string | null;
+  /** The cell's last good NWS fetch (farm.weather_grids.forecast_checked_at; null: never). */
+  checkedAt: string | null;
   hours: readonly HourlyForecast[];
   observation: Observation | null;
   soilTemp: {
@@ -115,7 +119,6 @@ export function buildWeatherStrip(i: StripInputs): WeatherStrip {
     .slice(0, STRIP_HOURS)
     .map((h) => ({ ...h, spray: i.referenceVerdicts.get(h.validAt) ?? null }));
 
-  const issueAge = i.issuedAt === null ? null : (nowMs - Date.parse(i.issuedAt)) / 60_000;
   const soil = i.soilTemp
     ? {
         ...i.soilTemp,
@@ -126,8 +129,8 @@ export function buildWeatherStrip(i: StripInputs): WeatherStrip {
     builtAt: i.now.toISOString(),
     grid: i.grid,
     issuedAt: i.issuedAt,
-    fetchedAt: i.fetchedAt,
-    stale: issueAge === null || issueAge > WEATHER_STALE_MINUTES,
+    fetchedAt: i.checkedAt ?? i.fetchedAt,
+    stale: i.issuedAt === null || forecastStaleness(i.issuedAt, i.checkedAt, i.now) !== null,
     mode: i.mode,
     now: i.observation,
     days,
