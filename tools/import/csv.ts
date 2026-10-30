@@ -34,6 +34,32 @@ export const normHeader = (h: string) =>
     .replace(/^_+|_+$/g, '');
 
 /**
+ * Windows-1252 bytes 0x80-0x9F (WHATWG Encoding table; the five unassigned bytes map to the C1
+ * control of the same number). Every other byte is its own code point. Decoded by hand because
+ * Node 24.13's TextDecoder('windows-1252') reads this range as ISO-8859-1 (0x92 -> U+0092, not ’),
+ * found on Derrick's PC.
+ */
+const CP1252_80_9F = [
+  0x20ac, 0x81, 0x201a, 0x192, 0x201e, 0x2026, 0x2020, 0x2021, 0x2c6, 0x2030, 0x160, 0x2039, 0x152,
+  0x8d, 0x17d, 0x8f, 0x90, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014, 0x2dc, 0x2122,
+  0x161, 0x203a, 0x153, 0x9d, 0x17e, 0x178,
+];
+
+function decodeWindows1252(bytes: Uint8Array): string {
+  const codes = new Array<number>(bytes.length);
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i] as number;
+    codes[i] = b >= 0x80 && b <= 0x9f ? (CP1252_80_9F[b - 0x80] as number) : b;
+  }
+  let text = '';
+  // Chunked so a 2 MB file doesn't overflow fromCharCode's argument limit.
+  for (let i = 0; i < codes.length; i += 8192) {
+    text += String.fromCharCode(...codes.slice(i, i + 8192));
+  }
+  return text;
+}
+
+/**
  * A CSV file's bytes as text: UTF-8 when they are valid UTF-8 (a BOM is dropped), else
  * Windows-1252 (Excel's "CSV (Comma delimited)" on Windows).
  */
@@ -41,7 +67,7 @@ export function decodeCsvBytes(bytes: Uint8Array): string {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
-    return new TextDecoder('windows-1252').decode(bytes);
+    return decodeWindows1252(bytes);
   }
 }
 
