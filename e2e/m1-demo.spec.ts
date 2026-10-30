@@ -83,8 +83,8 @@ async function tapAt(page: Page, lng: number, lat: number): Promise<void> {
     number,
   ]);
   if (!p) throw new Error('map not ready');
-  const box = await page.getByTestId('war-room-map').boundingBox();
-  await page.touchscreen.tap((box?.x ?? 0) + p.x, (box?.y ?? 0) + p.y);
+  // project() already returns viewport coordinates (src/ui/map/test-api.ts).
+  await page.touchscreen.tap(p.x, p.y);
 }
 
 const rendered = (page: Page, layer: string) =>

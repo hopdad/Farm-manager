@@ -575,7 +575,7 @@ export async function bootstrap(flags: BootstrapFlags, d: BootstrapDeps): Promis
       const kept = basemapState(root, { acceptSynthetic: true });
       if (!kept.ok || !kept.synthetic) return false;
       line('WARN', 'offline basemap', `kept ${kept.detail}`);
-      out(`          ${why}.`);
+      out(`          ${why.replace(/\.$/, '')}.`);
       out('          The board badges the synthetic basemap (made-up roads and towns) until then.');
       return true;
     };
