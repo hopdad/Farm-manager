@@ -15,9 +15,11 @@ import {
   type BrowserContext,
   expect,
   type Page,
+  type Route,
   test,
 } from '@playwright/test';
 import { getConfig } from '../src/config';
+import { publish } from '../src/platform/realtime/publish';
 import type { SprayMapResponse, WeatherStripPayload } from '../src/ui/weather/contract';
 import type {} from '../src/ui/weather/SprayFieldState';
 import { e2ePool, e2eUserId, signInAs } from './support/auth';
@@ -26,6 +28,13 @@ import { blockExternalHosts, mapPathFor, WEBGL_ARGS, waitForMap } from './suppor
 test.use({ launchOptions: { args: WEBGL_ARGS } });
 
 const JOB_WAIT_MS = 60_000;
+/**
+ * The admin notice shows the action's answer as soon as it arrives (controls.tsx), but the
+ * answer is a server round trip that pins the stand-in's wind and claims weather.nws: with map
+ * specs drawing WebGL in software beside it (CI's other worker), that round trip alone took up
+ * to 9 s here, beyond expect's 5 s default.
+ */
+const ANSWER_MS = 20_000;
 
 /** Run weather.nws now (as the clock does) so the specs don't wait for the next tick. */
 async function runWeatherJob(request: APIRequestContext): Promise<void> {
@@ -73,6 +82,51 @@ async function setSlider(page: Page, mph: number): Promise<void> {
     await page.getByTestId('sim-wind').fill(String(mph));
     await expect(page.getByTestId('sim-wind-value')).toHaveText(String(mph), { timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
+}
+
+/** `seen` resolves when this page's realtime stream (EventSource) delivers a `topic` message. */
+async function realtimeMessage(page: Page, topic: string): Promise<{ seen: Promise<void> }> {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Network.enable');
+  const match = new RegExp(`"topic"\\s*:\\s*"${topic}"`);
+  const seen = new Promise<void>((resolve) => {
+    cdp.on('Network.eventSourceMessageReceived', (e) => {
+      if (match.test(e.data)) resolve();
+    });
+  });
+  return { seen };
+}
+
+/**
+ * Slow down /admin/spray's router on this page: a server action goes out only 1 s after `gate`
+ * resolves, and page refreshes (RSC GETs that are not prefetches) are held until `release()`.
+ */
+async function slowRouter(page: Page, gate: Promise<void>) {
+  let release: () => void = () => {};
+  const released = new Promise<void>((r) => {
+    release = r;
+  });
+  let held = 0;
+  const handler = async (route: Route) => {
+    const req = route.request();
+    const h = req.headers();
+    if (h['next-action']) {
+      await gate;
+      await new Promise((r) => setTimeout(r, 1_000));
+    } else if (req.method() === 'GET' && h.rsc === '1' && !h['next-router-prefetch']) {
+      held++;
+      await released;
+    }
+    await route.continue().catch(() => {}); // the page may be gone by then
+  };
+  await page.route('**/admin/spray**', handler);
+  return {
+    held: () => held,
+    release: async () => {
+      release();
+      await page.unroute('**/admin/spray**', handler);
+    },
+  };
 }
 
 /** Feature-state verdict of every field the map was given. */
@@ -166,7 +220,9 @@ async function windSliderFlips(
   await page.getByTestId('sim-pattern').selectOption('calm');
   await setSlider(page, 20);
   await page.getByTestId('sim-weather-apply').click();
-  await expect(page.getByTestId('admin-notice')).toContainText('wind pinned at 20 mph');
+  await expect(page.getByTestId('admin-notice')).toContainText('wind pinned at 20 mph', {
+    timeout: ANSWER_MS,
+  });
 
   await expect
     .poll(
@@ -197,7 +253,9 @@ async function windSliderFlips(
   // Back down to 5 mph: the colours flip back, no wind reasons.
   await setSlider(page, 5);
   await page.getByTestId('sim-weather-apply').click();
-  await expect(page.getByTestId('admin-notice')).toContainText('wind pinned at 5 mph');
+  await expect(page.getByTestId('admin-notice')).toContainText('wind pinned at 5 mph', {
+    timeout: ANSWER_MS,
+  });
   await expect
     .poll(async () => (await verdicts(request)).fields.every((f) => f.verdict !== 'no_go'), {
       timeout: JOB_WAIT_MS,
@@ -209,8 +267,26 @@ async function windSliderFlips(
   const after = await (await request.get(`/api/weather/spray/${one}`)).json();
   expect(after.hours[0].reasons.map((r: { code: string }) => r.code)).not.toContain('wind_high');
 
-  await page.getByTestId('sim-weather-clear').click();
-  await expect(page.getByTestId('admin-notice')).toContainText('follows the');
+  // Back to the scenario's weather while a page refresh is stuck: the confirmation must not wait
+  // for it. (It did: the notice came from useActionState, which React commits only together with
+  // every router refresh started while the action ran, like LiveRefresh's on a realtime event.)
+  // The action goes out only once a weather event has reached the page and LiveRefresh has
+  // started its refresh; that refresh, queued behind the action, is held until the end.
+  const weather = await realtimeMessage(page, 'weather');
+  const router = await slowRouter(page, weather.seen);
+  try {
+    await page.getByTestId('sim-weather-clear').click();
+    await publish('weather', 'invalidate', { event: 'updated', reason: 'changed' }, e2ePool());
+    await expect(page.getByTestId('admin-notice')).toContainText('follows the', {
+      timeout: ANSWER_MS,
+    });
+    await expect
+      .poll(router.held, { message: 'the refresh behind the action is held' })
+      .toBeGreaterThan(0);
+    await expect(page.getByTestId('admin-notice')).toContainText('follows the');
+  } finally {
+    await router.release();
+  }
   await board.close();
 }
 
