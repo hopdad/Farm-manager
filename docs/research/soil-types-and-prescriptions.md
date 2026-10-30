@@ -15,7 +15,7 @@ Yes, the tool can write prescriptions automatically wherever the rate is a publi
 
 The ground justifies the effort. Wet lake-plain clays (Pewamo, Lenawee, Hoytville, Ziegenfuss) are cut by sandy beach ridges (Selfridge, Tedrow, Oakville, Ottokee). Every one of eight sampled 160-acre blocks crossed 3 to 12 soil map units.
 
-The economics are thin. Variable rate typically returns $0–20 an acre, and Operations Center already builds zone seeding prescriptions for free. GeoPard and FieldView scripting cost $200–$649 a year, and Deere puts third-party prescription writing in its top API fee tier.
+The economics are thin. Variable rate typically returns $0–20 an acre, and Operations Center already builds zone seeding prescriptions for free. GeoPard and FieldView scripting cost $200–$649 a year, and Deere's top API fee tier covers prescription writing, though its public template lists that tier as free below 10 connected organizations.
 
 So build a guarded rule engine, not an agronomist in a box. It needs versioned rules, data-quality gates, label and GAAMP limits, machine-geometry checks, human sign-off and an as-applied check. Its most reliable money is upstream: screening which fields deserve variable rate, and designing strip trials that fix your uniform rates.
 
@@ -73,7 +73,7 @@ Everything the tool needs for soil and terrain priors is free and scriptable. No
 | Gridded soil properties | SOLUS100 GeoTIFF or Earth Engine | 100 m | Free | Covariate and uncertainty flag |
 | Elevation and terrain | 2017 QL2 lidar: 1 m DEM, seamless 1 m tiles, point cloud | 1 m | Free | Wetness, depressions, landscape position; places soils inside polygons |
 | Imagery | Sentinel-2, Landsat, NAIP | 10 m, 30 m, 0.6 m | Free | Multi-year productivity and bare-soil OM/texture |
-| Soil tests | Lab CSV, shapefile or Modus | 1–2.5 ac grid, or zones | About $12.75/ac per sampling at a 2.5-ac grid ($8.55/ac to sample plus a $10.50 test) | The only basis for P, K, lime and herbicide OM classes |
+| Soil tests | Lab CSV, shapefile or Modus | 1–2.5 ac grid, or zones | About $12.75–14.89/ac per sampling at a 2.5-ac grid ($8.55/ac to sample plus a $10.50–15.86 test) | The only basis for P, K, lime and herbicide OM classes |
 | Yield history | Deere Field Operations API | 1-second points | Free to the data owner | Stability zones, validation, trial analysis |
 
 ### SSURGO through Soil Data Access
@@ -108,7 +108,7 @@ Long-term mean NDVI tracked long-term productivity zones at r = 0.86–0.94 on a
 
 ### Soil tests set the rates
 
-A&L Great Lakes in Fort Wayne charges $10.50 per standard sample with recommendations (OM, P, K, Mg, Ca, pH, buffer pH, CEC) ([A&L](https://www.algreatlakes.com/pages/soil-analysis)). MSU's lab charges $12 ([Bay County MSUE](https://baycountymi.gov/health_community/msu_extension/agriculture_and_natural_resources/diagnostic_services.php)), and Ohio's 2026 survey puts grid sampling at $8.55 an acre ([Ohio custom rates 2026](https://farmoffice.osu.edu/sites/aglaw/files/site-library/farmmgtpdf/Ohio%20Farm%20Custom%20Rate%20Summary%202026%20August%204.pdf)).
+A&L Great Lakes in Fort Wayne charges $10.50 per standard sample with recommendations (OM, P, K, Mg, Ca, pH, buffer pH, CEC) ([A&L](https://www.algreatlakes.com/pages/soil-analysis)). MSU's lab charges $12 ([Bay County MSUE](https://baycountymi.gov/health_community/msu_extension/agriculture_and_natural_resources/diagnostic_services.php)), and Ohio's 2026 survey puts grid sampling at $8.55 an acre and soil testing at $15.86 a sample ([Ohio custom rates 2026](https://farmoffice.osu.edu/sites/aglaw/files/site-library/farmmgtpdf/Ohio%20Farm%20Custom%20Rate%20Summary%202026%20August%204.pdf)).
 
 Grid size governs accuracy. Across nine Georgia fields, a 1-acre grid put the right lime rate in the right place on 89% of the area, a 2.5-acre grid on 76% and a 10-acre grid on 52%. For P and K, the 2.5-acre grid reached only 63% and 60% ([CSA News 2024](https://www.sciencesocieties.org/publications/crops-soils/2024/march-april/soil-sampling-grid-size-considerations-for-site-specific)).
 
@@ -130,7 +130,7 @@ No lab publishes a results API, so ingest CSV, shapefile or AgGateway's Modus fo
 
 ### Yield history from Deere
 
-List harvest operations by crop season through the Field Operations API, then request each shapefile asynchronously. The API answers 202, the client polls with backoff, and processing can take up to 30 minutes before a 307 redirect to a download URL ([deere-sdk 3.1.2, unofficial](https://registry.npmjs.org/deere-sdk/-/deere-sdk-3.1.2.tgz)). Deere's OAuth sample requests the ag1–ag3, files and offline_access scopes and checks each organization's approval ([Deere OAuth sample](https://raw.githubusercontent.com/JohnDeere/MyJohnDeereAPI-OAuth2-Python-Example/master/john-deere-api.py)).
+List harvest operations by crop season through the Field Operations API, then request each shapefile asynchronously. The API answers 202, or 307 if the file is already ready. Poll from 5 seconds, doubling each time; processing can take up to 30 minutes before the 307 redirect to a presigned URL. Send that URL no Authorization header, treat a 406 as no shapefile available, and don't wait for a webhook, since this endpoint has none ([deere-sdk 3.1.2, unofficial](https://registry.npmjs.org/deere-sdk/-/deere-sdk-3.1.2.tgz)). Deere's OAuth sample requests the ag1–ag3, files and offline_access scopes and checks each organization's approval ([Deere OAuth sample](https://raw.githubusercontent.com/JohnDeere/MyJohnDeereAPI-OAuth2-Python-Example/master/john-deere-api.py)).
 
 Raw yield needs cleaning: 10–50% of points carry significant errors ([Sudduth & Drummond 2007](https://consensus.app/papers/details/a782c496dfe353c09c6e42d5ade31118/?utm_source=claude_desktop)), and an uncleaned map can shift an N recommendation by more than 15 lb/acre ([UNL EC2005](https://extensionpubs.unl.edu/publication/ec2005/na/pdf/view)). Cleaning automates well. USDA's automated Yield Editor matched an expert's hand cleaning on 50 maps ([Sudduth et al. 2012](https://consensus.app/papers/details/877c4c63eaee5e12adcfef6b46d1be4e/?utm_source=claude_desktop)), and the Vega protocol removed about 30% of points across 595 datasets ([Vega et al. 2019](https://consensus.app/papers/details/f0a4656d38b8512e9f02d26b21ee7158/?utm_source=claude_desktop)).
 
@@ -299,9 +299,9 @@ A reliable variogram needs about 100 points ([Muhammed et al. 2017](https://repo
 
 DIFM's open-source ofpetrial package builds plots sized to machine widths, at most 120 ft wide and 240–300 ft long ([prep_plot](https://rdrr.io/cran/ofpetrial/man/prep_plot.html)). It assigns five rates around the grower's rate in Latin-square or jump-limited layouts, checks that applicator and harvester passes align, and writes prescription shapefiles ([ofpetrial](https://rdrr.io/cran/ofpetrial)).
 
-Trials pay first by fixing the uniform rate. In four Illinois cornfields, optimizing uniform seed and N rates was worth about $26/acre, and site-specific rates added about $23/acre more ([Trevisan et al. 2020](https://consensus.app/papers/details/a666d95475ec52878671df748fa22be9/?utm_source=claude_desktop)). On a flat central Illinois field, even 15 years of trials didn't make site-specific N pay, but a few years produced a very profitable uniform rate ([Bullock et al. 2020](https://consensus.app/papers/details/b1909ec6dd1e56b285dfb46408d59609/?utm_source=claude_desktop)).
+Trials pay first by fixing the uniform rate. In four Illinois cornfields, optimizing uniform seed and N rates was worth about $26/acre, and site-specific rates added about $23/acre more ([Trevisan et al. 2020](https://consensus.app/papers/details/a666d95475ec52878671df748fa22be9/?utm_source=claude_desktop)). In a simulation modeled on a flat central Illinois field, even 15 years of trials didn't make site-specific N pay, but a few years produced a very profitable uniform rate ([Bullock et al. 2020](https://consensus.app/papers/details/b1909ec6dd1e56b285dfb46408d59609/?utm_source=claude_desktop)).
 
-Response maps also move. Positive N response covered about 46% of field area across 14 trials, but year-to-year agreement was only 50–60% ([Alesso et al. 2023](https://consensus.app/papers/details/03a50bcbf36c522da1d531e4253c0319/?utm_source=claude_desktop)). And a consultant's N-and-seed prescription tested in Crawford County, Ohio lost $7.87–11.15/acre, mostly from over-applying N ([Gardner et al. 2021](https://consensus.app/papers/details/3187690758e955ce9c19bec97daf9948/?utm_source=claude_desktop)).
+Response maps also move. Positive N response covered about 46% of field area across 14 trials, but year-to-year agreement was only 50–60% ([Alesso et al. 2023](https://consensus.app/papers/details/03a50bcbf36c522da1d531e4253c0319/?utm_source=claude_desktop)). And in a one-year, two-zone test in Crawford County, Ohio, a consultant's N-and-seed prescription lost $7.87–11.15/acre, mostly from over-applying N ([Gardner et al. 2021](https://consensus.app/papers/details/3187690758e955ce9c19bec97daf9948/?utm_source=claude_desktop)).
 
 ## Delivery: Deere takes a zipped shapefile, DJI a GeoTIFF
 
@@ -334,7 +334,7 @@ No source gave controller response times. At 10 mph, though, a 2-second uncompen
 
 Seeding and Application operations carry paired Target (attempted) and Result (achieved) measurements ([deere-sdk 3.1.2](https://registry.npmjs.org/deere-sdk/-/deere-sdk-3.1.2.tgz)), and Agworld already syncs completed spray jobs back as actuals ([Agworld help](https://help.agworld.com/en/articles/11045106-john-deere-introduction-to-sending-activities-to-work-planner)). Units vary by operation, so read the units endpoint rather than assuming them ([Leaf units doc](https://docs.withleaf.io/machine-data/units)).
 
-Access is gated and priced. Per Leaf's guide, the sandbox allows five connected organizations, under 150,000 calls a month and at most 18 months before production approval ([Leaf Deere guide](https://docs.withleaf.io/guides/tutorials/connect-john-deere.md)). Deere's May 2026 API agreement puts Prescriptions and Work Plans in its top Ultimate Field Work fee tier, and the public template leaves the dollar amounts blank ([Deere API License Agreement](https://developer.deere.com/ApiAgreementPDF.pdf)).
+Access is gated, and pricing scales with connected organizations. Per Leaf's guide, the sandbox allows five connected organizations, under 150,000 calls a month and at most 18 months before production approval ([Leaf Deere guide](https://docs.withleaf.io/guides/tutorials/connect-john-deere.md)). Deere's May 2026 API agreement puts Prescriptions, Work Plans and Files Transfer in its top Ultimate Field Work tier, so the Files API doesn't avoid it. The public template lists that tier as free below 10 connected organizations, and the lower Premium tier, which covers yield export, as free below 100. The extracted fee table was fragmented, so confirm with Deere ([Deere API License Agreement](https://developer.deere.com/ApiAgreementPDF.pdf)).
 
 ### Mixed fleets
 
@@ -346,7 +346,7 @@ DJI Agras T20 through T100 fly variable-rate missions from a GeoTIFF rate map pl
 
 Hylio's AgroSol is documented for boundaries, obstacles, treatment maps, swarming and as-applied maps that log GPS, flow and altitude ([DroneXL, Jan 2025](https://dronexl.co/2025/01/30/hylios-new-hyl-150-ares-agricultural-drone)). But Pix4D's June 2026 Hylio integration exports boundary missions only ([Pix4D blog](https://www.pix4d.com/blog/basemap-layers/)), and no source confirms that AgroSol imports variable-rate maps. Until Hylio confirms it, plan one rate per zone mission.
 
-Supply risk explains the US-made premium. The FCC's December 2025 Covered List action blocks new authorizations for foreign drones, not use or sale of models already authorized ([Akin Gump](https://www.akingump.com/en/insights/alerts/fcc-adds-all-foreign-made-uas-and-uas-critical-components-to-covered-list)). A July 2026 FCC proposal (DA 26-758, PS Docket 26-189) would end imports and marketing of foreign spray drones 180 days after publication; it hadn't been adopted as of October 21, 2026 ([AgFunderNews](https://agfundernews.com/new-fcc-proposal-could-retroactively-ban-some-existing-ag-spray-drones-warns-dji); [DroneXL, Oct 2026](https://dronexl.co/2026/10/21/spray-drone-sales-fell-59-percent-asdc-fcc-part-137-carve-out/)).
+Supply risk explains the US-made premium. The FCC's December 2025 Covered List action blocks new authorizations for foreign drones, not use or sale of models already authorized ([Akin Gump](https://www.akingump.com/en/insights/alerts/fcc-adds-all-foreign-made-uas-and-uas-critical-components-to-covered-list)). A July 2026 FCC proposal (DA 26-758, PS Docket 26-189) would end imports and marketing of foreign spray drones 180 days after a final order is published in the Federal Register; it hadn't been adopted as of October 21, 2026 ([AgFunderNews](https://agfundernews.com/new-fcc-proposal-could-retroactively-ban-some-existing-ag-spray-drones-warns-dji); [DroneXL, Oct 2026](https://dronexl.co/2026/10/21/spray-drone-sales-fell-59-percent-asdc-fcc-part-137-carve-out/)).
 
 By the industry coalition's count, 2025 spray-drone sales fell 59% while drone-sprayed acres rose past 16.4 million and the average price fell from $21 to $13 an acre (same DroneXL report). US-made drones cost 3–5 times their DJI counterparts, and Exedy Drones is building them in Michigan ([DroneXL, Jul 2026](https://dronexl.co/2026/07/01/dji-agras-t55-and-t100-launch-globally-fcc-drone-ban/)).
 
@@ -364,7 +364,9 @@ Michigan's Lake Erie plan concedes it won't meet the 40% phosphorus reduction ta
 
 ### Ohio fields and program rules
 
-Ohio's Western Basin rules (Senate Bill 1) bar surface-applied N or P on frozen or snow-covered ground, or when the top 2 inches are saturated. They also bar granular fertilizer when the forecast shows more than a 50% chance of over 1 inch of rain in 12 hours, with penalties up to $10,000 per violation ([OSU ANR-0156](https://cfaes-contenthub.org.ohio-state.edu/fact-sheet/fertilizer-and-manure-regulations-lake-erie-western-basin-watershed)). Applying fertilizer to more than 50 acres of crops for sale needs Ohio certification, with records made within 24 hours and kept 3 years ([OSU ANR-0142](https://ohioline.osu.edu/factsheet/anr-0142)).
+Ohio's Western Basin rules (Senate Bill 1) bar surface-applied N or P on frozen or snow-covered ground, or when the top 2 inches are saturated. They also bar granular fertilizer when the forecast shows more than a 50% chance of over 1 inch of rain in 12 hours ([OSU ANR-0156](https://cfaes-contenthub.org.ohio-state.edu/fact-sheet/fertilizer-and-manure-regulations-lake-erie-western-basin-watershed)). Civil penalties run up to $2,000 a day for a minor violation and $10,000 a day for a major one: at least 10,000 lb N or 6,000 lb P, a significant risk of harm, or a discharge to water ([OSU C.O.R.N. 2016](https://agcrops.osu.edu/newsletter/corn-newsletter/fertilizer-and-manure-application-compliance-ohio-and-civil-penalties)).
+
+Applying fertilizer to more than 50 acres of crops for sale needs Ohio certification, with records made within 24 hours and kept 3 years ([OSU ANR-0142](https://ohioline.osu.edu/factsheet/anr-0142)).
 
 | Program | Requirements that touch the engine |
 | --- | --- |
@@ -392,7 +394,7 @@ Pesticide work on someone else's land stays private only if no compensation chan
 | Pesticide Application Business License (PABL) | $100 a year; general liability of $100,000 bodily injury and $25,000 property damage per occurrence, or $300,000 combined, for aerial work |
 | FAA | Part 137 operator certificate plus an exemption and Part 107 pilot certificates; drones of 55 lb or more need Part 91/137 exemptions and an N-number; file at least 120 days ahead |
 
-Customers need a service agreement and an application receipt, and records are kept 1 year for general-use and 3 years for restricted-use products ([MDARD records checklist](https://www.michigan.gov/documents/mda/Customer_Receipt_and_Recordkeeping_for_Clients_270085_7.pdf)). Use a drift management plan when drift is likely ([R 285.637.10](https://law.cornell.edu/regulations/michigan/Mich-Admin-Code-R-285-637-10)); MDARD's template treats winds of 15 mph or more as no-spray ([MDARD drift plan](https://www.michigan.gov/documents/mda/Drift_Management_Plan_Policy_270250_7.pdf)). Blending fertilizer to a soil-test spec probably counts as manufacturing, which needs a $100 Michigan license plus tonnage reporting ([MCL 324.8501](https://www.legislature.mi.gov/documents/mcl/pdf/MCL-324-8501.pdf); [MDARD fertilizer licensing](https://www.michigan.gov/mdard/plant-pest/fertilizer/fertilizerinfo/fertilizer-license-and-registration-requirements)).
+Customers need a service agreement and an application receipt, and records are kept 1 year for general-use and 3 years for restricted-use products ([MDARD records checklist](https://www.michigan.gov/documents/mda/Customer_Receipt_and_Recordkeeping_for_Clients_270085_7.pdf)). Use a drift management plan when drift is likely ([R 285.637.10](https://law.cornell.edu/regulations/michigan/Mich-Admin-Code-R-285-637-10)); MDARD's template recommends no spraying in winds of 15 mph or more, but each plan sets its own limit, so make it a setting that defaults to 15 ([MDARD drift plan](https://www.michigan.gov/documents/mda/Drift_Management_Plan_Policy_270250_7.pdf)). Blending fertilizer to a soil-test spec probably counts as manufacturing, which needs a $100 Michigan license plus tonnage reporting ([MCL 324.8501](https://www.legislature.mi.gov/documents/mcl/pdf/MCL-324-8501.pdf) definitions; [MDARD fertilizer licensing](https://www.michigan.gov/mdard/plant-pest/fertilizer/fertilizerinfo/fertilizer-license-and-registration-requirements)).
 
 ### Liability
 
@@ -421,7 +423,7 @@ Dealers estimate VR fertilizer on 43% of their market-area acres, VR seeding on 
 
 USDA's Economic Research Service estimates VRT adoption raises net returns only about 1.1% ([ERS ERR-217](https://ageconsearch.umn.edu/bitstream/249773/2/err-217.pdf)). A simulation of about 2,600 Corn Belt fields put VR nitrogen's margin over uniform at $6.7/ha (about $2.70/acre) after a VR fee, driven by a small share of very variable fields ([Jin et al. 2019](https://consensus.app/papers/details/24f6e276177c553cbac098ff4de408f9/?utm_source=claude_desktop)).
 
-Sensor-based in-season N is the most consistent: a 2026 meta-analysis found 18% less N, 6% more profit and no yield change ([Jakhar et al. 2026](https://consensus.app/papers/details/0e3155e7b15d5093a7787aca2ca9d24a/?utm_source=claude_desktop)). VR P and K mostly redistributes fertilizer. Iowa VR used 12–41% less P for the same crop response ([Wittry & Mallarino 2004](https://consensus.app/papers/details/049fbee35f885f09a2ae19c13e0c4e02/?utm_source=claude_desktop)), and returns were mostly negative where removal rates went on high-testing soils ([Mallarino 2019](https://www.agronext.iastate.edu/soilfertility/info/Mallarino%20Variable-Rate%20Proceed%20NC%20Soil%20Fert%20Conf%202019.pdf)).
+Sensor-based in-season N is the most consistent: a 2026 meta-analysis found 18% less N, 6% more profit and no yield change ([Jakhar et al. 2026](https://consensus.app/papers/details/0e3155e7b15d5093a7787aca2ca9d24a/?utm_source=claude_desktop)). VR P and K mostly redistributes fertilizer. One Iowa study found VR used 12–41% less P for the same crop response ([Wittry & Mallarino 2004](https://consensus.app/papers/details/049fbee35f885f09a2ae19c13e0c4e02/?utm_source=claude_desktop)), while Mallarino's 2019 summary found VR applied more fertilizer in about a quarter of fields, with mostly negative returns where removal rates went on high-testing soils ([Mallarino 2019](https://www.agronext.iastate.edu/soilfertility/info/Mallarino%20Variable-Rate%20Proceed%20NC%20Soil%20Fert%20Conf%202019.pdf)).
 
 VR lime gained about $3–8/acre on Indiana fields spanning pH 4.5 to nearly 8, but on 1-acre grids the sampling cost wiped out the gain ([Purdue PAER 2002](https://ag.purdue.edu/commercialag/home/paer-article/economics-of-site-specific-lime-management-in-indiana)).
 
@@ -430,7 +432,7 @@ VR lime gained about $3–8/acre on Indiana fields spanning pH 4.5 to nearly 8, 
 | Trial-optimized uniform rate | About $26/acre potential; avoids $8–11/acre of over-application | Almost any field whose current rate is off |
 | Sensor-based in-season N | +6% profit; about $10–20/acre in Missouri | Variable fields with little pre-plant N |
 | VR lime (grid) | +$3–8/acre | Wide pH range; grid data reused at least 2 cycles |
-| VR P and K | 12–41% less P, 17% less K; yield gains rare | Soil tests spanning Very Low or Low to High |
+| VR P and K | Often less P and K (12–41% less P in one Iowa study), but more in about a quarter of fields; yield gains rare | Soil tests spanning Very Low or Low to High |
 | Zone or model-based N | −$131 to +$12/acre; Michigan wheat stable-low zones $7–14/acre | Many stable-low acres, validated by trials |
 | VR seeding | Corn $3–13/acre; soybean about $0–12/acre, often not significant | Fields mixing areas under 100 and over 180 bu/acre |
 
@@ -438,7 +440,7 @@ VR lime gained about $3–8/acre on Indiana fields spanning pH 4.5 to nearly 8, 
 
 ### Screen before you map
 
-Variable rate's costs are about the size of its benefits. Sampling runs about $12.75 an acre per event on a 2.5-acre grid and $19.05 on a 1-acre grid ($8.55 an acre to sample plus a $10.50 test), or roughly $3.20–6.35 an acre per year over a 3–4-year cycle. That assumes the sampling fee excludes lab work and doesn't rise on denser grids. Add a few dollars for VR application, plus the time.
+Variable rate's costs are about the size of its benefits. Sampling runs about $12.75–14.89 an acre per event on a 2.5-acre grid and $19.05–24.41 on a 1-acre grid ($8.55 an acre to sample, plus a test at $10.50 from A&L or $15.86 on Ohio's survey), or roughly $3.19–8.14 an acre per year over a 3–4-year cycle. That assumes the sampling fee excludes lab work and doesn't rise on denser grids. Add a few dollars for VR application, plus the time.
 
 So the screen checks yield CV and McBratney's opportunity index (tentatively above 20; [McBratney et al. 2000](https://precision-agriculture.sydney.edu.au/wp-content/uploads/2019/08/MOI.pdf)), the stable-low and unstable shares, whether soil tests span Low to High, and the share of the field below the lime target. Fields that fail get a uniform rate, which is a feature, not a failure.
 
@@ -544,7 +546,7 @@ Every rate carries its evidence: the inputs, their sources, the rule-set version
 
 Each phase ends in a test that proves its layer works before the next one depends on it.
 
-1. **Foundation:** Deere app registration and sandbox; field sync; SSURGO cache for MI091 and MI115 plus adjacent Ohio survey areas; soil and terrain layers on the map; lab ingest with method metadata. Ask Deere for an API fee quote and Hylio whether AgroSol imports rate maps.
+1. **Foundation:** Deere app registration and sandbox; field sync; SSURGO cache for MI091 and MI115 plus adjacent Ohio survey areas; soil and terrain layers on the map; lab ingest with method metadata. Confirm Deere's fee tiers, and ask Hylio whether AgroSol imports rate maps.
    - Exit test: every field shows its map units, terrain and sample points.
 2. **Fertility engine:** Tri-State P/K and lime rules with GAAMP constraints; geometry shaping; Deere Rx/ zip via the Files API; own fields only.
    - Exit test: unit tests reproduce MSU's 60-bushel soybean check (48 lb P2O5, 69 lb K2O), add build-up and CEC cases, and match OSU's Excel calculator with the state flag set to Ohio and its rotation rule for the P critical level ([OSU Fertility Resources](https://agcrops.osu.edu/FertilityResources)); a prescription loads on a Gen4 or G5 and as-applied data come back.
@@ -563,7 +565,7 @@ Each phase ends in a test that proves its layer works before the next one depend
 - [ ] Read the Manure Management and Utilization GAAMP before automating manure
 - [ ] Load current labels for every herbicide in the engine, starting with metribuzin
 - [ ] Look up RMA final planting dates by county for wheat
-- [ ] Get Deere's Work Plans JSON schema, production rate limits and an API fee quote
+- [ ] Get Deere's Work Plans JSON schema and production rate limits, and confirm the fee tiers (free below 10 organizations per the public template)
 - [ ] Ask Hylio whether AgroSol imports variable-rate maps
 - [ ] Ask MDARD whether issuing prescriptions someone else applies counts as supervising, and whether blending to a prescription needs a fertilizer license
 - [ ] Run the SDA query for county-wide soil series shares and property values
