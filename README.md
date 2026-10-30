@@ -79,7 +79,7 @@ Protomaps extract of SE Michigan plus its fonts and sprites); connects the simul
 account; and prints the board, sign-in and phone URLs. It only does what's missing.
 
 **Coming from M0:** `git checkout main`, `git pull`, `pnpm install`,
-`pnpm run bootstrap`. It applies the three new migrations (`0003`-`0005`) and its demo seed adds
+`pnpm run bootstrap`. It applies the new migrations (`0003`-`0006`) and its demo seed adds
 the M1 extras to the demo farm you already have (demo sign-ins, soils, parcels, field
 entrances), keeping everything else. No `pnpm db:reset` needed (it would wipe what you typed
 in). Then sign in and enroll the wall once: "First run" below (the M0 kiosk now lands on the

@@ -53,7 +53,8 @@ pnpm dev
 Expect:
 - **Bootstrap** ends with "Ready." and a summary. A first run downloads the database image
   (1-3 minutes) and the offline basemap. On an install that already has M0, it applies
-  migrations `0003`-`0005` and adds the M1 demo data; no `pnpm db:reset` is needed.
+  migrations `0003`-`0006` and adds the M1 demo data; one that already has M1 gets just the new
+  ones (`0006`). No `pnpm db:reset` is needed.
 - **`pnpm dev`** prints an **Owner** link the first time (`http://localhost:3000/login/setup?code=…`).
   Tell Derrick to open it on the PC and set his name and PIN; don't pick a PIN for him.
 - **The board** is at `http://localhost:3000/board`: fields around Adrian and Blissfield, the
