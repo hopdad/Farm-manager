@@ -62,6 +62,30 @@ NWS issued the forecast.
 Don't wait 2 hours to see the outage warning. The cloud's tests cover it: with no NWS check for
 more than 2 hours, every view says "Forecast not checked with NWS for N h".
 
+### B2. Soil map walk-through and fleet inventory (with Derrick)
+
+Derrick asked for a "soil type map". One exists, but only as drainage colours. The cloud is
+planning to turn it into a proper soil-type map (soil names as labels, colour by productivity,
+texture or slope, tap for details), so get his reaction first:
+
+1. On the board, open the layer rail and turn on **Soils**. Then tap a field and open its
+   **Soils** tab. Show him both.
+2. Ask him, and write his answers in the status entry:
+   - What does he want to read off a soil map: soil names, productivity, drainage, texture,
+     slope, organic matter, pH?
+   - Should it be on by default anywhere (the wall, phones)?
+   - Anything about the current colours or legend that's hard to read on the wall?
+
+Then take a **fleet inventory**: the cloud is adding connectors for the most popular truck
+ELDs and machine brands, plus Ford and Ram pickups. Ask Derrick for each truck and machine:
+make, model, model year, and what telematics or app it already has (for example JDLink,
+Case IH AFS Connect, FordPass or Ford Pro, Uconnect, an ELD brand in each semi, or none).
+
+- **Status entry:** counts only, by brand and telematics, e.g. "3 Deere with JDLink, 1 Case IH
+  combine with AFS Connect, 2 Ford F-250 (FordPass), 4 semis on <ELD>".
+- **Full list:** it's Derrick's farm data, so it stays out of git. Keep it in
+  `data/raw/fleet-inventory.txt` (gitignored).
+
 ### C. Windows re-checks of this round's changes
 
 | # | Check | How | Pass when |
@@ -72,7 +96,10 @@ more than 2 hours, every view says "Forecast not checked with NWS for N h".
 | C4 | e2e on the PC | `pnpm test:e2e e2e/weather.spec.ts e2e/m1-demo.spec.ts --project=wall` with weather on `sim` | All pass |
 
 If something fails, fix it on `pc/round2` when the fix is clear and small. Otherwise describe
-it, with the output, in the status entry. Push `pc/round2` when A-C are done.
+it, with the output, in the status entry. Push `pc/round2` when A-C (and B2) are done.
+
+Don't pull or test `claude/m1-1f`: it's the cloud's work in progress on slice 1f. It changes the
+database (migration `0007`), and Derrick will say when it's ready.
 
 ### D. Then slice 1e (lidar and crop history) on the PC
 
@@ -94,7 +121,8 @@ Do section 3, item 1, on a branch `pc/slice-1e`, with these specifics:
   `db/pending/pc-1e.sql`, following the rules in `db/pending/README.md` (idempotent; `gis`
   schema; EPSG:4326 with GiST). Then `pnpm db:pending` applies them to your database, and the
   tests apply them on their own. Describe the Drizzle mirror you'd want in the status entry.
-  The cloud agent turns the file into migration `0007` and writes the mirror when it merges.
+  The cloud agent turns the file into the next free migration number and writes the mirror
+  when it merges. (Slice 1f, being built in the cloud on `claude/m1-1f`, takes `0007`.)
 - **Data:**
   - Raw downloads go under `data/raw/` (gitignored), and work files in the `gis_work` volume.
   - Cache every CropScape download: it has had outages and certificate problems.
