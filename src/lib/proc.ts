@@ -36,6 +36,8 @@ export interface RunResult {
   code: number;
   stdout: string;
   stderr: string;
+  /** True when `timeoutMs` ran out and the process was killed. */
+  timedOut?: boolean;
 }
 
 /** Run an executable (no shell). Resolves with the exit code; never rejects on non-zero. */
@@ -56,8 +58,10 @@ export function run(command: string, args: string[], opts: RunOptions = {}): Pro
       stderr += d.toString();
     });
     let timer: NodeJS.Timeout | undefined;
+    let timedOut = false;
     if (opts.timeoutMs) {
       timer = setTimeout(() => {
+        timedOut = true;
         child.kill();
         stderr += `\n[timed out after ${opts.timeoutMs} ms]`;
       }, opts.timeoutMs);
@@ -68,7 +72,7 @@ export function run(command: string, args: string[], opts: RunOptions = {}): Pro
     });
     child.on('close', (code) => {
       if (timer) clearTimeout(timer);
-      resolve({ code: code ?? 1, stdout, stderr });
+      resolve({ code: code ?? 1, stdout, stderr, timedOut });
     });
   });
 }

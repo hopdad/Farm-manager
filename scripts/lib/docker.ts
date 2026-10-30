@@ -28,22 +28,84 @@ export async function compose(projectDir: string, args: string[]): Promise<numbe
   return r.code;
 }
 
-/** The images the compose services use (empty when Docker doesn't answer within the timeout). */
-export async function composeImages(projectDir: string): Promise<string[]> {
+/** How long a diagnostic docker call may take before Docker counts as not answering. */
+const PROBE_TIMEOUT_MS = 15_000;
+
+/** The images the compose services use (null: Docker didn't answer in time). */
+export async function composeImages(projectDir: string): Promise<string[] | null> {
   const r = await run('docker', ['compose', 'config', '--images'], {
     cwd: projectDir,
-    timeoutMs: 15_000,
+    timeoutMs: PROBE_TIMEOUT_MS,
   });
+  if (r.timedOut) return null;
   return r.code === 0 ? r.stdout.split(/\s+/).filter(Boolean) : [];
 }
 
 /** Whether an image is in the local image store (null: Docker didn't answer in time). */
 export async function imagePresent(image: string): Promise<boolean | null> {
   const r = await run('docker', ['image', 'inspect', '--format', '{{.Id}}', image], {
-    timeoutMs: 15_000,
+    timeoutMs: PROBE_TIMEOUT_MS,
   });
-  if (r.code === 0) return true;
-  return r.stderr.includes('[timed out') ? null : false;
+  if (r.timedOut) return null;
+  return r.code === 0;
+}
+
+/** Whether this project's db container is up (null: Docker didn't answer in time). */
+export async function ownDbRunning(projectDir: string): Promise<boolean | null> {
+  const ps = await run('docker', ['compose', 'ps', '-q', DB_SERVICE], {
+    cwd: projectDir,
+    timeoutMs: PROBE_TIMEOUT_MS,
+  });
+  if (ps.timedOut) return null;
+  const id = ps.code === 0 ? (ps.stdout.trim().split(/\s+/)[0] ?? '') : '';
+  if (!id) return false;
+  const r = await run('docker', ['inspect', '--format', '{{.State.Status}}', id], {
+    timeoutMs: PROBE_TIMEOUT_MS,
+  });
+  if (r.timedOut) return null;
+  return r.code === 0 && r.stdout.trim() === 'running';
+}
+
+/** The checks behind `composeUpFacts` (the real ones in scripts/db.ts; fakes in tests). */
+export interface ComposeUpProbes {
+  dockerAnswers(): Promise<boolean>;
+  /** null: Docker didn't answer in time. */
+  images(): Promise<string[] | null>;
+  imagePresent(image: string): Promise<boolean | null>;
+  portState(port: number): Promise<PortState>;
+  ownDbRunning(): Promise<boolean | null>;
+}
+
+/**
+ * Gather `ComposeUpFacts` after `docker compose up` failed. Docker first: once it doesn't answer
+ * (or a check times out), no further docker call is made, so a hung daemon can't stall `db:up`.
+ */
+export async function composeUpFacts(
+  dbPort: number,
+  probes: ComposeUpProbes,
+): Promise<ComposeUpFacts> {
+  const facts: ComposeUpFacts = {
+    dockerAnswers: await probes.dockerAnswers(),
+    missingImages: [],
+    dbPort,
+    dbPortState: 'free',
+    ownDbRunning: false,
+  };
+  if (!facts.dockerAnswers) return facts;
+  const images = await probes.images();
+  if (images === null) return { ...facts, dockerAnswers: false };
+  for (const image of images) {
+    const present = await probes.imagePresent(image);
+    if (present === null) return { ...facts, dockerAnswers: false };
+    if (!present) facts.missingImages.push(image);
+  }
+  facts.dbPortState = await probes.portState(dbPort);
+  if (facts.dbPortState === 'in_use') {
+    const own = await probes.ownDbRunning();
+    if (own === null) return { ...facts, dockerAnswers: false };
+    facts.ownDbRunning = own;
+  }
+  return facts;
 }
 
 /** What can be checked after `docker compose up` failed (its own output streamed above). */

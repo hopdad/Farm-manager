@@ -48,15 +48,16 @@ import {
 import { probePort } from '../src/lib/ports';
 import { isMainModule, runNode, tsxBin } from '../src/lib/proc';
 import {
-  type ComposeUpFacts,
   compose,
   composeImages,
+  composeUpFacts,
   containerHealth,
   DB_SERVICE,
   dbContainerId,
   dockerAvailable,
   explainComposeUpFailure,
   imagePresent,
+  ownDbRunning,
   projectVolumes,
   removeVolume,
 } from './lib/docker';
@@ -139,25 +140,13 @@ export async function up(): Promise<void> {
   const cfg = getConfig();
   const code = await compose(cfg.projectDir, ['up', '-d', DB_SERVICE]);
   if (code !== 0) {
-    // What can be checked now; Docker first, since the other checks need it to answer.
-    const facts: ComposeUpFacts = {
-      dockerAnswers: (await dockerAvailable()).ok,
-      missingImages: [],
-      dbPort: cfg.DB_PORT,
-      dbPortState: 'free',
-      ownDbRunning: false,
-    };
-    if (facts.dockerAnswers) {
-      for (const image of await composeImages(cfg.projectDir)) {
-        const present = await imagePresent(image);
-        if (present === null) facts.dockerAnswers = false;
-        else if (!present) facts.missingImages.push(image);
-      }
-      facts.dbPortState = (await probePort(cfg.DB_PORT, '127.0.0.1')).state;
-      const id = await dbContainerId(cfg.projectDir);
-      facts.ownDbRunning =
-        id !== '' && ['healthy', 'starting', 'running'].includes(await containerHealth(id));
-    }
+    const facts = await composeUpFacts(cfg.DB_PORT, {
+      dockerAnswers: async () => (await dockerAvailable()).ok,
+      images: () => composeImages(cfg.projectDir),
+      imagePresent,
+      portState: async (port) => (await probePort(port, '127.0.0.1')).state,
+      ownDbRunning: () => ownDbRunning(cfg.projectDir),
+    });
     throw new Error(explainComposeUpFailure(facts));
   }
   await waitHealthy();
