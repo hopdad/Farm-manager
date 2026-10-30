@@ -176,10 +176,14 @@ the internet drops (it says "Forecast stale" once NWS hasn't been reached for 2 
 
 ## Replay mode (Deere and the trucks from recorded fixtures)
 
-`CONNECTOR_DEERE=replay` and `CONNECTOR_ELD=replay` in `.env.local` run the real Deere and
+`CONNECTOR_DEERE=replay` and `CONNECTOR_SAMSARA=replay` in `.env.local` run the real Deere and
 Samsara clients on fixtures written from the vendors' published API documents (no stand-in, no
-account): the fleet panel says "Deere: replay · Samsara: replay". Delete the lines to go back
-to the simulation.
+account): the fleet panel says "John Deere: replay · Samsara: replay". Delete the lines to go
+back to the simulation. Every telematics vendor has its own key (`CONNECTOR_SAMSARA`,
+`CONNECTOR_MOTIVE`, `CONNECTOR_GEOTAB`, `CONNECTOR_AEMP`, `CONNECTOR_CNH`, `CONNECTOR_TERMINAL`;
+all `sim` by default, so the board shows the whole mixed demo fleet). An older `.env.local` with
+`CONNECTOR_ELD` / `ELD_VENDOR` still works: those set the named vendor's key, and
+`/admin/connectors` says which line to write instead.
 
 ## Ports
 
