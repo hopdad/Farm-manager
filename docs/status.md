@@ -82,9 +82,11 @@ Next open items: decide the `forecast_stale` threshold for live NWS (check 2); R
   - README Troubleshooting rows: pnpm 9 or 10; `pnpm.cmd` when PowerShell blocks `pnpm.ps1`; a cut-off image download; cmd's "Terminate batch job".
   - README also notes how long the first `pnpm pilot` build takes.
   - PC-AGENT.md: check 5 now looks for this app's node processes by command line, and suggests `pnpm.cmd`.
-- **Review:** a 30-agent review of the branch found 20 issues (about ten distinct), all fixed.
+- **Review:** two rounds, all findings fixed.
+  - A 30-agent review found 20 issues (about ten distinct).
+  - A second round on those fixes found 6 more. Among them: NWS serving an older cached issue no longer makes the newest one look unchecked. The check is now written in the spray pass's transaction, so screens don't flicker to stale when a new issue lands. `db:up` can no longer hang on a Docker daemon that stopped answering.
 - **Checks:** all passed locally on Linux:
   - lint and typecheck;
-  - `pnpm test` (1,311) and `pnpm test:db` (308);
+  - `pnpm test` (1,316) and `pnpm test:db` (308);
   - `pnpm build`;
   - the full e2e suite against `pnpm pilot --skip-build` (114 passed, 36 skipped).
