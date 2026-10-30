@@ -6,6 +6,7 @@ Oct 29, 2026, evening. Update this file at the end of each build session.
 
 | Branch | State |
 |---|---|
+| `main` | M0 + M1 (slices 1a-1d), merged from `claude/m1-see-it` on Oct 30 at `393e5b9`. Work from here; the PC agent follows `PC-AGENT.md`. |
 | `claude/m0-foundation` | M0 done. CI green on Linux, Windows and e2e at `7f492dc`. |
 | `claude/m1-see-it` | M1 slices 1a-1d built, reviewed (36 findings fixed) and verified on an M0 upgrade. CI fully green at `4492708` (Linux, Windows, e2e and e2e in replay mode). Then the polish commits (see below). |
 | `claude/m0-win-debug` | Temporary diagnostic branch. Safe to delete on GitHub. |
