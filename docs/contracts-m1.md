@@ -1,7 +1,8 @@
 # Contracts for M1 "See it" (parallel builders)
 
 Oct 29, 2026 · written by the M1 contracts stage · companion to `docs/build-plan.md` (§6 M1, slices
-1a-1d) and `docs/contracts.md` (M0; **still binding** except where this page says otherwise)
+1a-1d) and `docs/contracts.md` (M0; **still binding** except where this page says otherwise).
+Slice 1f's parallel build (Oct 30) has its own page: [`contracts-1f.md`](contracts-1f.md).
 
 Seven builders now work in parallel, each in its own git worktree off `claude/m1-see-it`. This page
 is the only agreement between them: who owns which paths, the ports and databases, the rules for

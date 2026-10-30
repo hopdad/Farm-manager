@@ -94,7 +94,8 @@ Do section 3, item 1, on a branch `pc/slice-1e`, with these specifics:
   `db/pending/pc-1e.sql`, following the rules in `db/pending/README.md` (idempotent; `gis`
   schema; EPSG:4326 with GiST). Then `pnpm db:pending` applies them to your database, and the
   tests apply them on their own. Describe the Drizzle mirror you'd want in the status entry.
-  The cloud agent turns the file into migration `0007` and writes the mirror when it merges.
+  The cloud agent turns the file into the next free migration number when it merges and writes
+  the mirror (slice 1f took `0007` on Oct 30, so 1e gets `0008` or later).
 - **Data:**
   - Raw downloads go under `data/raw/` (gitignored), and work files in the `gis_work` volume.
   - Cache every CropScape download: it has had outages and certificate problems.

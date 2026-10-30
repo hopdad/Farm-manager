@@ -35,7 +35,7 @@ Its proxy blocks the real Protomaps basemap, live NWS weather, real SSURGO soils
   - A: update and bootstrap (migration `0006`);
   - B: re-check live weather;
   - C: Windows re-checks;
-  - D: slice 1e on `pc/slice-1e`, pushed in pieces for the cloud to review and fold into migration `0007`;
+  - D: slice 1e on `pc/slice-1e`, pushed in pieces for the cloud to review and fold into the next free migration number (slice 1f took `0007` on Oct 30, so 1e gets `0008` or later when it merges);
   - E: branch cleanup, if Derrick agrees.
 - Then Derrick's own data (PC-AGENT.md section 3, item 2).
 - Open decisions with their current defaults: `docs/decisions.md` (D3 Samsara or Motive by Nov 15, D4 spray thresholds, D8 testers and devices; the new "Forecast stale" defaults).

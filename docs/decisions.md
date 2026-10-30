@@ -47,6 +47,21 @@ Enrollment codes last 1 hour and work once. (`PIN_RULES`, `SESSION_TTL_SECONDS` 
 secret (Amy Kovach is the demo manager); `pnpm dev` and `pnpm db:seed demo` print them. Switch
 them off on **/admin/people** (or `pnpm auth:demo-people --off`) before real use.
 
+## Slice 1f defaults: live connectors and sync health (Oct 30, 2026)
+
+Defaults the 1f build uses until you say otherwise (`docs/contracts-1f.md` §10 has the detail).
+Each lives in one place, named here; the builders create the files named in *Where*.
+
+| # | What we assumed | Where it lives | What to tell us |
+|---|---|---|---|
+| **1f-1** Season backfill vs. your rows | `pnpm deere:backfill --seasons=2022-2026` writes a field's crop year when it has no season for that year, or the existing one came from the demo or from Deere. It **never replaces a season you typed or imported** unless you add `--replace`; every season it skipped is listed in its report. `import:seasons` keeps its `--replace-deere` | `scripts/deere-backfill.ts`, `src/db/queries/deere-seasons.ts` | Whether Operations Center should win over your own records (then we flip the default) |
+| **1f-2** Truck fault severity (Samsara) | **Critical** = the red stop lamp. **Warning** = the amber warning or protect lamp, the emissions lamp, the check-engine light, a confirmed code. **Info** = a pending code. A report with no codes and no lamps clears the truck's faults. A critical fault **never marks a truck down by itself**: it offers *"Critical fault: mark down?"* to drivers and up, which opens the usual sheet with the reason filled in | `src/connectors/samsara/` (mapper), `src/domain/fault-codes.ts` | Which codes your mechanic wants to see as critical, or "only the red lamp" (the default) |
+| **1f-3** Recorded vendor answers | `pnpm connectors:record <source>` saves real answers only under `data/raw/recorded/` (never in git). `--scrub` writes a made-anonymous copy for the tests: names become stable pseudonyms, ids are hashed, coordinates are moved into the demo area, tokens are dropped, and a check proves no real id or name is left. Your farm's data is never committed | `scripts/connectors-record.ts` | Nothing, unless you want recordings kept somewhere else |
+| **1f-4** Deere call budget | `DEERE_DAILY_CALL_BUDGET` in `.env.local`, empty by default. Empty: the Deere jobs keep their schedule (positions every 2 minutes) and `/admin/connectors` says "limit unknown". Set: the positions job slows itself so the calls it measures stay under **80 %** of the budget (it never runs faster than every 2 minutes) | `src/config.ts`, `src/jobs/fleet-deere.ts` | The daily limit Deere gives your app, once you have one |
+| **1f-5** Deere organizations that haven't approved the app | An organization that still needs approval in Deere *Connections* (its listing carries a connections link, or it answers "forbidden") is **skipped**, never breaks the others, and shows on `/admin/connectors` with its approval link. Customers' organizations are connected only after a data-rights agreement (plan 2a, D17): the page says so; your own organization is never blocked | `src/connectors/deere/orgs.ts`; `ingest.connector_orgs`; `/admin/connectors` | Nothing now; at 2a, which customers have signed |
+| **1f-6** Deere sign-in callback | Normally `http://localhost:3000/api/oauth/deere`. If Deere won't accept localhost, set `DEERE_REDIRECT_URI` to a public HTTPS page made from `docs/deere-callback.html`, which passes the sign-in on to the PC (sign in from the PC itself, so its browser cookie matches) | `src/config.ts` (`DEERE_REDIRECT_URI`); `docs/deere-callback.html` | Whether Deere accepted the localhost address (plan Week 0); if not, where the page will live (D13) |
+| **1f-7** Deere boundaries and new fields (D6) | A Deere boundary **becomes the field's current boundary** (a new version marked Deere); a boundary you imported or drew for that field becomes history. A Deere field the app doesn't know yet lands in the farm with Deere's farm name (or "Home farm" when Deere has none), with tenure **"not set"** until you set it on `/admin/fields` (the map draws it grey) | `src/connectors/deere/fields/`, `src/db/queries/deere-fields.ts`; `TENURES` in `src/domain/farm.ts` | Keep, or keep your own boundaries for some fields |
+
 ## Smaller defaults we picked (change any by telling us)
 
 | Area | Default | Where |
