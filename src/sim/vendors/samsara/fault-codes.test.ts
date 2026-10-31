@@ -140,6 +140,19 @@ describe('fault codes, pure', () => {
     expect(obdDtcId('P0087')).toBe(135);
     expect(obdDtcId('U0100')).toBe(0xc100);
   });
+
+  test('the reading of a change names the OBD-II modules that just cleared (empty lists)', () => {
+    const on7e9 = { system: 'obd2' as const, dtc: 'P0420', txId: 0x7e9 };
+    // Cleared: the change's reading still lists 0x7E9 (2025), now with empty lists, so an app
+    // clearing per module clears it (before, only the engine module was listed).
+    const r = faultReading(pickup, [], 0, [on7e9]);
+    expect(r.obdii?.diagnosticTroubleCodes).toEqual([
+      expect.objectContaining({ txId: 2024, confirmedDtcs: [], pendingDtcs: [] }),
+      expect.objectContaining({ txId: 2025, confirmedDtcs: [], pendingDtcs: [], milStatus: false }),
+    ]);
+    // No change in its OBD-II codes: nothing extra named.
+    expect(faultReading(pickup, [], 0, []).obdii?.diagnosticTroubleCodes).toHaveLength(1);
+  });
 });
 
 // ---- the demo world in the stand-in -----------------------------------------------------------

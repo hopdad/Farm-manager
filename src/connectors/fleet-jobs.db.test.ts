@@ -299,6 +299,38 @@ describe('fleet.trucks (Samsara, sim)', () => {
     expect(st.rows[0]).toEqual({ ok: true });
   });
 
+  test('an OBD-II code on a second control module (0x7E9) clears when the stand-in clears it', async () => {
+    const knob = async (codes: unknown[]) => {
+      const res = await fetch(`${sim.url}${SAMSARA_SIM_FAULTS_CONTROL_PATH}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ vehicle: 'S1', codes }),
+      });
+      expect(res.status).toBe(200);
+    };
+    const obd = async () =>
+      (
+        await t().pool.query(
+          `select code, module, cleared_at from farm.machine_faults
+            where machine_id = $1 and system = 'obd2' order by first_seen_at`,
+          [machineId('S1')],
+        )
+      ).rows;
+    offset += 60_000;
+    await trucks()(ctx('fleet.trucks'));
+    await knob([{ system: 'obd2', dtc: 'P0420', txId: 0x7e9 }]);
+    offset += 10_000;
+    await trucks()(ctx('fleet.trucks'));
+    expect(await obd()).toMatchObject([{ code: 'P0420', module: '2025', cleared_at: null }]);
+    // Cleared in the stand-in: the change's reading names module 0x7E9 with empty lists.
+    await knob([]);
+    offset += 10_000;
+    await trucks()(ctx('fleet.trucks'));
+    const rows = await obd();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.cleared_at).toBeInstanceOf(Date);
+  });
+
   test("mode 'off' polls nothing", async () => {
     const off = createFleetTrucksJob({
       config: () => ({ ...cfg, CONNECTOR_SAMSARA: 'off' }),

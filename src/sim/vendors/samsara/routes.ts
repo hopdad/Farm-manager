@@ -270,13 +270,11 @@ function statsFeed(req: SimRequest, ctx: VendorContext): SimResponse {
     for (const v of faulty) {
       for (const t of win.instants) {
         const now = activeFaults(ctx.world, state, v, t, simAt);
+        const before = activeFaults(ctx.world, state, v, t - FAULT_GRID_MS, simAt);
         // A reading whenever the set changes (and the latest one on the first call).
-        if (!first) {
-          const before = activeFaults(ctx.world, state, v, t - FAULT_GRID_MS, simAt);
-          if (faultsKey(before.codes) === faultsKey(now.codes)) continue;
-        }
+        if (!first && faultsKey(before.codes) === faultsKey(now.codes)) continue;
         const row = rowOf(v.id, v.name);
-        row.faultCodes = [...(row.faultCodes ?? []), faultReading(v, now.codes, t)];
+        row.faultCodes = [...(row.faultCodes ?? []), faultReading(v, now.codes, t, before.codes)];
       }
     }
   }

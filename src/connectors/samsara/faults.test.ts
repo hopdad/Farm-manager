@@ -202,12 +202,24 @@ describe('Samsara faultCodes mapping', () => {
     expect(lit.faultCodes?.[0]).toMatchObject({ code: 'P0001', severity: 'warning' });
   });
 
-  test('a module with empty lists is in scope (its codes cleared); no obdii block = no scope', () => {
+  test('a module with empty lists is in scope (its codes cleared); no obdii block = no module', () => {
     const s = one({
       obdii: { diagnosticTroubleCodes: [{ txId: 2024, confirmedDtcs: [], pendingDtcs: [] }] },
     });
     expect(s.faultCodes).toEqual([]);
     expect(s.faultScope).toEqual({ obdModules: ['2024'] });
+    // A J1939-only reading speaks for no OBD-II module (the writer leaves OBD-II codes alone
+    // and starts their age-out).
+    expect(one({ canBusType: 'CANBUS_J1939_500' }).faultScope).toEqual({ obdModules: [] });
+  });
+
+  test('an explicit empty OBD-II module list = no module has a code: no scope, all OBD-II clear', () => {
+    // Samsara's "no active codes" shape: the writer then clears every OBD-II code of the
+    // vehicle, whatever module it was on (before, a code on 0x7E9 stayed open for ever).
+    const s = one({ obdii: { checkEngineLightIsOn: false, diagnosticTroubleCodes: [] } });
+    expect(s.faultCodes).toEqual([]);
+    expect(s.faultScope).toBeUndefined();
+    expect(s).not.toHaveProperty('faultScope');
   });
 
   test('dtcId → DTC (SAE J2012) when dtcShortCode is missing', () => {

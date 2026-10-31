@@ -11,10 +11,12 @@
  *    `txId` is the controller's source address.
  *  - OBD-II: listed per control module (`txId`), and Samsara doesn't say a reading carries every
  *    module. A module the reading names reports its complete set (its confirmed, pending and
- *    permanent lists); a module it doesn't name is "no change" for that module's codes. The
- *    report says which modules it covers (`faultScope.obdModules`) and each OBD-II fault its
- *    `module`, so the writer clears per module (src/db/queries/machine-faults.ts). The MIL is
- *    the module's `milStatus`, else the reading's `checkEngineLightIsOn`.
+ *    permanent lists); a module it doesn't name is "no change" for that module's codes, until
+ *    readings have left it out for a day (the writer's age-out). The report says which modules
+ *    it covers (`faultScope.obdModules`) and each OBD-II fault its `module`, so the writer clears
+ *    per module (src/db/queries/machine-faults.ts); an explicit empty module list means no module
+ *    has a code (no scope: every OBD-II code clears). The MIL is the module's `milStatus`, else
+ *    the reading's `checkEngineLightIsOn`.
  *  - OEM: proprietary codes of OEM-integrated vehicles, part of the full snapshot like J1939;
  *    `codeSeverity` is kept verbatim as the vendor's severity (its values are undocumented, so
  *    `oemSeverity` usually doesn't know them and the OEM default applies: warning).
@@ -267,11 +269,15 @@ export function mapSamsaraFaults(raw: unknown): ScopedVehicleStat[] {
       prev.occurrenceCount = f.occurrenceCount ?? null;
     }
   }
-  const faultScope: FaultModuleScope = {
-    obdModules: [
-      ...new Set((r.reading.obdii?.diagnosticTroubleCodes ?? []).map((m) => String(m.txId))),
-    ],
-  };
+  // An explicit empty module list ("obdii": { "diagnosticTroubleCodes": [] }, the shape Samsara
+  // uses for "no active codes") says no module has a code: a machine-wide snapshot, so every
+  // OBD-II code clears. Otherwise the reading speaks for the modules it lists (none when it has
+  // no obdii block); the writer ages out a code whose module newer readings keep leaving out.
+  const modules = r.reading.obdii?.diagnosticTroubleCodes;
+  const faultScope: FaultModuleScope | undefined =
+    modules !== undefined && modules.length === 0
+      ? undefined
+      : { obdModules: [...new Set((modules ?? []).map((m) => String(m.txId)))] };
   const stat: ScopedVehicleStat = {
     source: 'samsara',
     externalMachineId: r.id,
@@ -279,7 +285,7 @@ export function mapSamsaraFaults(raw: unknown): ScopedVehicleStat[] {
     ts,
     faultCodes: [...byCode.values()],
     faultReport: 'snapshot',
-    faultScope,
+    ...(faultScope ? { faultScope } : {}),
   };
   return [stat];
 }

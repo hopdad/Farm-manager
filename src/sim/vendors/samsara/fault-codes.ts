@@ -16,7 +16,8 @@
  * (Ford Pro, Stellantis: CANBUS_PASSENGER_15765_11_500, one engine module, 2024 = 0x7E8). Every
  * reading names the vehicle's own block even when it has no codes, so a cleared vehicle reports
  * an empty list (J1939's "empty if there are no active fault codes"; the pickup's module with
- * empty DTC lists).
+ * empty DTC lists), and the reading of a change also names every OBD-II module that had a code
+ * just before (empty lists once cleared): an app clearing per module sees the module clear.
  *
  * Pure (state in, reading out); ./routes.ts serves it on the stats feed and the knob.
  */
@@ -193,16 +194,26 @@ const SOURCE_NAMES: Record<number, string> = {
   61: 'Exhaust Emission Controller',
 };
 
-/** The faultCodes reading of a vehicle with `codes` at `wallMs` (Samsara's shapes). */
+/**
+ * The faultCodes reading of a vehicle with `codes` at `wallMs` (Samsara's shapes); `previous` =
+ * the codes it had just before (their OBD-II modules are named too, empty when cleared).
+ */
 export function faultReading(
   v: FaultVehicle,
   codes: readonly SamsaraSimFault[],
   wallMs: number,
+  previous: readonly SamsaraSimFault[] = [],
 ): SamsaraFaultCodesReading {
   const served = codes.filter((c) => v.systems.has(c.system));
   const j1939 = served.filter((c) => c.system === 'j1939');
   const obd = served.filter((c) => c.system === 'obd2');
   const oem = served.filter((c) => c.system === 'oem');
+  // The modules whose codes just cleared are named with empty lists (the reading that reports
+  // the change speaks for them), so a cleared module's codes clear in the app too.
+  const clearedObd = previous.filter(
+    (c): c is Extract<SamsaraSimFault, { system: 'obd2' }> =>
+      c.system === 'obd2' && v.systems.has('obd2'),
+  );
   const reading: SamsaraFaultCodesReading = {
     time: new Date(wallMs).toISOString(),
     canBusType: v.bus === 'j1939' ? 'CANBUS_J1939_500' : 'CANBUS_PASSENGER_15765_11_500',
@@ -233,9 +244,10 @@ export function faultReading(
       }),
     };
   }
-  if (v.bus === 'obd2' || obd.length) {
+  if (v.bus === 'obd2' || obd.length || clearedObd.length) {
     const modules = new Map<number, typeof obd>();
     if (v.bus === 'obd2') modules.set(OBD_ENGINE_TX_ID, []);
+    for (const c of clearedObd) modules.set(c.txId ?? OBD_ENGINE_TX_ID, []);
     for (const c of obd) {
       const tx = c.txId ?? OBD_ENGINE_TX_ID;
       modules.set(tx, [...(modules.get(tx) ?? []), c]);
