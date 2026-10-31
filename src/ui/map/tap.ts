@@ -5,7 +5,8 @@
  * onFieldTap(null), then onEmptyTap, the soil map unit sheet). Pure, so the order is
  * unit-tested; WarRoomMap (./WarRoomMap.tsx) does the picking and calls the matching handler
  * only. The board switches handlers off by mode: while the tile-line tool draws, no pin, field
- * or empty-map tap; while it is open at all, no pin popup or soil sheet (its taps are its own).
+ * or empty-map tap; while it is open at all, no soil sheet on an empty-map tap (its taps select
+ * its lines).
  *
  * `tapLayers` patterns are MapLibre layer ids, or a prefix ending in `*` (`layer:pins:*` matches
  * every layer of the pins def, src/ui/map/layers/types.ts `layerIdPrefix`). A pattern that

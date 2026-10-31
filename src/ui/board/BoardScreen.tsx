@@ -217,8 +217,8 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
   const fleetVisible = useLayerVisible('fleet', true);
   const soilsVisible = useLayerVisible('soils', false);
   const drawing = useTileDrawStore((s) => s.drawing);
-  // Taps belong to the open tile tool (selecting a line, a point of the sketch): no soil sheet
-  // and no pin popup over its panel. Drawing also keeps taps off the field panel.
+  // Taps belong to the open tile tool (selecting a line, a point of the sketch): no soil sheet.
+  // While it draws, taps only draw: no pin popup and no field panel either.
   const tileToolOpen = useTileDrawStore((s) => s.open);
   const selected = status.machines.find((m) => m.id === selectedId) ?? null;
   const closeMapUnit = useMapUnitSheet((s) => s.close);
@@ -287,7 +287,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
           onEmptyTap={drawing || tileToolOpen ? undefined : onEmptyTap}
           onMapReady={setMap}
           tapLayers={PIN_TAP_LAYERS}
-          onFeatureTap={drawing || tileToolOpen ? undefined : openPinFromTap}
+          onFeatureTap={drawing ? undefined : openPinFromTap}
         />
         <SprayFieldState map={map} />
         <LayerRail map={map} variant={variant} config={data.config} onOpenChange={setRailOpen} />
