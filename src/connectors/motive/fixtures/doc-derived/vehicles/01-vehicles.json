@@ -1,0 +1,77 @@
+{
+  "format": 1,
+  "source": "motive",
+  "stream": "vehicles",
+  "kind": "doc-derived",
+  "reference": "https://developer-docs.gomotive.com/reference/list-all-the-company-vehicles (GET /v1/vehicles: group_ids, eld_device) and https://developer-docs.gomotive.com/reference/fetch-a-list-of-all-the-groups-of-a-company (GET /v1/groups). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/vehicles"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "vehicles": [
+            {
+              "vehicle": {
+                "id": 939680,
+                "company_id": 731204,
+                "number": "H1",
+                "status": "active",
+                "ifta": true,
+                "vin": "",
+                "make": "Kenworth",
+                "model": "T880 + hopper trailer (hired)",
+                "year": "2020",
+                "metric_units": false,
+                "fuel_type": "diesel",
+                "group_ids": [11204],
+                "created_at": "2025-03-01T00:00:00Z",
+                "updated_at": "2026-10-01T12:00:00Z",
+                "eld_device": {
+                  "id": 746694,
+                  "identifier": "SIM939680",
+                  "model": "lbb-3.6ca"
+                }
+              }
+            }
+          ],
+          "pagination": {
+            "per_page": 100,
+            "page_no": 1,
+            "total": 1
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/groups"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "groups": [
+            {
+              "group": {
+                "id": 11204,
+                "name": "Semi",
+                "company_id": 731204,
+                "parent_id": null
+              }
+            }
+          ],
+          "pagination": {
+            "per_page": 100,
+            "page_no": 1,
+            "total": 1
+          }
+        }
+      }
+    }
+  ]
+}
