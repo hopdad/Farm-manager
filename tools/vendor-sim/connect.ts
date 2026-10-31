@@ -4,7 +4,9 @@
  *
  *  - Deere: the authorization-code flow against the stand-in's unattended consent
  *    (`simAutoConnect`, sim only), tokens stored encrypted in ingest.oauth_tokens with
- *    TOKEN_ENC_KEY. An existing grant the stand-in still accepts is kept (refreshed if needed).
+ *    TOKEN_ENC_KEY. An existing grant the stand-in still accepts is kept (refreshed if needed),
+ *    unless it lacks a scope the app now asks for (e.g. a grant from before 1f's ag2): that one
+ *    is replaced.
  *    Then one organizations + machines read proves the token works.
  *  - Trucks (1f.2: each telematics vendor on its own key): sim credentials are fixed
  *    (SIM_CREDENTIALS); one read proves each: Samsara's locations feed, Motive's vehicle
@@ -23,6 +25,7 @@ import path from 'node:path';
 import type pg from 'pg';
 import { type Config, getConfig } from '../../src/config';
 import { DeereClient } from '../../src/connectors/deere/client';
+import { DEERE_SCOPES } from '../../src/connectors/deere/schemas';
 import { deereEndpoints } from '../../src/connectors/endpoints';
 import { GeotabClient } from '../../src/connectors/geotab/client';
 import { MotiveClient } from '../../src/connectors/motive/client';
@@ -90,7 +93,16 @@ export async function connectSimVendors(o: ConnectSimOptions): Promise<ConnectSi
       org: SIM_GRANT_ORG,
       key: tokenKey(cfg.TOKEN_ENC_KEY),
     });
-    const had = (await tokens.read()) !== null;
+    const stored = await tokens.read();
+    // A grant from before the app asked for a scope (1f added ag2) still works for the old calls
+    // and fails the new ones, so it is replaced: drop it, and the client's autoConnect below makes
+    // a new one with every scope of DEERE_SCOPES.
+    const missing = stored ? DEERE_SCOPES.filter((s) => !stored.scopes.includes(s)) : [];
+    if (missing.length > 0) {
+      await tokens.remove();
+      log(`Deere (sim): the stored grant lacks ${missing.join(', ')}; replacing it`);
+    }
+    const had = stored !== null && missing.length === 0;
     // autoConnect: a missing or rejected grant is (re)created with the stand-in's consent.
     const client = new DeereClient({ endpoints: deereEndpoints('sim', cfg), tokens });
     const orgs = await client.organizations();

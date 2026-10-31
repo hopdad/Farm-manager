@@ -1,9 +1,13 @@
 /**
  * Bootstrap's sim connector setup against the stand-in in-process (stub world, random port):
  * the first run creates the Deere grant through the unattended consent, a second run reuses it
- * (no new authorization-code grant), and connectors outside sim mode are skipped.
+ * (no new authorization-code grant), a stored grant missing a scope the app now asks for is
+ * replaced, and connectors outside sim mode are skipped.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { DEERE_SCOPES } from '../../src/connectors/deere/schemas';
+import { tokenKey } from '../../src/connectors/oauth/crypto';
+import { OAuthTokenStore, SIM_GRANT_ORG } from '../../src/connectors/oauth/token-store';
 import { startVendorSim, type VendorSim } from '../../src/sim/vendors/server';
 import { createStubSimWorld } from '../../src/sim/vendors/stub-world';
 import { setupTestDb } from '../../src/test/db';
@@ -53,6 +57,33 @@ describe('connectSimVendors', () => {
     expect(second.deere).toMatchObject({ status: 'verified' });
     expect(sim.counters.tokenGrants.authorization_code).toBe(grants);
     expect(lines.join('\n')).toMatch(/Deere \(sim\): connected/);
+  });
+
+  test('a stored grant without a scope the app now asks for (before 1f: no ag2) is replaced', async () => {
+    const tokens = new OAuthTokenStore({
+      pool: t().pool,
+      source: 'deere',
+      org: SIM_GRANT_ORG,
+      key: tokenKey(cfg.TOKEN_ENC_KEY),
+    });
+    const current = await tokens.read();
+    expect(current?.scopes).toEqual(expect.arrayContaining([...DEERE_SCOPES]));
+    if (!current) throw new Error('the first test connects Deere');
+    await tokens.save({ ...current, scopes: ['offline_access', 'ag1', 'eq1'] });
+    const grants = sim.counters.tokenGrants.authorization_code;
+    const lines: string[] = [];
+
+    const r = await connectSimVendors({ cfg, pool: t().pool, log: (l) => lines.push(l) });
+    expect(r.deere).toMatchObject({ status: 'connected' });
+    expect(sim.counters.tokenGrants.authorization_code).toBe(grants + 1);
+    expect((await tokens.read())?.scopes).toEqual(expect.arrayContaining([...DEERE_SCOPES]));
+    expect(lines.join('\n')).toMatch(/the stored grant lacks ag2; replacing it/);
+
+    // Replaced once: the next run only verifies.
+    expect((await connectSimVendors({ cfg, pool: t().pool })).deere).toMatchObject({
+      status: 'verified',
+    });
+    expect(sim.counters.tokenGrants.authorization_code).toBe(grants + 1);
   });
 
   test('connectors outside sim mode are skipped', async () => {
