@@ -17,6 +17,17 @@
  *    runSyncStep.
  *    sync-health's counter counts those under that stream and flushes them when `fn` settles
  *    (inside a step, the step's stream wins). Frozen export (docs/contracts-1f.md §5.0).
+ *
+ * The call counter (sync-health, docs/contracts-1f.md §5.5): every attempt is also added to the
+ * ambient `CallTally` of the scope it runs in, with no client or job changes:
+ *  - inside `runSyncStep` (`withCallTally(tally, spec.stream, …)`): the step's tally, flushed by
+ *    the step into ingest.api_calls_daily under its source, stream and mode;
+ *  - inside `withCallStream(stream, fn)`: a tally of its own, handed to the installed
+ *    `CallTallySink` when `fn` settles (`installCallCounting`, src/connectors/call-budget.ts:
+ *    the CLIs install it before they start; with none installed the tally is dropped, so unit
+ *    tests never need a database);
+ *  - anywhere else: not counted (no scope).
+ * The UTC day of a call is the client's clock (`VendorHttpOptions.now`, the job's clock).
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { z } from 'zod';
@@ -39,20 +50,128 @@ export interface VendorCall {
   stream: string | null;
 }
 
-const callStream = new AsyncLocalStorage<{ stream: string }>();
+/** Calls of one vendor under one stream on one UTC day (what ingest.api_calls_daily adds up). */
+export interface CallTallyRow {
+  vendor: string;
+  stream: string;
+  /** UTC day of the calls, 'YYYY-MM-DD'. */
+  day: string;
+  /** Every attempt, retries included. */
+  calls: number;
+  /** Non-2xx answers other than 429, and attempts with no answer. */
+  errors: number;
+  /** 429s. */
+  rateLimited: number;
+}
+
+/** An in-memory count of vendor calls (one per attempt), keyed by vendor, stream and UTC day. */
+export class CallTally {
+  private readonly rowsByKey = new Map<string, CallTallyRow>();
+
+  /** Count one attempt under `stream`, on the UTC day of `at`. */
+  add(call: Pick<VendorCall, 'vendor' | 'outcome'>, stream: string, at: Date): void {
+    const day = Number.isNaN(at.getTime())
+      ? new Date().toISOString().slice(0, 10)
+      : at.toISOString().slice(0, 10);
+    const key = `${call.vendor}\u0000${stream}\u0000${day}`;
+    let row = this.rowsByKey.get(key);
+    if (!row) {
+      row = { vendor: call.vendor, stream, day, calls: 0, errors: 0, rateLimited: 0 };
+      this.rowsByKey.set(key, row);
+    }
+    row.calls++;
+    if (call.outcome === 'error') row.errors++;
+    else if (call.outcome === 'rate_limited') row.rateLimited++;
+  }
+
+  /** Attempts counted so far. */
+  get total(): number {
+    let n = 0;
+    for (const r of this.rowsByKey.values()) n += r.calls;
+    return n;
+  }
+
+  /** A copy of the rows. */
+  rows(): CallTallyRow[] {
+    return [...this.rowsByKey.values()].map((r) => ({ ...r }));
+  }
+
+  /** The rows, leaving the tally empty (a flush). */
+  drain(): CallTallyRow[] {
+    const out = this.rows();
+    this.rowsByKey.clear();
+    return out;
+  }
+}
+
+/** Where `withCallStream`'s tally goes when `fn` settles (sync-health: ingest.api_calls_daily). */
+export type CallTallySink = (rows: CallTallyRow[]) => Promise<void>;
+
+let callTallySink: CallTallySink | null = null;
+
+/**
+ * Install (or with null, remove) the sink `withCallStream` flushes into; returns the previous
+ * one. `installCallCounting` (src/connectors/call-budget.ts) is the app's: the CLIs call it.
+ */
+export function setCallTallySink(sink: CallTallySink | null): CallTallySink | null {
+  const previous = callTallySink;
+  callTallySink = sink;
+  return previous;
+}
+
+interface CallScope {
+  /** The `withCallStream` label (VendorCall.stream); null inside a sync step. */
+  label: string | null;
+  /** Where attempts are counted, and under which stream. */
+  tally: CallTally;
+  tallyStream: string;
+}
+
+const callScope = new AsyncLocalStorage<CallScope>();
+
+async function flushTally(tally: CallTally, sink: CallTallySink | null): Promise<void> {
+  if (!sink || tally.total === 0) return;
+  const rows = tally.drain();
+  try {
+    await sink(rows);
+  } catch (e) {
+    // Counting never fails the work it counts.
+    console.warn(`[http] call counts not saved: ${(e as Error).message}`);
+  }
+}
 
 /**
  * Run `fn` with every vendor call inside it labelled `stream` (the CLIs: 'backfill', 'record').
- * Nests: the innermost label wins. The foundation's version only labels the calls; sync-health
- * counts and flushes them (docs/contracts-1f.md §5.5).
+ * Nests: the innermost label wins. sync-health counts the calls under that stream and hands them
+ * to the installed sink (`installCallCounting`) when `fn` settles (docs/contracts-1f.md §5.5);
+ * a sync step inside `fn` counts its own calls under its own stream.
  */
 export function withCallStream<T>(stream: string, fn: () => Promise<T>): Promise<T> {
-  return callStream.run({ stream }, fn);
+  const tally = new CallTally();
+  return callScope.run({ label: stream, tally, tallyStream: stream }, async () => {
+    try {
+      return await fn();
+    } finally {
+      await flushTally(tally, callTallySink);
+    }
+  });
 }
 
-/** The current `withCallStream` label, or null. */
+/**
+ * Run `fn` with every vendor call inside it counted in `tally` under `stream`, unlabelled
+ * (`VendorCall.stream` null): runSyncStep's scope. The caller flushes the tally.
+ */
+export function withCallTally<T>(
+  tally: CallTally,
+  stream: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  return callScope.run({ label: null, tally, tallyStream: stream }, fn);
+}
+
+/** The current `withCallStream` label, or null (none, or inside a sync step). */
 export function currentCallStream(): string | null {
-  return callStream.getStore()?.stream ?? null;
+  return callScope.getStore()?.label ?? null;
 }
 
 /** Called once per attempt; must not throw (a throw is caught and ignored) and must be cheap. */
@@ -177,7 +296,10 @@ export function parseRetryAfter(value: string | null | undefined, now: Date): nu
 export function errorDetail(body: string): { detail?: string; oauthError?: string } {
   const clip = (s: string) => (s.length > 200 ? `${s.slice(0, 197)}...` : s);
   try {
-    const j = JSON.parse(body) as Record<string, unknown>;
+    const parsed = JSON.parse(body) as unknown;
+    // Deere's Equipment API answers a bare array of errors ([{ code, message, … }]).
+    const j = (Array.isArray(parsed) ? (parsed[0] ?? {}) : parsed) as Record<string, unknown>;
+    if (!j || typeof j !== 'object') return {};
     const errors = j.errors as { message?: unknown }[] | undefined;
     const msg =
       (typeof j.error_description === 'string' && j.error_description) ||
@@ -242,19 +364,26 @@ export async function vendorFetch(
   const onCall = opts.onCall ?? noopVendorCallHook;
   const method = (init.method ?? 'GET').toUpperCase();
   const count = (attempt: number, startedAt: number, status: number | null, ok: boolean) => {
+    const scope = callScope.getStore();
+    const call: VendorCall = {
+      vendor: opts.vendor,
+      method,
+      path,
+      status,
+      outcome: ok ? 'ok' : status === 429 ? 'rate_limited' : 'error',
+      attempt,
+      ms: Math.max(0, Date.now() - startedAt),
+      stream: scope?.label ?? null,
+    };
     try {
-      onCall({
-        vendor: opts.vendor,
-        method,
-        path,
-        status,
-        outcome: ok ? 'ok' : status === 429 ? 'rate_limited' : 'error',
-        attempt,
-        ms: Math.max(0, Date.now() - startedAt),
-        stream: currentCallStream(),
-      });
+      onCall(call);
     } catch {
       // Counting never fails a vendor call.
+    }
+    try {
+      scope?.tally.add(call, scope.tallyStream, now());
+    } catch {
+      // Nor does the ambient counter.
     }
   };
 

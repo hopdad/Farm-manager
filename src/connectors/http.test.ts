@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
 import {
+  CallTally,
+  type CallTallyRow,
   currentCallStream,
   errorDetail,
   parseRetryAfter,
+  setCallTallySink,
   type VendorCall,
   VendorHttpError,
   VendorNetworkError,
@@ -11,6 +14,7 @@ import {
   vendorFetch,
   vendorJson,
   withCallStream,
+  withCallTally,
 } from './http';
 
 type Step = Response | Error;
@@ -261,5 +265,170 @@ describe('onCall (1f call counter)', () => {
       { vendor: 'x', fetch: fn },
     );
     expect(body).toEqual({ a: 1 });
+  });
+});
+
+describe('the ambient call tally (1f, sync-health)', () => {
+  const at = new Date('2026-10-30T23:59:59Z');
+  const call = (vendor: string, outcome: VendorCall['outcome']) => ({ vendor, outcome });
+
+  test('CallTally adds per vendor, stream and UTC day; errors and 429s apart', () => {
+    const t = new CallTally();
+    t.add(call('deere', 'ok'), 'locations', at);
+    t.add(call('deere', 'error'), 'locations', at);
+    t.add(call('deere', 'rate_limited'), 'locations', at);
+    t.add(call('deere', 'ok'), 'locations', new Date('2026-10-31T00:00:01Z'));
+    t.add(call('samsara', 'ok'), 'positions', at);
+    expect(t.total).toBe(5);
+    expect(t.rows()).toEqual([
+      {
+        vendor: 'deere',
+        stream: 'locations',
+        day: '2026-10-30',
+        calls: 3,
+        errors: 1,
+        rateLimited: 1,
+      },
+      {
+        vendor: 'deere',
+        stream: 'locations',
+        day: '2026-10-31',
+        calls: 1,
+        errors: 0,
+        rateLimited: 0,
+      },
+      {
+        vendor: 'samsara',
+        stream: 'positions',
+        day: '2026-10-30',
+        calls: 1,
+        errors: 0,
+        rateLimited: 0,
+      },
+    ]);
+    expect(t.drain()).toHaveLength(3);
+    expect(t.total).toBe(0);
+  });
+
+  test('withCallTally counts every attempt under its stream, unlabelled, on the client clock', async () => {
+    const tally = new CallTally();
+    const labels: (string | null)[] = [];
+    const { fn } = stubFetch([status(503), ok(), status(429, {}), new Error('ECONNRESET')]);
+    const { sleep } = recordingSleep();
+    const opts = {
+      vendor: 'deere',
+      fetch: fn,
+      sleep,
+      maxRetries: 0,
+      now: () => at,
+      onCall: (c: VendorCall) => labels.push(c.stream),
+    };
+    await withCallTally(tally, 'locations', async () => {
+      await vendorFetch(URL_, {}, { ...opts, maxRetries: 1 }); // 503 then 200
+      await vendorFetch(URL_, {}, opts).catch(() => {}); // 429
+      await vendorFetch(URL_, {}, opts).catch(() => {}); // no answer
+      expect(currentCallStream()).toBeNull();
+    });
+    expect(labels).toEqual([null, null, null, null]);
+    expect(tally.rows()).toEqual([
+      {
+        vendor: 'deere',
+        stream: 'locations',
+        day: '2026-10-30',
+        calls: 4,
+        errors: 2,
+        rateLimited: 1,
+      },
+    ]);
+    // Outside any scope nothing is counted.
+    await vendorFetch(URL_, {}, { vendor: 'deere', fetch: stubFetch([ok()]).fn });
+    expect(tally.total).toBe(4);
+  });
+
+  test('withCallStream hands its tally to the installed sink when fn settles (also on a throw)', async () => {
+    const flushed: CallTallyRow[][] = [];
+    const previous = setCallTallySink(async (rows) => {
+      flushed.push(rows);
+    });
+    try {
+      const fetchOk = () => stubFetch([ok(), ok()]).fn;
+      const result = await withCallStream('record', async () => {
+        await vendorFetch(URL_, {}, { vendor: 'samsara', fetch: fetchOk(), now: () => at });
+        await withCallStream('backfill', () =>
+          vendorFetch(URL_, {}, { vendor: 'deere', fetch: fetchOk(), now: () => at }),
+        );
+        return 42;
+      });
+      expect(result).toBe(42);
+      // The inner scope flushed first, with its own label; nothing is counted twice.
+      expect(flushed).toEqual([
+        [
+          {
+            vendor: 'deere',
+            stream: 'backfill',
+            day: '2026-10-30',
+            calls: 1,
+            errors: 0,
+            rateLimited: 0,
+          },
+        ],
+        [
+          {
+            vendor: 'samsara',
+            stream: 'record',
+            day: '2026-10-30',
+            calls: 1,
+            errors: 0,
+            rateLimited: 0,
+          },
+        ],
+      ]);
+      await expect(
+        withCallStream('record', async () => {
+          await vendorFetch(URL_, {}, { vendor: 'samsara', fetch: fetchOk(), now: () => at });
+          throw new Error('work failed');
+        }),
+      ).rejects.toThrow('work failed');
+      expect(flushed).toHaveLength(3);
+      // A scope with no calls flushes nothing; a sink that fails never fails the work.
+      await withCallStream('record', async () => {});
+      expect(flushed).toHaveLength(3);
+      setCallTallySink(async () => {
+        throw new Error('database down');
+      });
+      expect(
+        await withCallStream('record', async () => {
+          await vendorFetch(URL_, {}, { vendor: 'samsara', fetch: fetchOk() });
+          return 'done';
+        }),
+      ).toBe('done');
+    } finally {
+      setCallTallySink(previous);
+    }
+  });
+
+  test('without a sink the tally is dropped (unit tests need no database)', async () => {
+    const previous = setCallTallySink(null);
+    try {
+      expect(
+        await withCallStream('record', async () => {
+          await vendorFetch(URL_, {}, { vendor: 'samsara', fetch: stubFetch([ok()]).fn });
+          return 1;
+        }),
+      ).toBe(1);
+    } finally {
+      setCallTallySink(previous);
+    }
+  });
+});
+
+describe('errorDetail', () => {
+  test("reads Deere's Equipment API bare error array", () => {
+    expect(errorDetail('[{"code":"403","message":"No access to organization 4"}]')).toEqual({
+      detail: 'No access to organization 4',
+      oauthError: undefined,
+    });
+    expect(errorDetail('[]')).toEqual({ detail: undefined, oauthError: undefined });
+    expect(errorDetail('null')).toEqual({});
   });
 });

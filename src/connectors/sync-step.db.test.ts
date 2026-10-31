@@ -7,6 +7,7 @@ import { sql } from 'drizzle-orm';
 import { describe, expect, test } from 'vitest';
 import { claimDue, ensureStream } from '../db/leases';
 import { setupTestDb } from '../test/db';
+import { vendorFetch } from './http';
 import { runSyncStep } from './sync-step';
 import { testJobContext } from './testkit';
 import {
@@ -324,5 +325,126 @@ describe('runSyncStep', () => {
     const r = await runSyncStep(s, testJobContext(t()));
     expect(r).toMatchObject({ ok: true, landed: 4, processed: 4 });
     expect(order).toEqual(['05:46', '05:47', '05:48', '05:49']);
+  });
+});
+
+describe('runSyncStep: call counting and minIntervalSeconds (1f decision 4)', () => {
+  /** A poll that makes `n` vendor calls (statuses in order) through vendorFetch. */
+  function callingPoll(statuses: number[], cursor = 'k1') {
+    return async (): Promise<PollResult<RawItem<Raw>>> => {
+      for (const s of statuses) {
+        await vendorFetch(
+          'http://vendor.test/feed?after=x',
+          {},
+          {
+            vendor: 'samsara',
+            maxRetries: 0,
+            fetch: async () => Response.json({}, { status: s }),
+            now: () => new Date('2026-10-31T12:00:00Z'),
+          },
+        ).catch(() => {});
+      }
+      return { items: [], cursor };
+    };
+  }
+
+  async function counts(stream: string) {
+    const r = await t().pool.query(
+      `select mode, to_char(day, 'YYYY-MM-DD') as day, calls, errors, rate_limited
+         from ingest.api_calls_daily where source = 'samsara' and stream = $1 order by mode`,
+      [stream],
+    );
+    return r.rows;
+  }
+
+  async function extra(stream: string) {
+    const r = await t().pool.query(
+      `select extra from ingest.sync_state where source = 'samsara' and stream = $1`,
+      [stream],
+    );
+    return r.rows[0]?.extra;
+  }
+
+  test("every attempt of a run counts under the vendor, the step's stream and mode", async () => {
+    const s = spec([], { poll: callingPoll([200, 503, 429, 200]) });
+    const r = await runSyncStep(s, testJobContext(t()));
+    expect(r.ok).toBe(true);
+    expect(await counts(s.stream)).toEqual([
+      { mode: 'sim', day: '2026-10-31', calls: 4, errors: 1, rate_limited: 1 },
+    ]);
+    expect(await extra(s.stream)).toMatchObject({ callsPerRun: 4, callsPerRunMode: 'sim' });
+
+    // A second run adds to the day's row and to the mean.
+    await runSyncStep({ ...s, poll: callingPoll([200, 200]) }, testJobContext(t()));
+    expect((await counts(s.stream))[0]).toMatchObject({ calls: 6 });
+    expect(await extra(s.stream)).toMatchObject({ callsPerRun: 3, callsRecent: [4, 2] });
+  });
+
+  test('a failed run counts its calls but leaves calls per run alone; off counts nothing', async () => {
+    const failing = spec([], {
+      async poll() {
+        await callingPoll([200, 200])();
+        throw new Error('vendor broke mid-run');
+      },
+    });
+    const r = await runSyncStep(failing, testJobContext(t()));
+    expect(r).toMatchObject({ claimed: true, ok: false });
+    expect((await counts(failing.stream))[0]).toMatchObject({ calls: 2 });
+    expect((await extra(failing.stream))?.callsPerRun).toBeUndefined();
+
+    const off = spec([], { mode: 'off', poll: callingPoll([200]) });
+    await runSyncStep(off, testJobContext(t()));
+    expect(await counts(off.stream)).toEqual([]);
+  });
+
+  test('calls of other modes go to their own rows (a sim day never counts as sandbox)', async () => {
+    const s = spec([], { mode: 'sandbox', poll: callingPoll([200]) });
+    await runSyncStep(s, testJobContext(t()));
+    await t().pool.query(`select app.ensure_stream('samsara', $1, 'sim')`, [s.stream]);
+    await runSyncStep({ ...s, mode: 'sim' }, testJobContext(t()));
+    expect((await counts(s.stream)).map((x) => [x.mode, x.calls])).toEqual([
+      ['sandbox', 1],
+      ['sim', 1],
+    ]);
+    // The measurement starts over in the new mode.
+    expect(await extra(s.stream)).toMatchObject({ callsPerRunMode: 'sim', callsRecent: [1] });
+  });
+
+  test('minIntervalSeconds: next_run_at = run start + the minimum (the later of it and Retry-After)', async () => {
+    const nextIn = async (stream: string) =>
+      (
+        await t().pool.query(
+          `select extract(epoch from (next_run_at - now()))::int as s from ingest.sync_state
+            where source = 'samsara' and stream = $1`,
+          [stream],
+        )
+      ).rows[0].s as number | null;
+
+    const paced = spec([{ items: items(1), cursor: 'p1' }], { minIntervalSeconds: 300 });
+    await runSyncStep(paced, testJobContext(t()));
+    const a = await nextIn(paced.stream);
+    expect(a).toBeGreaterThan(290);
+    expect(a).toBeLessThanOrEqual(300);
+    // Not due yet: the next firing is skipped.
+    expect(await runSyncStep(paced, testJobContext(t()))).toMatchObject({ claimed: false });
+
+    // A longer Retry-After wins over the minimum; a shorter one doesn't.
+    const limited = spec([Object.assign(new Error('429'), { retryAfterSeconds: 900 })], {
+      minIntervalSeconds: 300,
+    });
+    await runSyncStep(limited, testJobContext(t()));
+    expect(await nextIn(limited.stream)).toBeGreaterThan(890);
+    const short = spec([Object.assign(new Error('429'), { retryAfterSeconds: 5 })], {
+      minIntervalSeconds: 300,
+    });
+    await runSyncStep(short, testJobContext(t()));
+    expect(await nextIn(short.stream)).toBeGreaterThan(290);
+
+    // Unset, null or 0: no minimum (due again at the next firing).
+    for (const min of [undefined, null, 0]) {
+      const free = spec([{ items: items(2), cursor: 'f1' }], { minIntervalSeconds: min });
+      await runSyncStep(free, testJobContext(t()));
+      expect(await nextIn(free.stream)).toBeNull();
+    }
   });
 });

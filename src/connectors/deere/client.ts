@@ -10,7 +10,11 @@
  * Locations: orgs → machines per org (the Equipment API: `GET {equipmentBase}/equipment?
  * organizationIds=<org>&categories=Machine&capableOf=Connectivity`, `Accept: application/json`;
  * the /platform machines API is deprecated) → breadcrumbs per machine's `principalId` (≠ its
- * organization-equipment `id`) for (cursor, now]. The cursor is the ISO end of the last window
+ * organization-equipment `id`) for (cursor, now]. Orgs are isolated (1f decision 5,
+ * docs/contracts-1f.md §5.4): an org whose listing carries a `connections` link (not approved in
+ * Deere Connections) is skipped, an org that answers 403 mid-run stops only that org's work, and
+ * `pollLocationsWithOrgs` reports how each org was seen (fleet.deere writes ingest.connector_orgs
+ * from it). The cursor is the ISO end of the last window
  * (wall clock). A first run looks back `firstLookbackMs`. The client keeps only breadcrumbs inside
  * the window it asked for (Deere doesn't say whether startDate/endDate are inclusive, and a
  * replayed fixture holds a whole period).
@@ -46,6 +50,7 @@ import type { ReplayFixture } from '../replay';
 import type { Mode, PollResult, PositionSource, RawItem } from '../types';
 import { deereBreadcrumbItems, mapDeereBreadcrumb } from './mapper';
 import { type DeereHttpOptions, refreshDeereTokens, simAutoConnect } from './oauth';
+import { type DeereOrgAccess, deereOrgAccess, deniedOrgAccess, isDeereOrgDenied } from './orgs';
 import {
   DEERE_EQUIPMENT_MEDIA_TYPE,
   DEERE_MEDIA_TYPE,
@@ -100,6 +105,17 @@ export interface DeereClientOptions {
 }
 
 type CollectionOf<T extends ZodType> = z.infer<T> & { links: DeereLink[] };
+
+/** One locations poll with how each org was seen (`pollLocationsWithOrgs`). */
+export interface DeereLocationsPoll extends PollResult<RawItem<DeereBreadcrumbRaw>> {
+  /**
+   * Every org of this run's listing, in listing order: `connected`, or `needs_approval` (a
+   * `connections` link: skipped; or a 403 mid-run: the rest of that org skipped, with the reason).
+   */
+  orgs: DeereOrgAccess[];
+  /** The listing's orgs as Deere sent them (`member`, for deereHomeOrg in sandbox/live). */
+  listing: { id: string; name: string | null; member?: boolean }[];
+}
 
 export class DeereClient {
   readonly endpoints: DeereEndpoints;
@@ -352,8 +368,19 @@ export class DeereClient {
     return this.all(deereFlagsSchema, this.orgUrl(orgId, 'fields', fieldId, 'flags'));
   }
 
-  /** Breadcrumbs of every machine in every org for (cursor, now] (the sync step's `poll`). */
+  /** Breadcrumbs of every machine in every connected org for (cursor, now] (the sync step's `poll`). */
   async pollLocations(cursor: string | null): Promise<PollResult<RawItem<DeereBreadcrumbRaw>>> {
+    const { items, cursor: next, hasMore } = await this.pollLocationsWithOrgs(cursor);
+    return { items, cursor: next, hasMore };
+  }
+
+  /**
+   * `pollLocations` with each org's access as this run saw it (decision 5): needs-approval orgs
+   * are skipped, an org that answers 403 (`isDeereOrgDenied`) stops only its own work (what it
+   * already returned is kept), and any other failure fails the poll as before. A failed org
+   * listing throws (nothing is known about the orgs then).
+   */
+  async pollLocationsWithOrgs(cursor: string | null): Promise<DeereLocationsPoll> {
     this.connectedThisPoll = false;
     const end = this.now();
     const parsed = cursor ? Date.parse(cursor) : Number.NaN;
@@ -366,16 +393,35 @@ export class DeereClient {
       const t = Date.parse(b.eventTimestamp);
       return t > start.getTime() && t <= end.getTime();
     };
-    for (const org of await this.organizations()) {
-      for (const m of await this.machines(org.id, { capableOf: 'Connectivity' })) {
-        // The /platform machine paths and the ('deere', 'machine', …) refs use the principalId.
-        const machineId = m.principalId;
-        if (!machineId || m.archived) continue;
-        const crumbs = (await this.breadcrumbs(machineId, start, end)).filter(inWindow);
-        items.push(...deereBreadcrumbItems(org.id, machineId, crumbs));
+    const listing = await this.organizations();
+    const orgs: DeereOrgAccess[] = [];
+    for (const org of listing) {
+      const access = deereOrgAccess(org);
+      if (access.status === 'needs_approval') {
+        orgs.push(access);
+        continue;
+      }
+      try {
+        for (const m of await this.machines(org.id, { capableOf: 'Connectivity' })) {
+          // The /platform machine paths and the ('deere', 'machine', …) refs use the principalId.
+          const machineId = m.principalId;
+          if (!machineId || m.archived) continue;
+          const crumbs = (await this.breadcrumbs(machineId, start, end)).filter(inWindow);
+          items.push(...deereBreadcrumbItems(org.id, machineId, crumbs));
+        }
+        orgs.push(access);
+      } catch (e) {
+        if (!isDeereOrgDenied(e)) throw e;
+        orgs.push(deniedOrgAccess(org, e));
       }
     }
-    return { items, cursor: end.toISOString(), hasMore: false };
+    return {
+      items,
+      cursor: end.toISOString(),
+      hasMore: false,
+      orgs,
+      listing: listing.map((o) => ({ id: o.id, name: o.name, member: o.member })),
+    };
   }
 
   /** The contract port (contracts §8): normalized positions. */
