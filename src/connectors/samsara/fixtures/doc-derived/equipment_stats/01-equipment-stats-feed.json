@@ -1,0 +1,134 @@
+{
+  "format": 1,
+  "source": "samsara",
+  "stream": "equipment_stats",
+  "kind": "doc-derived",
+  "reference": "https://developers.samsara.com/openapi/samsara-api.json getEquipmentStatsFeed (GET /fleet/equipment/stats/feed?types=<at most 4>&after=; data[] { id, name, <type>: [{ time, value }] }). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fleet/equipment/stats/feed",
+        "query": {
+          "types": "obdEngineSeconds,gatewayEngineSeconds,gatewayJ1939EngineSeconds,fuelPercents",
+          "after": "replay-equipment-stats-hours-0001"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "pagination": {
+            "endCursor": "replay-equipment-stats-hours-0001",
+            "hasNextPage": false
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fleet/equipment/stats/feed",
+        "query": {
+          "types": "obdEngineSeconds,gatewayEngineSeconds,gatewayJ1939EngineSeconds,fuelPercents"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "281474977562924",
+              "name": "SP2",
+              "obdEngineSeconds": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 10060978
+                }
+              ],
+              "gatewayEngineSeconds": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 10069978
+                }
+              ],
+              "fuelPercents": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 100
+                }
+              ]
+            }
+          ],
+          "pagination": {
+            "endCursor": "replay-equipment-stats-hours-0001",
+            "hasNextPage": false
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fleet/equipment/stats/feed",
+        "query": {
+          "types": "obdEngineStates,gatewayEngineStates,gpsOdometerMeters",
+          "after": "replay-equipment-stats-state-0001"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "pagination": {
+            "endCursor": "replay-equipment-stats-state-0001",
+            "hasNextPage": false
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fleet/equipment/stats/feed",
+        "query": {
+          "types": "obdEngineStates,gatewayEngineStates,gpsOdometerMeters"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "281474977562924",
+              "name": "SP2",
+              "obdEngineStates": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": "Off"
+                }
+              ],
+              "gatewayEngineStates": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": "Off"
+                }
+              ],
+              "gpsOdometerMeters": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "value": 15207684
+                }
+              ]
+            }
+          ],
+          "pagination": {
+            "endCursor": "replay-equipment-stats-state-0001",
+            "hasNextPage": false
+          }
+        }
+      }
+    }
+  ]
+}

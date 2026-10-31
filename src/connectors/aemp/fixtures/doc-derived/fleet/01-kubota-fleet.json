@@ -1,0 +1,57 @@
+{
+  "format": 1,
+  "source": "aemp",
+  "stream": "fleet",
+  "kind": "doc-derived",
+  "reference": "ISO/TS 15143-3 ed. 1 common.xsd (https://standards.iso.org/iso/15143/-3/ed-1/en/common.xsd): Fleet { version, snapshotTime, Links[], Equipment[] { EquipmentHeader, Location, CumulativeOperatingHours, FuelRemaining, DEFRemaining } } as a bare JSON object, the shape of Trackunit's aemp-iso-api.json (https://developers.trackunit.com/openapi/aemp-iso-api.json); the sections of Geotab's Kubota data set (https://support.geotab.com/oem-integration/doc/kubota-data-set). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/kubota/Fleet/1"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "version": 1,
+          "snapshotTime": "2026-10-15T13:00:00.000Z",
+          "Links": [
+            {
+              "rel": "self",
+              "href": "https://kubota-aemp.example.invalid/Fleet/1"
+            }
+          ],
+          "Equipment": [
+            {
+              "EquipmentHeader": {
+                "OEMName": "Kubota",
+                "Model": "SVL97-2 track loader",
+                "EquipmentID": "L1",
+                "SerialNumber": "KUB8654626",
+                "PIN": "KUB8654626"
+              },
+              "Location": {
+                "datetime": "2026-10-15T13:00:00.000Z",
+                "Latitude": 41.860259,
+                "Longitude": -83.815187
+              },
+              "CumulativeOperatingHours": {
+                "datetime": "2026-10-15T13:00:00.000Z",
+                "Hour": 2066
+              },
+              "FuelRemaining": {
+                "datetime": "2026-10-15T13:00:00.000Z",
+                "Percent": 100
+              },
+              "DEFRemaining": {
+                "datetime": "2026-10-15T13:00:00.000Z",
+                "Percent": 49
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
