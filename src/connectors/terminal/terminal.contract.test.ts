@@ -250,6 +250,8 @@ describe('Terminal (sim)', () => {
 
     const p = await c.pollProviders(null);
     expect(p.items).toHaveLength(1);
+    // Unchanged: nothing to land until the list moves.
+    expect((await c.pollProviders(p.cursor)).items).toEqual([]);
     expect(p.items[0]?.payload.codes).toEqual(['omnitracs-xrs']);
     const [rows] = mapTerminalProviders(p.items[0]?.payload as never);
     expect(rows).toEqual([

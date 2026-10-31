@@ -585,8 +585,11 @@ export class TerminalClient {
 
   /** Stream 'vehicles': each mapped vehicle whose name, groups, make, model, year or VIN changed. */
   async pollVehicles(cursor: string | null): Promise<PollResult<RawItem<TerminalVehicleRaw>>> {
+    // The poll time in the id: a vehicle back at an earlier version (A → B → A) lands again
+    // instead of being dropped by raw_events' dedupe; only versions that moved are emitted.
+    const at = this.now();
     const items = (await this.vehicleList()).map((payload) => ({
-      externalId: `${payload.vehicle.id}:vehicle:${vehicleVersion(payload)}`,
+      externalId: `${payload.vehicle.id}:vehicle:${vehicleVersion(payload)}:${at}`,
       payload,
     }));
     const r = await pollSnapshotDiff({
@@ -600,8 +603,8 @@ export class TerminalClient {
   }
 
   /**
-   * Stream 'providers': ONE raw item, the /providers entries of the providers our connections
-   * use (landing dedupes an unchanged list, so it is processed only when something moved).
+   * Stream 'providers': ONE raw item when the list moved since the last run (the cursor is its
+   * fingerprint): the /providers entries of the providers our connections use.
    */
   async pollProviders(cursor: string | null): Promise<PollResult<RawItem<TerminalProvidersRaw>>> {
     const conns = await this.connections();
@@ -611,9 +614,13 @@ export class TerminalClient {
       .filter((p) => want.has(p.code))
       .sort((a, b) => a.code.localeCompare(b.code));
     const payload: TerminalProvidersRaw = { codes, providers };
+    // The cursor is the list's fingerprint: emitted only when it moved, with the poll time in the
+    // id, so a list back at an earlier state (A → B → A) still lands and replaces the rows.
+    const fp = fingerprint(JSON.stringify(payload));
+    if (fp === cursor) return { items: [], cursor, hasMore: false };
     return {
-      items: [{ externalId: `providers:${fingerprint(JSON.stringify(payload))}`, payload }],
-      cursor: cursor ?? '',
+      items: [{ externalId: `providers:${fp}:${this.now()}`, payload }],
+      cursor: fp,
       hasMore: false,
     };
   }

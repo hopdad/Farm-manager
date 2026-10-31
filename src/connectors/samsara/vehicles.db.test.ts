@@ -121,19 +121,46 @@ describe('fleet.vehicles (sim)', () => {
     await tag(pu2?.telematics?.id as string, null);
   });
 
+  test('tags back where they were (Pickup → Semi → Pickup) move the kind back', async () => {
+    const tag = async (tags: string[] | null) => {
+      const res = await fetch(`${sim.url}${SAMSARA_SIM_VEHICLE_TAGS_PATH}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ vehicleId: pu1?.telematics?.id, tags }),
+      });
+      expect(res.status).toBe(200);
+    };
+    await tag(['Semi']);
+    await job()(ctx());
+    expect((await kinds()).PU1?.[0]).toBe('semi');
+    await tag(null);
+    await job()(ctx());
+    expect((await kinds()).PU1).toEqual(['pickup', 'vendor', 'ford_pro']);
+  });
+
   test('a vehicle the farm does not map is never landed', async () => {
     await t().pool.query(
       `delete from ingest.external_refs where source = 'samsara' and entity_id = $1`,
       [pu1?.id],
     );
+    const landed = async () =>
+      (
+        await t().pool.query(
+          `select count(*)::int as n from ingest.raw_events
+            where source = 'samsara' and stream = 'vehicles' and external_id like $1`,
+          [`${pu1?.telematics?.id}:%`],
+        )
+      ).rows[0].n;
+    const before = await landed();
+    // A change Samsara reports for it: still not landed, since the farm doesn't map it.
+    const res = await fetch(`${sim.url}${SAMSARA_SIM_VEHICLE_TAGS_PATH}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ vehicleId: pu1?.telematics?.id, tags: ['Service truck'] }),
+    });
+    expect(res.status).toBe(200);
     await job()(ctx());
-    const r = await t().pool.query(
-      `select count(*)::int as n from ingest.raw_events
-        where source = 'samsara' and stream = 'vehicles' and external_id like $1`,
-      [`${pu1?.telematics?.id}:%`],
-    );
-    // Landed by the earlier runs only (before its ref was removed): the tag change wasn't.
-    expect(r.rows[0].n).toBe(2);
+    expect(await landed()).toBe(before);
     await seedSimFarm(t().adminDb, farm);
   });
 });

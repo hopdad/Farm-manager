@@ -115,10 +115,14 @@ export class SamsaraVehiclesClient {
   /** Stream 'vehicles': each mapped vehicle whose name, tags, make, model, year, VIN or gateway changed. */
   async pollVehicles(cursor: string | null): Promise<PollResult<RawItem<SamsaraVehicleRaw>>> {
     const only = this.opts.only;
+    // The poll time in the id: a vehicle that goes back to an earlier version (tags A → B → A)
+    // lands again (the same id and payload would be dropped by raw_events' dedupe, and the kind
+    // would stay B). Only versions that moved are emitted, so this lands nothing twice.
+    const at = (this.http.now?.() ?? new Date()).getTime();
     const items = (await this.vehicles())
       .filter((v) => !only || only.has(v.id))
       .map((vehicle) => ({
-        externalId: `${vehicle.id}:vehicle:${vehicleVersion(vehicle)}`,
+        externalId: `${vehicle.id}:vehicle:${vehicleVersion(vehicle)}:${at}`,
         payload: { vehicle },
       }));
     const r = await pollSnapshotDiff({
