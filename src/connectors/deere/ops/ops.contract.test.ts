@@ -25,8 +25,10 @@ import { MemoryTokenStore } from '../../oauth/memory-store';
 import { collectingLogger } from '../../testkit';
 import { DeereClient } from '../client';
 import { exchangeDeereCode } from '../oauth';
+import { fieldOperationMeasurements, listFieldOperations } from './client';
 import { mapDeereOperation } from './mapper';
 import { DeereScopeError, type OpsPollDeps, pollDeereOperations } from './poll';
+import { DEERE_FIELD_OPERATION_TYPES } from './schemas';
 
 const WALL = Date.parse('2026-10-31T13:00:00.000Z');
 let wall = WALL;
@@ -288,5 +290,39 @@ describe('deere.ops against the stand-in (sim world)', () => {
     const item = r.items.find((i) => i.payload.fieldId === field?.deereFieldId);
     expect(item?.payload.coverageStatus).toBe('refused');
     expect(json(200, {}).kind).toBe('reply');
+  }, 30_000);
+
+  test('fieldOperationType goes as Deere documents it (upper case) and filters; cropSeason too', async () => {
+    const field = homeFields()[0];
+    const d = deps();
+    const urls: string[] = [];
+    const recording = new DeereClient({
+      endpoints: ep,
+      tokens: new MemoryTokenStore('deere', null, { now }),
+      http: {
+        ...http,
+        fetch: (async (input: string | URL | Request, init?: RequestInit) => {
+          urls.push(String(input instanceof Request ? input.url : input));
+          return fetch(input, init);
+        }) as typeof fetch,
+      },
+    });
+    const list = (type?: string, season = d.cropSeason) =>
+      listFieldOperations(recording, SIM_DEERE_HOME_ORG, field?.deereFieldId ?? '', {
+        cropSeason: season,
+        fieldOperationType: type,
+      });
+    expect(DEERE_FIELD_OPERATION_TYPES).toContain('SEEDING');
+    expect((await list('SEEDING')).map((o) => o.fieldOperationType)).toEqual(['seeding']);
+    expect(await list('HARVEST')).toEqual([]);
+    expect(await list(undefined, 2019)).toEqual([]);
+    const sent = urls.filter((u) => u.includes('/fieldOperations')).map((u) => new URL(u));
+    expect(sent[0]?.searchParams.get('fieldOperationType')).toBe('SEEDING');
+    expect(sent[0]?.searchParams.get('cropSeason')).toBe(String(d.cropSeason));
+    expect(sent[0]?.searchParams.get('embed')).toBe('measurementTypes');
+    // The per-operation measurements call (used when a listing doesn't embed them).
+    const op = (await list('SEEDING'))[0];
+    const ms = await fieldOperationMeasurements(recording, op?.id ?? '');
+    expect(ms.map((m) => m.measurementName)).toEqual(['SeedingRateResult', 'SeedingSpeedResult']);
   }, 30_000);
 });
