@@ -350,6 +350,7 @@ describe('1f.2: one fault model, telematics vehicles', () => {
         code: 'P0217',
         system: 'obd2' as const,
         dtcState: 'confirmed' as const,
+        module: '2024',
         lamps: { malfunction: true },
       },
       {
@@ -371,6 +372,9 @@ describe('1f.2: one fault model, telematics vehicles', () => {
       { code: 'J1939 SPN 600000 FMI 0', system: 'j1939' as const, spn: 600_000, fmi: 0 },
       { code: 'J1939 SPN 1 FMI 40', system: 'j1939' as const, spn: 1, fmi: 40 },
       { code: 'OEM 2', system: 'oem' as const, lamps: [] as unknown as { redStop: boolean } },
+      // The OBD-II control module: obd2 rows only, 1-64 characters.
+      { code: 'OEM 3', system: 'oem' as const, module: '2024' },
+      { code: 'P0087', system: 'obd2' as const, module: '' },
     ];
     for (const f of bad) {
       expect(

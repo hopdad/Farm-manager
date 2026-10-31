@@ -166,6 +166,11 @@ export interface NormalizedFault extends FaultIdentity {
   occurrenceCount?: number | null;
   /** obd2 */
   dtcState?: ObdDtcState | null;
+  /**
+   * obd2: the control module that reported the code (Samsara's OBD-II `txId`), when the vendor
+   * names one; with `NormalizedVehicleStat.faultScope` a snapshot clears per module (§5.3).
+   */
+  module?: string | null;
   lamps?: FaultLamps | null;
   /** The vendor's own severity or priority label, verbatim (shown on hover; not the policy). */
   vendorSeverity?: string | null;
@@ -191,6 +196,7 @@ export const normalizedFaultSchema = z
     occurrenceCount: z.number().int().min(0).nullable().optional(),
     dtc: z.string().min(1).nullable().optional(),
     dtcState: z.enum(OBD_DTC_STATES).nullable().optional(),
+    module: z.string().min(1).max(64).nullable().optional(),
     oemCode: z.string().min(1).nullable().optional(),
     oemClass: z.enum(OEM_FAULT_CLASSES).nullable().optional(),
     lamps: faultLampsSchema.nullable().optional(),

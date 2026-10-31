@@ -924,6 +924,8 @@ export const machineFaults = farm.table(
     dtcState: text('dtc_state', { enum: OBD_DTC_STATES }),
     /** oem only. */
     oemClass: text('oem_class', { enum: OEM_FAULT_CLASSES }),
+    /** obd2 only: the control module that reported it (Samsara's OBD-II txId), when known. */
+    module: text('module'),
     /** Lamp states as reported (null = not reported). */
     lamps: jsonb('lamps').$type<FaultLamps>(),
     severity: text('severity', { enum: FAULT_SEVERITIES }).notNull(),
@@ -957,6 +959,7 @@ export const machineFaults = farm.table(
   and (${t.occurrenceCount} is null or ${t.occurrenceCount} >= 0)
   and (${t.dtcState} is null or (${t.system} = 'obd2' and ${t.dtcState} in (${inList(OBD_DTC_STATES)})))
   and (${t.oemClass} is null or (${t.system} = 'oem' and ${t.oemClass} in (${inList(OEM_FAULT_CLASSES)})))
+  and (${t.module} is null or (${t.system} = 'obd2' and length(${t.module}) between 1 and 64))
   and (${t.lamps} is null or jsonb_typeof(${t.lamps}) = 'object')`,
     ),
   ],

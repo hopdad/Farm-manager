@@ -30,20 +30,20 @@
  * refetches. A machine with no machine_state row (no fix yet) still gets its machine_faults rows;
  * the first position insert seeds its summary (`seedFaultSummary`, called by upsertPosition).
  *
- * Per-module clearing (fleet-faults' additive extension, not in the contract types yet): a
- * snapshot may say which OBD-II control modules it covers (`ScopedVehicleStat.faultScope`) and
- * each OBD-II fault its `module` (`ModuleFault`). Then an open OBD-II code of a module the report
+ * Per-module clearing (fleet-faults; in the contract types since the 1f merge): a snapshot may
+ * say which OBD-II control modules it covers (`NormalizedVehicleStat.faultScope`) and each
+ * OBD-II fault its `module` (`NormalizedFault.module`). Then an open OBD-II code of a module the report
  * doesn't name is left alone (Samsara lists OBD-II codes per `txId` and doesn't promise every
  * module in each reading); an open OBD-II code with no recorded module counts as covered by any
- * report that names at least one module. The module of each open OBD-II code is kept in
- * `farm.machine_fault_modules` (db/pending/fleet-faults.sql). Reports without a scope (every
+ * report that names at least one module. The module of each OBD-II code is kept in
+ * `farm.machine_faults.module` (migration 0007). Reports without a scope (every
  * other vendor) are plain snapshots.
  *
  * The machine's farm.machines row is locked FOR UPDATE first: a position insert holds a key-share
  * lock on it (the foreign keys of farm.positions / machine_state), so a first fix and a fault
  * report for the same machine never miss each other.
  */
-import type { NormalizedVehicleStat } from '../../connectors/types';
+import type { FaultModuleScope, NormalizedVehicleStat } from '../../connectors/types';
 import {
   type ActiveFaultCode,
   activeFaultCodeSchema,
@@ -60,21 +60,13 @@ import {
 import { publish } from '../../platform/realtime/publish';
 import { type Executor, exec, toDate } from '../exec';
 
-/** A fault with the control module that reported it (Samsara's OBD-II `txId`), when known. */
-export interface ModuleFault extends NormalizedFault {
-  module?: string | null;
-}
-
-/** Which OBD-II modules a snapshot covers (codes of other modules are unchanged). */
-export interface FaultModuleScope {
-  obdModules: readonly string[];
-}
-
-/** A stat whose snapshot may carry per-module scope (fleet-faults' extension). */
-export interface ScopedVehicleStat extends NormalizedVehicleStat {
-  faultCodes?: ModuleFault[];
-  faultScope?: FaultModuleScope;
-}
+/**
+ * Per-module OBD-II clearing is in the contract types since the 1f merge
+ * (`NormalizedFault.module`, `NormalizedVehicleStat.faultScope`); these names stay as aliases.
+ */
+export type ModuleFault = NormalizedFault;
+export type { FaultModuleScope };
+export type ScopedVehicleStat = NormalizedVehicleStat;
 
 export interface FaultReportResult {
   /** How the report was applied: a snapshot newer or not newer than the guard, or a delta. */
@@ -141,9 +133,8 @@ function systemColumns(f: NormalizedFault) {
 async function openRows(ex: Executor, machineId: string, source: string): Promise<OpenRow[]> {
   const r = await exec<OpenRow>(
     ex,
-    `select f.id::text as id, f.code, f.system, f.first_seen_at, f.last_seen_at, m.module
+    `select f.id::text as id, f.code, f.system, f.first_seen_at, f.last_seen_at, f.module
        from farm.machine_faults f
-       left join farm.machine_fault_modules m on m.fault_id = f.id
       where f.machine_id = $1::uuid and f.source = $2 and f.cleared_at is null`,
     [machineId, source],
   );
@@ -180,9 +171,10 @@ async function upsertOpen(
     ex,
     `insert into farm.machine_faults as mf
        (machine_id, source, code, system, spn, fmi, source_address, occurrence_count, dtc_state,
-        oem_class, lamps, severity, vendor_severity, description, first_seen_at, last_seen_at)
+        oem_class, lamps, severity, vendor_severity, description, first_seen_at, last_seen_at,
+        module)
      values ($1::uuid, $2, $3, $4, $5::int, $6::int, $7::int, $8::int, $9, $10, $11::jsonb, $12,
-             $13, $14, $15::timestamptz, $16::timestamptz)
+             $13, $14, $15::timestamptz, $16::timestamptz, $18)
      on conflict (machine_id, source, code) where cleared_at is null do update
        set first_seen_at = case when $17::boolean then least(mf.first_seen_at, excluded.first_seen_at)
                                 else mf.first_seen_at end,
@@ -196,6 +188,8 @@ async function upsertOpen(
                                    then coalesce(excluded.occurrence_count, mf.occurrence_count)
                                    else mf.occurrence_count end,
            dtc_state = case when excluded.last_seen_at >= mf.last_seen_at then excluded.dtc_state else mf.dtc_state end,
+           -- The module that named the code last (a report naming none keeps the known one).
+           module = coalesce(excluded.module, mf.module),
            oem_class = case when excluded.last_seen_at >= mf.last_seen_at then excluded.oem_class else mf.oem_class end,
            lamps = case when excluded.last_seen_at >= mf.last_seen_at then excluded.lamps else mf.lamps end,
            severity = case when excluded.last_seen_at >= mf.last_seen_at then excluded.severity else mf.severity end,
@@ -223,19 +217,10 @@ async function upsertOpen(
       first.toISOString(),
       seenAt.toISOString(),
       vendorFirst !== null,
+      f.system === 'obd2' && f.module ? f.module : null,
     ],
   );
-  const row = r.rows[0] as { id: string; inserted: boolean };
-  if (f.system === 'obd2' && f.module) {
-    await exec(
-      ex,
-      `insert into farm.machine_fault_modules (fault_id, module) values ($1::uuid, $2)
-       on conflict (fault_id) do update set module = excluded.module, updated_at = now()
-        where machine_fault_modules.module <> excluded.module`,
-      [row.id, f.module],
-    );
-  }
-  return row;
+  return r.rows[0] as { id: string; inserted: boolean };
 }
 
 async function clearRows(ex: Executor, ids: string[], at: Date): Promise<number> {
@@ -247,7 +232,6 @@ async function clearRows(ex: Executor, ids: string[], at: Date): Promise<number>
       where id = any($1::uuid[]) and cleared_at is null`,
     [ids, at.toISOString()],
   );
-  await exec(ex, 'delete from farm.machine_fault_modules where fault_id = any($1::uuid[])', [ids]);
   return r.rowCount;
 }
 
@@ -354,13 +338,6 @@ async function applyDelta(
       [machineId, s.source, ts.toISOString(), s.faultAgeOutSeconds],
     );
     out.cleared += r.rowCount;
-    await exec(
-      ex,
-      `delete from farm.machine_fault_modules m using farm.machine_faults f
-        where f.id = m.fault_id and f.machine_id = $1::uuid and f.source = $2
-          and f.cleared_at is not null`,
-      [machineId, s.source],
-    );
   }
 }
 

@@ -109,6 +109,7 @@ interface FaultRow {
   occurrence_count: number | null;
   dtc_state: string | null;
   oem_class: string | null;
+  module: string | null;
   lamps: unknown;
   severity: string;
   vendor_severity: string | null;
@@ -122,7 +123,7 @@ async function rows(id: string): Promise<FaultRow[]> {
   return (
     await t().pool.query<FaultRow>(
       `select code, source, system, spn, fmi, source_address, occurrence_count, dtc_state,
-              oem_class, lamps, severity, vendor_severity, description, first_seen_at,
+              oem_class, module, lamps, severity, vendor_severity, description, first_seen_at,
               last_seen_at, cleared_at
          from farm.machine_faults where machine_id = $1 order by first_seen_at, code`,
       [id],
@@ -341,10 +342,11 @@ describe('snapshot reports (Samsara)', () => {
     });
     expect(by.get('OEM caution 77')).toMatchObject({ oem_class: 'caution', severity: 'info' });
     const module = await t().pool.query(
-      `select m.module from farm.machine_fault_modules m
-         join farm.machine_faults f on f.id = m.fault_id where f.code = 'P0087'`,
+      `select module from farm.machine_faults where code = 'P0087' and cleared_at is null`,
     );
     expect(module.rows).toEqual([{ module: '2024' }]);
+    // The module is OBD-II's only.
+    expect(by.get('OEM CA2387')).toMatchObject({ module: null });
   });
 
   test('OBD-II per module: a module the reading leaves out keeps its codes', async () => {
@@ -370,10 +372,16 @@ describe('snapshot reports (Samsara)', () => {
     // Module 2024 with empty lists: cleared.
     await upsertVehicleStat(t().pool, id, scoped(4, [], ['2024']));
     expect(await open(id)).toEqual([]);
+    // The cleared rows keep the module that last named them (history).
     expect(
-      (await t().pool.query('select count(*)::int as n from farm.machine_fault_modules')).rows[0]
-        ?.n,
-    ).toBeLessThanOrEqual(1); // only PU9's open P0087 (from the test above) keeps a module row
+      (
+        await t().pool.query(
+          `select module from farm.machine_faults
+            where machine_id = $1::uuid and code = 'P0087' and cleared_at is not null`,
+          [id],
+        )
+      ).rows,
+    ).toEqual([{ module: '2024' }]);
     // Without a scope (another vendor's plain snapshot) the clear is machine-wide.
     await upsertVehicleStat(t().pool, id, scoped(5, [obd('P0087', '2024')], ['2024']));
     await upsertVehicleStat(t().pool, id, snapshot(6, []));

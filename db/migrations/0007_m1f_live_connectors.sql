@@ -15,7 +15,8 @@
 --                 farm.fields.tenure gains 'unknown' (a field the Deere sync created, tenure not
 --                 set by hand yet: decision 7)
 --   fleet-faults  farm.machine_faults (fault code history, one model for J1939, OBD-II and OEM
---                 codes); farm.machine_state.fault_codes / faults_at (current summary + time
+--                 codes; `module`, the OBD-II control module, folded in from fleet-faults'
+--                 db/pending at the 1f merge); farm.machine_state.fault_codes / faults_at (current summary + time
 --                 guard), stats_at (fuel time guard), position_vendor (per-machine vendor badge),
 --                 position_kind (live trail point or last-known snapshot)
 --   1f.2          multi-vendor telematics (docs/contracts-1f.md part B, amended in place while
@@ -252,6 +253,24 @@ alter table farm.machine_faults add column if not exists lamps jsonb;
 --> statement-breakpoint
 alter table farm.machine_faults add column if not exists vendor_severity text;
 --> statement-breakpoint
+-- obd2: the control module that reported the code (Samsara's OBD-II txId, a CAN id such as
+-- 2024; source_address is J1939-only, 0-255), so a reading that leaves a module out leaves that
+-- module's open codes alone (fleet-faults, §5.3: OBD-II codes cleared per module).
+alter table farm.machine_faults add column if not exists module text;
+--> statement-breakpoint
+-- A database that ran fleet-faults' db/pending side table converges: its modules move into the
+-- column and the table goes.
+do $$
+begin
+  if to_regclass('farm.machine_fault_modules') is not null then
+    update farm.machine_faults f set module = m.module
+      from farm.machine_fault_modules m
+     where m.fault_id = f.id and f.system = 'obd2' and f.module is null
+       and length(m.module) between 1 and 64;
+    drop table farm.machine_fault_modules;
+  end if;
+end $$;
+--> statement-breakpoint
 -- The system's own fields only on that system's rows; J1939 SPN 19 bits, FMI 5 bits.
 alter table farm.machine_faults drop constraint if exists machine_faults_system_check;
 --> statement-breakpoint
@@ -264,6 +283,7 @@ alter table farm.machine_faults add constraint machine_faults_system_check check
   and (occurrence_count is null or occurrence_count >= 0)
   and (dtc_state is null or (system = 'obd2' and dtc_state in ('confirmed', 'pending', 'permanent')))
   and (oem_class is null or (system = 'oem' and oem_class in ('caution', 'fault')))
+  and (module is null or (system = 'obd2' and length(module) between 1 and 64))
   and (lamps is null or jsonb_typeof(lamps) = 'object'));
 --> statement-breakpoint
 create unique index if not exists machine_faults_open_key

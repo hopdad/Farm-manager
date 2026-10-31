@@ -1674,6 +1674,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "module": {
+          "name": "module",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "lamps": {
           "name": "lamps",
           "type": "jsonb",
@@ -1816,7 +1822,7 @@
         },
         "machine_faults_system_check": {
           "name": "machine_faults_system_check",
-          "value": "\"farm\".\"machine_faults\".\"system\" in ('j1939', 'obd2', 'oem')\n  and (\"farm\".\"machine_faults\".\"system\" = 'j1939') = (\"farm\".\"machine_faults\".\"spn\" is not null and \"farm\".\"machine_faults\".\"fmi\" is not null)\n  and (\"farm\".\"machine_faults\".\"spn\" is null or \"farm\".\"machine_faults\".\"spn\" between 0 and 524287)\n  and (\"farm\".\"machine_faults\".\"fmi\" is null or \"farm\".\"machine_faults\".\"fmi\" between 0 and 31)\n  and (\"farm\".\"machine_faults\".\"source_address\" is null or (\"farm\".\"machine_faults\".\"system\" = 'j1939' and \"farm\".\"machine_faults\".\"source_address\" between 0 and 255))\n  and (\"farm\".\"machine_faults\".\"occurrence_count\" is null or \"farm\".\"machine_faults\".\"occurrence_count\" >= 0)\n  and (\"farm\".\"machine_faults\".\"dtc_state\" is null or (\"farm\".\"machine_faults\".\"system\" = 'obd2' and \"farm\".\"machine_faults\".\"dtc_state\" in ('confirmed', 'pending', 'permanent')))\n  and (\"farm\".\"machine_faults\".\"oem_class\" is null or (\"farm\".\"machine_faults\".\"system\" = 'oem' and \"farm\".\"machine_faults\".\"oem_class\" in ('caution', 'fault')))\n  and (\"farm\".\"machine_faults\".\"lamps\" is null or jsonb_typeof(\"farm\".\"machine_faults\".\"lamps\") = 'object')"
+          "value": "\"farm\".\"machine_faults\".\"system\" in ('j1939', 'obd2', 'oem')\n  and (\"farm\".\"machine_faults\".\"system\" = 'j1939') = (\"farm\".\"machine_faults\".\"spn\" is not null and \"farm\".\"machine_faults\".\"fmi\" is not null)\n  and (\"farm\".\"machine_faults\".\"spn\" is null or \"farm\".\"machine_faults\".\"spn\" between 0 and 524287)\n  and (\"farm\".\"machine_faults\".\"fmi\" is null or \"farm\".\"machine_faults\".\"fmi\" between 0 and 31)\n  and (\"farm\".\"machine_faults\".\"source_address\" is null or (\"farm\".\"machine_faults\".\"system\" = 'j1939' and \"farm\".\"machine_faults\".\"source_address\" between 0 and 255))\n  and (\"farm\".\"machine_faults\".\"occurrence_count\" is null or \"farm\".\"machine_faults\".\"occurrence_count\" >= 0)\n  and (\"farm\".\"machine_faults\".\"dtc_state\" is null or (\"farm\".\"machine_faults\".\"system\" = 'obd2' and \"farm\".\"machine_faults\".\"dtc_state\" in ('confirmed', 'pending', 'permanent')))\n  and (\"farm\".\"machine_faults\".\"oem_class\" is null or (\"farm\".\"machine_faults\".\"system\" = 'oem' and \"farm\".\"machine_faults\".\"oem_class\" in ('caution', 'fault')))\n  and (\"farm\".\"machine_faults\".\"module\" is null or (\"farm\".\"machine_faults\".\"system\" = 'obd2' and length(\"farm\".\"machine_faults\".\"module\") between 1 and 64))\n  and (\"farm\".\"machine_faults\".\"lamps\" is null or jsonb_typeof(\"farm\".\"machine_faults\".\"lamps\") = 'object')"
         }
       },
       "isRLSEnabled": false

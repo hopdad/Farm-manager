@@ -291,6 +291,11 @@ export function normalizeStat(raw: number, unit: StatRawUnit): number {
 }
 
 /** Engine hours, odometer, fuel, DEF, engine state and faults (telematics stats, Deere hours). */
+/** Which OBD-II control modules a fault snapshot covers (`NormalizedVehicleStat.faultScope`). */
+export interface FaultModuleScope {
+  obdModules: readonly string[];
+}
+
 export interface NormalizedVehicleStat {
   source: ConnectorSource;
   externalMachineId: string;
@@ -324,6 +329,13 @@ export interface NormalizedVehicleStat {
    *    AEMP, CNH, Terminal); codes it doesn't name are unchanged.
    */
   faultReport?: 'snapshot' | 'delta';
+  /**
+   * `snapshot` only (1f merge, fleet-faults): the OBD-II control modules this snapshot speaks
+   * for (Samsara lists OBD-II codes per `txId` and doesn't promise every module in a reading).
+   * An open OBD-II code of a module not named is left alone; one with no recorded module counts
+   * as covered by any snapshot that names a module. Absent = a plain machine-wide snapshot.
+   */
+  faultScope?: FaultModuleScope;
   /**
    * 1f.2, `delta` only: for a vendor whose faults carry no cleared state (ISO 15143-3 FaultCode
    * items and CNH's Faults series are occurrences; some Terminal providers never send `closed`),

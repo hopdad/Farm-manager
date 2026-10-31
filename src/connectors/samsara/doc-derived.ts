@@ -34,7 +34,7 @@ export const SAMSARA_DOC_DERIVED: readonly DocDerivedItem[] = [
     what: 'faultCodes obdii: codes per module (txId); a module the reading leaves out keeps its codes; the MIL from the module milStatus, else checkEngineLightIsOn',
     confirm:
       'whether one reading names every module (then per-module clearing changes nothing) or only those that reported; that a code listed as both confirmed and permanent is one fault (kept as confirmed)',
-    file: `${FILE}, src/db/queries/machine-faults.ts (faultScope, farm.machine_fault_modules)`,
+    file: `${FILE}, src/db/queries/machine-faults.ts (faultScope, machine_faults.module)`,
     basis: 'doc',
   },
   {

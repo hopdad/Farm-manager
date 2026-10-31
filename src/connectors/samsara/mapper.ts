@@ -20,14 +20,18 @@
  *    `oemSeverity` usually doesn't know them and the OEM default applies: warning).
  */
 
-import type {
-  FaultModuleScope,
-  ModuleFault,
-  ScopedVehicleStat,
-} from '../../db/queries/machine-faults';
 import { type NormalizedFault, normalizedFault, type ObdDtcState } from '../../domain/fault-codes';
 import { normalizeHeading } from '../../domain/fleet';
-import type { NormalizedPosition, NormalizedVehicleStat, RawItem } from '../types';
+import type {
+  FaultModuleScope,
+  NormalizedPosition,
+  NormalizedVehicleStat,
+  RawItem,
+} from '../types';
+
+type ModuleFault = NormalizedFault;
+type ScopedVehicleStat = NormalizedVehicleStat;
+
 import {
   SAMSARA_STAT_TYPES,
   type SamsaraFaultCodesFeed,
