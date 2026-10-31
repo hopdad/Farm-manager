@@ -4,10 +4,14 @@
  * (so the live zod schemas still pass and replay still works):
  *
  *  - ids hashed: values under id-like keys (`id`, `…Id`, `…Ids`, `guid`, `principalId`, `vin`,
- *    `serialNumber`, …) become stable hashes of the same type (a numeric string stays digits of
- *    the same length, a number stays a number); the same id becomes the same hash everywhere
- *    (bodies, link URIs, request paths and query values), so recorded paging and links still
- *    line up;
+ *    `serialNumber`, a dotted `samsara.vin` / `samsara.serial`, …) become stable hashes of the
+ *    same type (a numeric string stays digits of the same length, a number stays a number); the
+ *    same id becomes the same hash everywhere (bodies, link URIs, request paths and query
+ *    values), so recorded paging and links still line up. An id-like key holding an object or a
+ *    list (Samsara's `externalIds: { "samsara.serial": …, "samsara.vin": … }`) makes EVERY
+ *    string or integer under it an id, whatever its own key. The vendors' code vocabulary that
+ *    merely ends in `Id` (Samsara's fault `spnId`, `fmiId`, `txId`, OBD-II `dtcId`: VOCAB_KEYS)
+ *    is kept verbatim: it says which fault the vendor reported, not which farm;
  *  - names to stable pseudonyms: `name`, `displayName`, `operatorName`, notes, … (the names of
  *    catalog entries such as `isgType`, `make`, `model`, `flagCategory` are kept: they are
  *    Deere's vocabulary, not the farm's, and the mappers read them);
@@ -38,6 +42,23 @@ const ID_KEYS = new Set([
   'externalids',
   'pin',
 ]);
+/**
+ * Keys that end in `Id` but name the vendor's code vocabulary, not a farm object: kept verbatim
+ * (a scrubbed faultCodes reading must still say J1939 SPN 110 FMI 0, matching its own
+ * spnDescription / fmiDescription text).
+ */
+export const VOCAB_KEYS = new Set([
+  'spnid',
+  'fmiid',
+  'txid',
+  'dtcid',
+  'sourceaddress',
+  'milstatus',
+  'occurrencecount',
+  'protocolid',
+]);
+/** A dotted vendor key naming an id (Samsara's externalIds: `samsara.vin`, `samsara.serial`). */
+const DOTTED_ID_RE = /\.(vin|serial|serialnumber|id|pin)$/i;
 const NAME_KEYS = new Set([
   'name',
   'displayname',
@@ -199,10 +220,36 @@ export function createScrubber(opts: ScrubberOptions): Scrubber {
 
   function idKey(key: string | null): boolean {
     const k = key ?? '';
-    return ID_KEYS.has(k.toLowerCase()) || /[a-z0-9](Id|ID|Ids|IDs)$/.test(k);
+    if (VOCAB_KEYS.has(k.toLowerCase())) return false;
+    return (
+      ID_KEYS.has(k.toLowerCase()) || /[a-z0-9](Id|ID|Ids|IDs)$/.test(k) || DOTTED_ID_RE.test(k)
+    );
   }
 
+  /** Every string or integer leaf under an id-like key's object or list is an id. */
+  function observeIds(v: unknown): void {
+    if (Array.isArray(v)) for (const x of v) observeIds(x);
+    else if (v && typeof v === 'object') for (const x of Object.values(v)) observeIds(x);
+    else noteId(v);
+  }
+
+  function scrubIds(v: unknown): unknown {
+    if (Array.isArray(v)) return v.map(scrubIds);
+    if (v && typeof v === 'object') {
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, scrubIds(x)]));
+    }
+    if (typeof v === 'string') return v ? hashId(v) : v;
+    if (typeof v === 'number' && Number.isInteger(v) && v >= 0) return hashNumber(v);
+    return v;
+  }
+
+  const isContainer = (v: unknown) => v !== null && typeof v === 'object';
+
   function observe(body: unknown, key: string | null = null, parent: string | null = null): void {
+    if (isContainer(body) && idKey(key)) {
+      observeIds(body);
+      return;
+    }
     if (Array.isArray(body)) {
       if (lower(key) === 'coordinates') walkCoords(body, (lng, lat) => addPoint(lng, lat));
       for (const x of body) observe(x, key, parent);
@@ -299,6 +346,7 @@ export function createScrubber(opts: ScrubberOptions): Scrubber {
   }
 
   function scrub(body: unknown, key: string | null = null, parent: string | null = null): unknown {
+    if (isContainer(body) && idKey(key)) return scrubIds(body);
     if (Array.isArray(body)) {
       if (lower(key) === 'coordinates') return shiftCoords(body);
       return body.map((x) => scrub(x, key, parent));

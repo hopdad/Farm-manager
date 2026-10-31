@@ -125,4 +125,83 @@ describe('createScrubber', () => {
     expect(s.survivors('"Smith Family Farms"')).toContain('Smith Family Farms');
     expect(s.originals()).toContain('8348986');
   });
+
+  // Samsara's vehicle stats feed (and its faultCodes feed, the same endpoint) carries
+  // `externalIds` with the gateway serial and the VIN under dotted keys (Samsara's documented
+  // example: docs_tms-gps-tracking.md, docs_mileage-and-distance.md).
+  const statsRow = {
+    data: [
+      {
+        id: '212014918732717',
+        name: 'Truck 7',
+        externalIds: { 'samsara.serial': 'G522SBGJT9', 'samsara.vin': '1FTFW1E50NFA12345' },
+        faultCodes: [
+          {
+            time: '2026-10-31T12:00:00Z',
+            canBusType: 'CANBUS_J1939_500',
+            j1939: {
+              diagnosticTroubleCodes: [
+                {
+                  spnId: 110,
+                  fmiId: 0,
+                  txId: 0,
+                  milStatus: 0,
+                  occurrenceCount: 1,
+                  spnDescription: 'Engine Coolant Temperature',
+                  fmiDescription: 'Data Valid But Above Normal Operational Range',
+                },
+              ],
+            },
+            obdii: {
+              diagnosticTroubleCodes: [{ txId: 2024, confirmedDtcs: [{ dtcId: 135 }] }],
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  test("Samsara's externalIds (serial, VIN under dotted keys) are hashed, and survivors would flag them", () => {
+    const s = createScrubber({ salt: 'test' });
+    s.observe(statsRow);
+    // Noted in the first pass: the survivors check knows them.
+    expect(s.originals()).toEqual(expect.arrayContaining(['G522SBGJT9', '1FTFW1E50NFA12345']));
+    const raw = JSON.stringify(statsRow);
+    expect(s.survivors(raw)).toEqual(expect.arrayContaining(['G522SBGJT9', '1FTFW1E50NFA12345']));
+    const out = s.scrub(statsRow) as typeof statsRow;
+    const text = JSON.stringify(out);
+    expect(text).not.toContain('G522SBGJT9');
+    expect(text).not.toContain('1FTFW1E50NFA12345');
+    const ext = out.data[0]?.externalIds as Record<string, string>;
+    expect(Object.keys(ext)).toEqual(['samsara.serial', 'samsara.vin']); // shape kept
+    expect(ext['samsara.vin']).toMatch(/^h[0-9a-f]+$/);
+    expect(s.survivors(text)).toEqual([]);
+    // A dotted id key on its own counts too; and every leaf of an id container, whatever its key.
+    const s2 = createScrubber({ salt: 'test' });
+    const body = { 'samsara.vin': '1FTFW1E50NFA99999', externalIds: { other: { deep: 'X-77' } } };
+    s2.observe(body);
+    expect(JSON.stringify(s2.scrub(body))).not.toMatch(/1FTFW1E50NFA99999|X-77/);
+  });
+
+  test("Samsara's fault vocabulary (spnId, fmiId, txId, dtcId) is kept: the fixture says which fault", () => {
+    const s = createScrubber({ salt: 'test' });
+    s.observe(statsRow);
+    const out = s.scrub(statsRow) as typeof statsRow;
+    const reading = out.data[0]?.faultCodes[0];
+    expect(reading?.j1939.diagnosticTroubleCodes[0]).toMatchObject({
+      spnId: 110,
+      fmiId: 0,
+      txId: 0,
+      milStatus: 0,
+      occurrenceCount: 1,
+      spnDescription: 'Engine Coolant Temperature',
+    });
+    expect(reading?.obdii.diagnosticTroubleCodes[0]).toMatchObject({
+      txId: 2024,
+      confirmedDtcs: [{ dtcId: 135 }],
+    });
+    // The vehicle's own ids are still hashed.
+    expect(out.data[0]?.id).not.toBe('212014918732717');
+    expect(out.data[0]?.name).not.toBe('Truck 7');
+  });
 });
