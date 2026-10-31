@@ -49,6 +49,7 @@ export type ConnectorConfig = Pick<
       Config,
       | 'DEERE_API_BASE'
       | 'DEERE_EQUIPMENT_API_BASE'
+      | 'DEERE_REDIRECT_URI'
       | 'MOTIVE_API_BASE'
       | 'GEOTAB_SERVER'
       | 'GEOTAB_DATABASE'
@@ -463,14 +464,25 @@ export interface DeereEndpoints {
   authBase: string;
   clientId: string;
   clientSecret: string;
-  /** The OAuth callback registered with Deere: `${PUBLIC_URL}/api/oauth/deere`. */
+  /**
+   * The OAuth callback registered with Deere (decision 6): DEERE_REDIRECT_URI when set (a public
+   * page such as docs/deere-callback.html that forwards to the PC), else
+   * `${PUBLIC_URL}/api/oauth/deere`. The authorize URL and the code exchange both send it.
+   */
   redirectUri: string;
   /** True against the stand-in (enables the unattended sim-only consent). */
   sim: boolean;
 }
 
+/** The Deere OAuth callback (decision 6): DEERE_REDIRECT_URI ?? `${PUBLIC_URL}/api/oauth/deere`. */
+export function deereRedirectUri(
+  cfg: Pick<ConnectorConfig, 'PUBLIC_URL' | 'DEERE_REDIRECT_URI'>,
+): string {
+  return cfg.DEERE_REDIRECT_URI ?? `${trim(cfg.PUBLIC_URL)}/api/oauth/deere`;
+}
+
 export function deereEndpoints(mode: Mode, cfg: ConnectorConfig): DeereEndpoints {
-  const redirectUri = `${trim(cfg.PUBLIC_URL)}/api/oauth/deere`;
+  const redirectUri = deereRedirectUri(cfg);
   switch (mode) {
     case 'sim': {
       const base = `${trim(cfg.VENDOR_SIM_URL)}/deere`;

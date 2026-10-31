@@ -8,14 +8,24 @@
  *   /api/oauth/deere?error=…          the person declined at the consent page
  *
  * In sim mode the authorize URL is the stand-in's "Sign in to Deere (simulated)" page; the
- * redirect URI is `${PUBLIC_URL}/api/oauth/deere` (register it with Deere for sandbox/live).
+ * redirect URI is DEERE_REDIRECT_URI, else `${PUBLIC_URL}/api/oauth/deere` (decision 6: register
+ * it with Deere for sandbox/live; a public forwarder page, docs/deere-callback.html, can stand in
+ * front of the PC). After the code exchange (1f decision 5) the page lists the orgs the new grant
+ * sees that still need approval, each with an "Approve in Deere Connections" link that comes back
+ * to /admin/connectors (`redirect_uri`, registered in the app profile too); none = "Connected".
+ * Still a 200 page, never a redirect. Its Deere calls count under stream '' (calls outside a
+ * sync step) in the configured mode.
  * The fleet.deere job doesn't need this in sim mode (it connects unattended), but this is the
  * path a real account takes. Outside sim mode starting the flow needs a manager (ROLE_FOR.admin;
  * the admin link on the PC counts as the owner): someone on the shop Wi-Fi must not be able to
  * link another Deere account over the farm's grant. The callback is bound to that start by the state cookie.
  */
 import { getConfig } from '@/config';
+import { configuredCallMode, countCalls } from '@/connectors/call-budget';
+import { DeereClient } from '@/connectors/deere/client';
+import { listOrgAccess } from '@/connectors/deere/connections';
 import { deereAuthorizeUrl, exchangeDeereCode, newOAuthState } from '@/connectors/deere/oauth';
+import type { DeereOrgAccess } from '@/connectors/deere/orgs';
 import { ConnectorModeError, deereEndpoints } from '@/connectors/endpoints';
 import { tokenKey } from '@/connectors/oauth/crypto';
 import {
@@ -27,11 +37,13 @@ import {
   stateCookieName,
   statesMatch,
 } from '@/connectors/oauth/flow';
+import { MemoryTokenStore } from '@/connectors/oauth/memory-store';
 import { OAuthTokenStore, userGrantOrg } from '@/connectors/oauth/token-store';
 import { getPool } from '@/db/client';
 import { ADMIN_LOCKED_MESSAGE } from '@/platform/auth/admin-key';
 import { getSession, ROLE_FOR, roleAtLeast } from '@/platform/auth/server';
 import { limitedBytes } from '@/platform/http/limits';
+import { connectedBody } from './callback-page';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,15 +118,32 @@ export async function GET(
       { 'set-cookie': clearStateCookie('deere', secure) },
     );
   }
+  const pool = getPool();
+  const modeOf = (vendor: string) => configuredCallMode(cfg, vendor);
+  let orgs: DeereOrgAccess[] | null = null;
   try {
-    const tokens = await exchangeDeereCode(ep, code);
-    const store = new OAuthTokenStore({
-      pool: getPool(),
-      source: 'deere',
-      org: userGrantOrg(ep),
-      key: tokenKey(cfg.TOKEN_ENC_KEY),
+    await countCalls(pool, modeOf, async () => {
+      const tokens = await exchangeDeereCode(ep, code);
+      const store = new OAuthTokenStore({
+        pool,
+        source: 'deere',
+        org: userGrantOrg(ep),
+        key: tokenKey(cfg.TOKEN_ENC_KEY),
+      });
+      await store.save(tokens);
+      // Which orgs the new grant sees that still need approval (decision 5). A failed listing
+      // never fails the sign-in: the page then just says "Connected".
+      try {
+        const client = new DeereClient({
+          endpoints: ep,
+          tokens: new MemoryTokenStore('deere', tokens),
+          autoConnect: false,
+        });
+        orgs = await listOrgAccess(client);
+      } catch (e) {
+        console.warn('[api/oauth/deere] org listing after sign-in failed:', (e as Error).message);
+      }
     });
-    await store.save(tokens);
   } catch (e) {
     console.error('[api/oauth/deere]', (e as Error).message);
     return page(
@@ -124,11 +153,7 @@ export async function GET(
       { 'set-cookie': clearStateCookie('deere', secure) },
     );
   }
-  return page(
-    200,
-    'Connected to John Deere',
-    `<p>${ep.sim ? 'Connected to the simulated Deere account.' : 'Deere is connected.'} Machine locations sync on the next fleet.deere run.</p>
-<p><a href="/admin/connectors">Connectors</a> · <a href="/board">Board</a></p>`,
-    { 'set-cookie': clearStateCookie('deere', secure) },
-  );
+  return page(200, 'Connected to John Deere', connectedBody(ep.sim, orgs, cfg.PUBLIC_URL), {
+    'set-cookie': clearStateCookie('deere', secure),
+  });
 }

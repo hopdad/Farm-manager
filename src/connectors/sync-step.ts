@@ -9,8 +9,15 @@
  *   4. process pending events one at a time, each in its own transaction: map (pure) → upsert
  *      (savepoint) → processed; a failure counts an attempt, `maxAttempts` → dead; an event that
  *      failed is not retried in the same run; stop taking new ones after ctx.deadline.
- *   5. releaseLease(pool, lease, { ok, error, nextRunAt = retryAfterFrom(err, now) })
+ *   5. releaseLease(pool, lease, { ok, error, nextRunAt }), nextRunAt = the later of
+ *      retryAfterFrom(err, now) and run start + `minIntervalSeconds` (1f decision 4: never sooner
+ *      than that, never faster than the job's cadence: a time before the next firing changes
+ *      nothing)
  *   6. afterRun(result) whenever claimed, ok or not (one batched fleet.tick).
+ *   7. (1f, sync-health) every vendor call of steps 2-6 was counted in the step's call tally
+ *      (src/connectors/http.ts `withCallTally`): it is added to ingest.api_calls_daily under the
+ *      vendor, the step's stream and mode, and a successful run folds its calls into the stream's
+ *      `callsPerRun` (sync_state.extra). Counting never fails the step (logged).
  *
  * After the claim it never throws for poll, landing, lease-lost or processing failures; it
  * returns `{ claimed: true, ok: false, error }` (contracts §8 failure rules).
@@ -26,7 +33,9 @@ import {
   ensureStream,
   releaseLease,
 } from '../db/leases';
+import { isCountedMode, recordRunCalls, upsertApiCalls } from '../db/queries/api-calls';
 import type { JobContext } from '../jobs/types';
+import { CallTally, withCallTally } from './http';
 import {
   type RawItem,
   type RunSyncStep,
@@ -215,6 +224,32 @@ export const runSyncStep: RunSyncStep = async (spec, ctx) => {
     };
   }
 
+  const tally = new CallTally();
+  const result = await withCallTally(tally, spec.stream, () => runClaimed(spec, ctx, sctx, lease));
+  await flushStepCalls(ctx, spec, tally, result);
+  return result;
+};
+
+/** Later of two optional instants. */
+function laterOf(a: Date | null, b: Date | null): Date | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a.getTime() >= b.getTime() ? a : b;
+}
+
+/** Steps 2-6 of a claimed run (inside the step's call tally). */
+async function runClaimed<TRaw, TNorm>(
+  spec: SyncStepSpec<TRaw, TNorm>,
+  ctx: JobContext,
+  sctx: SyncContext,
+  lease: ClaimedLease,
+): Promise<SyncStepResult> {
+  const startedAt = ctx.now();
+  const minInterval = spec.minIntervalSeconds;
+  const notBefore =
+    typeof minInterval === 'number' && Number.isFinite(minInterval) && minInterval > 0
+      ? new Date(startedAt.getTime() + Math.ceil(minInterval) * 1000)
+      : null;
   let cursor = cursorOf(lease);
   let landed = 0;
   let error: string | undefined;
@@ -252,7 +287,11 @@ export const runSyncStep: RunSyncStep = async (spec, ctx) => {
 
   // 5: release (a failure here is logged; the lease then simply expires).
   try {
-    const released = await releaseLease(ctx.pool, lease, { ok: !error, error, nextRunAt });
+    const released = await releaseLease(ctx.pool, lease, {
+      ok: !error,
+      error,
+      nextRunAt: laterOf(nextRunAt, notBefore),
+    });
     if (!released && !leaseLost) {
       ctx.log.warn('stream lease expired before release', {
         source: spec.source,
@@ -294,4 +333,46 @@ export const runSyncStep: RunSyncStep = async (spec, ctx) => {
     }
   }
   return result;
-};
+}
+
+/**
+ * Step 7: add the run's calls to ingest.api_calls_daily (the step's mode; 'off' never gets here)
+ * and, after a successful run, fold their number into the stream's `callsPerRun`. Logged, never
+ * thrown: counting must not fail a sync.
+ */
+async function flushStepCalls<TRaw, TNorm>(
+  ctx: JobContext,
+  spec: SyncStepSpec<TRaw, TNorm>,
+  tally: CallTally,
+  result: SyncStepResult,
+): Promise<void> {
+  if (!isCountedMode(spec.mode)) return;
+  const mode = spec.mode;
+  const rows = tally.drain();
+  const calls = rows.reduce((n, r) => n + r.calls, 0);
+  try {
+    if (rows.length) {
+      await upsertApiCalls(
+        ctx.pool,
+        rows.map((r) => ({
+          source: r.vendor,
+          stream: r.stream,
+          mode,
+          day: r.day,
+          calls: r.calls,
+          errors: r.errors,
+          rateLimited: r.rateLimited,
+        })),
+      );
+    }
+    if (result.ok && calls > 0) {
+      await recordRunCalls(ctx.pool, spec.source, spec.stream, mode, calls);
+    }
+  } catch (e) {
+    ctx.log.warn('call counts not saved', {
+      source: spec.source,
+      stream: spec.stream,
+      error: errorText(e),
+    });
+  }
+}
