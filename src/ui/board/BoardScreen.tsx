@@ -9,6 +9,7 @@ import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { SessionChip } from '../../app/login/_components/SessionChip';
 import { FieldPanel } from '../fields/FieldPanel';
 import { FleetPanel } from '../fleet/FleetPanel';
+import { MachineFaultTag } from '../fleet/MachineFaultTag';
 import { TileLineDrawTool, useTileDrawStore } from '../map/draw/TileLineDrawTool';
 import type { FleetFrame } from '../map/fleet/model';
 import { KIND_COLORS, KIND_LABELS } from '../map/fleet/style';
@@ -167,6 +168,7 @@ function PhoneMachineCard({ m, onClose }: { m: FleetFrame; onClose(): void }) {
         </button>
       </div>
       <MachineDetails m={m} now={now} />
+      <MachineFaultTag machineId={m.id} />
     </section>
   );
 }
