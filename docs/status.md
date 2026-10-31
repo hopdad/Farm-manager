@@ -8,6 +8,7 @@ Oct 31, 2026. Update this file at the end of each build session.
 |---|---|
 | `main` | M0 + M1 (slices 1a-1d), the e2e flake fixes, the follow-up to the PC checks (`claude/pc-followups`, below), the soil type map (`claude/soil-map`, merged Oct 31, below) and slices 1f + 1f.2 (`claude/m1-1f`, merged Oct 31, below). Work from here; the PC agent follows `PC-AGENT.md`. |
 | `claude/m1-1f` | Slices 1f and 1f.2: seven builders, integration, two review rounds (20 findings: 14 fixed, 6 rejected with reasons) and two CI test fixes. CI fully green at `3b951d4` (run 70: Linux, e2e with the replay step, Windows). Merged into `main` on Oct 31. Safe to delete. |
+| `claude/1f-followups` | After the 1f merge: the sim Deere grant fix, two e2e timing fixes, and these docs (PC-AGENT round 2, status, README). CI fully green at `1dc586c` (run 74: Linux, e2e with the replay step, Windows). Fast-forwarded into `main` on Oct 31. Safe to delete. |
 | `claude/soil-map` | Soil type map Phase A. Two reviews (12 findings, all fixed); CI fully green at `44d7779`; merged into `main` on Oct 31. Safe to delete. |
 | `claude/pc-agent-docs` | PC-AGENT.md round 2 docs, already in `main`. Safe to delete. |
 | `claude/pc-followups` | Derrick's `pc/section2-checks` plus the cloud follow-up to its findings (below). CI fully green at `3f5976e`; merged into `main` on Oct 30. Safe to delete. |

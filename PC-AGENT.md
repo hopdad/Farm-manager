@@ -198,6 +198,7 @@ git push origin --delete claude/pc-followups
 git push origin --delete claude/soil-map
 git push origin --delete claude/pc-agent-docs
 git push origin --delete claude/m1-1f
+git push origin --delete claude/1f-followups
 ```
 
 The cloud's proxy can't delete branches, so this has to happen on the PC (or on GitHub's
