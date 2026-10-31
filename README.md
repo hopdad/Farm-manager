@@ -2,12 +2,14 @@
 
 Farm Ops is the operations software described in [`farm-ops-software-spec.md`](farm-ops-software-spec.md):
 one database keyed on fields, machines and jobs, fed by John Deere Operations Center, the trucks'
-ELD (Samsara or Motive) and public data, and shown on a touch "war-room" map on the shop wall and
-on phones. Until it is solid it runs entirely on your Windows PC with Docker Desktop: Next.js on
-Node, Supabase's own Postgres image in Docker, and a local **vendor stand-in** that answers like
-Deere, Samsara and the National Weather Service for one simulated farm (40 fields around Adrian
-and Blissfield, 2 combines, 2 grain carts, 4 semis, 3 elevators), so the real connector code runs
-without any vendor account.
+and machines' telematics (Samsara, Motive, MyGeotab, Terminal, CNH FieldOps and the standard
+ISO 15143-3 "AEMP" feed for other brands) and public data, and shown on a touch "war-room" map on
+the shop wall and on phones. Until it is solid it runs entirely on your Windows PC with Docker
+Desktop: Next.js on Node, Supabase's own Postgres image in Docker, and a local **vendor
+stand-in** that answers like each of those vendors and the National Weather Service for one
+simulated farm (40 fields around Adrian and Blissfield, a mixed fleet of Deere, Case IH, Kubota
+and RoGator machines, the farm's semis and pickups, three hired haulers' trucks, 3 elevators), so
+the real connector code runs without any vendor account.
 
 The plan is [`docs/build-plan.md`](docs/build-plan.md); the code-level agreements are
 [`docs/contracts.md`](docs/contracts.md) (M0) and [`docs/contracts-m1.md`](docs/contracts-m1.md)
@@ -17,7 +19,14 @@ kiosk and the cab iPads: [`docs/kiosk.md`](docs/kiosk.md).
 
 This is milestone **M1 "See it"**, slices 1a-1d: tap a field, the fleet panel and sign-in (1a),
 the weather strip with an advisory spray go/no-go (1b), your own fields, people, crop history and
-soils (1c), and imagery, parcels, tile maps and the layer rail (1d).
+soils (1c), and imagery, parcels, tile maps and the layer rail (1d); plus slice **1f** (live
+connectors and sync health: Deere fields, flags, machines and this season's operations, fault
+codes, `/admin/connectors`) and **1f.2** (every telematics vendor at once, pickups). The 1f
+agreements are [`docs/contracts-1f.md`](docs/contracts-1f.md).
+
+**After pulling slice 1f:** `pnpm run bootstrap` (or `pnpm db:migrate`), then
+`pnpm db:seed demo` once (the mixed fleet's machines and vendor links land in your database;
+H1's Motive link moves under its hauler's company), then `pnpm dev` as usual.
 
 **Working on the PC with a coding agent?** Point it at [`PC-AGENT.md`](PC-AGENT.md): how to launch the demo, what to verify on Windows, and the building that has to happen on the PC.
 
@@ -44,6 +53,35 @@ soils (1c), and imagery, parcels, tile maps and the layer rail (1d).
 - **Layers (1d).** A rail down the left side: fields, spray, soils, aerial photos (online, or
   saved for your area), drainage tile, parcels (owners for managers only), the live fleet and
   custom-work customers. Managers draw tile lines with the **Tile** tool.
+
+## What's new in slice 1f (live connectors) and 1f.2 (every vendor)
+
+- **Deere fields, flags and machines.** The `deere.fields` job reads your Deere farms, fields,
+  boundaries, flags and equipment (hourly; every 45 s in the demo). Each field gets its owning
+  org's Deere boundary as the current version (the old one is kept as history), a field Deere
+  has that the app doesn't lands with tenure "not set" (drawn grey; the demo has one, *New
+  Ground 80*), flags show as read-only pins (the **Deere flags** toggle in the layer rail; tap one
+  for its popup), and machines get their engine hours.
+- **This season's operations.** A field's **History** tab lists this crop year's planting,
+  spraying and harvest from Operations Center: acres (and the part inside the field), yield,
+  products and rates, machines and operator, coverage mapped or not, and whether Deere may still
+  change it.
+- **Fault codes and stats on the fleet panel.** Each row shows where its position comes from
+  ("Samsara · sim", "Kubota (AEMP) · sim", "John Deere · replay"), its kind (and "set by hand"),
+  engine hours, odometer, fuel and DEF ("not reported" where the vendor's route doesn't send
+  one), and its worst active fault code. A critical code offers drivers **"Critical fault: mark
+  down?"**; it never marks a machine down by itself. A Deere machine that stopped working shows
+  its **last working position** instead of a stale alarm.
+- **Every vendor at once.** Samsara, Motive, MyGeotab and Terminal for trucks; John Deere, CNH
+  FieldOps and the standard ISO 15143-3 feed (Kubota, Trackunit, Deere's and Samsara's) for
+  machines; Samsara's asset gateways for machines with no API; Ford and Ram pickups through
+  Samsara's carmaker links. Each has its own setting (below); all run together.
+- **`/admin/connectors`** (manager): calls per vendor today and yesterday, the Deere call budget,
+  the Deere sign-in and its scopes, each Deere organization's approval, dead letters (requeue or
+  discard), every connection's mode and what it can report (the capability matrix), the
+  assumptions still to confirm against a real account, and in sim the knobs (make an org need
+  approval, give a truck a critical code). **`/admin/vehicles`** (manager): set a vehicle's kind
+  (semi, pickup, service truck) by hand; vendor tags never change it after that.
 
 ## Windows quickstart
 
@@ -140,6 +178,10 @@ Forgot the owner PIN: `pnpm auth:reset-owner` prints a one-time reset link (30 m
 | `pnpm gis:basemap` | Fetch or refresh the offline basemap (`--refresh` for the newest build). |
 | `pnpm sim:scenario harvest-day --speed 60 --assert` | Run a scenario day headless and check it. |
 | `pnpm test` / `pnpm test:db` / `pnpm test:e2e` | Unit tests / database tests / Playwright (starts `pnpm pilot` itself, or uses the app already on port 3000). The e2e suite adds switched-off "E2E …" people and devices to your dev database; they can't sign in between runs. |
+| `pnpm db:seed demo` | Re-seed the demo farm into an existing database without a reset (after pulling a slice that changes the demo fleet). |
+| `pnpm vendor-sim:connect` | Connect (or check) every connector that runs in sim against the stand-in; bootstrap runs it. |
+| `pnpm connectors:record deere --scrub` | With a real Deere account (sandbox): record each endpoint the app calls into `data\raw\recorded` (never committed) and, with `--scrub`, an anonymized copy for the tests. Review a scrubbed file before adding it to `src/connectors/deere/replay-recorded.ts`. `samsara` works the same way. |
+| `pnpm test:live` | The live checks against real vendor accounts (sandbox); each suite skips and says why when its credentials aren't set. Never in CI. |
 | `pnpm lint` / `pnpm typecheck` / `pnpm build` | What CI runs. |
 
 ## Your own data
@@ -174,22 +216,92 @@ The first run looks up each field's NWS grid cell (about 40 calls, once), then r
 `sim` forgets the cached cells again. The forecast is stored, so the strip keeps working when
 the internet drops (it says "Forecast stale" once NWS hasn't been reached for 2 hours).
 
-## Replay mode (Deere and the trucks from recorded fixtures)
+## Connectors (slices 1f and 1f.2)
 
-`CONNECTOR_DEERE=replay` and `CONNECTOR_SAMSARA=replay` in `.env.local` run the real Deere and
-Samsara clients on fixtures written from the vendors' published API documents (no account):
-the fleet panel lists "John Deere: replay" and "Samsara: replay" among its mode notices (one per
-connection that isn't live). Delete the lines to go back to the simulation. Every telematics
-vendor has its own key (`CONNECTOR_SAMSARA`, `CONNECTOR_MOTIVE`, `CONNECTOR_GEOTAB`,
-`CONNECTOR_AEMP`, `CONNECTOR_CNH`, `CONNECTOR_TERMINAL`; all `sim` by default, so the board shows
-the whole mixed demo fleet, and the vendor stand-in still runs for the ones left in sim). To
-replay everything else too, set those keys to `replay` (Motive, Geotab, AEMP and Terminal; CNH
-has no replay mode) or `off`. An older `.env.local` with `CONNECTOR_ELD` / `ELD_VENDOR` still
-works: those set the named vendor's key only (the other vendors, the hired haulers on Motive and
-Geotab included, stay `sim`), and `/admin/connectors` says which line to write instead.
+Every vendor has its own setting in `.env.local`; they all run at once. Unset, a vendor is `sim`
+on the PC (the stand-in answers like it) and `off` on a production server. `replay` runs the real
+client on fixtures written from the vendor's published API documents (no account); `sandbox` and
+`live` use your credentials.
 
-After pulling slice 1f.2, run `pnpm db:seed demo` once: the mixed fleet's machines and their
-vendor refs land in an existing database (and counters a route doesn't report are cleared).
+| Setting | Vendor (what it brings) | Modes | Credentials for sandbox / live |
+|---|---|---|---|
+| `CONNECTOR_DEERE` | John Deere Operations Center: machine breadcrumbs, fields, boundaries, flags, equipment and engine hours, this season's operations | sim, replay, sandbox, live | `DEERE_CLIENT_ID`, `DEERE_CLIENT_SECRET` (then sign in at `/api/oauth/deere`); optional `DEERE_REDIRECT_URI`, `DEERE_HOME_ORG_ID`, `DEERE_DAILY_CALL_BUDGET`, `DEERE_API_BASE`, `DEERE_EQUIPMENT_API_BASE` |
+| `CONNECTOR_SAMSARA` | Samsara: the semis and pickups (positions, hours, odometer, fuel, fault codes), the vehicle list (tags), the RoGator's asset gateway | sim, replay, sandbox, live | `SAMSARA_API_TOKEN` |
+| `CONNECTOR_MOTIVE` | Motive (a hired hauler): positions, stats, fault codes | sim, replay, sandbox, live | `MOTIVE_API_KEY` (the hauler's read-only key scoped to your trucks; a TEST MODE key for sandbox); optional `MOTIVE_API_BASE` |
+| `CONNECTOR_GEOTAB` | MyGeotab (a hired hauler): positions, stats, fault codes | sim, replay, sandbox, live | `GEOTAB_DATABASE`, `GEOTAB_USERNAME`, `GEOTAB_PASSWORD` (a service account); optional `GEOTAB_SERVER` |
+| `CONNECTOR_TERMINAL` | Terminal (one aggregator for haulers on other ELDs): positions, stats, fault codes, its providers | sim, replay, sandbox, live | `TERMINAL_SECRET_KEY`; optional `TERMINAL_CONNECTION_TOKEN` (pins one hauler), `TERMINAL_API_BASE` |
+| `CONNECTOR_AEMP` | The standard ISO 15143-3 feed of every other brand (Kubota, Trackunit, Deere's and Samsara's): last-known positions, hours, fuel, DEF, fault series | sim, replay, sandbox, live | `AEMP_PROVIDERS` (below) |
+| `CONNECTOR_CNH` | CNH FieldOps (Case IH, New Holland): positions, the fleet snapshot, caution and fault codes | sim, sandbox, live (no replay) | `CNH_CLIENT_ID`, `CNH_CLIENT_SECRET`, `CNH_SUBSCRIPTION_KEY` (then sign in at `/api/oauth/cnh`); optional `CNH_REDIRECT_URI`, `CNH_AUTH_BASE`, `CNH_API_BASE`, `CNH_AUDIENCE`, `CNH_CONNECTION` |
+
+`VEHICLE_KIND_TAGS` names the vendor tags that make a vehicle a semi, pickup or service truck
+(default `semi:Semi,pickup:Pickup,service_truck:Service truck`). `FLEET_STALE_SECONDS_LAST_KNOWN`
+(3 h) is when a last-known snapshot counts as stale. An older `.env.local` with `CONNECTOR_ELD` /
+`ELD_VENDOR` still works: those set the named vendor's key only, and `/admin/connectors` says
+which line to write instead.
+
+**The mixed fleet in sim.** `pnpm dev`, open `/board`: within about 30 s every vendor's machines
+are on the map and the fleet panel, each with its vendor badge: the Deere combines, carts,
+sprayer and planter (John Deere), the semis S1-S4 and the pickups PU1 (Ford) and PU2 (Ram)
+(Samsara; their hours and odometer read "not reported"), the RoGator SP2 (Samsara's asset
+gateway), the Case IH combine C3 and tractor T1 (CNH FieldOps), the Kubota loader L1 (AEMP, a
+last-known position drawn fainter), and the hired semis H1 (Motive), H2 (MyGeotab) and H3
+(Omnitracs XRS through Terminal). On `/admin/connectors` (manager) press **Critical engine code**
+next to a semi under *Simulated truck fault codes*: its row turns red within seconds, and on a
+driver's phone it offers "Critical fault: mark down?". Tap a field and open **History** for this
+season's operations; turn on **Deere flags** in the rail and tap a pin. More stand-in knobs:
+`pnpm dev --scenario=breakdown` (S3 gets a red-stop engine code at 9:40); the vendor stand-ins'
+`/_control/vendor/<vendor>/…` routes (Motive, Geotab, Terminal and CNH fault codes, AEMP faults,
+Deere's full-day sprayer coverage at `/_control/vendor/deere/ops/full-day`) are listed in each
+`src/sim/vendors/<vendor>/control-types.ts`.
+
+**The mixed fleet in replay.** Put these lines in `.env.local` and restart:
+
+```
+CONNECTOR_DEERE=replay
+CONNECTOR_SAMSARA=replay
+CONNECTOR_MOTIVE=replay
+CONNECTOR_GEOTAB=replay
+CONNECTOR_TERMINAL=replay
+CONNECTOR_AEMP=replay
+```
+
+The fleet panel's badges then read "· replay" (one mode notice per connection that isn't live),
+the Deere fields, flags, machines and operations come from the fixtures, S3 shows a critical
+fault and S2 a warning; CNH, which has no replay mode, keeps its stand-in. Delete the lines to go
+back to the simulation. CI runs the replay specs this way.
+
+**John Deere on the PC (sandbox).** With a Deere app from developer.deere.com:
+`CONNECTOR_DEERE=sandbox`, `DEERE_CLIENT_ID` and `DEERE_CLIENT_SECRET` in `.env.local`. In the
+app profile register both `http://localhost:3000/api/oauth/deere` and
+`http://localhost:3000/admin/connectors` as Redirect URIs (if Deere refuses localhost, publish
+[`docs/deere-callback.html`](docs/deere-callback.html) on an HTTPS page, register that page, and
+set `DEERE_REDIRECT_URI` to it: it forwards the sign-in to the PC). Open
+`http://localhost:3000/api/oauth/deere` and allow `offline_access ag1 ag2 eq1` (a grant made
+before Oct 31 lacks `ag2`: sign in again). The callback page lists the organizations that still
+need approval, each with an **Approve in Deere Connections** link that brings you back to
+`/admin/connectors`. If you belong to more than one organization, set `DEERE_HOME_ORG_ID` (the
+page asks). `DEERE_DAILY_CALL_BUDGET` (Deere API calls a day) makes the Deere jobs plan on 80 %
+of it; unset, the page says "limit unknown". Then `pnpm connectors:record deere --scrub` and
+`pnpm test:live`. Never point it at your production Deere organization without deciding to.
+
+**Other vendors' sandboxes.** MyGeotab: create the free demo database at
+my.geotab.com/registration.html, add a user with Authentication type *Service Account* (view
+only, whole-fleet scope), then `CONNECTOR_GEOTAB=sandbox` with `GEOTAB_DATABASE`,
+`GEOTAB_USERNAME` and `GEOTAB_PASSWORD`. Motive: a hauler's read-only, group-scoped, expiring key
+in `MOTIVE_API_KEY` (sandbox = a TEST MODE key on the same host). Terminal: a customer account's
+`TERMINAL_SECRET_KEY` with `CONNECTOR_TERMINAL=sandbox`. CNH FieldOps: a developer account at
+develop.cnh.com (a company email), register `http://localhost:3000/api/oauth/cnh` (or
+`CNH_REDIRECT_URI`) on the app, `CONNECTOR_CNH=sandbox` with the client id, secret and
+subscription key, sign in at `/api/oauth/cnh`; CNH needs a staging recording before sandbox or
+live use (`pnpm test:live` is the smoke test for it). `AEMP_PROVIDERS` is one JSON line listing
+the ISO 15143-3 feeds, for example:
+
+```
+AEMP_PROVIDERS=[{"id":"samsara","baseUrl":"https://api.samsara.com/beta/aemp","auth":"bearer","token":"<samsara token>","format":"json","idElement":"EquipmentID"},{"id":"deere","baseUrl":"https://sandboxaemp.deere.com","auth":"deere_oauth","format":"xml","minIntervalSeconds":3600},{"id":"trackunit","baseUrl":"https://<trackunit host>/aemp","auth":"oauth2","clientId":"<id>","clientSecret":"<secret>","tokenUrl":"https://<trackunit token url>","faultsPath":"/Fleet/Equipment/ID/{id}/Faults/{start}/{end}/{page}","minIntervalSeconds":960},{"id":"kubota","baseUrl":"<from your dealer>","auth":"basic","username":"<user>","password":"<password>"}]
+```
+
+(`deere_oauth` reuses the Deere sign-in, live host `https://partneraemp.deere.com`; Kubota's host
+and credentials come from the dealer, only for KubotaNOW machines.)
 
 ## Ports
 
@@ -209,7 +321,9 @@ vendor refs land in an existing database (and counters a route doesn't report ar
 - `/login`: sign in (managers: name + PIN; shared screens: the PIN pad). `/enroll`: where an
   enrollment link lands.
 - `/admin/fields`, `/admin/parties`, `/admin/spray`, `/admin/people`, `/admin/devices`,
-  `/admin/connectors`, `/admin/realtime`: need a manager (or the PC's Admin link).
+  `/admin/connectors` (every connection, its calls, mode and capabilities; Deere sign-in and
+  orgs; dead letters; the sim knobs), `/admin/vehicles` (vehicle kinds by hand),
+  `/admin/realtime`: need a manager (or the PC's Admin link).
 - `http://<pc-ip>:3000/api/health`: phone check; it should show `"ok":true`.
 
 ## M1 demo (what to look at)
@@ -238,6 +352,10 @@ vendor refs land in an existing database (and counters a route doesn't report ar
    those say "offline".
 
 The same demo runs as an automated test: `pnpm test:e2e e2e/m1-demo.spec.ts --project=wall`.
+The slice 1f/1f.2 demo (the mixed fleet, a critical code, pins, operations, `/admin/connectors`)
+runs as `pnpm test:e2e e2e/m1f-mixed-fleet.spec.ts --project=wall`, and its replay twin as
+`pnpm test:e2e e2e/m1f-replay.spec.ts --project=wall` against an app started with the replay
+lines above.
 The M0 demo (pause the simulation, "trucks API down", the phone within 2 s of the wall) still
 runs as `pnpm test:e2e e2e/m0-demo.spec.ts --project=wall`.
 
@@ -280,8 +398,10 @@ for the plan's defaults (trucks every 30 s, stale after 10 minutes).
   `src/ui`: the map, the board, the field panel, the fleet panel, the weather strip, the layer
   rail and the tile tool.
 - `src/platform/auth`: sign-in (sessions, PINs, devices); `src/sim` + `tools/vendor-sim`: the
-  simulated farm and the vendor stand-in; `src/connectors`: the Deere, Samsara, Motive and NWS
-  clients and their replay fixtures; `src/jobs`: scheduled jobs.
+  simulated farm and the vendor stand-ins; `src/connectors`: the Deere, Samsara, Motive,
+  MyGeotab, Terminal, CNH, ISO 15143-3 (AEMP) and NWS clients, their replay fixtures and the
+  vendor registry (`vendors.ts`: labels and what each route reports); `src/jobs`: scheduled jobs
+  (one per connection).
 - `db/migrations`: SQL for both your PC and Supabase. `scripts/` and `tools/`: bootstrap, the
   launchers, the clock, the importers (`tools/import`), the GIS loaders (`tools/gis`) and the
   seed. `e2e/`: Playwright specs.

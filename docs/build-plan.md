@@ -679,23 +679,45 @@ The gates stay where they were in substance: Work Plans push to the Deere simula
 - `ingest:all --offline` rebuilds identical checksums.
 
 **1f Live connectors + sync health (Feb 1 – Feb 14)**
-- [ ] **Deere (sandbox, if registered):**
+- [x] **Deere (sandbox, if registered):**
   - OAuth plus the Connections redirect, and encrypted tokens with locked refresh.
   - Fields and boundaries, operations with coverage, machine locations and hours, flags (read-only into pins).
   - `connectors:record` and contract tests.
   - ~~`deere:backfill --seasons=2022-2026`~~ **deferred (D22)** to after MD, before M4's season flip-through; the season rule (1f-1) and a placeholder CLI stay.
 
   If Deere won't take a localhost redirect, use the public callback from Week 0. **Submit the production-access request by Feb 1**, not at the gate check.
-- [ ] Set the location cadence from the measured call budget. Deere-only machines show their last working position.
-- [ ] ELD live client for the vendor chosen in D3 if the account exists (positions plus the stats feed: engine hours, fuel, faults); otherwise sim plus doc-derived fixtures. Faults badge in the fleet panel; a critical fault suggests "down".
-- [ ] `/admin/connectors`: mode, last OK, last error, dead-lettered events and call counts per source, plus a source badge on each machine.
-- [ ] **1f.2 (added Oct 30, when D3 changed):** every telematics vendor at once (Samsara, Motive, Geotab, CNH, the AEMP feed, Terminal; Ford and Ram pickups through the carmaker-cloud links), each on its own setting, against the vendors' published documents until real accounts exist (`docs/contracts-1f.md` part B). M2 2a starts after it (D22).
+- [x] Set the location cadence from the measured call budget. Deere-only machines show their last working position.
+- [x] ELD live client for the vendor chosen in D3 if the account exists (positions plus the stats feed: engine hours, fuel, faults); otherwise sim plus doc-derived fixtures. Faults badge in the fleet panel; a critical fault suggests "down".
+- [x] `/admin/connectors`: mode, last OK, last error, dead-lettered events and call counts per source, plus a source badge on each machine.
+- [x] **1f.2 (added Oct 30, when D3 changed):** every telematics vendor at once (Samsara, Motive, Geotab, CNH, the AEMP feed, Terminal; Ford and Ram pickups through the carmaker-cloud links), each on its own setting, against the vendors' published documents until real accounts exist (`docs/contracts-1f.md` part B). M2 2a starts after it (D22).
 
 *Done when:* one of these holds:
 - `CONNECTOR_DEERE=sandbox` shows your real Deere fields, machines, flags and this season's field operations (backfilled past seasons are deferred, D22).
 - Without a Deere app, the same flow runs from fixtures in `replay`, with the OAuth step skipped.
 
 Trucks are live if the ELDs are in, otherwise simulated.
+
+*As built (Oct 31, 2026; branch `claude/m1-1f`, seven builders merged):* the replay flow holds
+and is automated (`e2e/m1f-replay.spec.ts`, in CI's replay step with every connector that has a
+replay mode): the 40 demo fields matched to Deere's with their Deere boundaries current (the
+seeded ones kept as history) and the Deere-only field with tenure "not set", flags as read-only
+pins (rail toggle, popup), Deere machines from the Equipment API with engine hours, a field's
+History tab with this season's operations (coverage, or the measured area when Deere refuses
+it), the Samsara fault badges, and `/admin/connectors` with replay call counts, the orgs and the
+doc-derived list. The same flow runs in sim against the vendor stand-ins with the whole mixed
+fleet (`e2e/m1f-mixed-fleet.spec.ts`): every vendor's machines with their vendor + mode badges
+(Samsara, Motive, MyGeotab, Terminal, CNH FieldOps, Kubota through AEMP, Samsara's asset gateway,
+the Ford and Ram pickups with "not reported"), a critical code raised from `/admin/connectors`
+offering drivers "mark down?", and every connection's capability matrix with the AEMP and
+Terminal providers. Call counting per source, stream and mode, the Deere budget split (`fleet.deere`
+paced, `deere.ops` capped), org isolation and the approval links, dead-letter requeue and discard,
+`connectors:record --scrub` with its conformance test and the `test:live` suites are built.
+Deere-only machines that stopped working show their last working position on the panel, the map
+and the board card. One migration (`0007`) holds everything; fleet-faults' pending table became
+`machine_faults.module`. **Still on your PC:** a Deere app (sandbox), its first recording and the
+live suites; the other vendors' accounts (README "Connectors"); the production-access request by
+Feb 1. The Deere season backfill stays deferred (D22). Defaults picked at the merge:
+`docs/decisions.md` "Slice 1f merge".
 
 **1g Replay + Phase 1 hardening (Mar 15 – Mar 21, after 2b: D22)**
 - [ ] `tracks_daily` rollup and the raw-retention job (D9). A time slider (deck.gl `TripsLayer`) replays a day, loaded per machine-hour.

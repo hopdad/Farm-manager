@@ -1642,3 +1642,63 @@ and sandbox access (customers only); a hauler's **Motive** key when needed (read
 our trucks, expiring); the **Kubota** dealer's AEMP credentials and endpoint (only with KubotaNOW
 machines); the **Ford Pro** consent and the **Ram** VIN list for the pickups. After pulling this
 commit on the PC: `pnpm db:seed demo` once.
+
+---
+
+# As built at the merge (Oct 31, 2026): where the code differs from this page
+
+The seven branches were merged into `claude/m1-1f` with `main` (the soil type map). This page
+stays the agreement; where the built code legitimately differs, it is noted here (the defaults
+picked are rows in `docs/decisions.md` "Slice 1f merge").
+
+- **§3.1 `farm.machine_faults` gains `module`** (text, obd2 rows only, 1-64 characters, inside
+  `machine_faults_system_check`): the OBD-II control module (Samsara's `txId`) that reported the
+  code, for per-module clearing (§5.3). It was fleet-faults' `db/pending` side table
+  (`farm.machine_fault_modules`), folded into 0007 in place; re-running 0007 over a database that
+  had the side table moves its rows into the column and drops it. Mirrored in
+  `src/db/schema/farm.ts`; the 0007 snapshot regenerated.
+- **§5.0 / §5.3 contract types:** `NormalizedFault.module` and `NormalizedVehicleStat.faultScope`
+  (`FaultModuleScope { obdModules }`) are in `src/domain/fault-codes.ts` and
+  `src/connectors/types.ts` (fleet-faults' local `ModuleFault` / `ScopedVehicleStat` remain as
+  aliases).
+- **§5.2 / §1.2 taps:** `WarRoomMap` also has `onEmptyTap` (main's soil map unit sheet). The order
+  is machine > a `tapLayers` feature (pins) > field > empty map. `BoardScreen` passes no field,
+  pin or empty-map handler while the tile-line tool draws, and no empty-map handler while the tool
+  is open at all. The pin popup takes `onOpen={closePanels}` (closes the field panel and the soil
+  sheet), like the tile tool.
+- **§5.3 last working position:** the rule moved to `src/domain/fleet.ts` (`isLastWorking`,
+  `DEERE_STOPPED_WORKING_SECONDS`); the map's `FleetModel` (`FleetFrame.lastWorking`, never stale,
+  drawn faint, out of the stale count) and the board's machine card use it too (§11.5).
+- **§5.4 orgs:** `ingest.connector_orgs` has no `member` column, so `fleet.deere` keeps the home
+  org decision in sync_state deere/locations `extra.homeOrg`; terms and scope refusals are stored
+  as `needs_approval` with the kind read back from `detail` (`orgStatusView`). Only `fleet.deere`'s
+  listing writes the org rows; other Deere jobs log a refused org.
+- **§5.5 measured calls per run:** `deere.ops` reads `callsPerRun` only when `callsPerRunMode` is
+  the connector's mode (sync-health's `callsPerRunOfExtra`).
+- **§11.4 dead letters:** the buttons are server actions; `POST /admin/connectors/dead-letters`
+  (manager) is the control that answers a viewer or driver with 403. `withCallStream` needs a sink
+  (`installCallCounting`), which each CLI installs.
+- **§8 CI:** the replay step sets every connector with a replay mode to `replay` (Deere, Samsara,
+  Motive, Geotab, Terminal, AEMP; CNH has none) and runs `fleet-panel-replay`, `fleet-panel`,
+  `m1f-replay`, `trucks-replay` and `pickups-replay` on the wall project. The conformance test
+  asks the stand-in for operations with `embed=measurementTypes` and skips replay-only operation
+  ids; the stand-in's Deere links carry `'@type': 'Link'`, so no tolerated gap remains for them.
+- **§B.1 H1:** its ref is `('motive', 'machine', <id>, SIM_MOTIVE_COMPANY_ID)` (the constant is in
+  `src/sim/types.ts`). Motive and Geotab resolve with `machineResolver({ orgFallback: true })`
+  (`src/jobs/fleet-shared.ts`), which still finds the org-less ref of a database seeded before.
+- **§B.4 shared helpers:** every vehicle-list stream uses `src/connectors/vehicles/refs.ts`
+  (`mappedVehicleRefs`, `allMappedIds`, `vehicleListUpsert`) and puts the poll time in its item
+  ids, so a list back at an earlier state lands again (Samsara, Motive, Geotab, Terminal).
+- **§B.4.6 endpoints:** `aempEndpoints('sim')` names the stand-in's kubota fault series
+  (`AEMP_SIM_FAULTS_PATH`, now in `src/sim/types.ts`); replay names none (the window is in the
+  path).
+- **§B.4.3 registry:** `geotab`, `terminal`, `terminal_omnitracs_xrs`, `cnh`, `aemp`,
+  `aemp_deere`, `aemp_kubota` and `aemp_samsara` are `built`; Motive's OEM faults `doc`; the
+  gateway route's odometer `yes`.
+- **§B.6 fixtures:** the Samsara positions and stats replay fixtures carry the pickups PU1 and PU2
+  (stats: fuel only, as their carmaker routes report).
+- **§B.8.3 `/admin/vehicles`:** Next 16 answers a page with 403 only through `forbidden()`
+  (`experimental.authInterrupts`, not enabled); the page renders a refusal with nothing private on
+  it and `POST /admin/vehicles/kind` answers 403.
+- **Deere-only field and operations:** the ops stand-in answers deere-data's Deere-only field with
+  an empty operations list (a real field with no operations), not a 404.
