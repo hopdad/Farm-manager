@@ -16,6 +16,7 @@ import { type FleetStatus, useFleet } from '../map/fleet/useFleet';
 import { useLayerVisible } from '../map/layers/visibility';
 import { LayerRail, type RailMap } from '../map/rail/LayerRail';
 import type { MapPageData, MapVariant } from '../map/types';
+import { DeerePins, openPinFromTap, PIN_TAP_LAYERS } from '../pins';
 import { SprayFieldState, WeatherStrip } from '../weather';
 import css from './board.module.css';
 import { ACTIVITY_LABELS, compassPoint, formatAge, formatClock, SOURCE_LABELS } from './format';
@@ -240,6 +241,8 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
           fleetVisible={fleetVisible}
           onFieldTap={drawing ? undefined : setFieldId}
           onMapReady={setMap}
+          tapLayers={PIN_TAP_LAYERS}
+          onFeatureTap={drawing ? undefined : openPinFromTap}
         />
         <SprayFieldState map={map} />
         <LayerRail map={map} variant={variant} config={data.config} onOpenChange={setRailOpen} />
@@ -249,6 +252,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
           <MachineCard m={selected} onClose={() => setSelectedId(null)} />
         )}
         <TileLineDrawTool map={map} variant={variant} config={data.config} onOpen={closeField} />
+        <DeerePins map={map} variant={variant} config={data.config} onOpen={closeField} />
         {fieldId && (
           <FieldPanel
             fieldId={fieldId}

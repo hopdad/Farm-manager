@@ -1,0 +1,91 @@
+/*
+ * The pin popup (slice 1f): on the wall a card left of the fleet panel (where a tapped machine's
+ * card sits: tapping a pin closes that card), on phones a small sheet at the bottom. Reads the
+ * board's layout slots (--dock-right, --dock-gap, --font) and falls back outside the board.
+ */
+.card {
+  position: absolute;
+  right: calc(var(--dock-right, 96px) + 460px + 2 * var(--dock-gap, 16px));
+  top: calc(var(--dock-gap, 16px) + 64px);
+  z-index: 4;
+  min-width: 300px;
+  max-width: 440px;
+  background: rgb(11 18 16 / 94%);
+  color: #f4f6f2;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 16px;
+  padding: 16px 20px;
+  font-size: calc(var(--font, 22px) * 0.85);
+  display: grid;
+  gap: 6px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 45%);
+}
+
+.phone {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 16;
+  display: grid;
+  gap: 4px;
+  padding: 10px 16px calc(14px + env(safe-area-inset-bottom));
+  background: #101a16;
+  color: #f4f6f2;
+  border-top: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -8px 28px rgb(0 0 0 / 40%);
+  font-size: 15px;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: calc(var(--font, 22px) * 1.15);
+  font-weight: 800;
+}
+
+.phone .title {
+  font-size: 18px;
+}
+
+.dot {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgb(0 0 0 / 50%);
+}
+
+.close {
+  width: 72px;
+  height: 72px;
+  margin: -12px -16px -12px auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 32px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.phone .close {
+  width: 52px;
+  height: 52px;
+  margin: -6px -10px -6px auto;
+}
+
+.note {
+  line-height: 1.35;
+}
+
+.muted {
+  opacity: 0.72;
+}
+
+.origin {
+  margin-top: 4px;
+  font-size: 0.85em;
+  opacity: 0.8;
+}

@@ -1,0 +1,246 @@
+{
+  "format": 1,
+  "source": "deere",
+  "stream": "hours",
+  "kind": "doc-derived",
+  "reference": "https://developer.deere.com/dev-docs/machine-engine-hours (GET /machines/{principalId}/engineHours?lastKnown=true: reading { valueAsDouble, unit: Hours }, reportTime, source). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "shiftStepSeconds": 86400,
+  "basePath": "/platform",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/machines/8348986/engineHours",
+        "query": {
+          "lastKnown": "true"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/machines/8348986/engineHours?lastKnown=true"
+            }
+          ],
+          "total": 1,
+          "values": [
+            {
+              "reading": {
+                "@type": "measurementAsDouble",
+                "valueAsDouble": 873.56,
+                "unit": "Hours"
+              },
+              "reportTime": "2026-10-15T12:45:00.000Z",
+              "source": "TM",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "machine",
+                  "uri": "https://sandboxapi.deere.com/platform/machines/8348986"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/machines/4034635/engineHours",
+        "query": {
+          "lastKnown": "true"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/machines/4034635/engineHours?lastKnown=true"
+            }
+          ],
+          "total": 1,
+          "values": [
+            {
+              "reading": {
+                "@type": "measurementAsDouble",
+                "valueAsDouble": 2443.9,
+                "unit": "Hours"
+              },
+              "reportTime": "2026-10-15T12:45:00.000Z",
+              "source": "TM",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "machine",
+                  "uri": "https://sandboxapi.deere.com/platform/machines/4034635"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/machines/3207950/engineHours",
+        "query": {
+          "lastKnown": "true"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/machines/3207950/engineHours?lastKnown=true"
+            }
+          ],
+          "total": 1,
+          "values": [
+            {
+              "reading": {
+                "@type": "measurementAsDouble",
+                "valueAsDouble": 3481.77,
+                "unit": "Hours"
+              },
+              "reportTime": "2026-10-15T12:45:00.000Z",
+              "source": "TM",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "machine",
+                  "uri": "https://sandboxapi.deere.com/platform/machines/3207950"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/machines/1140487/engineHours",
+        "query": {
+          "lastKnown": "true"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/machines/1140487/engineHours?lastKnown=true"
+            }
+          ],
+          "total": 1,
+          "values": [
+            {
+              "reading": {
+                "@type": "measurementAsDouble",
+                "valueAsDouble": 4816.17,
+                "unit": "Hours"
+              },
+              "reportTime": "2026-10-15T12:45:00.000Z",
+              "source": "TM",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "machine",
+                  "uri": "https://sandboxapi.deere.com/platform/machines/1140487"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/machines/3877899/engineHours",
+        "query": {
+          "lastKnown": "true"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/machines/3877899/engineHours?lastKnown=true"
+            }
+          ],
+          "total": 1,
+          "values": [
+            {
+              "reading": {
+                "@type": "measurementAsDouble",
+                "valueAsDouble": 2182.45,
+                "unit": "Hours"
+              },
+              "reportTime": "2026-10-15T12:45:00.000Z",
+              "source": "TM",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "machine",
+                  "uri": "https://sandboxapi.deere.com/platform/machines/3877899"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/machines/6272546/engineHours",
+        "query": {
+          "lastKnown": "true"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/machines/6272546/engineHours?lastKnown=true"
+            }
+          ],
+          "total": 1,
+          "values": [
+            {
+              "reading": {
+                "@type": "measurementAsDouble",
+                "valueAsDouble": 3859.98,
+                "unit": "Hours"
+              },
+              "reportTime": "2026-10-15T12:45:00.000Z",
+              "source": "TM",
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "machine",
+                  "uri": "https://sandboxapi.deere.com/platform/machines/6272546"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
