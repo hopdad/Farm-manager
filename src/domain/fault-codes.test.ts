@@ -7,6 +7,7 @@ import {
   normalizedFault,
   normalizedFaultSchema,
   oemSeverity,
+  parseIsoJ1939,
   severityRank,
   sortFaultCodes,
   toFaultCode,
@@ -135,5 +136,19 @@ describe('1f.2: one fault model for J1939, OBD-II and OEM codes', () => {
         since: '2026-10-15T14:00:00Z',
       }).success,
     ).toBe(true);
+  });
+});
+
+describe('1f.2: ISO 15143-3 CodeIdentifier (its structure differs among OEMs)', () => {
+  test('J1939 only when it names an SPN and an FMI in range; otherwise an OEM code', () => {
+    expect(parseIsoJ1939('SPN 110 FMI 0')).toEqual({ spn: 110, fmi: 0 });
+    expect(parseIsoJ1939('spn:3251 fmi:16')).toEqual({ spn: 3251, fmi: 16 });
+    expect(parseIsoJ1939('SPN110FMI0')).toEqual({ spn: 110, fmi: 0 });
+    expect(parseIsoJ1939('520192-31')).toEqual({ spn: 520192, fmi: 31 });
+    expect(parseIsoJ1939('110/3')).toEqual({ spn: 110, fmi: 3 });
+    expect(parseIsoJ1939('SPN 110 FMI 32')).toBeNull();
+    expect(parseIsoJ1939('600000-1')).toBeNull();
+    expect(parseIsoJ1939('E-0123')).toBeNull();
+    expect(parseIsoJ1939('P0217')).toBeNull();
   });
 });

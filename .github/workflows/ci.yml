@@ -6,7 +6,7 @@
 #            headless with --assert.
 #   e2e      pull requests (and by hand): the same setup, then Playwright (Chromium) against
 #            `pnpm pilot --skip-build`, which playwright.config.ts starts; then the fleet specs
-#            again against an app in replay mode (CONNECTOR_DEERE/ELD=replay).
+#            again against an app in replay mode (CONNECTOR_DEERE=replay, CONNECTOR_SAMSARA=replay).
 #   windows  pushes to main, nightly and by hand (Windows minutes count double): lint,
 #            typecheck, unit tests and `bootstrap --dry-run` (no Linux database on Windows
 #            runners; the PC covers that).

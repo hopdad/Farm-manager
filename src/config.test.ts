@@ -269,6 +269,10 @@ describe('parseConfig', () => {
         ),
       },
     ]);
+    // The note says the other vendors (the hired haulers on Motive and Geotab) are unaffected.
+    expect(plain.connectorAliasNotes[0]?.message).toMatch(
+      /the others keep their own keys \(unset: sim\)/,
+    );
     // Derrick's old .env.local: Motive as the ELD.
     const motive = parseConfig({ ...base, CONNECTOR_ELD: 'live', ELD_VENDOR: 'motive' });
     expect([motive.CONNECTOR_MOTIVE, motive.CONNECTOR_SAMSARA]).toEqual(['live', 'sim']);
@@ -379,6 +383,72 @@ describe('parseConfig', () => {
         ]),
       }).join('\n'),
     ).toMatch(/AEMP_PROVIDERS/);
+  });
+
+  test("1f.2: AEMP auth styles from the providers' docs: Deere's user grant, a key next to any style", () => {
+    const c = parseConfig({
+      ...base,
+      AEMP_PROVIDERS: JSON.stringify([
+        {
+          id: 'deere',
+          baseUrl: 'https://partneraemp.deere.com',
+          auth: 'deere_oauth',
+          format: 'xml',
+          minIntervalSeconds: 3600,
+        },
+        {
+          id: 'cnhiso',
+          baseUrl: 'https://api-data.cnh.com/v1',
+          auth: 'bearer',
+          token: 't',
+          subscriptionKey: 'k',
+        },
+        {
+          id: 'trackunit',
+          baseUrl: 'https://iris.trackunit.com/public/api/aemp/v2/15143/-3',
+          auth: 'oauth2',
+          grantType: 'password',
+          tokenUrl: 'https://auth.trackunit.com/token',
+          faultsPath: '/Fleet/Equipment/ID/{id}/Faults/{start}/{end}/{page}',
+          idElement: 'SerialNumber',
+        },
+      ]),
+    });
+    expect(c.AEMP_PROVIDERS.map((p) => [p.id, p.auth])).toEqual([
+      ['deere', 'deere_oauth'],
+      ['cnhiso', 'bearer'],
+      ['trackunit', 'oauth2'],
+    ]);
+    expect(c.AEMP_PROVIDERS[2]).toMatchObject({ grantType: 'password', idElement: 'SerialNumber' });
+    const bad = (p: Record<string, unknown>) =>
+      issues({
+        ...base,
+        AEMP_PROVIDERS: JSON.stringify([{ id: 'x1', baseUrl: 'https://x.example.com', ...p }]),
+      }).join('\n');
+    expect(bad({ auth: 'none', faultsPath: '/Faults' })).toMatch(/faultsPath/);
+    expect(bad({ auth: 'none', minIntervalSeconds: 5 })).toMatch(/minIntervalSeconds/);
+    expect(bad({ auth: 'oauth2', grantType: 'implicit' })).toMatch(/grantType/);
+  });
+
+  test('1f.2: CNH has no replay mode (XML-only telemetry, no recording yet): refused up front', () => {
+    expect(issues({ ...base, CONNECTOR_CNH: 'replay' }).join('\n')).toMatch(
+      /CONNECTOR_CNH: CNH has no replay fixtures: use 'sim'/,
+    );
+    expect(parseConfig({ ...base, CONNECTOR_CNH: 'sandbox' }).CONNECTOR_CNH).toBe('sandbox');
+  });
+
+  test('Deere and CNH hosts are config with the documented defaults', () => {
+    const c = parseConfig({
+      ...base,
+      DEERE_EQUIPMENT_API_BASE: 'https://equipmentapi.deere.com/isg',
+      CNH_AUDIENCE: 'https://api-data.cnh.com/',
+      CNH_CONNECTION: 'PROD-ADFS-CONN',
+    });
+    expect(c.DEERE_EQUIPMENT_API_BASE).toBe('https://equipmentapi.deere.com/isg');
+    expect(c.CNH_CONNECTION).toBe('PROD-ADFS-CONN');
+    expect(issues({ ...base, DEERE_API_BASE: 'api.deere.com' }).join('\n')).toMatch(
+      /DEERE_API_BASE/,
+    );
   });
 
   test('1f.2: VEHICLE_KIND_TAGS maps vendor tags to kinds (default semi/pickup/service truck)', () => {

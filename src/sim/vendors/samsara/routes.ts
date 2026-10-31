@@ -102,7 +102,6 @@ function toLocation(s: SimMachineSample, wallMs: number): SamsaraLocation {
     longitude: round(s.lng, 6),
     heading: round(s.heading, 1),
     speed: round(Math.max(0, s.speedMph), 1),
-    isEcuSpeed: false,
   };
 }
 
@@ -240,7 +239,7 @@ function statsFeed(req: SimRequest, ctx: VendorContext): SimResponse {
 export const samsaraModule: VendorModule = {
   vendor: 'samsara',
   error: samsaraError,
-  handle(req, ctx) {
+  async handle(req, ctx) {
     const token = bearerToken(req.headers);
     if (token !== SIM_CREDENTIALS.samsara.apiToken) {
       return samsaraError(401, 'Unauthorized: invalid API token');
@@ -253,7 +252,7 @@ export const samsaraModule: VendorModule = {
       return samsaraError(401, 'Unauthorized: API token expired or revoked');
     }
     for (const mod of SAMSARA_ROUTE_MODULES) {
-      const reply = mod.route(req, ctx);
+      const reply = await mod.route(req, ctx);
       if (reply) return reply;
     }
     if (req.method !== 'GET') return samsaraError(405, 'Method not allowed');
@@ -265,5 +264,14 @@ export const samsaraModule: VendorModule = {
       default:
         return samsaraError(404, `Not found: ${req.path} (not simulated)`);
     }
+  },
+  /** /_control/vendor/samsara/<key>/... → that route module's control() (./modules.ts). */
+  async control(req, ctx) {
+    const [, key = '', ...rest] = req.path.split('/');
+    const mod = SAMSARA_ROUTE_MODULES.find((m) => m.key === key);
+    const hit = mod?.control
+      ? await mod.control({ ...req, path: `/${rest.join('/')}` }, ctx)
+      : null;
+    return hit ?? json(404, { error: `no Samsara control at ${req.path}` });
   },
 };

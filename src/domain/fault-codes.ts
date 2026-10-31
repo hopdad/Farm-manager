@@ -56,6 +56,30 @@ export const J1939_MAX_SPN = 524_287;
 export const J1939_MAX_FMI = 31;
 
 /**
+ * 1f.2: an open fault from a `delta` source whose faults carry no cleared state (ISO 15143-3
+ * FaultCode items and CNH's Faults series are bare occurrences; some Terminal providers never
+ * send `closed`) is closed by the writer when it hasn't been seen for this long
+ * (`NormalizedVehicleStat.faultAgeOutSeconds`; docs/contracts-1f.md §5.3). A day covers one
+ * hourly AEMP snapshot missed many times over.
+ */
+export const DELTA_FAULT_AGE_OUT_SECONDS = 86_400;
+
+/**
+ * An ISO 15143-3 `CodeIdentifier` (whose structure "can differ among OEMs") as J1939 when it
+ * names an SPN and an FMI (`SPN 110 FMI 0`, `110-0`, `110/0`, `SPN110FMI0`), else null: the
+ * mapper then files it as an OEM code (`system: 'oem'`, the identifier verbatim).
+ */
+export function parseIsoJ1939(codeIdentifier: string): { spn: number; fmi: number } | null {
+  const m =
+    /^\s*SPN\s*:?\s*(\d{1,6})\s*[,;/ ]?\s*FMI\s*:?\s*(\d{1,2})\s*$/i.exec(codeIdentifier) ??
+    /^\s*(\d{1,6})\s*[-/:]\s*(\d{1,2})\s*$/.exec(codeIdentifier);
+  if (!m) return null;
+  const spn = Number(m[1]);
+  const fmi = Number(m[2]);
+  return spn <= J1939_MAX_SPN && fmi <= J1939_MAX_FMI ? { spn, fmi } : null;
+}
+
+/**
  * Lamp states as the vendor reports them (machine_faults.lamps; null/absent = not reported).
  * J1939: `redStop`, `amberWarning`, `protect`, `malfunction` (the emissions/MIL lamp). OBD-II:
  * `malfunction` is the MIL.

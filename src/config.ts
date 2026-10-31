@@ -87,15 +87,42 @@ const TRUCK_VENDOR_KEY: Record<TruckVendor, VendorModeKey> = {
   terminal: 'CONNECTOR_TERMINAL',
 };
 
-/** How an AEMP provider authenticates (AEMP_PROVIDERS[].auth). */
-export const AEMP_AUTH_STYLES = ['none', 'bearer', 'basic', 'oauth2', 'subscription_key'] as const;
+/**
+ * How an AEMP provider authenticates (AEMP_PROVIDERS[].auth; checked against each provider's
+ * docs, Oct 30, 2026):
+ *   none              no credentials (a test server)
+ *   bearer            a static token (Samsara's API token, `Read AEMP` scope)
+ *   basic             username + password (a dealer's ISO 15143-3 credentials, e.g. Kubota)
+ *   oauth2            OAuth 2 token endpoint: client credentials (Trackunit Iris v2), or
+ *                     `grantType: 'password'` with username + password (Trackunit v1)
+ *   deere_oauth       the Deere connection's own user grant (Deere's ISO 15143-3 API at
+ *                     partneraemp.deere.com takes the authorization-code token with scopes
+ *                     `eq1 offline_access`; no extra credentials here)
+ *   subscription_key  only an API-management key header (subscriptionKey)
+ * A `subscriptionKey` may ride along with ANY style (CNH's APIM gateway takes the bearer token AND
+ * `Ocp-Apim-Subscription-Key` on every call).
+ */
+export const AEMP_AUTH_STYLES = [
+  'none',
+  'bearer',
+  'basic',
+  'oauth2',
+  'deere_oauth',
+  'subscription_key',
+] as const;
 export type AempAuthStyle = (typeof AEMP_AUTH_STYLES)[number];
+
+/** Which EquipmentHeader element is the provider's stable machine id (the external_refs id). */
+export const AEMP_ID_ELEMENTS = ['PIN', 'VIN', 'SerialNumber', 'EquipmentID'] as const;
 
 /**
  * One ISO 15143-3 (AEMP 2.0) provider (AEMP_PROVIDERS, a JSON array). The id is lower-case
  * letters and digits (it becomes the external_refs source_org and `aemp_<id>`). Secrets are
  * optional here: sim and replay need none; sandbox/live check the ones `auth` needs
- * (src/connectors/endpoints.ts `aempEndpoints`).
+ * (src/connectors/endpoints.ts `aempEndpoints`). Documented roots: Deere
+ * https://partneraemp.deere.com (sandbox https://sandboxaemp.deere.com, XML), Samsara
+ * https://api.samsara.com/beta/aemp (JSON wrapped in `{"Fleet": …}`), Trackunit
+ * https://iris.trackunit.com/public/api/aemp/v2/15143/-3 (XML or JSON); Kubota: from the dealer.
  */
 export const aempProviderSchema = z.strictObject({
   id: z.string().regex(/^[a-z][a-z0-9]{1,20}$/, 'lower-case letters and digits, 2-21 long'),
@@ -109,12 +136,40 @@ export const aempProviderSchema = z.strictObject({
   clientId: secret,
   clientSecret: secret,
   tokenUrl: httpUrl.optional(),
+  /** `oauth2` only: client_credentials (default) or password (with username and password). */
+  grantType: z.enum(['client_credentials', 'password']).optional(),
   scope: z.string().trim().min(1).optional(),
+  /** An API-management key sent with ANY auth style (CNH: bearer + Ocp-Apim-Subscription-Key). */
   subscriptionKey: secret,
-  /** Header name for `subscription_key` auth (default Ocp-Apim-Subscription-Key). */
+  /** Header name of `subscriptionKey` (default Ocp-Apim-Subscription-Key). */
   subscriptionKeyHeader: z.string().trim().min(1).optional(),
-  /** Response format; `auto` follows Content-Type (Deere's example is XML). */
+  /**
+   * Response format; also what the client asks for (`Accept`): json → application/json; xml and
+   * auto → application/xml, application/json;q=0.9. `auto` parses by Content-Type. Deere and CNH
+   * document XML, Samsara JSON only (it answers 500 to Accept: application/xml).
+   */
   format: z.enum(['auto', 'json', 'xml']).default('auto'),
+  /**
+   * The EquipmentHeader element that names a machine (unset: the first present of PIN, VIN,
+   * SerialNumber, EquipmentID). Samsara: EquipmentID (its SerialNumber may be missing).
+   */
+  idElement: z.enum(AEMP_ID_ELEMENTS).optional(),
+  /**
+   * The provider's fault time series below baseUrl, if it has one, with `{id}`, `{start}`,
+   * `{end}` and `{page}` placeholders (Trackunit: /Fleet/Equipment/ID/{id}/Faults/{start}/{end}/{page}).
+   * Unset: no fault series (Deere and Samsara document none).
+   */
+  faultsPath: z
+    .string()
+    .trim()
+    .regex(/^\/.*\{id\}.*\{page\}/, 'a path with {id} and {page} (and {start}, {end})')
+    .optional(),
+  /**
+   * Poll this provider at most this often (s). Unset: 900. Deere caches its feed for an hour and
+   * asks for no more than hourly (3600); Trackunit allows one request per URL per 15 min (960
+   * leaves room for clock jitter).
+   */
+  minIntervalSeconds: int(60, 86_400).optional(),
 });
 export type AempProviderConfig = z.infer<typeof aempProviderSchema>;
 
@@ -301,10 +356,24 @@ const baseSchema = z.object({
    * for this setting (src/connectors/deere/orgs.ts `deereHomeOrg`).
    */
   DEERE_HOME_ORG_ID: z.string().trim().min(1).max(200).optional(),
+  /**
+   * Deere Operations Center API root when it isn't the documented one (sandbox
+   * https://sandboxapi.deere.com/platform, live https://api.deere.com/platform).
+   */
+  DEERE_API_BASE: httpUrl.optional(),
+  /**
+   * Deere's Equipment API root, where machines are listed (the old /platform machines API is
+   * deprecated). Unset: https://equipmentapi.deere.com/isg, the same host for sandbox and live
+   * apps (Deere's docs).
+   */
+  DEERE_EQUIPMENT_API_BASE: httpUrl.optional(),
   SAMSARA_API_TOKEN: z.string().min(1).optional(),
-  /** Motive company API key (X-Api-Key; a hauler's key, revocable after the job). */
+  /**
+   * Motive company API key (X-Api-Key): a hauler's key from Admin > Developers > API Access,
+   * read-only scoped, optionally Group-scoped to the trucks on our job and set to expire.
+   */
   MOTIVE_API_KEY: z.string().min(1).optional(),
-  /** Motive API root. Unset: https://api.gomotive.com (doc-derived; api.keeptruckin.com is legacy). */
+  /** Motive API root. Unset: https://api.gomotive.com (api.keeptruckin.com is the legacy host). */
   MOTIVE_API_BASE: httpUrl.optional(),
   /** MyGeotab server host (JSON-RPC at https://<server>/apiv1). Unset: my.geotab.com. */
   GEOTAB_SERVER: z
@@ -323,20 +392,43 @@ const baseSchema = z.object({
    * replay the stand-in's providers (cnh, kubota, samsara); in sandbox/live nothing to poll.
    */
   AEMP_PROVIDERS: aempProviders,
-  /** CNH FieldOps OAuth client (identity.cnhind.com; develop.cnh.com app). */
+  /**
+   * CNH FieldOps OAuth client of the develop.cnh.com app FOR THIS ENVIRONMENT (staging = sandbox
+   * mode, production = live; promoting the app to production issues new credentials).
+   */
   CNH_CLIENT_ID: secret,
   CNH_CLIENT_SECRET: secret,
-  /** CNH API subscription key (sent as a header on every call). */
+  /** CNH API subscription key (Ocp-Apim-Subscription-Key on every call; per app and environment). */
   CNH_SUBSCRIPTION_KEY: secret,
-  /** CNH FieldOps API root. Unset: the doc-derived default in src/connectors/endpoints.ts. */
+  /**
+   * CNH FieldOps API root. Unset: https://stg.api-data.cnh.com/v1 (sandbox = staging) or
+   * https://api-data.cnh.com/v1 (live = production).
+   */
   CNH_API_BASE: httpUrl.optional(),
-  /** CNH identity root (…/authorize, …/oauth/token below it). Unset: https://identity.cnhind.com. */
+  /**
+   * CNH identity (Auth0) root: /authorize, /oauth/token, /oauth/revoke below it. Unset:
+   * https://stg.identity.cnhind.com (sandbox) or https://identity.cnhind.com (live).
+   */
   CNH_AUTH_BASE: httpUrl.optional(),
+  /**
+   * The OAuth `audience` /authorize requires. Unset: https://sandbox.api-data.cnh.com/ (sandbox)
+   * or https://api-data.cnh.com/ (live).
+   */
+  CNH_AUDIENCE: z.string().trim().min(1).optional(),
+  /**
+   * The Auth0 `connection` /authorize requires. Unset: STG-ADFS-CONN (sandbox) or PROD-ADFS-CONN
+   * (live) for agriculture; construction accounts use CNHI-OPENID-CON(-PROD).
+   */
+  CNH_CONNECTION: z.string().trim().min(1).optional(),
   /** CNH OAuth callback when it isn't `${PUBLIC_URL}/api/oauth/cnh` (https in production). */
   CNH_REDIRECT_URI: httpUrl.optional(),
-  /** Terminal secret key (Authorization: Bearer). */
+  /** Terminal secret key (Authorization: Bearer sk_…; lists every connection with GET /connections). */
   TERMINAL_SECRET_KEY: secret,
-  /** Terminal connection token (Connection-Token header: one carrier's linked account). */
+  /**
+   * Optional pin to one Terminal connection (Connection-Token header, con_tkn_…). Unset: every
+   * connection `GET /connections?status=connected` lists (one per hauler), each with its own
+   * token.
+   */
   TERMINAL_CONNECTION_TOKEN: secret,
   /** Terminal API root. Unset: sandbox https://api.sandbox.withterminal.com/tsp/v1, live https://api.withterminal.com/tsp/v1. */
   TERMINAL_API_BASE: httpUrl.optional(),
@@ -413,7 +505,7 @@ export function resolveConnectorModes(
       aliasNotes.push({
         keys,
         sets: target,
-        message: `${was} is deprecated: it set ${target}=${c.CONNECTOR_ELD}. Write ${target}=${c.CONNECTOR_ELD} in .env.local and delete ${keys.join(' and ')}.`,
+        message: `${was} is deprecated: it set ${target}=${c.CONNECTOR_ELD}. Write ${target}=${c.CONNECTOR_ELD} in .env.local and delete ${keys.join(' and ')}. It sets that one vendor only: the others keep their own keys (unset: ${fallback}).`,
       });
     } else {
       aliasNotes.push({
@@ -458,6 +550,15 @@ const configSchema = resolvedSchema.superRefine((c, ctx) => {
     });
   }
   const modes: [ConnectorModeKey, Mode][] = CONNECTOR_MODE_KEYS.map((k) => [k, c[k]]);
+  // CNH's telemetry is XML only and the replay transport answers JSON fixtures, and no CNH
+  // recording exists yet: CNH runs in sim (its stand-in) until a staging recording lands.
+  if (c.CONNECTOR_CNH === 'replay') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['CONNECTOR_CNH'],
+      message: "CNH has no replay fixtures: use 'sim' (its stand-in), 'sandbox', 'live' or 'off'",
+    });
+  }
   // The demo cadence never runs in production. Locally it may stay on while a connector is live:
   // tools/clock applies it only to jobs whose connector is sim, replay or off (src/jobs/schedule.ts
   // `demoCadenceApplies`), so a live vendor is always polled at the job's real schedule.

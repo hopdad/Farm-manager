@@ -1,18 +1,25 @@
 /**
- * Vendor endpoints and shapes the connectors use that are NOT yet confirmed against a vendor's
- * live docs or a recorded response (plan §5 "Keeping it honest": marked `// doc-derived, confirm`
- * in code and listed on /admin/connectors). Each entry names where the assumption lives; a
- * conformance run against a sandbox (`pnpm connectors:record`, 1a/1f) removes entries.
+ * Vendor endpoints and shapes the connectors use that are NOT yet confirmed against a recorded
+ * response (plan §5 "Keeping it honest": marked `// doc-derived, confirm` in code and listed on
+ * /admin/connectors). Each entry names where the assumption lives; a conformance run against a
+ * sandbox (`pnpm connectors:record`, 1f) removes entries.
  *
- * Confirmed (Oct 29, 2026, from Samsara's official SDK @samsarahq/samsara 14.11): Samsara
- * `/fleet/vehicles/locations/feed` and `/fleet/vehicles/stats/feed` paths, `after` /
- * `endCursor` / `hasNextPage` paging, location and stat field names, error body.
+ * `basis` (1f.2) tells two kinds apart:
+ *   'spec'  read from the vendor's OWN published spec or docs (an OpenAPI or api.json, an SDK,
+ *           a developer-portal page): only a recorded response is missing;
+ *   'doc'   still doc-derived: the vendor's docs are silent or contradict themselves, or only a
+ *           third party or a search summary says so (the default).
  *
- * Read from Deere's published OpenAPI documents (developer.deere.com dev-docs; the portal's raw
- * specs as mirrored in ProductOfAmerica/deere-sdk specs/raw, fetched by that project Oct 19,
- * 2026) and recorded sandbox responses in RealmFive/my_john_deere_api (1a, for the replay
- * fixtures): the breadcrumb, field, boundary, field-operation, measurement and flag shapes in
- * src/connectors/deere/schemas.ts. Still to confirm against OUR sandbox org (below).
+ * Checked against the vendors' official docs and specs on Oct 30, 2026 (network open): Deere's
+ * developer portal and its spec feed (developer.deere.com/devDoc/apiDetails), the Okta discovery
+ * document; Samsara's OpenAPI (developers.samsara.com/openapi/samsara-api.json) and SDK; Motive's
+ * OpenAPI 3.1; MyGeotab's api.json; the ISO 15143-3 edition-1 XSDs, Trackunit's and Samsara's
+ * AEMP specs; CNH's FieldOps OpenAPI (SwaggerHub CNH/FieldOps-API 1.0.0); Terminal's OpenAPI 3.1.
+ * Confirmed then and dropped from this list: Samsara's feed paths, cursor paging, field names,
+ * 4xx error body and webhook signature; Deere's OAuth issuer and paths, `ag2` for field
+ * operations, the Equipment API host, `principalId` breadcrumbs, `pageOffset`/`itemLimit` paging,
+ * the Connections rels and its webhook scheme; Motive's host and webhook signature; Terminal's
+ * hosts.
  */
 import { AEMP_DOC_DERIVED } from './aemp/doc-derived';
 import { CNH_DOC_DERIVED } from './cnh/doc-derived';
@@ -35,61 +42,92 @@ export interface DocDerivedItem {
   confirm: string;
   /** Where the assumption lives. */
   file: string;
+  /**
+   * 1f.2: 'spec' = from the vendor's own published spec or docs, waiting only for a recorded
+   * response; 'doc' (default) = still doc-derived (docs silent or contradictory, a third party).
+   */
+  basis?: 'spec' | 'doc';
 }
 
 export const DOC_DERIVED: readonly DocDerivedItem[] = [
   {
     source: 'deere',
-    what: 'https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/{authorize,token}',
-    confirm: 'issuer path, scopes (offline_access eq1 org1 ag1), whether refresh tokens rotate',
-    file: 'src/connectors/deere/schemas.ts, src/connectors/endpoints.ts',
+    what: 'OAuth refresh: https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/v1/token (refresh_token grant)',
+    confirm:
+      'whether a refresh returns a new refresh token (Deere describes a long-lived one, 365 days idle), and whether it needs redirect_uri and scope; that a grant with offline_access ag1 ag2 eq1 sees every endpoint we call',
+    file: 'src/connectors/deere/oauth.ts, src/connectors/deere/schemas.ts (DEERE_SCOPES)',
+    basis: 'spec',
   },
   {
     source: 'deere',
-    what: 'GET {sandboxapi|partnerapi}.deere.com/platform/organizations, /organizations/{id}/machines',
+    what: 'GET https://equipmentapi.deere.com/isg/equipment?organizationIds=&categories=Machine&capableOf=Connectivity (Accept: application/json)',
     confirm:
-      'Equipment API replacement paths, Accept application/vnd.deere.axiom.v3+json, nextPage links',
+      "whether its nextPage links are absolute or relative (the spec says relative, its example absolute; the client resolves both), whether it refuses the platform's axiom Accept type, the real isgType names (GET /equipmentISGTypes?category=machine), principalId as a string or an integer",
+    file: 'src/connectors/deere/client.ts (machines), src/connectors/deere/schemas.ts',
+    basis: 'spec',
+  },
+  {
+    source: 'deere',
+    what: 'the deprecated GET /platform/organizations/{orgId}/machines (not called since 1f.2)',
+    confirm:
+      'nothing to confirm for the app: Deere began deprecating it in January 2025 with no published shut-off date; the Equipment API replaces it',
     file: 'src/connectors/deere/client.ts',
+    basis: 'spec',
   },
   {
     source: 'deere',
-    what: "Deere's Equipment API host (equipmentapi.deere.com/isg/…), the replacement for the /platform machines paths",
+    what: 'GET /platform/machines/{principalId}/breadcrumbs?startDate&endDate&itemLimit=100',
     confirm:
-      '1f reads equipment from GET /platform/organizations/{orgId}/machines (equipmentType, equipmentMake, equipmentModel names) and engine hours from GET /platform/machines/{id}/engineHours; if our app must use the Equipment API host instead, sync-health adds an equipmentBase to DeereEndpoints and the stand-in serves it (docs/contracts-1f.md §7.1)',
-    file: 'src/connectors/endpoints.ts, src/connectors/deere/client.ts, src/sim/vendors/deere/routes.ts',
+      "whether startDate/endDate are inclusive (the client filters to its window), the meaning of machineState.rawState (Deere's own example sends {rawState:1}), the real breadcrumb cadence, whether itemLimit above 10 is honoured on breadcrumbs",
+    file: 'src/connectors/deere/schemas.ts, src/connectors/deere/client.ts',
+    basis: 'spec',
   },
   {
     source: 'deere',
-    what: 'GET /platform/machines/{principalId}/breadcrumbs?startDate&endDate',
+    what: 'GET /platform/organizations/{orgId}/fields, /boundaries, /fields/{fieldId}/boundaries, /fields/{fieldId}/fieldOperations (scope ag2), /fieldOperations/{id}/measurementTypes, /organizations/{orgId}/flags',
     confirm:
-      'shapes are from the Machine Locations OpenAPI (speed {valueAsDouble, unit km1hr-1}, heading {valueAsInteger}, machineState {value}); confirm units as our org sends them, page size, whether startDate/endDate are inclusive (the client filters to its window); the stand-in sends these shapes since M1',
-    file: 'src/connectors/deere/schemas.ts, src/sim/vendors/deere/routes.ts',
-  },
-  {
-    source: 'deere',
-    what: 'GET /platform/organizations/{orgId}/fields, /boundaries, /fields/{fieldId}/boundaries, /fields/{fieldId}/fieldOperations, /fieldOperations/{id}/measurementTypes, /organizations/{orgId}/flags',
-    confirm:
-      'documented paths and shapes used by the replay fixtures (1a) and the 1f syncs: confirm with `pnpm connectors:record` (embed parameters, paging sizes, unit ids, flag geometry string vs object)',
+      "unit ids as our org's unit preference sends them; archived boundaries, fields and flags need recordFilter=all; whether fieldOperationType is case-sensitive",
     file: 'src/connectors/deere/schemas.ts, src/connectors/deere/fixtures/build.ts',
+    basis: 'spec',
   },
   {
     source: 'deere',
-    what: 'GET /platform/fieldOperations/{operationId}/boundary (operation coverage)',
+    what: 'GET /platform/fieldOperations/{operationId}/boundary (operation coverage, scope ag2)',
     confirm:
-      'Deere answers 400 when the field already has an active boundary; confirm, and read coverage from the shapefile (GET /fieldOps/{id}?shapeType=Polygon) at 1f where it does',
+      'Deere answers 400 when the field has an active boundary (and for merged fields); the alternative is GET /fieldOps/{id}?shapeType=Polygon (202 poll, 307 to a pre-signed URL, a zipped shapefile; 406 for tillage)',
     file: 'src/connectors/deere/client.ts',
+    basis: 'spec',
   },
   {
     source: 'deere',
-    what: 'webhook body eventTypeId=subscriptionVerification; X-Deere-Signature',
-    confirm: 'verification event shape and Deere webhook signing',
-    file: 'src/connectors/webhooks.ts',
+    what: 'organizations: `connections` (needs approval) vs `manage_connections` / `manage_connection` (connected) links; a 403 with x-deere-terms-location',
+    confirm:
+      'which rels a connected org carries (both manage spellings appear in the docs), whether partner (customer) orgs list with member: false, the terms-location 403 in practice',
+    file: 'src/connectors/deere/orgs.ts',
+    basis: 'spec',
+  },
+  {
+    source: 'deere',
+    what: 'Deere ISO 15143-3: https://partneraemp.deere.com/Fleet/{page} (sandbox https://sandboxaemp.deere.com), the Deere user grant (eq1 offline_access)',
+    confirm:
+      'whether Accept: application/json is served (only XML is documented); a Locations or fault series (only /Fleet is documented)',
+    file: 'src/config.ts (AEMP_PROVIDERS, auth deere_oauth), src/connectors/endpoints.ts',
+    basis: 'spec',
   },
   {
     source: 'samsara',
-    what: 'X-Samsara-Signature v1=HMAC-SHA256(base64 secret, "v1:<ts>:<body>")',
-    confirm: 'webhook signature scheme and timestamp header',
-    file: 'src/connectors/webhooks.ts',
+    what: 'faultCodes stat type: OBD-II codes per module (txId); the oem block',
+    confirm:
+      'whether one OBD-II reading carries every module or only those that reported (decides whether "absent = cleared" is safe across modules); when faultCodes.oem is filled (OEM vehicles?) and what codeSeverity values mean',
+    file: 'src/connectors/samsara (fleet-faults: the faults stream)',
+    basis: 'spec',
+  },
+  {
+    source: 'samsara',
+    what: 'error bodies: {message, requestId} on 4xx, a plain string on 5xx; Retry-After in fractional seconds',
+    confirm: 'nothing beyond a recording: both are documented (the 5xx string is read leniently)',
+    file: 'src/connectors/http.ts (errorDetail, parseRetryAfter)',
+    basis: 'spec',
   },
   // NWS (1b): api.weather.gov was unreachable from the build machine; one live run confirms.
   ...NWS_DOC_DERIVED,

@@ -120,19 +120,14 @@ describe('Deere mapping', () => {
 });
 
 describe('Motive mapping (placeholder)', () => {
-  test('current location → ELD position', () => {
+  test("current location → ELD position: v1/v2 `speed` is mph; v3's `kph` converts", () => {
+    const loc = { lat: 41.9, lon: -84, bearing: 180, located_at: '2026-10-15T14:00:00Z' };
     expect(
-      mapMotivePosition({
-        id: '42',
-        number: 'S1',
-        location: {
-          lat: 41.9,
-          lon: -84,
-          bearing: 180,
-          kph: 80.5,
-          located_at: '2026-10-15T14:00:00Z',
-        },
-      })[0],
-    ).toMatchObject({ source: 'motive', externalMachineId: '42', heading: 180, speedMph: 50 });
+      mapMotivePosition({ id: '42', number: 'S1', location: { ...loc, speed: 65.1 } })[0],
+    ).toMatchObject({ source: 'motive', externalMachineId: '42', heading: 180, speedMph: 65.1 });
+    expect(
+      mapMotivePosition({ id: '42', number: 'S1', location: { ...loc, kph: 80.5 } })[0]?.speedMph,
+    ).toBe(50);
+    expect(mapMotivePosition({ id: '42', number: 'S1', location: loc })[0]?.speedMph).toBeNull();
   });
 });

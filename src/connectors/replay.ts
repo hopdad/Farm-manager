@@ -23,9 +23,13 @@
  * MATCHING: the transport never touches the network, whatever host a URL names (doc-derived
  * `nextPage` links can keep the vendor's real host). A request matches an exchange when the
  * method is equal, the URL path (minus the fixture's `basePath`, if it starts with it) equals
- * `request.path`, and every key in `request.query` has that exact value (other query
- * parameters, such as cursors and time windows, are ignored). First match wins; none -> 404
- * `{ message: 'replay: no fixture for …' }`.
+ * `request.path`, every key in `request.query` has that exact value (other query parameters,
+ * such as cursors and time windows, are ignored), and, when the exchange names a
+ * `request.body`, the request's JSON body contains it (1f.2: JSON-RPC APIs such as MyGeotab
+ * post every call to one path, told apart only by `method` and `params.typeName`; objects match
+ * as a subset, arrays and values whole). First match wins; none -> 404
+ * `{ message: 'replay: no fixture for …' }`. Bodies are JSON only: an XML API (ISO 15143-3) is
+ * exercised through its stand-in and its parser's unit tests, not replay.
  *
  * TIME-SHIFTING RULE: a fixture was written for one instant, its `anchor`. Replayed at wall
  * time `now`, every instant in the response body moves by
@@ -57,6 +61,11 @@ export interface ReplayExchange {
     path: string;
     /** Query parameters that must match exactly (others are ignored). */
     query?: Record<string, string>;
+    /**
+     * A subset the request's JSON body must contain (objects by key, arrays and values whole),
+     * e.g. MyGeotab `{ method: 'GetFeed', params: { typeName: 'LogRecord' } }`.
+     */
+    body?: Record<string, unknown>;
   };
   response: {
     status: number;
@@ -89,7 +98,18 @@ const rfc3339 = z.iso.datetime({ offset: true });
 
 export const replayFixtureSchema = z.strictObject({
   format: z.literal(1),
-  source: z.enum(['deere', 'samsara', 'motive', 'nws', 'qbo', 'bushel', 'drone']),
+  source: z.enum([
+    'deere',
+    'samsara',
+    'motive',
+    'nws',
+    'qbo',
+    'bushel',
+    'drone',
+    'geotab',
+    'aemp',
+    'terminal',
+  ]),
   stream: z.string().regex(/^[a-z][a-z0-9_.-]*$/),
   kind: z.enum(['doc-derived', 'recorded']),
   reference: z.string().min(1),
@@ -104,6 +124,7 @@ export const replayFixtureSchema = z.strictObject({
           method: z.enum(['GET', 'POST']),
           path: z.string().startsWith('/'),
           query: z.record(z.string(), z.string()).optional(),
+          body: z.record(z.string(), z.unknown()).optional(),
         }),
         response: z.strictObject({
           status: z.number().int().min(100).max(599),
@@ -193,17 +214,40 @@ export interface ReplayFetchOptions {
   now?: () => Date;
 }
 
-function requestParts(input: string | URL | Request, init?: RequestInit) {
+async function requestParts(input: string | URL | Request, init?: RequestInit) {
   const url = new URL(input instanceof Request ? input.url : String(input));
   const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
-  return { url, method };
+  let text: string | null = null;
+  if (typeof init?.body === 'string') text = init.body;
+  else if (init?.body instanceof URLSearchParams) text = init.body.toString();
+  else if (input instanceof Request && method !== 'GET') text = await input.clone().text();
+  let body: unknown;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = undefined; // not JSON: only exchanges that name no body match
+    }
+  }
+  return { url, method, body };
 }
 
-/** Find the first exchange that answers `method url` (see MATCHING above). */
+/** Does `got` contain `want` (objects by key, recursively; arrays and values whole)? */
+export function containsJson(got: unknown, want: unknown): boolean {
+  if (want && typeof want === 'object' && !Array.isArray(want)) {
+    if (!got || typeof got !== 'object' || Array.isArray(got)) return false;
+    const g = got as Record<string, unknown>;
+    return Object.entries(want).every(([k, v]) => containsJson(g[k], v));
+  }
+  return JSON.stringify(got) === JSON.stringify(want);
+}
+
+/** Find the first exchange that answers `method url` (and `body`, see MATCHING above). */
 export function matchExchange(
   fixtures: readonly ReplayFixture[],
   method: string,
   url: URL,
+  body?: unknown,
 ): { fixture: ReplayFixture; exchange: ReplayExchange } | null {
   for (const fixture of fixtures) {
     let path = url.pathname;
@@ -218,9 +262,9 @@ export function matchExchange(
       const r = exchange.request;
       if (r.method !== method || r.path !== path) continue;
       const q = r.query ?? {};
-      if (Object.entries(q).every(([k, v]) => url.searchParams.get(k) === v)) {
-        return { fixture, exchange };
-      }
+      if (!Object.entries(q).every(([k, v]) => url.searchParams.get(k) === v)) continue;
+      if (r.body && !containsJson(body, r.body)) continue;
+      return { fixture, exchange };
     }
   }
   return null;
@@ -236,8 +280,8 @@ export function createReplayFetch(
 ): typeof fetch {
   const now = opts.now ?? (() => new Date());
   return async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    const { url, method } = requestParts(input, init);
-    const hit = matchExchange(fixtures, method, url);
+    const { url, method, body: sent } = await requestParts(input, init);
+    const hit = matchExchange(fixtures, method, url, sent);
     if (!hit) {
       return Response.json(
         { message: `replay: no fixture for ${method} ${url.pathname}` },

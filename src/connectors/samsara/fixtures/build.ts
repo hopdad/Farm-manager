@@ -75,7 +75,6 @@ function page(world: DemoWorld, k: number) {
             longitude: r6(s.lng),
             heading: r1(s.heading),
             speed: r1(Math.max(0, s.speedMph)),
-            isEcuSpeed: false,
           },
         ],
       },

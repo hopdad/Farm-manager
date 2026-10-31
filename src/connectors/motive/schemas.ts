@@ -1,12 +1,15 @@
 /**
- * Motive (formerly KeepTruckin) shapes: a THIN placeholder until D3 picks the ELD vendor
- * (plan §5: "Motive: vehicle locations API plus webhooks (paths to confirm)").
+ * Motive (formerly KeepTruckin) shapes: the 1a placeholder the 1f.2 trucks builder grows
+ * (docs/contracts-1f.md part B). Confirmed from Motive's official OpenAPI 3.1 and
+ * developer-docs.gomotive.com (Oct 30, 2026):
  *
- *   GET https://api.gomotive.com/v1/vehicle_locations?per_page=&page_no=   // doc-derived, confirm
- *   X-Api-Key: <key>                                                        // doc-derived, confirm
+ *   GET https://api.gomotive.com/v1/vehicle_locations?per_page=&page_no=   (per_page ≤ 100)
+ *   X-Api-Key: <key>      X-Metric-Units: false (imperial: mph, miles; the default is ambiguous)
  *
- * Only the current location of each vehicle is read; history, webhooks and HOS arrive with the
- * vendor decision. Shared by the client and the stand-in (src/sim/vendors/motive).
+ * v1/v2 send `speed` in MILES PER HOUR (and the stats: true_engine_hours, true_odometer,
+ * fuel_primary_remaining_percentage); only v3 (Motive Vehicle Gateway units) sends `kph`.
+ * Only the current location of each vehicle is read here. Shared by the client and the stand-in
+ * (src/sim/vendors/motive).
  */
 import { z } from 'zod';
 
@@ -16,9 +19,11 @@ const id = z.union([z.string().min(1), z.number().int()]).transform((v) => Strin
 export const motiveLocationSchema = z.looseObject({
   lat: z.number().min(-90).max(90),
   lon: z.number().min(-180).max(180),
-  /** Degrees. // doc-derived, confirm */
+  /** Degrees (an integer in v1, nullable in v3). */
   bearing: z.number().nullish(),
-  /** km/h. // doc-derived, confirm */
+  /** v1/v2: miles per hour (with X-Metric-Units: false). */
+  speed: z.number().nullish(),
+  /** v3 only (Vehicle Gateway units): km/h. */
   kph: z.number().nullish(),
   located_at: z.iso.datetime({ offset: true }),
   description: z.string().nullish(),

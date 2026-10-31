@@ -11,7 +11,8 @@ export const VEHICLES_DOC_DERIVED: readonly DocDerivedItem[] = [
     source: 'samsara',
     what: 'Ford Pro and Stellantis vehicles on the same /fleet/vehicles feeds (src/connectors/vendors.ts ford_pro, stellantis)',
     confirm:
-      'which stats a carmaker-sourced pickup fills (engine hours, odometer, faultCodes), its GPS cadence, how the vehicle record says it is carmaker-sourced (the via), Ford eligibility (MY2020+, keyed on in the last 7 days) and the US Stellantis status',
+      "which stats a carmaker-sourced pickup fills (engine hours, odometer, faultCodes: Samsara's API docs are silent and its KB how-tos are blocked; Stellantis sends no engine hours through Motive or Geotab), its GPS cadence, how the vehicle record says it is carmaker-sourced (the via: no gateway, make), Ford eligibility (MY2020+) and the US Stellantis status",
     file: 'src/connectors/vendors.ts, src/sim/vendors/samsara/routes.ts',
+    basis: 'doc',
   },
 ];

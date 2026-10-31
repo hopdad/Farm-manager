@@ -1,9 +1,12 @@
 /**
- * Motive client: THIN placeholder until D3 (plan §5). Reads each vehicle's current location
- * (no history feed), so the cursor is the newest `located_at` seen PER VEHICLE (JSON
- * `{"<vehicle id>":"<iso>"}`); a vehicle's location at or before its own watermark is skipped.
- * (One global watermark would drop every truck whose ELD reports a little later than the
- * fastest one.) Enough for CONNECTOR_MOTIVE=sim to put Motive's vehicles on the board.
+ * Motive client: the 1a placeholder (the trucks builder grows it, docs/contracts-1f.md part B;
+ * `MotiveClient.forMode`, `pollPositions` with `items[].externalId`, and `mapMotivePosition`
+ * are frozen: tools/vendor-sim/connect.ts and src/connectors/mappers.test.ts use them). Reads
+ * each vehicle's current location from GET /v1/vehicle_locations (no history feed), so the
+ * cursor is the newest `located_at` seen PER VEHICLE (JSON `{"<vehicle id>":"<iso>"}`); a
+ * vehicle's location at or before its own watermark is skipped. (One global watermark would
+ * drop every truck whose ELD reports a little later than the fastest one.) Asks for imperial
+ * units (`X-Metric-Units: false`) and reads v1's `speed` in mph (`kph` is v3's).
  */
 
 import { normalizeHeading } from '../../domain/fleet';
@@ -37,7 +40,12 @@ export function mapMotivePosition(raw: unknown): NormalizedPosition[] {
       lng: l.lon,
       lat: l.lat,
       heading: l.bearing == null ? null : normalizeHeading(l.bearing),
-      speedMph: l.kph == null ? null : Math.max(0, Math.round((l.kph / KMH_PER_MPH) * 10) / 10),
+      speedMph:
+        l.speed != null
+          ? Math.max(0, l.speed)
+          : l.kph != null
+            ? Math.max(0, Math.round((l.kph / KMH_PER_MPH) * 10) / 10)
+            : null,
       engineOn: null,
       positionSource: 'eld',
     },
@@ -96,7 +104,11 @@ export class MotiveClient {
         u.toString(),
         {
           method: 'GET',
-          headers: { 'x-api-key': this.endpoint.apiKey, accept: 'application/json' },
+          headers: {
+            'x-api-key': this.endpoint.apiKey,
+            'x-metric-units': 'false',
+            accept: 'application/json',
+          },
         },
         { ...this.http, vendor: 'motive' },
       );

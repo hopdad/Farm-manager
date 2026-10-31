@@ -28,8 +28,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845576,
                   "heading": 247.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -42,8 +41,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -56,8 +54,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -70,8 +67,7 @@
                   "latitude": 41.889423,
                   "longitude": -83.802177,
                   "heading": 157.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -104,8 +100,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845576,
                   "heading": 247.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -118,8 +113,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -132,8 +126,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -146,8 +139,7 @@
                   "latitude": 41.889423,
                   "longitude": -83.802177,
                   "heading": 157.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -180,8 +172,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845576,
                   "heading": 247.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -194,8 +185,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -208,8 +198,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -222,8 +211,7 @@
                   "latitude": 41.889423,
                   "longitude": -83.802177,
                   "heading": 157.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -256,8 +244,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845576,
                   "heading": 247.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -270,8 +257,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -284,8 +270,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -298,8 +283,7 @@
                   "latitude": 41.889423,
                   "longitude": -83.802177,
                   "heading": 157.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -332,8 +316,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845576,
                   "heading": 247.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -346,8 +329,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -360,8 +342,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -374,8 +355,7 @@
                   "latitude": 41.889423,
                   "longitude": -83.802177,
                   "heading": 157.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -408,8 +388,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -422,8 +401,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -436,8 +414,7 @@
                   "latitude": 41.873847,
                   "longitude": -83.84273,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -450,8 +427,7 @@
                   "latitude": 41.889423,
                   "longitude": -83.802177,
                   "heading": 157.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -484,8 +460,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -498,8 +473,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -512,8 +486,7 @@
                   "latitude": 41.869649,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -526,8 +499,7 @@
                   "latitude": 41.889423,
                   "longitude": -83.802177,
                   "heading": 157.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -560,8 +532,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -574,8 +545,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.797786,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -588,8 +558,7 @@
                   "latitude": 41.864214,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -602,8 +571,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 0,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -636,8 +604,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -650,8 +617,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.790512,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -664,8 +630,7 @@
                   "latitude": 41.858778,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -678,8 +643,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 0,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -712,8 +676,7 @@
                   "latitude": 41.873847,
                   "longitude": -83.841518,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -726,8 +689,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.783237,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -740,8 +702,7 @@
                   "latitude": 41.853342,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -754,8 +715,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 0,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -788,8 +748,7 @@
                   "latitude": 41.868744,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -802,8 +761,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.775963,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -816,8 +774,7 @@
                   "latitude": 41.847907,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -830,8 +787,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 0,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -864,8 +820,7 @@
                   "latitude": 41.863308,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -878,8 +833,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.768688,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -892,8 +846,7 @@
                   "latitude": 41.842471,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -906,8 +859,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.799483,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -940,8 +892,7 @@
                   "latitude": 41.857872,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -954,8 +905,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.761414,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -968,8 +918,7 @@
                   "latitude": 41.837035,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -982,8 +931,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.792209,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -1016,8 +964,7 @@
                   "latitude": 41.852437,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1030,8 +977,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.75414,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1044,8 +990,7 @@
                   "latitude": 41.8316,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1058,8 +1003,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.784935,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -1092,8 +1036,7 @@
                   "latitude": 41.847001,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1106,8 +1049,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.746865,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1120,8 +1062,7 @@
                   "latitude": 41.83038,
                   "longitude": -83.846711,
                   "heading": 270,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1134,8 +1075,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.77766,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -1168,8 +1108,7 @@
                   "latitude": 41.841565,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1182,8 +1121,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.739591,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1196,8 +1134,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.847572,
                   "heading": 90,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -1210,8 +1147,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.770386,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -1244,8 +1180,7 @@
                   "latitude": 41.836129,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1258,8 +1193,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.732317,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1272,8 +1206,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846603,
                   "heading": 90,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -1286,8 +1219,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.763111,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -1320,8 +1252,7 @@
                   "latitude": 41.830694,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1334,8 +1265,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.725042,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1348,8 +1278,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1362,8 +1291,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.755837,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -1396,8 +1324,7 @@
                   "latitude": 41.83038,
                   "longitude": -83.847922,
                   "heading": 270,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1410,8 +1337,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.717768,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1424,8 +1350,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1438,8 +1363,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.748563,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -1472,8 +1396,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.847701,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -1486,8 +1409,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.710493,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -1500,8 +1422,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1514,8 +1435,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.741288,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -1548,8 +1468,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.847217,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -1562,8 +1481,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.708976,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -1576,8 +1494,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1590,8 +1507,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.734014,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -1624,8 +1540,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846732,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -1638,8 +1553,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.708491,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -1652,8 +1566,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1666,8 +1579,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.72674,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -1700,8 +1612,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1714,8 +1625,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.708006,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -1728,8 +1638,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1742,8 +1651,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.719465,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -1776,8 +1684,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1790,8 +1697,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1804,8 +1710,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1818,8 +1723,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.712191,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             }
@@ -1852,8 +1756,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1866,8 +1769,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1880,8 +1782,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1894,8 +1795,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.709089,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             }
@@ -1928,8 +1828,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1942,8 +1841,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1956,8 +1854,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -1970,8 +1867,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.708604,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             }
@@ -2004,8 +1900,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2018,8 +1913,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2032,8 +1926,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2046,8 +1939,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.708119,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             }
@@ -2080,8 +1972,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2094,8 +1985,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2108,8 +1998,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2122,8 +2011,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707855,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -2156,8 +2044,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2170,8 +2057,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2184,8 +2070,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2198,8 +2083,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707855,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -2232,8 +2116,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2246,8 +2129,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2260,8 +2142,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2274,8 +2155,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707855,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -2308,8 +2188,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2322,8 +2201,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2336,8 +2214,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2350,8 +2227,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707855,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -2384,8 +2260,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2398,8 +2273,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2412,8 +2286,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2426,8 +2299,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707855,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -2460,8 +2332,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2474,8 +2345,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2488,8 +2358,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2502,8 +2371,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707855,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -2536,8 +2404,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2550,8 +2417,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2564,8 +2430,7 @@
                   "latitude": 41.830742,
                   "longitude": -83.845772,
                   "heading": 0,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -2578,8 +2443,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707855,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -2612,8 +2476,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2626,8 +2489,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2640,8 +2502,7 @@
                   "latitude": 41.83146,
                   "longitude": -83.84578,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -2654,8 +2515,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707855,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -2688,8 +2548,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2702,8 +2561,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2716,8 +2574,7 @@
                   "latitude": 41.83146,
                   "longitude": -83.84675,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -2730,8 +2587,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707855,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -2764,8 +2620,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2778,8 +2633,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2792,8 +2646,7 @@
                   "latitude": 41.83146,
                   "longitude": -83.847719,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -2806,8 +2659,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707645,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             }
@@ -2840,8 +2692,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2854,8 +2705,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2868,8 +2718,7 @@
                   "latitude": 41.831126,
                   "longitude": -83.848241,
                   "heading": 180,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -2882,8 +2731,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -2916,8 +2764,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2930,8 +2777,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -2944,8 +2790,7 @@
                   "latitude": 41.830401,
                   "longitude": -83.848241,
                   "heading": 180,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -2958,8 +2803,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -2992,8 +2836,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3006,8 +2849,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3020,8 +2862,7 @@
                   "latitude": 41.83038,
                   "longitude": -83.842176,
                   "heading": 90,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -3034,8 +2875,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -3068,8 +2908,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3082,8 +2921,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3096,8 +2934,7 @@
                   "latitude": 41.835595,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -3110,8 +2947,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -3144,8 +2980,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3158,8 +2993,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3172,8 +3006,7 @@
                   "latitude": 41.841635,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -3186,8 +3019,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -3220,8 +3052,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3234,8 +3065,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3248,8 +3078,7 @@
                   "latitude": 41.847675,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -3262,8 +3091,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -3296,8 +3124,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3310,8 +3137,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3324,8 +3150,7 @@
                   "latitude": 41.853714,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -3338,8 +3163,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -3372,8 +3196,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3386,8 +3209,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3400,8 +3222,7 @@
                   "latitude": 41.859754,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -3414,8 +3235,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -3448,8 +3268,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.845972,
                   "heading": 90,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -3462,8 +3281,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3476,8 +3294,7 @@
                   "latitude": 41.865794,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -3490,8 +3307,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -3524,8 +3340,7 @@
                   "latitude": 41.831225,
                   "longitude": -83.845772,
                   "heading": 0,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -3538,8 +3353,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3552,8 +3366,7 @@
                   "latitude": 41.871833,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -3566,8 +3379,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -3600,8 +3412,7 @@
                   "latitude": 41.83146,
                   "longitude": -83.846426,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -3614,8 +3425,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3628,8 +3438,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3642,8 +3451,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.70759,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -3676,8 +3484,7 @@
                   "latitude": 41.83146,
                   "longitude": -83.847396,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -3690,8 +3497,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707195,
                   "heading": 90,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -3704,8 +3510,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3718,8 +3523,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707493,
                   "heading": 90,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             }
@@ -3752,8 +3556,7 @@
                   "latitude": 41.831368,
                   "longitude": -83.848241,
                   "heading": 180,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -3766,8 +3569,7 @@
                   "latitude": 41.889158,
                   "longitude": -83.706963,
                   "heading": 0,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -3780,8 +3582,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3794,8 +3595,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -3828,8 +3628,7 @@
                   "latitude": 41.830643,
                   "longitude": -83.848241,
                   "heading": 180,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -3842,8 +3641,7 @@
                   "latitude": 41.889417,
                   "longitude": -83.707586,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -3856,8 +3654,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -3870,8 +3667,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -3904,8 +3700,7 @@
                   "latitude": 41.83038,
                   "longitude": -83.844867,
                   "heading": 90,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -3918,8 +3713,7 @@
                   "latitude": 41.889417,
                   "longitude": -83.708556,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -3932,8 +3726,7 @@
                   "latitude": 41.873847,
                   "longitude": -83.842488,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -3946,8 +3739,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -3980,8 +3772,7 @@
                   "latitude": 41.833582,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -3994,8 +3785,7 @@
                   "latitude": 41.889349,
                   "longitude": -83.709434,
                   "heading": 180,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -4008,8 +3798,7 @@
                   "latitude": 41.869468,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -4022,8 +3811,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4056,8 +3844,7 @@
                   "latitude": 41.839622,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4070,8 +3857,7 @@
                   "latitude": 41.888624,
                   "longitude": -83.709434,
                   "heading": 180,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -4084,8 +3870,7 @@
                   "latitude": 41.864033,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -4098,8 +3883,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4132,8 +3916,7 @@
                   "latitude": 41.845662,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4146,8 +3929,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.712059,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4160,8 +3942,7 @@
                   "latitude": 41.858597,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -4174,8 +3955,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4208,8 +3988,7 @@
                   "latitude": 41.851701,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4222,8 +4001,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.720142,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4236,8 +4014,7 @@
                   "latitude": 41.853161,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -4250,8 +4027,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4284,8 +4060,7 @@
                   "latitude": 41.857741,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4298,8 +4073,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.728224,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4312,8 +4086,7 @@
                   "latitude": 41.847726,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -4326,8 +4099,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4360,8 +4132,7 @@
                   "latitude": 41.86378,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4374,8 +4145,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.736307,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4388,8 +4158,7 @@
                   "latitude": 41.84229,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -4402,8 +4171,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4436,8 +4204,7 @@
                   "latitude": 41.86982,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4450,8 +4217,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.74439,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4464,8 +4230,7 @@
                   "latitude": 41.836854,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -4478,8 +4243,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4512,8 +4276,7 @@
                   "latitude": 41.873847,
                   "longitude": -83.843767,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4526,8 +4289,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.752472,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4540,8 +4302,7 @@
                   "latitude": 41.831419,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -4554,8 +4315,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4588,8 +4348,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -4602,8 +4361,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.760555,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4616,8 +4374,7 @@
                   "latitude": 41.83038,
                   "longitude": -83.846953,
                   "heading": 270,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -4630,8 +4387,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4664,8 +4420,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -4678,8 +4433,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.768638,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4692,8 +4446,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.847766,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -4706,8 +4459,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4740,8 +4492,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -4754,8 +4505,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.77672,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4768,8 +4518,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.847281,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -4782,8 +4531,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4816,8 +4564,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -4830,8 +4577,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.784803,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4844,8 +4590,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846797,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -4858,8 +4603,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4892,8 +4636,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -4906,8 +4649,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.792885,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4920,8 +4662,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -4934,8 +4675,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -4968,8 +4708,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -4982,8 +4721,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.800968,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -4996,8 +4734,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5010,8 +4747,7 @@
                   "latitude": 41.888916,
                   "longitude": -83.706963,
                   "heading": 0,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             }
@@ -5044,8 +4780,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5058,8 +4793,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5072,8 +4806,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5086,8 +4819,7 @@
                   "latitude": 41.889417,
                   "longitude": -83.707263,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             }
@@ -5120,8 +4852,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5134,8 +4865,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5148,8 +4878,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5162,8 +4891,7 @@
                   "latitude": 41.889417,
                   "longitude": -83.708233,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             }
@@ -5196,8 +4924,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5210,8 +4937,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5224,8 +4950,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5238,8 +4963,7 @@
                   "latitude": 41.889417,
                   "longitude": -83.709202,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             }
@@ -5272,8 +4996,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5286,8 +5009,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5300,8 +5022,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5314,8 +5035,7 @@
                   "latitude": 41.888866,
                   "longitude": -83.709434,
                   "heading": 180,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             }
@@ -5348,8 +5068,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5362,8 +5081,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5376,8 +5094,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5390,8 +5107,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.709365,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             }
@@ -5424,8 +5140,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5438,8 +5153,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5452,8 +5166,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5466,8 +5179,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.717447,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             }
@@ -5500,8 +5212,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5514,8 +5225,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5528,8 +5238,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5542,8 +5251,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.72553,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             }
@@ -5576,8 +5284,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5590,8 +5297,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.801666,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -5604,8 +5310,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5618,8 +5323,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.733613,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             }
@@ -5652,8 +5356,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5666,8 +5369,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.794391,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -5680,8 +5382,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5694,8 +5395,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.741695,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             }
@@ -5728,8 +5428,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5742,8 +5441,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.787117,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -5756,8 +5454,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5770,8 +5467,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.749778,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             }
@@ -5804,8 +5500,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5818,8 +5513,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.779842,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -5832,8 +5526,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5846,8 +5539,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.757861,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             }
@@ -5880,8 +5572,7 @@
                   "latitude": 41.873839,
                   "longitude": -83.845311,
                   "heading": 0,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -5894,8 +5585,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.772568,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -5908,8 +5598,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5922,8 +5611,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.765943,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             }
@@ -5956,8 +5644,7 @@
                   "latitude": 41.871643,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -5970,8 +5657,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.765294,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -5984,8 +5670,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -5998,8 +5683,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.774026,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             }
@@ -6032,8 +5716,7 @@
                   "latitude": 41.866207,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6046,8 +5729,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.758019,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6060,8 +5742,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6074,8 +5755,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.782109,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             }
@@ -6108,8 +5788,7 @@
                   "latitude": 41.860771,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6122,8 +5801,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.750745,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6136,8 +5814,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6150,8 +5827,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.790191,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             }
@@ -6184,8 +5860,7 @@
                   "latitude": 41.855336,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6198,8 +5873,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.743471,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6212,8 +5886,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6226,8 +5899,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.798274,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             }
@@ -6260,8 +5932,7 @@
                   "latitude": 41.8499,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6274,8 +5945,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.736196,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6288,8 +5958,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6302,8 +5971,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -6336,8 +6004,7 @@
                   "latitude": 41.844464,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6350,8 +6017,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.728922,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6364,8 +6030,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6378,8 +6043,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -6412,8 +6076,7 @@
                   "latitude": 41.839028,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6426,8 +6089,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.721647,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6440,8 +6102,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6454,8 +6115,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -6488,8 +6148,7 @@
                   "latitude": 41.833593,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6502,8 +6161,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.714373,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6516,8 +6174,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6530,8 +6187,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -6564,8 +6220,7 @@
                   "latitude": 41.83038,
                   "longitude": -83.844046,
                   "heading": 270,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -6578,8 +6233,7 @@
                   "latitude": 41.888545,
                   "longitude": -83.709193,
                   "heading": 0,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -6592,8 +6246,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6606,8 +6259,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -6640,8 +6292,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.84796,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -6654,8 +6305,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.708313,
                   "heading": 90,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -6668,8 +6318,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6682,8 +6331,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -6716,8 +6364,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.847475,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -6730,8 +6377,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707343,
                   "heading": 90,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -6744,8 +6390,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6758,8 +6403,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -6792,8 +6436,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846991,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -6806,8 +6449,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6820,8 +6462,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.845972,
                   "heading": 90,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -6834,8 +6475,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -6868,8 +6508,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846506,
                   "heading": 90,
-                  "speed": 3,
-                  "isEcuSpeed": false
+                  "speed": 3
                 }
               ]
             },
@@ -6882,8 +6521,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6896,8 +6534,7 @@
                   "latitude": 41.831225,
                   "longitude": -83.845772,
                   "heading": 0,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -6910,8 +6547,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -6944,8 +6580,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6958,8 +6593,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -6972,8 +6606,7 @@
                   "latitude": 41.83146,
                   "longitude": -83.846426,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -6986,8 +6619,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7020,8 +6652,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7034,8 +6665,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7048,8 +6678,7 @@
                   "latitude": 41.83146,
                   "longitude": -83.847396,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -7062,8 +6691,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7096,8 +6724,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7110,8 +6737,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7124,8 +6750,7 @@
                   "latitude": 41.831368,
                   "longitude": -83.848241,
                   "heading": 180,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -7138,8 +6763,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7172,8 +6796,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7186,8 +6809,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7200,8 +6822,7 @@
                   "latitude": 41.830643,
                   "longitude": -83.848241,
                   "heading": 180,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -7214,8 +6835,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7248,8 +6868,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7262,8 +6881,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7276,8 +6894,7 @@
                   "latitude": 41.83038,
                   "longitude": -83.844867,
                   "heading": 90,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -7290,8 +6907,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7324,8 +6940,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7338,8 +6953,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7352,8 +6966,7 @@
                   "latitude": 41.833582,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -7366,8 +6979,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7400,8 +7012,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7414,8 +7025,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7428,8 +7038,7 @@
                   "latitude": 41.839622,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -7442,8 +7051,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7476,8 +7084,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7490,8 +7097,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7504,8 +7110,7 @@
                   "latitude": 41.845662,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -7518,8 +7123,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7552,8 +7156,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7566,8 +7169,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7580,8 +7182,7 @@
                   "latitude": 41.851701,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -7594,8 +7195,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7628,8 +7228,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7642,8 +7241,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7656,8 +7254,7 @@
                   "latitude": 41.857741,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -7670,8 +7267,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7704,8 +7300,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7718,8 +7313,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7732,8 +7326,7 @@
                   "latitude": 41.86378,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -7746,8 +7339,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7780,8 +7372,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846398,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7794,8 +7385,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7808,8 +7398,7 @@
                   "latitude": 41.86982,
                   "longitude": -83.841074,
                   "heading": 0,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -7822,8 +7411,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7856,8 +7444,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846269,
                   "heading": 90,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -7870,8 +7457,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7884,8 +7470,7 @@
                   "latitude": 41.873847,
                   "longitude": -83.843767,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -7898,8 +7483,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -7932,8 +7516,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7946,8 +7529,7 @@
                   "latitude": 41.888607,
                   "longitude": -83.707325,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7960,8 +7542,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -7974,8 +7555,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8008,8 +7588,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8022,8 +7601,7 @@
                   "latitude": 41.889037,
                   "longitude": -83.706963,
                   "heading": 0,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -8036,8 +7614,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8050,8 +7627,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8084,8 +7660,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8098,8 +7673,7 @@
                   "latitude": 41.889417,
                   "longitude": -83.707424,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -8112,8 +7686,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8126,8 +7699,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8160,8 +7732,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8174,8 +7745,7 @@
                   "latitude": 41.889417,
                   "longitude": -83.708394,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -8188,8 +7758,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8202,8 +7771,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8236,8 +7804,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8250,8 +7817,7 @@
                   "latitude": 41.889417,
                   "longitude": -83.709364,
                   "heading": 270,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -8264,8 +7830,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8278,8 +7843,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8312,8 +7876,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8326,8 +7889,7 @@
                   "latitude": 41.888745,
                   "longitude": -83.709434,
                   "heading": 180,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -8340,8 +7902,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8354,8 +7915,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8388,8 +7948,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8402,8 +7961,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.710712,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -8416,8 +7974,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8430,8 +7987,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8464,8 +8020,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8478,8 +8033,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.718795,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -8492,8 +8046,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8506,8 +8059,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8540,8 +8092,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8554,8 +8105,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.726877,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -8568,8 +8118,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8582,8 +8131,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8616,8 +8164,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8630,8 +8177,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.73496,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -8644,8 +8190,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8658,8 +8203,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8692,8 +8236,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8706,8 +8249,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.743042,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -8720,8 +8262,7 @@
                   "latitude": 41.873847,
                   "longitude": -83.841518,
                   "heading": 90,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -8734,8 +8275,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8768,8 +8308,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8782,8 +8321,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.751125,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -8796,8 +8334,7 @@
                   "latitude": 41.868744,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -8810,8 +8347,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8844,8 +8380,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8858,8 +8393,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.759208,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -8872,8 +8406,7 @@
                   "latitude": 41.863308,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -8886,8 +8419,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8920,8 +8452,7 @@
                   "latitude": 41.83065,
                   "longitude": -83.846133,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -8934,8 +8465,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.76729,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -8948,8 +8478,7 @@
                   "latitude": 41.857872,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -8962,8 +8491,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -8996,8 +8524,7 @@
                   "latitude": 41.830983,
                   "longitude": -83.845772,
                   "heading": 0,
-                  "speed": 6,
-                  "isEcuSpeed": false
+                  "speed": 6
                 }
               ]
             },
@@ -9010,8 +8537,7 @@
                   "latitude": 41.888337,
                   "longitude": -83.775373,
                   "heading": 270,
-                  "speed": 50,
-                  "isEcuSpeed": false
+                  "speed": 50
                 }
               ]
             },
@@ -9024,8 +8550,7 @@
                   "latitude": 41.852437,
                   "longitude": -83.841074,
                   "heading": 180,
-                  "speed": 45,
-                  "isEcuSpeed": false
+                  "speed": 45
                 }
               ]
             },
@@ -9038,8 +8563,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -9072,8 +8596,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845576,
                   "heading": 247.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -9086,8 +8609,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -9100,8 +8622,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -9114,8 +8635,7 @@
                   "latitude": 41.889423,
                   "longitude": -83.802177,
                   "heading": 157.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }
@@ -9145,8 +8665,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845576,
                   "heading": 247.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -9159,8 +8678,7 @@
                   "latitude": 41.889621,
                   "longitude": -83.802177,
                   "heading": 90,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -9173,8 +8691,7 @@
                   "latitude": 41.873766,
                   "longitude": -83.845311,
                   "heading": 180,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             },
@@ -9187,8 +8704,7 @@
                   "latitude": 41.889423,
                   "longitude": -83.802177,
                   "heading": 157.8,
-                  "speed": 0,
-                  "isEcuSpeed": false
+                  "speed": 0
                 }
               ]
             }

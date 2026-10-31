@@ -7,10 +7,21 @@
  * replay mode (src/connectors/endpoints.ts `replayFetch`).
  */
 import type { ReplayFixture } from '../replay';
+import { samsaraEquipmentReplayFixtures } from './equipment-replay';
 import positions from './fixtures/doc-derived/positions/01-locations-feed.json';
 import stats from './fixtures/doc-derived/stats/01-stats-feed.json';
+import { samsaraVehiclesReplayFixtures } from './vehicles-replay';
 
 /** The doc-derived fixtures (./fixtures/build.ts; ./fixtures/fixtures.test.ts checks them). */
 export const samsaraDocDerivedFixtures = [positions, stats] as unknown as ReplayFixture[];
 
-export const samsaraReplayFixtures: readonly ReplayFixture[] = [...samsaraDocDerivedFixtures];
+/**
+ * Everything CONNECTOR_SAMSARA=replay serves: the vehicle feeds (fleet-faults), then 1f.2's
+ * equipment feeds (machines, ./equipment-replay.ts) and vehicle list (terminal-pickups,
+ * ./vehicles-replay.ts). No two exchanges across the list answer the same request.
+ */
+export const samsaraReplayFixtures: readonly ReplayFixture[] = [
+  ...samsaraDocDerivedFixtures,
+  ...samsaraEquipmentReplayFixtures,
+  ...samsaraVehiclesReplayFixtures,
+];

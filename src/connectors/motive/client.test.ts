@@ -5,15 +5,19 @@
 import { describe, expect, test } from 'vitest';
 import { MotiveClient, parseMotiveCursor } from './client';
 
+const sentHeaders: Headers[] = [];
+
 function fakeMotive(pages: Record<string, string>[]) {
   let call = 0;
-  const fetch = (async () => {
+  const fetch = (async (_url: string, init?: RequestInit) => {
+    sentHeaders.push(new Headers(init?.headers));
     const located = pages[Math.min(call++, pages.length - 1)] as Record<string, string>;
+    // Motive's v1 shape: `speed` in mph (`kph` is v3's).
     const vehicles = Object.entries(located).map(([id, at]) => ({
       vehicle: {
         id,
         number: `T${id}`,
-        current_location: { lat: 41.9, lon: -84, bearing: 90, kph: 80, located_at: at },
+        current_location: { lat: 41.9, lon: -84, bearing: 90, speed: 50, located_at: at },
       },
     }));
     return Response.json({
@@ -43,6 +47,10 @@ describe('MotiveClient.pollPositions', () => {
       A: '2026-10-29T12:00:05.000Z',
       B: '2026-10-29T12:00:04.000Z',
     });
+    // Imperial units asked for explicitly (Motive's default is ambiguous), the key header set.
+    expect(sentHeaders.at(-1)?.get('x-metric-units')).toBe('false');
+    expect(sentHeaders.at(-1)?.get('x-api-key')).toBe('k');
+    expect(first.items[0]?.payload.location.speed).toBe(50);
   });
 
   test('an empty, legacy (single ISO) or broken cursor starts fresh', () => {

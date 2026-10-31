@@ -15,6 +15,7 @@ import {
   connectionModes,
   connectionOf,
   connectionOfSource,
+  faultsNotReported,
   statsNotReported,
   VENDORS,
   vendorEntry,
@@ -48,6 +49,8 @@ describe('vendor registry', () => {
     expect(vendorLabel('aemp_kubota')).toBe('Kubota (AEMP)');
     expect(vendorLabel('aemp_john_deere')).toBe('John Deere (AEMP)');
     expect(vendorLabel('terminal_omnitracs')).toBe('Omnitracs (via Terminal)');
+    expect(vendorLabel('terminal_omnitracs_xrs')).toBe('Omnitracs XRS (via Terminal)');
+    expect(vendorLabel('aemp_deere')).toBe('John Deere (AEMP)');
     expect(vendorLabel('ford_pro')).toBe('Ford Pro');
     expect(vendorLabel('verizon')).toBe('verizon');
     expect(vendorLabel('Not An Id')).toBe('Not An Id');
@@ -84,11 +87,29 @@ describe('vendor registry', () => {
       'defPct',
       'engineOn',
     ]);
-    expect(statsNotReported('samsara', 'stellantis')).toEqual(['odometerMi', 'defPct', 'engineOn']);
-    expect(statsNotReported('samsara', 'gateway')).toEqual(['odometerMi', 'defPct', 'engineOn']);
-    expect(statsNotReported('deere')).toEqual(['odometerMi', 'defPct', 'engineOn']);
+    // Stellantis sends no engine hours (no official source lists them; Motive and Geotab say none).
+    expect(statsNotReported('samsara', 'stellantis')).toEqual([
+      'engineHours',
+      'odometerMi',
+      'defPct',
+      'engineOn',
+    ]);
+    // An asset gateway: GPS odometer and engine state on Samsara's equipment feed; no DEF there.
+    expect(statsNotReported('samsara', 'gateway')).toEqual(['defPct']);
+    expect(statsNotReported('deere')).toEqual(['odometerMi', 'defPct']);
+    expect(statsNotReported('aemp_kubota')).toEqual(['odometerMi', 'engineOn']);
+    expect(statsNotReported('terminal_omnitracs_xrs')).toEqual(['fuelPct', 'defPct']);
+    expect(statsNotReported('cnh')).toEqual([]);
     expect(statsNotReported('verizon')).toEqual([]);
-    for (const f of statsNotReported('aemp_kubota')) expect(VEHICLE_STAT_FIELDS).toContain(f);
+  });
+
+  test('"faults not reported": a route with no fault system, never for an unknown vendor', () => {
+    expect(faultsNotReported('samsara')).toBe(false);
+    expect(faultsNotReported('aemp_samsara')).toBe(true);
+    expect(faultsNotReported('aemp_deere')).toBe(true);
+    expect(faultsNotReported('samsara', 'smartcar')).toBe(true);
+    expect(faultsNotReported('samsara', 'ford_pro')).toBe(false);
+    expect(faultsNotReported('verizon')).toBe(false);
   });
 
   test('the capability matrix: one row per connection with its mode key and mode', () => {
@@ -103,10 +124,14 @@ describe('vendor registry', () => {
       ['terminal', 'CONNECTOR_TERMINAL', 'sim'],
     ]);
     expect(rows.find((r) => r.connection === 'aemp')?.providers.map((p) => p.provider)).toEqual([
+      'deere',
       'cnh',
       'kubota',
       'samsara',
     ]);
+    expect(rows.find((r) => r.connection === 'terminal')?.providers.map((p) => p.provider)).toEqual(
+      ['omnitracs-xrs'],
+    );
     expect(rows.find((r) => r.connection === 'samsara')?.build).toBe('built');
     expect(rows.find((r) => r.connection === 'geotab')?.build).toBe('planned');
     for (const r of rows) {

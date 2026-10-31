@@ -31,6 +31,7 @@
  *   boundary  ('deere', 'boundary', SimField.deereBoundaryId, owning unit's deereOrgId)   -> SimField.boundaryId
  *   machine   ('deere', 'machine',  vendorIds.deere,          SimMachine.deereOrgId)      -> SimMachine.id
  *   machine   (telematics.vendor, 'machine', telematics.id,   telematics.provider ?? '')  -> SimMachine.id
+ *             (the provider is the AEMP provider, the CNH company or the Terminal connection)
  *             ('aemp', 'machine',   telematics.id, 'samsara') for Samsara equipment too (the AEMP
  *             stand-in's provider `samsara` serves Samsara's asset-gateway machines, same ids)
  * The Deere stand-in serves each org's data under that org id, so the org a sync reads from IS
@@ -124,19 +125,49 @@ export interface SimField {
 }
 
 /** The telematics connections a simulated machine can be served by (1f.2). */
-export const SIM_TELEMATICS_VENDORS = ['samsara', 'motive', 'geotab', 'aemp', 'terminal'] as const;
+export const SIM_TELEMATICS_VENDORS = [
+  'samsara',
+  'motive',
+  'geotab',
+  'aemp',
+  'cnh',
+  'terminal',
+] as const;
 export type SimTelematicsVendor = (typeof SIM_TELEMATICS_VENDORS)[number];
 
-/** The AEMP providers the stand-in serves (/aemp/<provider>/…), in sim when AEMP_PROVIDERS is unset. */
-export const SIM_AEMP_PROVIDERS = ['cnh', 'kubota', 'samsara'] as const;
+/**
+ * The AEMP providers the stand-in serves (/aemp/<provider>/…), in sim when AEMP_PROVIDERS is
+ * unset. CNH has its own connection and stand-in (/cnh, CNH FieldOps' published OpenAPI), so the
+ * Case IH machines are not served through the generic AEMP client.
+ */
+export const SIM_AEMP_PROVIDERS = ['kubota', 'samsara'] as const;
+
+/** The CNH FieldOps company the demo's Case IH machines belong to (`GET /companies`; source_org). */
+export const SIM_CNH_COMPANY_ID = 'ACC000004812';
+
+/** The Terminal connection of the demo's hired hauler (`GET /connections`; source_org). */
+export const SIM_TERMINAL_CONNECTION_ID = 'conn_01JSIMHAULER0000000000001';
 
 /** How a machine's telematics reaches the app in the simulated world (1f.2). */
 export interface SimTelematics {
   vendor: SimTelematicsVendor;
-  /** The vendor's vehicle / asset / equipment id (external_refs external_id). */
+  /** The vendor's vehicle / asset / equipment id (external_refs external_id; CNH: the VIN). */
   id: string;
-  /** AEMP provider (`cnh`, `kubota`) or Terminal connection: the external_refs source_org. */
+  /**
+   * The external_refs source_org: the AEMP provider (`kubota`), the CNH company
+   * (SIM_CNH_COMPANY_ID) or the Terminal connection (SIM_TERMINAL_CONNECTION_ID).
+   */
   provider?: string;
+  /**
+   * Terminal only: the TSP behind the connection, as Terminal's provider code (`omnitracs-xrs`):
+   * `NormalizedPosition.provider`, so the badge reads `terminal_omnitracs_xrs`.
+   */
+  tsp?: string;
+  /**
+   * Motive only: the vehicle has a Motive Vehicle Gateway (Motive's v3 vehicle_locations lists
+   * only those; v1/v2 list every vehicle).
+   */
+  gateway?: boolean;
   /** Samsara only: the /fleet/vehicles feeds (trucks, pickups) or /fleet/equipment (gateways). */
   feed?: 'vehicle' | 'equipment';
   /** How the vendor gets the data (machines.telematics_via): ford_pro, stellantis, gateway. */
@@ -422,6 +453,15 @@ export const SIM_CREDENTIALS = {
     subscriptionKey: 'sim-cnh-subscription-key',
   },
   terminal: { secretKey: 'sim-terminal-secret', connectionToken: 'sim-terminal-connection' },
+} as const;
+
+/**
+ * CNH FieldOps' OAuth audience and connection in sim: the staging values (CNH's Environment
+ * Variables page), so the stand-in checks the client sends both, as CNH's /authorize requires.
+ */
+export const SIM_CNH_AUTH = {
+  audience: 'https://sandbox.api-data.cnh.com/',
+  connection: 'STG-ADFS-CONN',
 } as const;
 
 /** GET /_control/clock and the response of every POST /_control/clock. */

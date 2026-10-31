@@ -110,14 +110,16 @@ export type EldVendor = Extract<ConnectorSource, 'samsara' | 'motive'>;
 //   farm.fields                  'deere'       'field'     Deere field id      Deere org id (one row per org that has the field)
 //   farm.field_boundaries        'deere'       'boundary'  Deere boundary id   Deere org id
 //   farm.machines (JDLink)       'deere'       'machine'   Deere machine id    Deere org id
-//   farm.machines (telematics)   samsara | motive | geotab | cnh
+//   farm.machines (telematics)   samsara | motive | geotab
 //                                              'machine'   vehicle / asset id  ''  (no org concept)
-//   farm.machines (AEMP)         'aemp'        'machine'   ISO 15143-3 equipment id (serial / PIN)
-//                                                                              the provider id ('cnh', 'kubota', 'samsara')
-//   farm.machines (Terminal)     'terminal'    'machine'   Terminal vehicle id the Terminal connection id
+//   farm.machines (CNH)          'cnh'         'machine'   VIN                 the CNH company id (GET /companies)
+//   farm.machines (AEMP)         'aemp'        'machine'   ISO 15143-3 equipment id (the provider's
+//                                                          idElement: PIN, VIN, SerialNumber or EquipmentID)
+//                                                                              the provider id ('kubota', 'samsara', 'deere')
+//   farm.machines (Terminal)     'terminal'    'machine'   Terminal vehicle id (vcl_…)  the Terminal connection id (conn_…)
 //   farm.parties                 'deere'       'party'     Deere client id     Deere org id   (1f; unused in M0)
-// 1f.2: one machine may carry refs from several sources (a Case IH combine on AEMP now and on
-// CNH FieldOps later; a pickup on Samsara and Terminal); each sync resolves only its own.
+// 1f.2: one machine may carry refs from several sources (a RoGator on Samsara's equipment feed
+// and on Samsara's AEMP feed; a pickup on Samsara and Terminal); each sync resolves only its own.
 // ---------------------------------------------------------------------------------------------
 
 /** `kind` values of ingest.external_refs. Add one by reporting it (contracts §4). */
@@ -232,6 +234,7 @@ export type VehicleStatField = (typeof VEHICLE_STAT_FIELDS)[number];
 
 /** Units a vendor reports stats in (StatReading.rawUnit). */
 export const STAT_RAW_UNITS = [
+  'milliseconds',
   'seconds',
   'minutes',
   'hours',
@@ -239,16 +242,21 @@ export const STAT_RAW_UNITS = [
   'kilometers',
   'miles',
   'percent',
+  /** Thousandths of a percent (Samsara `defLevelMilliPercent`). */
+  'milli_percent',
   'boolean',
 ] as const;
 export type StatRawUnit = (typeof STAT_RAW_UNITS)[number];
 
 /**
  * Where a normalized stat came from (1f.2): the vendor's own number and unit, and whether the
- * vendor says it was adjusted. `adjusted` = true for a calibrated or offset value (Motive
- * `true_engine_hours` / `true_odometer`, Samsara synthetic or offset engine seconds, a Geotab
- * StatusData adjustment), false for the raw ECU or gateway count (Samsara `obdEngineSeconds`,
- * `gatewayJ1939EngineSeconds`), null when the vendor doesn't say.
+ * vendor says it was adjusted. `adjusted` = true for a calibrated, computed or offset value
+ * (Motive `true_engine_hours` / `true_odometer`; Samsara `gatewayEngineSeconds` (synthetic) and
+ * `gatewayJ1939EngineSeconds` (a manual offset over the J1939 count), `gpsOdometerMeters`; a
+ * Geotab StatusData adjustment; a vendor's "virtual" engine hours), false for the raw ECU value
+ * (Samsara `obdEngineSeconds`, on vehicles and on equipment; Deere engineHours; AEMP
+ * CumulativeOperatingHours), null when the vendor doesn't say. Readings travel with the item into
+ * ingest.raw_events; the writers store the normalized value only.
  */
 export interface StatReading {
   raw: number | boolean;
@@ -261,6 +269,8 @@ export interface StatReading {
 /** Normalize a raw number to the port's units: hours, miles or percent (booleans pass through). */
 export function normalizeStat(raw: number, unit: StatRawUnit): number {
   switch (unit) {
+    case 'milliseconds':
+      return raw / 3_600_000;
     case 'seconds':
       return raw / 3600;
     case 'minutes':
@@ -273,6 +283,8 @@ export function normalizeStat(raw: number, unit: StatRawUnit): number {
       return raw / 1609.344;
     case 'kilometers':
       return raw / 1.609344;
+    case 'milli_percent':
+      return raw / 1000;
     case 'boolean':
       return raw ? 1 : 0;
   }
@@ -309,9 +321,17 @@ export interface NormalizedVehicleStat {
    *  - `snapshot`: the complete ACTIVE set at `ts` (Samsara's faultCodes stat); a code it no
    *    longer lists has cleared; `[]` = cleared (no codes, no lamps).
    *  - `delta`: only the faults named, each with its own `state` and times (Motive, Geotab,
-   *    AEMP, Terminal); codes it doesn't name are unchanged.
+   *    AEMP, CNH, Terminal); codes it doesn't name are unchanged.
    */
   faultReport?: 'snapshot' | 'delta';
+  /**
+   * 1f.2, `delta` only: for a vendor whose faults carry no cleared state (ISO 15143-3 FaultCode
+   * items and CNH's Faults series are occurrences; some Terminal providers never send `closed`),
+   * an open fault of this machine and source not seen for this many seconds is closed by the
+   * writer (docs/contracts-1f.md §5.3; default DELTA_FAULT_AGE_OUT_SECONDS). Unset: faults close
+   * only when the vendor says so.
+   */
+  faultAgeOutSeconds?: number;
 }
 
 /** One vehicle as the vendor lists it (kind from tags, via) → farm.machines.kind / telematics_via. */

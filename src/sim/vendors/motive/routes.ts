@@ -1,13 +1,14 @@
 /**
  * Motive stand-in (mounted at /motive): a THIN placeholder until the 1f.2 trucks builder
- * (docs/contracts-1f.md part B) fills it in (positions v1/v2 and v3 for Vehicle Gateway units,
- * stats, /v1/fault_codes).
+ * (docs/contracts-1f.md part B) fills it in (positions v1/v2 with the stats, v3 for Vehicle
+ * Gateway units, /v1/fault_codes with top-level paging).
  *
  *   GET /v1/vehicle_locations?per_page=&page_no=   X-Api-Key: SIM_CREDENTIALS.motive.apiKey
- *   // doc-derived, confirm (path, header, field names)
  *
  * Current location of each Motive vehicle (`simTelematicsMachines(farm, 'motive')`: 1f.2's
- * hired hauler H1) at the latest GPS grid instant (no history feed).
+ * hired hauler H1) at the latest GPS grid instant (no history feed), in Motive's documented v1
+ * shape: `speed` in mph (`kph` is v3's), `bearing` an integer; a bad key answers Motive's own
+ * 401 body (`{"error_message": "invalid API key"}`).
  */
 import type { MotiveVehicleLocations } from '../../../connectors/motive/schemas';
 import { SIM_CREDENTIALS, simTelematicsMachines } from '../../types';
@@ -25,7 +26,7 @@ export const motiveModule: VendorModule = {
   error: motiveError,
   handle(req, ctx) {
     if (header(req.headers, 'x-api-key') !== SIM_CREDENTIALS.motive.apiKey) {
-      return motiveError(401, 'Unauthorized');
+      return motiveError(401, 'invalid API key');
     }
     if (firstOfKind(ctx.faults, 'token_revoked') ?? firstOfKind(ctx.faults, 'token_expired')) {
       return motiveError(401, 'API key expired or revoked');
@@ -48,8 +49,8 @@ export const motiveModule: VendorModule = {
             ? {
                 lat: round(s.lat, 6),
                 lon: round(s.lng, 6),
-                bearing: round(s.heading, 1),
-                kph: round(Math.max(0, s.speedMph) * 1.609344, 1),
+                bearing: Math.round(s.heading) % 360,
+                speed: round(Math.max(0, s.speedMph), 1),
                 located_at: new Date(t).toISOString(),
                 description: null,
               }

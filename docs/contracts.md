@@ -212,7 +212,7 @@ With **`APP_ENV=production`**, config refuses `sim`/`replay` connector modes, `S
 | `CONNECTOR_MOTIVE` | `sim` (`off` in production) | " |
 | `CONNECTOR_GEOTAB` | `sim` (`off` in production) | " |
 | `CONNECTOR_AEMP` | `sim` (`off` in production) | " (the generic ISO 15143-3 client; providers in `AEMP_PROVIDERS`) |
-| `CONNECTOR_CNH` | `sim` (`off` in production) | " (CNH FieldOps) |
+| `CONNECTOR_CNH` | `sim` (`off` in production) | " (CNH FieldOps; no `replay` mode: refused) |
 | `CONNECTOR_TERMINAL` | `sim` (`off` in production) | " (the Terminal aggregator) |
 | `CONNECTOR_WEATHER` | `sim` | same modes (NWS) |
 | `CONNECTOR_ELD` | unset | **deprecated** (1f.2): read only as an alias that sets the key of `ELD_VENDOR`'s vendor (default samsara) unless that key is set; `/admin/connectors` and `pnpm dev` warn |
@@ -223,23 +223,27 @@ With **`APP_ENV=production`**, config refuses `sim`/`replay` connector modes, `S
 | `DEERE_REDIRECT_URI` | optional (http(s) URL; https in production) | 1f decision 6: the Deere OAuth callback when it isn't `${PUBLIC_URL}/api/oauth/deere` (a public page that forwards `code` and `state` to the PC; `docs/contracts-1f.md`) |
 | `DEERE_DAILY_CALL_BUDGET` | optional (integer ≥ 1) | 1f decision 4: Deere API calls a day; unset = limit unknown (jobs keep their cron); set = `fleet.deere` and `deere.ops` pace themselves so the Deere jobs stay under 80 % of it (sandbox/live calls only) |
 | `DEERE_HOME_ORG_ID` | optional (Deere org id) | 1f decision 8: your own Deere organization (machines are created only from it; farms in other orgs belong to that org's customer). Unset: sim and replay use their simulated home org; sandbox/live use the only org you are a member of, else `/admin/connectors` asks for it |
+| `DEERE_API_BASE` | optional (http(s) URL) | 1f.2: the Deere platform root when it isn't the documented one (sandbox `https://sandboxapi.deere.com/platform`, live `https://api.deere.com/platform`) |
+| `DEERE_EQUIPMENT_API_BASE` | optional (http(s) URL) | 1f.2: Deere's Equipment API root (machines); unset = `https://equipmentapi.deere.com/isg` for sandbox and live |
 | `SAMSARA_API_TOKEN` | optional | real Samsara token; sim uses `SIM_CREDENTIALS.samsara` |
-| `MOTIVE_API_KEY` | optional | real Motive key (a hauler's, revocable); sim uses `SIM_CREDENTIALS.motive` |
-| `MOTIVE_API_BASE` | optional (http(s) URL) | 1f.2: Motive API root; unset = `https://api.gomotive.com` (doc-derived) |
+| `MOTIVE_API_KEY` | optional | real Motive key (a hauler's: read-only scoped, Group-scoped to our trucks, set to expire); sim uses `SIM_CREDENTIALS.motive` |
+| `MOTIVE_API_BASE` | optional (http(s) URL) | 1f.2: Motive API root; unset = `https://api.gomotive.com` |
 | `GEOTAB_SERVER` | optional (host name) | 1f.2: MyGeotab server; unset = `my.geotab.com` |
 | `GEOTAB_DATABASE` | optional | 1f.2: MyGeotab database (sandbox: the free demo database) |
 | `GEOTAB_USERNAME` | optional | 1f.2: MyGeotab service user |
 | `GEOTAB_PASSWORD` | optional | " |
-| `AEMP_PROVIDERS` | optional (JSON array) | 1f.2: ISO 15143-3 providers `[{ id, label?, baseUrl, auth: none\|bearer\|basic\|oauth2\|subscription_key, token?, username?, password?, clientId?, clientSecret?, tokenUrl?, scope?, subscriptionKey?, subscriptionKeyHeader?, format?: auto\|json\|xml }]`; unset = the stand-in's `cnh`, `kubota`, `samsara` in sim |
-| `CNH_CLIENT_ID` | optional | 1f.2: CNH FieldOps OAuth client |
+| `AEMP_PROVIDERS` | optional (JSON array) | 1f.2: ISO 15143-3 providers `[{ id, label?, baseUrl, auth: none\|bearer\|basic\|oauth2\|deere_oauth\|subscription_key, token?, username?, password?, clientId?, clientSecret?, tokenUrl?, grantType?: client_credentials\|password, scope?, subscriptionKey? (sent with any auth style), subscriptionKeyHeader?, format?: auto\|json\|xml (also the Accept header), idElement?: PIN\|VIN\|SerialNumber\|EquipmentID, faultsPath?, minIntervalSeconds? }]`; unset = the stand-in's `kubota`, `samsara` in sim |
+| `CNH_CLIENT_ID` | optional | 1f.2: CNH FieldOps OAuth client of this environment's app (staging = sandbox, production = live) |
 | `CNH_CLIENT_SECRET` | optional | " |
-| `CNH_SUBSCRIPTION_KEY` | optional | 1f.2: CNH API subscription key (a header on every call) |
-| `CNH_API_BASE` | optional (http(s) URL) | 1f.2: CNH API root; unset = `https://api-data.cnh.com/v1` (doc-derived) |
-| `CNH_AUTH_BASE` | optional (http(s) URL) | 1f.2: CNH identity root; unset = `https://identity.cnhind.com` (doc-derived) |
+| `CNH_SUBSCRIPTION_KEY` | optional | 1f.2: CNH API subscription key (`Ocp-Apim-Subscription-Key` on every call) |
+| `CNH_API_BASE` | optional (http(s) URL) | 1f.2: CNH API root; unset = `https://stg.api-data.cnh.com/v1` (sandbox) / `https://api-data.cnh.com/v1` (live) |
+| `CNH_AUTH_BASE` | optional (http(s) URL) | 1f.2: CNH identity root; unset = `https://stg.identity.cnhind.com` / `https://identity.cnhind.com` |
+| `CNH_AUDIENCE` | optional | 1f.2: the OAuth `audience`; unset = `https://sandbox.api-data.cnh.com/` / `https://api-data.cnh.com/` |
+| `CNH_CONNECTION` | optional | 1f.2: the Auth0 `connection`; unset = `STG-ADFS-CONN` / `PROD-ADFS-CONN` |
 | `CNH_REDIRECT_URI` | optional (http(s) URL; https in production) | 1f.2: the CNH OAuth callback when it isn't `${PUBLIC_URL}/api/oauth/cnh` |
-| `TERMINAL_SECRET_KEY` | optional | 1f.2: Terminal secret key (Bearer) |
-| `TERMINAL_CONNECTION_TOKEN` | optional | 1f.2: Terminal connection token (`Connection-Token` header: one linked carrier) |
-| `TERMINAL_API_BASE` | optional (http(s) URL) | 1f.2: unset = sandbox `https://api.sandbox.withterminal.com/tsp/v1`, live `https://api.withterminal.com/tsp/v1` (doc-derived) |
+| `TERMINAL_SECRET_KEY` | optional | 1f.2: Terminal secret key (Bearer; lists every connection) |
+| `TERMINAL_CONNECTION_TOKEN` | optional | 1f.2: an optional pin to one connection (`Connection-Token`); unset = every connection `GET /connections?status=connected` lists |
+| `TERMINAL_API_BASE` | optional (http(s) URL) | 1f.2: unset = sandbox `https://api.sandbox.withterminal.com/tsp/v1`, live `https://api.withterminal.com/tsp/v1` |
 | `VEHICLE_KIND_TAGS` | `semi:Semi,pickup:Pickup,service_truck:Service truck` | 1f.2: which vendor tags set a vehicle's kind (`<kind>:<tag>` pairs); a kind set on /admin always wins |
 | `NWS_USER_AGENT` | `farm-manager (local development)` | NWS requires a User-Agent with contact info |
 | `SIM_SCENARIO` | `harvest-day` | one of the six scenarios |
