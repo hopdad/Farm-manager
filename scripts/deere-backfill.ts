@@ -9,9 +9,11 @@
  * season is written when the field has none for that crop year or the existing row's source is
  * 'demo' or 'deere'; 'import' and 'app' rows are kept unless --replace, and every skipped conflict
  * is listed in the report. It runs its work inside `withCallStream('backfill', …)`
- * (src/connectors/http.ts), so its calls count under the `backfill` stream. It reuses deere-ops'
- * operations mapping (src/connectors/deere/ops/) and src/domain/crops.ts (heavy work is CLI-only:
- * plan §1).
+ * (src/connectors/http.ts), so its calls count under the `backfill` stream; like
+ * scripts/connectors-record.ts it must call `installCallCounting(pool, (v) =>
+ * configuredCallMode(cfg, v))` (src/connectors/call-budget.ts) first, or the tally is dropped.
+ * It reuses deere-ops' operations mapping (src/connectors/deere/ops/) and src/domain/crops.ts
+ * (heavy work is CLI-only: plan §1).
  *
  * Until then it prints that it is deferred and exits 0.
  */

@@ -7,7 +7,7 @@ Oct 31, 2026. Update this file at the end of each build session.
 | Branch | State |
 |---|---|
 | `main` | M0 + M1 (slices 1a-1d), the e2e flake fixes, the follow-up to the PC checks (`claude/pc-followups`, below) and the soil type map (`claude/soil-map`, merged Oct 31, below). Work from here; the PC agent follows `PC-AGENT.md`. |
-| `claude/m1-1f` | Slices 1f and 1f.2 in progress: the foundation (migration `0007`, `docs/contracts-1f.md`) is done, CI fully green at `dfbfd4c`; seven builders work in their own worktrees, then integration, two review rounds and CI. Not for the PC until it's on `main`. |
+| `claude/m1-1f` | Slices 1f and 1f.2 **integrated** (Oct 31): the seven builders' branches (`m1f/deere-data`, `m1f/deere-ops`, `m1f/fleet-faults`, `m1f/sync-health`, `m1f2/trucks`, `m1f2/machines`, `m1f2/terminal-pickups`) and `main` (the soil map) merged; their worktrees and branches removed. Next: review rounds and CI, then `main`. Not for the PC until it's on `main`. |
 | `claude/soil-map` | Soil type map Phase A. Two reviews (12 findings, all fixed); CI fully green at `44d7779`; merged into `main` on Oct 31. Safe to delete. |
 | `claude/pc-agent-docs` | PC-AGENT.md round 2 docs, already in `main`. Safe to delete. |
 | `claude/pc-followups` | Derrick's `pc/section2-checks` plus the cloud follow-up to its findings (below). CI fully green at `3f5976e`; merged into `main` on Oct 30. Safe to delete. |
@@ -31,6 +31,57 @@ Lint, typecheck, unit (also in a clean clone with no env files), DB tests, build
 ## Not verifiable from the cloud build machine
 
 Its proxy blocks the real Protomaps basemap, live NWS weather, real SSURGO soils and NAIP close-ups. All four passed on Derrick's PC on Oct 29 (PC findings below). Live weather needs one re-check after the staleness change (Next).
+
+## Oct 31, 2026: slices 1f and 1f.2 integrated (`claude/m1-1f`)
+
+What 1f delivered (details: `docs/build-plan.md` 1f "As built", `docs/contracts-1f.md`):
+
+- **Deere** (sim, replay, and the sandbox/live code paths): fields, boundaries (the owning org's
+  Deere boundary becomes current, the old one history), farms and customer parties, flags as
+  read-only pins (rail toggle, popup on the board and the phone), Equipment API machines with
+  engine hours, this crop season's field operations in the History tab (coverage, products,
+  machines, operator), the `ag2` scope, org isolation with Deere Connections approval links, the
+  home org, the call budget split (`fleet.deere` paced, `deere.ops` capped).
+- **Fault codes and stats** in one model (J1939, OBD-II, OEM; snapshot and delta reports, the 24 h
+  age-out, OBD-II cleared per module): the fleet panel's fault badge, "Critical fault: mark down?"
+  for drivers, vendor + mode badges, hours / odometer / fuel / DEF with "not reported", the kind
+  badge, and a Deere machine's last working position (panel, map and board card).
+- **Every telematics vendor at once** (1f.2): Samsara (vehicles, faults, the vehicle list, asset
+  gateways), Motive, MyGeotab, Terminal, CNH FieldOps (OAuth, its own stand-in), the generic
+  ISO 15143-3 client (Kubota, Trackunit, Deere's and Samsara's feeds), Ford and Ram pickups;
+  `/admin/vehicles` for kinds set by hand.
+- **Sync health:** `/admin/connectors` with calls per source, stream and mode, the budget, the
+  Deere grant and scopes, orgs, dead letters (requeue, discard), the capability matrix, the
+  doc-derived list and the sim knobs (org approval, truck fault codes); `connectors:record
+  --scrub` with a conformance test; `test:live` suites that skip without credentials.
+- **Merge work:** migration `0007` holds everything (fleet-faults' pending table became
+  `machine_faults.module`); the map's taps run machine > pin > field > soil map unit; `data:import`
+  keeps a hand boundary as history under the re-synced Deere one (decision 7); the decision rows
+  are in `docs/decisions.md` "Slice 1f merge".
+
+After pulling (once it's on `main`): `pnpm run bootstrap` (or `pnpm db:migrate`), then
+`pnpm db:seed demo`.
+
+The integrator's last pass found two gaps in the done-when tests and closed them: §B.8.4's
+"`CONNECTOR_ELD=replay` shows the alias warning and replays Samsara" had only a test that skips
+unless the app runs with that key, and CI set `CONNECTOR_SAMSARA` instead (CI's replay step now
+sets Samsara through `CONNECTOR_ELD=replay`, and `e2e/m1f-replay.spec.ts` checks the warning while
+Samsara replays); and the replay spec's Deere and Samsara checks could pass on rows the sim suite
+had synced before (the sim and replay worlds share their Deere ids; CI runs the replay step after
+the sim suite on the same database), so each now waits for its stream's first successful run in
+replay.
+
+Checks at the integration head, locally (dev database reset and reseeded on the folded `0007`,
+DB test template rebuilt): `pnpm lint` (1021 files) and `pnpm typecheck` clean; `pnpm test` 1958
+passed (242 files); `pnpm test:db` 497 passed (78 files); `pnpm build` OK; `pnpm db:lint`
+(migrations from zero in a brand-new database, twice; the second run a no-op) PASS; `drizzle-kit
+generate`: no schema changes. The full e2e suite against `pnpm pilot --skip-build`, twice, no
+retries: 161 passed, 79 skipped, 0 failed each time (15.6 and 15.4 min; the skips are the
+phone-project copies of wall-only specs, the replay specs and the alias test under sim, and the
+phone-only tests on the wall). CI's replay step exactly as CI runs it (`CONNECTOR_DEERE`,
+`CONNECTOR_ELD`, `CONNECTOR_MOTIVE`, `CONNECTOR_GEOTAB`, `CONNECTOR_TERMINAL`, `CONNECTOR_AEMP` =
+replay; `fleet-panel-replay`, `fleet-panel`, `m1f-replay`, `trucks-replay`, `pickups-replay`,
+wall): 12 passed, twice, the second time straight after the sim suite. GitHub CI not run yet.
 
 ## Oct 31, 2026: soil type map (Phase A, `claude/soil-map`)
 
@@ -56,7 +107,7 @@ Phase B (texture, slope, interpretations, OM/pH/CEC) is the PC's, after 1e.
   - E: branch cleanup, if Derrick agrees.
 - Then Derrick's own data (PC-AGENT.md section 3, item 2).
 - In the cloud, per `docs/build-plan.md` §6 and D22: finish 1f + 1f.2 on `claude/m1-1f`
-  (integrate, review, CI, merge), then the war board (M2 2a job board, 2b morning meeting, Work
+  (integrated Oct 31; next: review, CI, merge), then the war board (M2 2a job board, 2b morning meeting, Work
   Plans and go/no-go v1), then the rest of 1g, then 2c, then MD. The Deere season backfill is
   deferred to after MD.
 - Open decisions with their current defaults: `docs/decisions.md` (D4 spray thresholds, D8
