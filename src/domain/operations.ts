@@ -1,9 +1,9 @@
 /**
  * Field operations (slice 1f, plan §4 `farm.operations`): what a machine did on a field, as
  * Operations Center reports it (seeding, application, harvest, tillage), with the products, the
- * measured totals and a simplified coverage MultiPolygon. Written by the `deere.ops` job and the
- * `deere:backfill` CLI (deere-ops builder, docs/contracts-1f.md §5.1); read by the field panel's
- * History tab through `GET /api/fields/<id>/operations`.
+ * measured totals and a simplified coverage MultiPolygon. Written by the `deere.ops` job (deere-ops
+ * builder, docs/contracts-1f.md §5.1; later also the deferred `deere:backfill` CLI); read by the
+ * field panel's History tab through `GET /api/fields/<id>/operations`.
  *
  * Pure TS + zod, no runtime imports beyond zod. Owned by the 1f foundation (contract file):
  * changes go through the builder's report.
