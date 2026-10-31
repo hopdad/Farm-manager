@@ -18,8 +18,10 @@ The plan is `docs/build-plan.md`, and the code-level rules are `docs/contracts.m
 ## Round 2 (updated Oct 31, 2026): start here
 
 Round 2 hasn't been started yet. `main` now has your section 2 results, the cloud's follow-up to
-them, and (since Oct 31) the soil type map. Read `docs/status.md`, "Oct 30, 2026: cloud
-follow-up to the PC checks" and "Oct 31, 2026: soil type map", for what changed. Work on a
+them, and (since Oct 31) the soil type map and slices 1f and 1f.2: live connectors for Deere and
+every truck, machine and pickup vendor, fault codes, and `/admin/connectors`. Read
+`docs/status.md`, "Oct 30, 2026: cloud follow-up to the PC checks", "Oct 31, 2026: soil type map"
+and "Oct 31, 2026: slices 1f and 1f.2", for what changed. Work on a
 branch `pc/round2` made from `main` (slice 1e gets its own branch, step D). Record each step's
 result in one new dated entry under `## PC findings` in `docs/status.md`.
 
@@ -33,8 +35,19 @@ pnpm install
 pnpm run bootstrap
 ```
 
-Pass when bootstrap ends with "Ready." and its migrations line says `7 of 7 applied`. The new
-one is `0006_m1_forecast_checked`; the soil map added none. Then `pnpm db:check` says "all PASS". Leave Node as it is (24.13 works: the code no longer depends on
+Pass when bootstrap ends with "Ready." and its migrations line says `8 of 8 applied`. The two new
+ones are `0006_m1_forecast_checked` and `0007_m1f_live_connectors` (slice 1f); the soil map added
+none. Bootstrap also does the two other after-pull steps 1f needs:
+- its demo data step adds 1f's mixed demo fleet and its vendor links (demo rows only, never
+  Derrick's own);
+- its sim connector step replaces this PC's simulated Deere sign-in, which is from before 1f and
+  lacks the new `ag2` scope (this season's operations need it). Look for "Deere (sim): the stored
+  grant lacks ag2; replacing it", then "Deere (sim): connected".
+
+Then `pnpm db:check` says "all PASS". If `.env.local` has an active `CONNECTOR_ELD` or
+`ELD_VENDOR` line, it still works, and `pnpm dev` prints a "Warning" line saying what to write and
+what to delete (`/admin/connectors` shows it too). For a `sim` value, just delete those lines:
+every vendor is `sim` when unset. Leave Node as it is (24.13 works: the code no longer depends on
 its Windows-1252 decoder); updating Node is Derrick's call.
 
 ### B. Re-check live weather (section 2, check 2)
@@ -93,7 +106,10 @@ tab, each map unit symbol opens the same sheet.
    - What's missing? Phase B (on this PC after 1e, section 3 item 1) adds texture, slope, tile
      drainage ratings, organic matter, pH and CEC. Which of those matter most to him?
 
-Then take a **fleet inventory**. The cloud is building connectors for:
+Then take a **fleet inventory**. Start by showing him the demo's mixed fleet on the board (check
+C8 below): every vendor at once, with vendor badges, fault codes and "not reported" where a vendor
+doesn't send a value. The connectors are built and run on stand-ins; they go live as his accounts
+arrive. They cover:
 
 - **trucks:** Samsara, Motive, Geotab, and Terminal (one connection that covers many other ELD
   brands, for hired haulers);
@@ -119,15 +135,16 @@ brand in each semi, or none). For hired haulers, ask which ELD each one runs, if
 | C3 | Check 5's new command | Ctrl+C in `pnpm dev`, then `Get-CimInstance Win32_Process -Filter "Name='node.exe'" \| Where-Object CommandLine -like '*farm-manager*'` | It lists nothing |
 | C4 | e2e on the PC | `pnpm test:e2e e2e/weather.spec.ts e2e/m1-demo.spec.ts --project=wall` with weather on `sim` | All pass |
 | C5 | Soil map e2e on Windows | `pnpm test:e2e e2e/soils-map.spec.ts --project=wall` | All pass |
+| C7 | 1f e2e on Windows | With no `CONNECTOR_*` line active in `.env.local` (all `sim`): `pnpm test:e2e e2e/m1f-mixed-fleet.spec.ts e2e/fleet-faults.spec.ts e2e/sync-health.spec.ts e2e/deere-fields.spec.ts e2e/deere-ops.spec.ts e2e/trucks.spec.ts e2e/machines.spec.ts e2e/pickups.spec.ts e2e/pickups-terminal.spec.ts --project=wall` | No failures. Some tests skip by design (sync-health's `CONNECTOR_ELD` warning test needs that line set; phone-only tests skip on the wall). Report the passed and skipped counts |
+| C8 | The mixed fleet and `/admin/connectors` by hand | `pnpm dev`, open the **Admin** link it prints (this PC only: the owner, no PIN), open `/board` and wait a minute or two, then open `/admin/connectors` | Every vendor's machines are on the map, and each fleet panel row has its vendor badge: John Deere (C1, C2, GC1, GC2, SP1, P1), Samsara (semis S1-S4, the RoGator SP2, pickups PU1 and PU2), CNH FieldOps (C3, T1), Kubota (AEMP) (L1), Motive (H1), Geotab (H2) and Omnitracs XRS (via Terminal) (H3). The pickups' Ford Pro and Stellantis routes show on `/admin/vehicles`. `/admin/connectors` lists every vendor in `sim` with calls counting and no failing stream (weather reads `live` if Derrick kept it in step B). In its "Simulated truck fault codes" card, press "Critical engine code" next to a semi (S1-S4; the pickups report OBD-II codes only, so this J1939 code never shows on them): within about a minute the semi's row shows the fault badge, the code's meaning on its own line, and "Critical fault: mark down?" (drivers and up see it, so the Admin browser does; the wall kiosk, a viewer, shows only the badge). Press Clear next to it and the badge goes |
 | C6 | Soil labels on the real soils | Under `pnpm pilot` (`pnpm dev` compiles each route on its first request, so it can't be timed), signed in on `/board`: turn Soils on, zoom to about 14 over the farm, pan a few times, then zoom to 16. Time the `/api/soils/labels` requests in the browser's Network tab, or with a short Playwright script | Record the first and the later times in the status entry. The cloud could only time synthetic soils. The first request on the real soils should take under about 1 s and repeats much less, because label points are remembered. Report anything over about 2 s |
 
 If something fails, fix it on `pc/round2` when the fix is clear and small. Otherwise describe
 it, with the output, in the status entry. Push `pc/round2` when A-C (and B2) are done.
 
-Don't pull or test `claude/m1-1f`: it's the cloud's work in progress on slices 1f and 1f.2 (live
-Deere, fault codes, sync health, and the other truck, machine and pickup connectors). It changes
-the database (migration `0007`), and Derrick will say when it's on `main`. After that pull, run
-`pnpm db:seed demo` once, as the merge notes will also say.
+Slices 1f and 1f.2 came in with step A's pull (migration `0007`; bootstrap did the rest). Don't
+switch any vendor to `sandbox` or `live` in this round. That waits for Derrick's accounts (section
+3, item 3).
 
 ### D. Then slice 1e (lidar and crop history) on the PC
 
@@ -150,8 +167,7 @@ Do section 3, item 1, on a branch `pc/slice-1e`, with these specifics:
   schema; EPSG:4326 with GiST). Then `pnpm db:pending` applies them to your database, and the
   tests apply them on their own. Describe the Drizzle mirror you'd want in the status entry.
   The cloud agent turns the file into the next free migration number and writes the mirror
-  when it merges. (Slice 1f, being built in the cloud on `claude/m1-1f`, takes `0007`, so 1e's tables become
-  `0008` or later.)
+  when it merges. (Slice 1f took `0007`, so 1e's tables become `0008` or later.)
 - **Data:**
   - Raw downloads go under `data/raw/` (gitignored), and work files in the `gis_work` volume.
   - Cache every CropScape download: it has had outages and certificate problems.
@@ -181,6 +197,7 @@ git push origin --delete claude/m0-win-debug
 git push origin --delete claude/pc-followups
 git push origin --delete claude/soil-map
 git push origin --delete claude/pc-agent-docs
+git push origin --delete claude/m1-1f
 ```
 
 The cloud's proxy can't delete branches, so this has to happen on the PC (or on GitHub's
@@ -226,8 +243,8 @@ pnpm dev
 Expect:
 - **Bootstrap** ends with "Ready." and a summary. A first run downloads the database image
   (1-3 minutes) and the offline basemap. On an install that already has M0, it applies
-  migrations `0003`-`0006` and adds the M1 demo data; one that already has M1 gets just the new
-  ones (`0006`). No `pnpm db:reset` is needed.
+  migrations `0003`-`0007` and adds the M1 and 1f demo data; one that already has M1 gets just the
+  new ones (`0006`, `0007`). No `pnpm db:reset` is needed.
 - **`pnpm dev`** prints an **Owner** link the first time (`http://localhost:3000/login/setup?code=…`).
   Tell Derrick to open it on the PC and set his name and PIN; don't pick a PIN for him.
 - **The board** is at `http://localhost:3000/board`: fields around Adrian and Blissfield, the
@@ -305,12 +322,27 @@ of one.
    - parcel files from the counties: `pnpm gis:parcels <file>`.
 
    When his fields are in, hide the demo farm with **/admin/fields → Hide demo fields**.
-3. **Deere sandbox (slice 1f)**, once Derrick has a Deere developer account.
-   - The OAuth sign-in redirects to the PC, so it has to happen here.
-   - Follow plan §5 for Deere and §6 1f: switch `CONNECTOR_DEERE=sandbox`, connect, then
-     confirm fields, machines and flags appear.
-   - Record scrubbed fixtures with `pnpm connectors:record` if it exists (or build that
-     command per plan §5) so the cloud's tests match real Deere responses.
+3. **Vendor sandboxes (slice 1f, built)**, as Derrick's accounts arrive. Deere first, once he
+   has a Deere developer account.
+   - The Deere and CNH sign-ins redirect to the PC, so they have to happen here.
+   - Follow the README, "Connectors": "John Deere on the PC (sandbox)" (both redirect URIs,
+     `DEERE_REDIRECT_URI`, `docs/deere-callback.html`, the call budget, the home org), then
+     "Other vendors' sandboxes" (MyGeotab demo database, Motive TEST MODE key, Terminal, CNH,
+     `AEMP_PROVIDERS`).
+   - Switch one vendor at a time (`CONNECTOR_DEERE=sandbox` and so on), connect, then confirm on
+     `/admin/connectors` and the board that its fields, machines, flags or trucks appear.
+   - Record Deere's and Samsara's responses with `pnpm connectors:record deere --scrub` (or
+     `samsara`; the recorder knows only these two). The raw copy goes to
+     `data\raw\recorded\<vendor>\` (gitignored, never committed). The scrubbed files go to
+     `src\connectors\<vendor>\fixtures\recorded\<stream>\01-<stream>.json`, and the command prints
+     each path. Read each scrubbed file (the command refuses a stream where an original id or name
+     survives: it prints `REFUSED` and writes no file), then push the scrubbed files on a
+     `pc/<vendor>-recording` branch, so the cloud's tests match the real responses.
+   - CNH: the README asks for a staging recording before sandbox use, and there is no CNH recorder
+     yet. Leave CNH in `sim` and tell Derrick; the cloud adds the recorder.
+   - `pnpm test:live` runs the live suite of each vendor switched to `sandbox` or `live` with its
+     credentials set (Deere also needs the sign-in). The others skip and say what to set, so check
+     that the vendor you switched shows tests run, not skipped.
    - Never point the PC at Derrick's production Deere organization without his say-so.
 4. **Wall PC hardening (slice 1g):** start the kiosk on boot with Task Scheduler, reload it when
    realtime has been stale for more than 5 minutes, and set the display's sleep and Windows

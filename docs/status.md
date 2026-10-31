@@ -6,8 +6,8 @@ Oct 31, 2026. Update this file at the end of each build session.
 
 | Branch | State |
 |---|---|
-| `main` | M0 + M1 (slices 1a-1d), the e2e flake fixes, the follow-up to the PC checks (`claude/pc-followups`, below) and the soil type map (`claude/soil-map`, merged Oct 31, below). Work from here; the PC agent follows `PC-AGENT.md`. |
-| `claude/m1-1f` | Slices 1f and 1f.2 **integrated** (Oct 31): the seven builders' branches (`m1f/deere-data`, `m1f/deere-ops`, `m1f/fleet-faults`, `m1f/sync-health`, `m1f2/trucks`, `m1f2/machines`, `m1f2/terminal-pickups`) and `main` (the soil map) merged; their worktrees and branches removed. Next: review rounds and CI, then `main`. Not for the PC until it's on `main`. |
+| `main` | M0 + M1 (slices 1a-1d), the e2e flake fixes, the follow-up to the PC checks (`claude/pc-followups`, below), the soil type map (`claude/soil-map`, merged Oct 31, below) and slices 1f + 1f.2 (`claude/m1-1f`, merged Oct 31, below). Work from here; the PC agent follows `PC-AGENT.md`. |
+| `claude/m1-1f` | Slices 1f and 1f.2: seven builders, integration, two review rounds (20 findings: 14 fixed, 6 rejected with reasons) and two CI test fixes. CI fully green at `3b951d4` (run 70: Linux, e2e with the replay step, Windows). Merged into `main` on Oct 31. Safe to delete. |
 | `claude/soil-map` | Soil type map Phase A. Two reviews (12 findings, all fixed); CI fully green at `44d7779`; merged into `main` on Oct 31. Safe to delete. |
 | `claude/pc-agent-docs` | PC-AGENT.md round 2 docs, already in `main`. Safe to delete. |
 | `claude/pc-followups` | Derrick's `pc/section2-checks` plus the cloud follow-up to its findings (below). CI fully green at `3f5976e`; merged into `main` on Oct 30. Safe to delete. |
@@ -32,7 +32,7 @@ Lint, typecheck, unit (also in a clean clone with no env files), DB tests, build
 
 Its proxy blocks the real Protomaps basemap, live NWS weather, real SSURGO soils and NAIP close-ups. All four passed on Derrick's PC on Oct 29 (PC findings below). Live weather needs one re-check after the staleness change (Next).
 
-## Oct 31, 2026: slices 1f and 1f.2 integrated (`claude/m1-1f`)
+## Oct 31, 2026: slices 1f and 1f.2 (merged into `main`)
 
 What 1f delivered (details: `docs/build-plan.md` 1f "As built", `docs/contracts-1f.md`):
 
@@ -59,8 +59,9 @@ What 1f delivered (details: `docs/build-plan.md` 1f "As built", `docs/contracts-
   keeps a hand boundary as history under the re-synced Deere one (decision 7); the decision rows
   are in `docs/decisions.md` "Slice 1f merge".
 
-After pulling (once it's on `main`): `pnpm run bootstrap` (or `pnpm db:migrate`), then
-`pnpm db:seed demo`.
+After pulling: `pnpm run bootstrap`. It applies `0007`, re-seeds the demo farm (the mixed fleet)
+and replaces a simulated Deere sign-in from before 1f, which lacks `ag2`. By hand instead:
+`pnpm db:migrate`, `pnpm db:seed demo`, `pnpm vendor-sim:connect`.
 
 The integrator's last pass found two gaps in the done-when tests and closed them: §B.8.4's
 "`CONNECTOR_ELD=replay` shows the alias warning and replays Samsara" had only a test that skips
@@ -81,7 +82,69 @@ phone-project copies of wall-only specs, the replay specs and the alias test und
 phone-only tests on the wall). CI's replay step exactly as CI runs it (`CONNECTOR_DEERE`,
 `CONNECTOR_ELD`, `CONNECTOR_MOTIVE`, `CONNECTOR_GEOTAB`, `CONNECTOR_TERMINAL`, `CONNECTOR_AEMP` =
 replay; `fleet-panel-replay`, `fleet-panel`, `m1f-replay`, `trucks-replay`, `pickups-replay`,
-wall): 12 passed, twice, the second time straight after the sim suite. GitHub CI not run yet.
+wall): 12 passed, twice, the second time straight after the sim suite.
+
+**Review round 1** (correctness, security and vendors, UX; each finding then checked by a separate
+agent): 17 findings, 11 confirmed and fixed, 6 rejected as far-fetched or already covered (one
+machine with Samsara snapshot faults and another vendor's delta faults at once; a replay e2e that
+could pass on failed events, which the replay DB tests already catch; an operation Deere moves to
+another field showing under the old one until its next sync; a vendor redirect carrying the API key
+to another host; the 72 px touch rule applied to map pins; codes left over on a dev database after a
+replay run by hand):
+
+- Fault codes from delta feeds (AEMP, CNH, Terminal, Motive, Geotab) now age out against the time
+  each faults run checked through, after a run that caught up: 24 h for a feed with no "cleared"
+  signal, a 7-day backstop for feeds that send one. Before, a code that stopped recurring never
+  closed, so a stuck critical code kept offering "mark down?".
+- Samsara OBD-II codes on any module can clear (an explicit empty list clears them all); a code a
+  newer reading leaves out starts the 24 h age-out.
+- A Deere machine reads "last working position" only once a successful Deere poll lands 3 min
+  or more after its newest breadcrumb, so a working machine no longer flips to idle while it waits
+  for the next poll. While the Deere feed fails or goes quiet, no machine reads parked: its machines
+  go stale. When the last Deere run failed, the panel and the wall's status strip also say "John
+  Deere: not connected since 9:17 AM" (the phone's strip: "John Deere offline").
+- The recording scrubber hashes nested ids (Samsara's `externalIds`) and keeps fault vocabulary
+  (`spnId`, `fmiId`, `txId`) as sent.
+- Faults at a glance: critical, then warning machines lead their group; the panel summary counts
+  critical and warning machines and the strip shows "N critical faults"; the wall card shows the
+  fault tag; the worst code's meaning is its own line under the badge and the tag (touch screens
+  have no hover text).
+- The Motive, Geotab and Terminal e2e specs close the codes they raise; a faults stream that
+  changes mode closes its source's codes.
+- `/admin/connectors` judges each stream against its source's job schedule instead of a flat
+  10 min, so a healthy hourly stream no longer reads stale.
+- AEMP's last-known positions say "Last known position from Kubota (AEMP)", with no speed or
+  heading.
+
+**Review round 2**, on the fixes: 3 findings, all fixed:
+
+- The snapshot guard is now per machine and source (`farm.machine_fault_snapshots`): the stand-in's
+  newer readings can no longer hide a live account's older active codes after a switch to live.
+- Turning a faults stream off and back on in the same mode brings back the codes the vendor still
+  holds as active; a switch to another account (sim, replay, sandbox, live) closes them for good.
+- Fast streams (Samsara positions, Deere locations) are judged by the job that runs them, not
+  their source's slowest (hourly) job: they read stale 10 min after they stop, not up to 2 h later.
+
+Migration `0007` grew in review (`machine_faults.age_out_seconds` and `closed_by`, the
+`machine_fault_snapshots` table), amended in place since it wasn't on `main` yet. Checks at the
+reviewed head: lint (1025 files), typecheck, `pnpm test` 1980 passed (244 files), `pnpm test:db`
+510 passed (78 files), build, full e2e 161 passed / 79 skipped / 0 failed, replay step 12 passed,
+migrations from zero, drizzle generate with no changes. One e2e run before that had a single
+failure that passed alone and on the rerun: `deere-fields.spec.ts:256` on the phone (the flag
+popup didn't open after a tap). Watch for it.
+
+**CI fixes:** two unit tests that call the stand-in's `machineAt` (it replays the scenario from
+its start after each reset, over 5 s on a GitHub runner) get 30 s, and the in-process stand-in now
+keeps idle sockets 65 s: at 5 s, a test that blocked the process past 5 s let the server close a
+socket just as the next request reused it (ECONNRESET in CI run 68; reproduced locally, 3 resets in
+12 before, none after). CI fully green at `3b951d4` (run 70: Linux, e2e with the replay step,
+Windows). Its e2e had one test that failed and then passed on the retry: `field-panel.spec.ts:261`
+on the wall (tap to panel within 200 ms; the first try hit the 60 s test timeout). Watch for it.
+
+**After the merge:** bootstrap's sim connector step now replaces a stored simulated Deere grant that
+lacks a scope the app asks for. A PC connected before 1f has one without `ag2`, so `deere.ops`
+(this season's operations) failed on every run after the pull; the doc check for this merge found
+it. `tools/vendor-sim/connect.db.test.ts` covers it (fails on the old code).
 
 ## Oct 31, 2026: soil type map (Phase A, `claude/soil-map`)
 
@@ -98,21 +161,25 @@ Phase B (texture, slope, interpretations, OM/pH/CEC) is the PC's, after 1e.
 ## Next
 
 - On the PC: `PC-AGENT.md` "Round 2" (not started yet), in this order:
-  - A: update and bootstrap (migration `0006`);
+  - A: update and bootstrap (migrations `0006` and `0007`; bootstrap re-seeds the demo fleet and
+    replaces the old simulated Deere sign-in);
   - B: re-check live weather;
   - B2: soil map walk-through and fleet inventory with Derrick;
-  - C: Windows re-checks, now including the soil map (C5, C6);
+  - C: Windows re-checks, now including the soil map (C5, C6) and slice 1f (C7, C8);
   - D: slice 1e on `pc/slice-1e`, pushed in pieces for the cloud to review and fold into the next
-    free migration (`0008` or later: 1f takes `0007`);
+    free migration (`0008` or later: 1f took `0007`);
   - E: branch cleanup, if Derrick agrees.
 - Then Derrick's own data (PC-AGENT.md section 3, item 2).
-- In the cloud, per `docs/build-plan.md` §6 and D22: finish 1f + 1f.2 on `claude/m1-1f`
-  (integrated Oct 31; next: review, CI, merge), then the war board (M2 2a job board, 2b morning meeting, Work
-  Plans and go/no-go v1), then the rest of 1g, then 2c, then MD. The Deere season backfill is
-  deferred to after MD.
+- In the cloud, per `docs/build-plan.md` §6 and D22: the war board next (M2 2a job board and
+  drag-to-assign, then 2b morning meeting, Work Plans and go/no-go v1), then the rest of 1g, then
+  2c, then MD. The Deere season backfill is deferred to after MD.
+- Vendors go from stand-ins to real accounts as Derrick's sign-ups land (Deere developer account
+  first; PC-AGENT.md section 3, item 3). `connectors:record` knows only Deere and Samsara; CNH's
+  README entry asks for a staging recording, so a CNH recorder comes before CNH goes past `sim`.
 - Open decisions with their current defaults: `docs/decisions.md` (D4 spray thresholds, D8
-  testers and devices). D3 (which truck telematics) is replaced on `claude/m1-1f`:
-  Samsara, Motive, Geotab, and Terminal for the long tail.
+  testers and devices). D3 (telematics vendors) was replaced Oct 30 and is built: Samsara,
+  Motive, Geotab and Terminal for trucks, Deere, CNH, AEMP and Samsara gateways for machines; what
+  connects first waits on Derrick's fleet inventory (PC-AGENT.md B2).
 
 ## PC findings
 

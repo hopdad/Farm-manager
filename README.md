@@ -24,9 +24,11 @@ connectors and sync health: Deere fields, flags, machines and this season's oper
 codes, `/admin/connectors`) and **1f.2** (every telematics vendor at once, pickups). The 1f
 agreements are [`docs/contracts-1f.md`](docs/contracts-1f.md).
 
-**After pulling slice 1f:** `pnpm run bootstrap` (or `pnpm db:migrate`), then
-`pnpm db:seed demo` once (the mixed fleet's machines and vendor links land in your database;
-H1's Motive link moves under its hauler's company), then `pnpm dev` as usual.
+**After pulling slice 1f:** `pnpm run bootstrap`, then `pnpm dev` as usual. Bootstrap applies
+migration `0007`, re-seeds the demo farm (the mixed fleet's machines and vendor links land in your
+database; H1's Motive link moves under its hauler's company) and replaces a simulated Deere
+sign-in from before 1f, which lacks the `ag2` scope this season's operations need. By hand
+instead: `pnpm db:migrate`, `pnpm db:seed demo`, then `pnpm vendor-sim:connect`.
 
 **Working on the PC with a coding agent?** Point it at [`PC-AGENT.md`](PC-AGENT.md): how to launch the demo, what to verify on Windows, and the building that has to happen on the PC.
 
