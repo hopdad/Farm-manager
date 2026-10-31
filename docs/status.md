@@ -39,7 +39,7 @@ Its proxy blocks the real Protomaps basemap, live NWS weather, real SSURGO soils
   - E: branch cleanup, if Derrick agrees.
 - Then Derrick's own data (PC-AGENT.md section 3, item 2).
 - Open decisions with their current defaults: `docs/decisions.md` (D3 Samsara or Motive by Nov 15, D4 spray thresholds, D8 testers and devices; the new "Forecast stale" defaults).
-- Then M1 slices 1f (live connectors, sync health) and 1g (replay, hardening), per `docs/build-plan.md` §6.
+- Then, per `docs/build-plan.md` §6 (order changed Oct 31, decision D22): slice 1f (live connectors, sync health) with 1f.2 (every telematics vendor) → M2 2a (job board, drag a job onto a field, then a person or machine) and 2b (Work Plan loop, morning meeting mode, go/no-go v1) → the rest of 1g (kiosk hardening; empty, stale and error states; performance at 50 machines / 500 fields; replay slider; raw-GPS retention; Phase 1 gate check) → 2c (pins, cab devices) → MD. The Deere season backfill is deferred to after MD, before M4's season flip-through (`docs/contracts-1f.md` §13).
 
 ## PC findings
 

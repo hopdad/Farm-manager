@@ -322,7 +322,7 @@ Real farm data (boundaries, landlords, customers) lives only in the database and
 | `db:parity <a> <b>` / `db:parity-init` | Compare Postgres and extension versions between two URLs / prepare a non-Supabase Postgres (fallbacks in §2) |
 | `db:configure <local\|prod>` | `app.settings` and the `farm_app` login role (password set here, never in migrations). Locally it also creates pg_cron and pg_net in `postgres`. For prod it also applies the realtime policies, Vault secrets and cron jobs |
 | `import:boundaries <file>` / `import:seasons <csv>` / `import:tile <file>` / `gis:parcels <file>` | Ops Center shapefile or GeoJSON, crop-year history, tile as-builts, parcel files |
-| `deere:backfill --seasons=2022-2026` | Pulls past operations by crop season and derives `field_seasons` rows |
+| `deere:backfill --seasons=2022-2026` | Pulls past operations by crop season and derives `field_seasons` rows. **Deferred (D22):** built after MD, before M4's season flip-through; until then a placeholder that says so |
 | `gis:basemap\|soils\|csb\|cdl\|dem\|naip\|ndvi`, `gis:refresh-derived`, `gis:device-pack`, `ingest:all [--offline] [--target]`, `gis:pack` | Public data (§5) |
 | `connectors:record <source>` | Saves scrubbed live responses as replay fixtures |
 | `jobs:emit-cron` | Registry → `db/supabase/cron.sql` (skips `host: 'pc'` jobs) |
@@ -546,13 +546,25 @@ Every slice ends with a **Friday demo you run on your PC** and green CI.
 |---|---|---|---|
 | Week 0: start the slow clocks | Oct 29 – Nov 6 (alongside M0) | 4 | Lead time for the Phase 1 gate |
 | **M0 Foundation** | Oct 29 – Nov 15 | 30 | none |
-| **M1 See it** | Nov 16 – Feb 21 (holiday buffer Dec 21 – Jan 3) | 250 | Phase 1; gate checked Feb 21 |
-| **M2 Plan it** | Feb 22 – Apr 4 | 140 | Phase 2 |
+| **M1 See it** | Nov 16 – Feb 14, then the rest of 1g Mar 15 – Mar 21 (holiday buffer Dec 21 – Jan 3) | 250 | Phase 1; gate checked in 1g (Mar 21), before any production use |
+| **M2 Plan it** | 2a and 2b Feb 15 – Mar 14, 2c Mar 22 – Apr 4 | 140 | Phase 2 |
 | **MD Deploy-ready** | Apr 5 – Apr 18, burn-in to May 2 | 50 | Ends the PC-only period |
 | Planting and spraying support | Apr 19 – Jun 6 | fixes only | **Phase 2 gate:** crew uses the board every day |
 | **M3 Bill it** | Jun 7 – Sep 5 | 170 | Phase 3 |
 | Harvest support | Sep 6 – Nov 2027 | freeze | **Phase 3 gate:** one clean season of job and cost data (`pnpm gate:phase3`) |
 | **M4 Decide with it** | Dec 2027 – Mar 2028 | 300 | Phase 4 |
+
+**Build order from 1f on (D22, Oct 31, 2026: the war board moves up).** M1 and M2 interleave; the dates below replace the slice dates in their headings where they differ:
+1. **1f** live connectors + sync health, with **1f.2** (every telematics vendor at once): Feb 1 – Feb 14.
+2. **2a** job board + drag-to-assign (drag a job onto a field, then onto a person or machine): Feb 15 – Feb 28.
+3. **2b** Work Plan loop, morning meeting mode, go/no-go v1: Mar 1 – Mar 14.
+4. **The rest of 1g:** kiosk hardening; empty, stale and error states; performance at 50 machines and 500 fields; the replay slider; raw-GPS retention; the Phase 1 gate check: Mar 15 – Mar 21.
+5. **2c** pins + cab devices: Mar 22 – Apr 4.
+6. **MD** deploy-ready → production: Apr 5 – Apr 18 (unchanged).
+
+The gates stay where they were in substance: Work Plans push to the Deere simulator or sandbox only until Deere grants Work Plans for production (`WRITEBACK_DEERE` stays off), and the Phase 1 gate is still checked (in 1g) and is an MD entry item before anything is used for real. 2a and 2b don't need it; they run on sim and sandbox, as they would have anyway.
+
+**Deferred, not dropped: the Deere season backfill** (`deere:backfill`, your 2022-2026 seasons read from Operations Center). It moves out of 1f and sits **after MD and before M4**, whose season flip-through (4c) needs past seasons. Until then seasons come from `import:seasons` and the demo seed; the season rule (decision 1f-1) and the `pnpm deere:backfill` placeholder stay. Detail: `docs/contracts-1f.md` §13.
 
 ### Week 0: start the slow clocks (calls and forms, not code)
 - [ ] **Deere:**
@@ -605,7 +617,7 @@ Every slice ends with a **Friday demo you run on your PC** and green CI.
 5. Unplug the router's internet (WAN) cable while the PC and phone stay on the LAN (on the phone, keep Wi-Fi and turn off mobile data), and everything keeps running.
 6. CI is green.
 
-### M1 Phase 1, "See it" (Nov 16 – Feb 21) · gate: Phase 1 gate checked in 1g; nothing in M1 waits on it
+### M1 Phase 1, "See it" (Nov 16 – Feb 14; the rest of 1g Mar 15 – Mar 21, after 2b: D22) · gate: Phase 1 gate checked in 1g; nothing in M1 waits on it
 **Goal:** the spec's Phase 1 on your PC with your real fields, read-only. Deere and trucks are live once their gates open; until then they run in sim or replay.
 
 **1a Tap a field, fleet panel, sign-in (Nov 16 – Nov 29)**
@@ -671,40 +683,41 @@ Every slice ends with a **Friday demo you run on your PC** and green CI.
   - OAuth plus the Connections redirect, and encrypted tokens with locked refresh.
   - Fields and boundaries, operations with coverage, machine locations and hours, flags (read-only into pins).
   - `connectors:record` and contract tests.
-  - `deere:backfill --seasons=2022-2026`: field_seasons rows from seeding and harvest operations.
+  - ~~`deere:backfill --seasons=2022-2026`~~ **deferred (D22)** to after MD, before M4's season flip-through; the season rule (1f-1) and a placeholder CLI stay.
 
   If Deere won't take a localhost redirect, use the public callback from Week 0. **Submit the production-access request by Feb 1**, not at the gate check.
 - [ ] Set the location cadence from the measured call budget. Deere-only machines show their last working position.
 - [ ] ELD live client for the vendor chosen in D3 if the account exists (positions plus the stats feed: engine hours, fuel, faults); otherwise sim plus doc-derived fixtures. Faults badge in the fleet panel; a critical fault suggests "down".
 - [ ] `/admin/connectors`: mode, last OK, last error, dead-lettered events and call counts per source, plus a source badge on each machine.
+- [ ] **1f.2 (added Oct 30, when D3 changed):** every telematics vendor at once (Samsara, Motive, Geotab, CNH, the AEMP feed, Terminal; Ford and Ram pickups through the carmaker-cloud links), each on its own setting, against the vendors' published documents until real accounts exist (`docs/contracts-1f.md` part B). M2 2a starts after it (D22).
 
 *Done when:* one of these holds:
-- `CONNECTOR_DEERE=sandbox` shows your real Deere fields, machines, flags and backfilled seasons.
+- `CONNECTOR_DEERE=sandbox` shows your real Deere fields, machines, flags and this season's field operations (backfilled past seasons are deferred, D22).
 - Without a Deere app, the same flow runs from fixtures in `replay`, with the OAuth step skipped.
 
 Trucks are live if the ELDs are in, otherwise simulated.
 
-**1g Replay + Phase 1 hardening (Feb 15 – Feb 21)**
+**1g Replay + Phase 1 hardening (Mar 15 – Mar 21, after 2b: D22)**
 - [ ] `tracks_daily` rollup and the raw-retention job (D9). A time slider (deck.gl `TripsLayer`) replays a day, loaded per machine-hour.
 - [ ] Empty, stale and error states. Performance: 50 machines and 500 fields at 4K must hold 45 fps or better against the `prodlike` database, on the real display if it's bought (D10). If it misses, pre-bake soils and CSB to PMTiles.
 - [ ] **Kiosk runbook** and script:
   - Flags: `--kiosk --disable-pinch --overscroll-history-navigation=0 --noerrdialogs --disable-session-crashed-bubble`.
   - Start on boot; reload when realtime has been stale for more than 5 minutes.
   - Display sleep and OS update windows.
-- [ ] **Phase 1 gate check:** has Deere production access been approved? Are the ELDs installed? Flip each to `live` where it's open (config only). **If the gate isn't met,** M2 continues on sim and sandbox, the gate stays open, and it becomes an MD entry item.
+- [ ] **Phase 1 gate check:** has Deere production access been approved? Are the ELDs installed? Flip each to `live` where it's open (config only). **If the gate isn't met,** 2c continues on sim and sandbox, the gate stays open, and it becomes an MD entry item. (2a and 2b ran before this check, on sim and sandbox: D22.)
 
 *Done when (the Phase 1 demo):* for a week you open the board each morning and see:
-- real fields with soils, lidar, crop history and 5 seasons;
+- real fields with soils, lidar, crop history and 5 seasons (imported, until the deferred Deere backfill);
 - parcels and tile lines;
 - the fleet (live, replay or sim);
 - the weather strip.
 
 It's read-only, and Operations Center stays the system of record.
 
-### M2 Phase 2, "Plan it" (Feb 22 – Apr 4) · gate: Deere Work Plans grant for live push (sim/sandbox until then); Phase 1 gate before production use
+### M2 Phase 2, "Plan it" (Feb 15 – Apr 4, with the rest of 1g between 2b and 2c: D22) · gate: Deere Work Plans grant for live push (sim/sandbox until then); Phase 1 gate before production use
 **Goal:** the job board, drag-to-assign, Work Plans, morning meeting mode, go/no-go per field, and pins on phones.
 
-**2a Job board + drag-to-assign (Feb 22 – Mar 7)**
+**2a Job board + drag-to-assign (Feb 15 – Feb 28)**
 - [ ] products, jobs (with planned quantities), job_assignments, job_products; publish triggers; optimistic `version`.
 - [ ] Cards by crew, colored by status. Create a job from a tapped field or from a text or phone request.
 - [ ] Drag a card onto a field (`queryRenderedFeatures` at the drop point), then onto a person or machine chip (dnd-kit pointer and touch sensors). Drags start only from cards and chips, so they don't fight map panning.
@@ -714,7 +727,7 @@ It's read-only, and Operations Center stays the system of record.
 
 *Done when:* with the wall and a phone side by side, drag a spray job onto a field, then onto Sprayer 2 and an operator. The other screen updates in under 2 s.
 
-**2b Work Plan loop, morning meeting, go/no-go v1 (Mar 8 – Mar 21)**
+**2b Work Plan loop, morning meeting, go/no-go v1 (Mar 1 – Mar 14)**
 - [ ] **Work Plans and actuals:**
   - `ingest.outbox` + `deere.work_plan` handler (sim, then sandbox) with status synced back.
   - `job_operations` matching on field + window + kind, with manual override.
@@ -869,7 +882,7 @@ Built on the PC and shipped through the same pipeline.
 ### M4 Phase 4, "Decide with it" (Dec 2027 – Mar 2028) · gate in: Phase 3 gate
 - [ ] **4a** Field P&L and business-line P&L (grain, spraying, trucking, store) from `job_costs`, rent and a ledger import. The default import is a CSV export from QBO or Traction; the QBO API import is optional.
 - [ ] **4b** Leases with renewal reminders and rent due dates (`lease_payments`). Contact book (introduced by, last and next touch). Prospect parcels scored with CSB, CDL and lidar (plus flow paths if deferred from 1e).
-- [ ] **4c** Drone log import (D18), season flip-through per field including Deere yield and as-applied map layers, multi-year history, and inventory on hand vs planned.
+- [ ] **4c** Drone log import (D18), season flip-through per field including Deere yield and as-applied map layers, multi-year history, and inventory on hand vs planned. Needs the deferred Deere season backfill (D22; `docs/contracts-1f.md` §13) built first, after MD.
 
 *Done when:*
 - Every 2027 field has a P&L, and each business line has its own ledger.
@@ -965,8 +978,8 @@ Built on the PC and shipped through the same pipeline.
 | D6 | Boundary master: Deere or this database | Dec 14 | Deere is the master for every field it has; the app edits only non-Deere fields and versions every change |
 | D7 | Parcels: request from the counties or buy | Dec 15 | Ask both counties; buy one county if there's no answer in 3 weeks |
 | D8 | Who tests this winter; roles; which devices are shared (PIN) vs personal | Jan 4 | You plus one crew lead; the wall and cab iPads are shared devices |
-| D9 | How long to keep raw GPS | Feb 15 | 90 days raw, daily tracks forever |
-| D10 | When to buy the war-room display and driver PC, and whether it hosts the LAN-only fallback | After the 1g performance test (Feb 21) | Test on a 4K TV or touch laptop until then; the dev PC hosts any LAN-only period |
+| D9 | How long to keep raw GPS | Mar 15 (retention is built in 1g, now after 2b: D22) | 90 days raw, daily tracks forever |
+| D10 | When to buy the war-room display and driver PC, and whether it hosts the LAN-only fallback | After the 1g performance test (Mar 21) | Test on a 4K TV or touch laptop until then; the dev PC hosts any LAN-only period |
 | D11 | Deploy before planting, or run LAN-only through planting | **Mar 21** | Deploy if the "solid" list passes |
 | D12 | HTTPS for test phones before deploy | Mar 22 | mkcert (no account); Tailscale Serve only if you already use Tailscale |
 | D13 | Domain name, hosting regions, SMTP provider, preview environment | Apr 5, or **Week 0** if Deere needs a public callback | us-east-2 + nearby Vercel region; any transactional SMTP; previews off |
