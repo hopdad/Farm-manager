@@ -26,6 +26,13 @@
  *    some groups. Then positions come from Get DeviceStatusInfo (last known, snapshot diff) and
  *    stats from DeviceStatusInfo's latest StatusData of our diagnostics; the client says so
  *    (`fallbacks`, logged) and probes GetFeed again after an hour.
+ *
+ * SANDBOX (no separate host, no developer key): create the free demo database at
+ * https://my.geotab.com/registration.html ("Create a Demo Database": up to 60 days, 10-50
+ * replayed vehicles, on the production servers), add a user with Authentication type "Service
+ * Account" (clearance "View only", data access the root Company Group) under People > Users &
+ * Drivers, then set CONNECTOR_GEOTAB=sandbox, GEOTAB_DATABASE (the demo_… name), GEOTAB_USERNAME
+ * and GEOTAB_PASSWORD (GEOTAB_SERVER stays my.geotab.com; LoginResult.path redirects).
  */
 import {
   type ConnectorConfig,

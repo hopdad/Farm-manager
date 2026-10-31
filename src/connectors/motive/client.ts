@@ -26,6 +26,7 @@
  * Retry-After header). Positions and stats share one v2 read per run (`snapshotTtlMs`).
  */
 
+import type { z } from 'zod';
 import {
   type ConnectorConfig,
   type MotiveEndpoint,
@@ -150,7 +151,7 @@ export class MotiveClient {
 
   /** GET one Motive path (the key rides in a header, never in the query). */
   private async get<T>(
-    schema: { safeParse(v: unknown): unknown } & Parameters<typeof vendorJson>[0],
+    schema: z.ZodType,
     path: string,
     query: Record<string, string> = {},
   ): Promise<T> {

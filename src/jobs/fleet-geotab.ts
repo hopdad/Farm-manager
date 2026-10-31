@@ -16,7 +16,8 @@
  * `geotab`, encrypted with TOKEN_ENC_KEY; in sim without a key, in this process). GetFeed stays
  * within 60/min per entity type and Authenticate within 10/min (./connectors/geotab/session.ts).
  * When the limited-scope fallback serves a stream, its sync_state.extra says so
- * (`scopeFallback: 1`, shown on /admin/connectors as a counter; 0 once GetFeed works again).
+ * (`scopeFallback: 1`, shown on /admin/connectors as a counter; 0 once GetFeed works again; no
+ * key on a stream that never fell back).
  * Devices the farm doesn't map never land (`only`). Positions first; the rest while budget
  * remains.
  */
@@ -97,13 +98,17 @@ export function geotabSessionStore(
   });
 }
 
-/** Merge `scopeFallback` (1 = served by the limited-scope fallback, 0 = by GetFeed) into extra. */
+/**
+ * Merge `scopeFallback` into the stream's extra: 1 while the limited-scope fallback serves it,
+ * back to 0 once GetFeed works again (a stream that never fell back gets no key at all).
+ */
 async function noteFallback(sctx: SyncContext, on: boolean): Promise<void> {
   await exec(
     sctx.job.pool,
     `update ingest.sync_state
         set extra = coalesce(extra, '{}'::jsonb) || jsonb_build_object('scopeFallback', $3::int)
-      where source = $1 and stream = $2`,
+      where source = $1 and stream = $2
+        and ($3::int = 1 or coalesce(extra, '{}'::jsonb) ? 'scopeFallback')`,
     [sctx.source, sctx.stream, on ? 1 : 0],
   );
 }
