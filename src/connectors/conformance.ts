@@ -127,6 +127,10 @@ export function standInRequest(
     u.searchParams.set('startDate', new Date(now.getTime() - 15 * 60_000).toISOString());
     u.searchParams.set('endDate', now.toISOString());
   }
+  // deere.ops always lists a field's operations with their measurements embedded (§11.2).
+  if (/\/fieldOperations$/.test(p) && !u.searchParams.has('embed')) {
+    u.searchParams.set('embed', 'measurementTypes');
+  }
   if (p === '/fleet/vehicles/stats/feed' && !u.searchParams.has('types')) {
     u.searchParams.set('types', SAMSARA_STAT_TYPES.join(','));
   }
@@ -167,9 +171,9 @@ export const TOLERATED_GAPS: readonly ToleratedGap[] = [
   },
   {
     source: 'deere',
-    endpoints: /^\/organizations\/\{\}\/fields$/,
-    path: 'values[].lastModifiedTime',
-    why: "the core stand-in's minimal fields listing; deere-data's fields module serves the full shape",
+    endpoints: /^\/organizations\/\{\}\/fields\/\{\}\/fieldOperations$/,
+    path: 'values[].products',
+    why: "the stand-in's applications come from the simulated day reports only (none at the field the 30 fixture's replay-only burndown sits on); seeding operations carry varieties",
   },
 ];
 

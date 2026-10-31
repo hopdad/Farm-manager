@@ -92,14 +92,6 @@ export const DOC_DERIVED: readonly DocDerivedItem[] = [
   },
   {
     source: 'deere',
-    what: 'GET /platform/fieldOperations/{operationId}/boundary (operation coverage, scope ag2)',
-    confirm:
-      'Deere answers 400 when the field has an active boundary (and for merged fields); the alternative is GET /fieldOps/{id}?shapeType=Polygon (202 poll, 307 to a pre-signed URL, a zipped shapefile; 406 for tillage)',
-    file: 'src/connectors/deere/client.ts',
-    basis: 'spec',
-  },
-  {
-    source: 'deere',
     what: 'organizations: `connections` (needs approval) vs `manage_connections` / `manage_connection` (connected) links; a 403 with x-deere-terms-location',
     confirm:
       'which rels a connected org carries (both manage spellings appear in the docs), whether partner (customer) orgs list with member: false, the terms-location 403 in practice',
@@ -137,14 +129,6 @@ export const DOC_DERIVED: readonly DocDerivedItem[] = [
       "Deere publishes no per-day limit beyond the sandbox's 150,000 calls a month; the production limit comes with the production-access agreement (or a 429's Retry-After)",
     file: 'src/connectors/call-budget.ts, src/connectors/deere/call-shares.ts',
     basis: 'doc',
-  },
-  {
-    source: 'samsara',
-    what: 'faultCodes stat type: OBD-II codes per module (txId); the oem block',
-    confirm:
-      'whether one OBD-II reading carries every module or only those that reported (decides whether "absent = cleared" is safe across modules); when faultCodes.oem is filled (OEM vehicles?) and what codeSeverity values mean',
-    file: 'src/connectors/samsara (fleet-faults: the faults stream)',
-    basis: 'spec',
   },
   {
     source: 'samsara',

@@ -76,6 +76,7 @@ describe('doc-derived fixtures vs the stand-in', () => {
   test('every served endpoint has the vendor shape (types agree, gaps known)', async () => {
     const compared = new Set<string>();
     const problems: string[] = [];
+    const unknownIds: string[] = [];
     for (const fixture of [...deereReplayFixtures, ...samsaraReplayFixtures]) {
       const byUrl = new Map<string, { url: URL; template: string; bodies: unknown[] }>();
       for (const x of fixture.exchanges) {
@@ -96,6 +97,12 @@ describe('doc-derived fixtures vs the stand-in', () => {
           skipped.push(`${fixture.source} ${template}`);
           continue;
         }
+        // A replay-only record (the 1a operations, deere-ops' burndown) is unknown to the
+        // stand-in by id; its endpoint is still compared through the other ids (below).
+        if (reply.status === 404 && template.includes('{}')) {
+          unknownIds.push(`${fixture.source} ${url.pathname}`);
+          continue;
+        }
         expect(reply.status, `${fixture.source} ${url.pathname}`).toBe(200);
         const actual = shapeOf(reply.body);
         const key = `${fixture.source}|${template}`;
@@ -112,6 +119,14 @@ describe('doc-derived fixtures vs the stand-in', () => {
       }
     }
     expect(problems).toEqual([]);
+    // Replay-only ids (the 1a operations, the 30 fixture's burndown) are skipped, but their
+    // endpoints are still compared through the ids the stand-in serves.
+    for (const key of [
+      'deere|/organizations/{}/fields/{}/fieldOperations',
+      'deere|/fieldOperations/{}/boundary',
+    ]) {
+      expect(compared, `${key} (skipped ids: ${unknownIds.length})`).toContain(key);
+    }
     // Not vacuous: the 1a endpoints the core stand-in serves were all compared.
     for (const key of [
       'deere|/organizations',
