@@ -136,21 +136,37 @@ describe('Samsara doc-derived fixtures', () => {
     expect((statsAfter?.response.body as { data: unknown[] } | undefined)?.data).toEqual([]);
   });
 
-  test('every vehicle is a Samsara truck the demo seed maps; all four trucks every page', () => {
+  test('every vehicle is one the demo seed maps on Samsara: the four semis and both pickups every page', () => {
     const farm = buildDemoFarm();
-    const semis = new Set(farm.machines.filter((m) => m.kind === 'semi').map((m) => m.id));
-    const refs = simExternalRefs(farm).filter(
-      (r) => r.ref.source === 'samsara' && semis.has(r.entityId),
-    );
-    const known = new Set(refs.map((r) => r.ref.externalId));
-    expect(known.size).toBe(4);
+    const ids = (kind: string) =>
+      new Set(farm.machines.filter((m) => m.kind === kind).map((m) => m.id));
+    const refsOf = (kinds: Set<string>) =>
+      new Set(
+        simExternalRefs(farm)
+          .filter((r) => r.ref.source === 'samsara' && kinds.has(r.entityId))
+          .map((r) => r.ref.externalId),
+      );
+    const semis = refsOf(ids('semi'));
+    const pickups = refsOf(ids('pickup'));
+    expect(semis.size).toBe(4);
+    expect(pickups.size).toBe(2);
+    const known = new Set([...semis, ...pickups]);
     for (const x of positions.exchanges) {
-      const ids = (x.response.body as { data: { id: string }[] }).data.map((v) => v.id);
-      expect(new Set(ids)).toEqual(known);
+      const seen = (x.response.body as { data: { id: string }[] }).data.map((v) => v.id);
+      expect(new Set(seen)).toEqual(known);
+    }
+    // The pickups' carmaker routes report fuel only: never hours or odometer (not even 0).
+    for (const x of stats.exchanges) {
+      for (const v of (x.response.body as { data: Record<string, unknown>[] }).data) {
+        if (!pickups.has(v.id as string)) continue;
+        expect(v.obdEngineSeconds).toBeUndefined();
+        expect(v.obdOdometerMeters).toBeUndefined();
+        expect(v.fuelPercents).toBeDefined();
+      }
     }
     for (const x of faults.exchanges) {
       for (const v of (x.response.body as { data: { id: string }[] }).data) {
-        expect(known.has(v.id)).toBe(true);
+        expect(semis.has(v.id)).toBe(true);
       }
     }
   });

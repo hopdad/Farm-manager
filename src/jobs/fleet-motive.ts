@@ -13,10 +13,9 @@
  *              with applyVendorVehicle, at most hourly; `fleet`/`invalidate` when one changed
  *
  * Vehicles map through ingest.external_refs: ('motive', 'machine', <vehicle id>, <company id>)
- * first, then the 1a seed's company-less ref ('' source_org: H1's until the integrator moves it
- * under the company id, §B.4.1); an unmapped vehicle is left out before landing (`only`), never
+ * first, then the company-less ref ('' source_org) a database seeded before the 1f merge still
+ * has (until `pnpm db:seed demo`, §B.4.1); an unmapped vehicle is left out before landing (`only`), never
  * created. Positions first (they feed the tick); the other streams only while budget remains.
- * The helpers below the job are shared with fleet.geotab (./fleet-geotab.ts).
  */
 import { getConfig } from '../config';
 import { MotiveClient } from '../connectors/motive/client';
@@ -33,25 +32,20 @@ import type {
   MotiveVehicleRaw,
 } from '../connectors/motive/schemas';
 import { runSyncStep } from '../connectors/sync-step';
-import {
-  type ConnectorSource,
-  externalRefKey,
-  type NormalizedPosition,
-  type NormalizedVehicle,
-  type NormalizedVehicleStat,
-  type SyncContext,
-  type SyncStepResult,
-  type SyncStepSpec,
+import type {
+  NormalizedPosition,
+  NormalizedVehicle,
+  NormalizedVehicleStat,
+  SyncStepResult,
+  SyncStepSpec,
 } from '../connectors/types';
-import { type Executor, exec } from '../db/exec';
-import { resolveExternalRefs } from '../db/external-refs';
+import { allMappedIds, mappedVehicleRefs, vehicleListUpsert } from '../connectors/vehicles/refs';
 import { staleThresholdsOf } from '../db/queries/fleet';
-import { applyVendorVehicle } from '../db/queries/vehicles';
-import { publish } from '../platform/realtime/publish';
 import { combineStepResults, statsUpsert } from './fleet';
 import {
   type FleetJobOptions,
   httpFor,
+  machineResolver,
   positionsUpsert,
   publishSyncStatus,
   tickAfterRun,
@@ -73,11 +67,11 @@ export function createFleetMotiveJob(opts: FleetJobOptions = {}) {
     const cfg = (opts.config ?? getConfig)();
     const mode = cfg.CONNECTOR_MOTIVE;
     const http = httpFor(ctx, opts.http);
-    const resolve = scopedMachineResolver();
+    const resolve = machineResolver({ orgFallback: true });
     let client: MotiveClient | null = null;
     const motive = async () => {
       if (!client) {
-        const only = await mappedVehicleIds(ctx.pool, 'motive');
+        const only = allMappedIds(await mappedVehicleRefs(ctx.pool, 'motive'));
         client = MotiveClient.forMode(mode, cfg, http, {
           only,
           log: (msg, data) => ctx.log.warn(msg, data),
@@ -111,7 +105,7 @@ export function createFleetMotiveJob(opts: FleetJobOptions = {}) {
       upsert: statsUpsert(resolve),
       afterRun: publishSyncStatus,
     };
-    const vehicles = vehiclesUpsert(resolve);
+    const vehicles = vehicleListUpsert(resolve, publishSyncStatus);
     const vehiclesSpec: SyncStepSpec<MotiveVehicleRaw, NormalizedVehicle> = {
       ...step,
       stream: MOTIVE_VEHICLES_STREAM,
@@ -133,89 +127,3 @@ export function createFleetMotiveJob(opts: FleetJobOptions = {}) {
 }
 
 export const runFleetMotive = createFleetMotiveJob();
-
-// ---------------------------------------------------------------------------------------------
-// Shared with fleet.geotab
-// ---------------------------------------------------------------------------------------------
-
-/**
- * Vendor vehicle id → farm.machines.id, cached per run: the ref under the item's sourceOrg (the
- * Motive company id) first, then the company-less ref ('' source_org) the 1a seed wrote, so H1
- * keeps mapping before and after the integrator moves its ref. Unmapped = null, logged once.
- * (Same signature as fleet-shared's machineResolver, so positionsUpsert/statsUpsert take it.)
- */
-export function scopedMachineResolver() {
-  const cache = new Map<string, string | null>();
-  return async (
-    ex: Executor,
-    sctx: SyncContext,
-    source: ConnectorSource,
-    sourceOrg: string,
-    externalId: string,
-  ): Promise<string | null> => {
-    const key = externalRefKey(source, 'machine', externalId, sourceOrg);
-    const hit = cache.get(key);
-    if (hit !== undefined) return hit;
-    let id = (await resolveExternalRefs(ex, source, 'machine', sourceOrg, [externalId])).get(
-      externalId,
-    );
-    if (!id && sourceOrg !== '') {
-      id = (await resolveExternalRefs(ex, source, 'machine', '', [externalId])).get(externalId);
-    }
-    cache.set(key, id ?? null);
-    if (!id) {
-      sctx.job.log.info('unmapped vendor machine (no ingest.external_refs row); skipped', {
-        source,
-        sourceOrg,
-        externalId,
-      });
-    }
-    return id ?? null;
-  };
-}
-
-/**
- * The vendor vehicle ids the farm maps (external refs of kind 'machine', any source_org): the
- * clients leave every other vehicle out before landing, so a hired hauler's whole fleet never
- * lands in ingest.raw_events.
- */
-export async function mappedVehicleIds(
-  ex: Executor,
-  source: ConnectorSource,
-): Promise<Set<string>> {
-  const r = await exec<{ external_id: string }>(
-    ex,
-    `select external_id from ingest.external_refs where source = $1 and kind = 'machine'`,
-    [source],
-  );
-  return new Set(r.rows.map((row) => row.external_id));
-}
-
-/**
- * The vehicle-list stream's upsert (kind from tags, via) and afterRun: ONE
- * `fleet`/`invalidate` { event: 'machine', reason: 'changed' } per run when any machine changed,
- * then the stream's sync status.
- */
-export function vehiclesUpsert(resolve: ReturnType<typeof scopedMachineResolver>) {
-  let changed = false;
-  return {
-    upsert: async (tx: Executor, v: NormalizedVehicle, sctx: SyncContext): Promise<void> => {
-      const id = await resolve(tx, sctx, v.source, v.sourceOrg, v.externalId);
-      if (!id) return;
-      const r = await applyVendorVehicle(tx, id, { kindFromTags: v.kindFromTags, via: v.via });
-      if (r?.changed) changed = true;
-    },
-    afterRun: async (result: SyncStepResult, sctx: SyncContext): Promise<void> => {
-      if (changed) {
-        changed = false;
-        await publish(
-          'fleet',
-          'invalidate',
-          { event: 'machine', reason: 'changed' },
-          sctx.job.pool,
-        );
-      }
-      await publishSyncStatus(result, sctx);
-    },
-  };
-}

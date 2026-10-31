@@ -12,14 +12,12 @@
  * (`state.vendors.aemp`), so a reset clears it.
  */
 import { z } from 'zod';
+import { AEMP_SIM_FAULT_PROVIDERS } from '../../types';
 
 export const AEMP_SIM_FAULTS_CONTROL_PATH = '/_control/vendor/aemp/faults';
 
-/** Providers whose stand-in serves a fault series (Trackunit's path form). */
-export const AEMP_SIM_FAULT_PROVIDERS = ['kubota'] as const;
-
-/** The fault series path the stand-in serves (Trackunit's form, below /aemp/<provider>). */
-export const AEMP_SIM_FAULTS_PATH = '/Fleet/Equipment/ID/{id}/Faults/{start}/{end}/{page}';
+/** In src/sim/types.ts since the 1f merge (aempEndpoints names the series in sim). */
+export { AEMP_SIM_FAULT_PROVIDERS, AEMP_SIM_FAULTS_PATH } from '../../types';
 
 export interface AempSimFault {
   provider: string;

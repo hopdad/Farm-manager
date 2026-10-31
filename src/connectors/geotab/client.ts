@@ -677,11 +677,15 @@ export class GeotabClient {
 
   /** Stream 'vehicles': each device whose name, groups or VIN changed. */
   async pollVehicles(cursor: string | null): Promise<PollResult<RawItem<GeotabVehicleRaw>>> {
+    // The poll time in the id (as fleet.vehicles and fleet.terminal do): a device back at an
+    // earlier version (groups A → B → A) lands again instead of being dropped by raw_events'
+    // dedupe; only versions that moved are emitted, so nothing lands twice.
+    const at = this.now();
     const items: RawItem<GeotabVehicleRaw>[] = [];
     for (const { device, groups } of await this.devices()) {
       if (!this.keep(device.id)) continue;
       const payload: GeotabVehicleRaw = { device, groups: [...groups].sort() };
-      items.push({ externalId: `${device.id}:vehicle:${deviceVersion(payload)}`, payload });
+      items.push({ externalId: `${device.id}:vehicle:${deviceVersion(payload)}:${at}`, payload });
     }
     const r = await pollSnapshotDiff({
       cursor,

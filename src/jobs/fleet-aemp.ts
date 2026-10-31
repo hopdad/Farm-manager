@@ -47,7 +47,6 @@ import type {
 } from '../connectors/types';
 import { exec } from '../db/exec';
 import { staleThresholdsOf } from '../db/queries/fleet';
-import { AEMP_SIM_FAULT_PROVIDERS, AEMP_SIM_FAULTS_PATH } from '../sim/vendors/aemp/control-types';
 import { combineStepResults, statsUpsert } from './fleet';
 import {
   type FleetConfig,
@@ -64,19 +63,6 @@ export const AEMP_FLEET_STREAM = 'fleet';
 export const AEMP_FAULTS_STREAM = 'faults';
 /** fleet.aemp has the default 45 s budget; its stream leases outlive it. */
 export const AEMP_LEASE_SECONDS = 120;
-
-/**
- * The fault series the stand-in serves, added in sim mode only: the frozen `aempEndpoints` names
- * none for the stand-in's providers (real providers name theirs in AEMP_PROVIDERS[].faultsPath).
- */
-export function withSimFaultSeries(mode: Mode, endpoints: AempEndpoint[]): AempEndpoint[] {
-  if (mode !== 'sim') return endpoints;
-  return endpoints.map((ep) =>
-    !ep.faultsPath && (AEMP_SIM_FAULT_PROVIDERS as readonly string[]).includes(ep.id)
-      ? { ...ep, faultsPath: AEMP_SIM_FAULTS_PATH }
-      : ep,
-  );
-}
 
 /**
  * Merge `values` into the stream's ingest.sync_state.extra (writers merge their own keys and never
@@ -117,7 +103,7 @@ async function mappedAempMachines(pool: pg.Pool): Promise<Record<string, string[
 /** The providers to poll, or null when the mode can't poll (the step reports why). */
 function endpointsOrNull(mode: Mode, cfg: FleetConfig): AempEndpoint[] | null {
   try {
-    return withSimFaultSeries(mode, aempEndpoints(mode, cfg));
+    return aempEndpoints(mode, cfg);
   } catch {
     return null;
   }
@@ -134,7 +120,7 @@ export function createFleetAempJob(opts: FleetJobOptions = {}) {
     let client: AempClient | null = null;
     const aemp = () => {
       if (client) return client;
-      const endpoints = withSimFaultSeries(mode, aempEndpoints(mode, cfg));
+      const endpoints = aempEndpoints(mode, cfg);
       const needsDeere = endpoints.some((ep) => ep.auth === 'deere_oauth');
       const deereEp = needsDeere
         ? deereEndpoints(mode === 'sandbox' ? 'sandbox' : 'live', cfg)

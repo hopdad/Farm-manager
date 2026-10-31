@@ -65,8 +65,13 @@ export function httpFor(
   return { signal: ctx.signal, deadline: ctx.deadline, now: () => ctx.now(), ...extra };
 }
 
-/** vendor machine id → farm.machines.id, cached per run (null = unmapped, logged once). */
-export function machineResolver() {
+/**
+ * vendor machine id → farm.machines.id, cached per run (null = unmapped, logged once).
+ * `orgFallback` (1f.2, Motive and Geotab): when the item's sourceOrg (the Motive company id)
+ * has no ref, try the org-less ref ('' source_org) a database seeded before the hauler's ref
+ * moved under its company still has (until `pnpm db:seed demo`).
+ */
+export function machineResolver(opts: { orgFallback?: boolean } = {}) {
   const cache = new Map<string, string | null>();
   return async (
     ex: Executor,
@@ -78,7 +83,10 @@ export function machineResolver() {
     const key = externalRefKey(source, 'machine', externalId, sourceOrg);
     const hit = cache.get(key);
     if (hit !== undefined) return hit;
-    const found = await resolveExternalRefs(ex, source, 'machine', sourceOrg, [externalId]);
+    let found = await resolveExternalRefs(ex, source, 'machine', sourceOrg, [externalId]);
+    if (!found.get(externalId) && opts.orgFallback && sourceOrg !== '') {
+      found = await resolveExternalRefs(ex, source, 'machine', '', [externalId]);
+    }
     const id = found.get(externalId) ?? null;
     cache.set(key, id);
     if (!id) {

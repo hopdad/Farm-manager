@@ -7,7 +7,6 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import { DELTA_FAULT_AGE_OUT_SECONDS } from '../../domain/fault-codes';
-import { withSimFaultSeries } from '../../jobs/fleet-aemp';
 import { createSimWorld } from '../../sim/index';
 import { SIM_CREDENTIALS, simExternalRefs, simTelematicsMachines } from '../../sim/types';
 import { AEMP_SIM_COUNTER_GRID_MS, AEMP_SIM_LOCATION_GRID_MS } from '../../sim/vendors/aemp/routes';
@@ -134,7 +133,7 @@ describe('AEMP stand-in (sim)', () => {
       ).status,
     ).toBe(200);
     wall += 60_000;
-    const endpoints = withSimFaultSeries('sim', aempEndpoints('sim', cfg));
+    const endpoints = aempEndpoints('sim', cfg);
     expect(endpoints.find((e) => e.id === 'kubota')?.faultsPath).toBeDefined();
     expect(endpoints.find((e) => e.id === 'samsara')?.faultsPath).toBeUndefined();
     const c = new AempClient({ endpoints, http });

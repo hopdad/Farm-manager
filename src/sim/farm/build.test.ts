@@ -9,6 +9,7 @@ import { distToSegment, pointInPolygon, type Vec } from '../geo/vec';
 import {
   SIM_CNH_COMPANY_ID,
   SIM_DEERE_HOME_ORG,
+  SIM_MOTIVE_COMPANY_ID,
   SIM_TERMINAL_CONNECTION_ID,
   simExternalRefs,
 } from '../types';
@@ -180,7 +181,7 @@ describe('buildDemoFarm', () => {
     expect(by('C3')?.telematics?.id).toMatch(/^YJG\d{8}$/);
     expect(route('SP2')).toEqual(['sprayer', 'samsara', null, 'equipment', 'gateway']);
     expect(route('L1')).toEqual(['loader', 'aemp', 'kubota', null, null]);
-    expect(route('H1')).toEqual(['semi', 'motive', null, null, null]);
+    expect(route('H1')).toEqual(['semi', 'motive', SIM_MOTIVE_COMPANY_ID, null, null]);
     expect(by('H1')?.telematics?.gateway).toBe(true);
     expect(route('H2')).toEqual(['semi', 'geotab', null, null, null]);
     // A Terminal hauler: the connection is the source_org, the TSP its badge.
@@ -313,7 +314,7 @@ describe('buildDemoFarm', () => {
       `cnh/${SIM_CNH_COMPANY_ID}`,
       'deere/org-home',
       'geotab/',
-      'motive/',
+      `motive/${SIM_MOTIVE_COMPANY_ID}`,
       'samsara/',
       `terminal/${SIM_TERMINAL_CONNECTION_ID}`,
     ]);

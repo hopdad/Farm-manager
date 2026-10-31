@@ -20,7 +20,13 @@
  * additive changes only), part B's resolvers and constants included.
  */
 import type { AempProviderConfig, Config } from '../config';
-import { SIM_AEMP_PROVIDERS, SIM_CNH_AUTH, SIM_CREDENTIALS } from '../sim/types';
+import {
+  AEMP_SIM_FAULT_PROVIDERS,
+  AEMP_SIM_FAULTS_PATH,
+  SIM_AEMP_PROVIDERS,
+  SIM_CNH_AUTH,
+  SIM_CREDENTIALS,
+} from '../sim/types';
 import { DEERE_AUTH_SERVER_ID } from './deere/schemas';
 import {
   createReplayFetch,
@@ -260,9 +266,14 @@ export function aempEndpoints(mode: Mode, cfg: ConnectorConfig): AempEndpoint[] 
   switch (mode) {
     case 'sim': {
       const ids = providers.length ? providers.map((p) => p.id) : [...SIM_AEMP_PROVIDERS];
-      return ids.map((id) =>
-        aempSim(id, `${trim(cfg.VENDOR_SIM_URL)}/aemp/${id}`, SIM_CREDENTIALS.aemp.token),
-      );
+      // The stand-in's fault series (kubota, Trackunit's path form). Replay can't serve one: the
+      // window is in the path and replay matches paths exactly.
+      return ids.map((id) => ({
+        ...aempSim(id, `${trim(cfg.VENDOR_SIM_URL)}/aemp/${id}`, SIM_CREDENTIALS.aemp.token),
+        ...((AEMP_SIM_FAULT_PROVIDERS as readonly string[]).includes(id)
+          ? { faultsPath: AEMP_SIM_FAULTS_PATH }
+          : {}),
+      }));
     }
     case 'replay': {
       const ids = providers.length ? providers.map((p) => p.id) : [...SIM_AEMP_PROVIDERS];

@@ -22,7 +22,7 @@
 import { z } from 'zod';
 
 /** The simulated hauler's Motive company (`GET /v1/companies` → `company.id`; the sourceOrg). */
-export const SIM_MOTIVE_COMPANY_ID = '731204';
+export { SIM_MOTIVE_COMPANY_ID } from '../../types';
 /** Its human-readable company id (Motive's `company_id`, e.g. "KT1607533"). */
 export const SIM_MOTIVE_COMPANY_CODE = 'KTSIM73120';
 

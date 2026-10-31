@@ -41,6 +41,8 @@ import {
 import { faultReading, faultVehicles } from '../../../sim/vendors/samsara/fault-codes';
 import { createDemoWorld, type DemoWorld } from '../../../sim/world';
 import type { ReplayExchange, ReplayFixture } from '../../replay';
+import type { VehicleStatField } from '../../types';
+import { statsNotReported } from '../../vendors';
 import { SAMSARA_FAULT_TYPE, SAMSARA_STAT_TYPES } from '../schemas';
 
 const SEED = 1;
@@ -78,13 +80,23 @@ export const REPLAY_FAULTS: Readonly<Record<string, readonly SamsaraSimFault[]>>
 };
 
 /**
- * The trucks on Samsara's vehicle feeds (the four M0 semis). 1f.2's pickups are on the same feeds
- * in sim; terminal-pickups adds them here (docs/contracts-1f.md part B).
+ * The vehicles on Samsara's vehicle feeds: the four M0 semis and (1f merge) 1f.2's pickups PU1
+ * and PU2, appended after the semis so the semis' pages keep their order.
  */
 function eldVehicles(world: DemoWorld) {
   return simTelematicsMachines(world.farm, 'samsara', { feed: 'vehicle' }).filter(
-    (m) => m.kind === 'semi',
+    (m) => m.kind === 'semi' || m.kind === 'pickup',
   );
+}
+
+/** The semis only (the faults fixture's trucks). */
+function eldSemis(world: DemoWorld) {
+  return eldVehicles(world).filter((m) => m.kind === 'semi');
+}
+
+/** A stat type the vehicle's route reports (a carmaker route never sends hours or odometer). */
+function reported(m: { telematics?: { via?: string | null } }, field: VehicleStatField): boolean {
+  return !(m.telematics?.via ? statsNotReported('samsara', m.telematics.via) : []).includes(field);
 }
 
 function page(world: DemoWorld, k: number) {
@@ -148,9 +160,23 @@ function statsFixture(world: DemoWorld): ReplayFixture {
       {
         id: m.telematics?.id as string,
         name: m.unitNo,
-        obdEngineSeconds: [{ time: POSITIONS_ANCHOR, value: Math.round(s.engineHours * 3600) }],
-        fuelPercents: [{ time: POSITIONS_ANCHOR, value: Math.round(s.fuelPct) }],
-        obdOdometerMeters: [{ time: POSITIONS_ANCHOR, value: Math.round(s.odometerMi * 1609.344) }],
+        ...(reported(m, 'engineHours')
+          ? {
+              obdEngineSeconds: [
+                { time: POSITIONS_ANCHOR, value: Math.round(s.engineHours * 3600) },
+              ],
+            }
+          : {}),
+        ...(reported(m, 'fuelPct')
+          ? { fuelPercents: [{ time: POSITIONS_ANCHOR, value: Math.round(s.fuelPct) }] }
+          : {}),
+        ...(reported(m, 'odometerMi')
+          ? {
+              obdOdometerMeters: [
+                { time: POSITIONS_ANCHOR, value: Math.round(s.odometerMi * 1609.344) },
+              ],
+            }
+          : {}),
       },
     ];
   });
@@ -184,7 +210,7 @@ function statsFixture(world: DemoWorld): ReplayFixture {
 function faultsFixture(world: DemoWorld): ReplayFixture {
   const path = '/fleet/vehicles/stats/feed';
   const anchorMs = Date.parse(POSITIONS_ANCHOR);
-  const semis = new Set(eldVehicles(world).map((m) => m.telematics?.id as string));
+  const semis = new Set(eldSemis(world).map((m) => m.telematics?.id as string));
   const data = faultVehicles(world)
     .filter((v) => semis.has(v.id))
     .map((v) => ({

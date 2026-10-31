@@ -142,8 +142,20 @@ export type SimTelematicsVendor = (typeof SIM_TELEMATICS_VENDORS)[number];
  */
 export const SIM_AEMP_PROVIDERS = ['kubota', 'samsara'] as const;
 
+/** AEMP providers whose stand-in serves a fault series (Trackunit's path form). */
+export const AEMP_SIM_FAULT_PROVIDERS = ['kubota'] as const;
+
+/** The fault series path the stand-in serves (Trackunit's form, below /aemp/<provider>). */
+export const AEMP_SIM_FAULTS_PATH = '/Fleet/Equipment/ID/{id}/Faults/{start}/{end}/{page}';
+
 /** The CNH FieldOps company the demo's Case IH machines belong to (`GET /companies`; source_org). */
 export const SIM_CNH_COMPANY_ID = 'ACC000004812';
+
+/**
+ * The Motive company of the demo's hired hauler H1 (`GET /v1/companies` → `company.id`; the
+ * source_org of its machine ref, so two haulers' vehicle ids never collide).
+ */
+export const SIM_MOTIVE_COMPANY_ID = '731204';
 
 /** The Terminal connection of the demo's hired hauler (`GET /connections`; source_org). */
 export const SIM_TERMINAL_CONNECTION_ID = 'conn_01JSIMHAULER0000000000001';
@@ -155,7 +167,8 @@ export interface SimTelematics {
   id: string;
   /**
    * The external_refs source_org: the AEMP provider (`kubota`), the CNH company
-   * (SIM_CNH_COMPANY_ID) or the Terminal connection (SIM_TERMINAL_CONNECTION_ID).
+   * (SIM_CNH_COMPANY_ID), the Motive company (SIM_MOTIVE_COMPANY_ID) or the Terminal connection
+   * (SIM_TERMINAL_CONNECTION_ID).
    */
   provider?: string;
   /**

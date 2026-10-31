@@ -133,7 +133,11 @@ describe('vendor registry', () => {
       ['omnitracs-xrs'],
     );
     expect(rows.find((r) => r.connection === 'samsara')?.build).toBe('built');
-    expect(rows.find((r) => r.connection === 'geotab')?.build).toBe('planned');
+    // Every connection's client is built since the 1f merge; a provider row can still be planned.
+    for (const r of rows) expect(r.build, r.connection).toBe('built');
+    expect(
+      rows.find((r) => r.connection === 'aemp')?.providers.find((p) => p.provider === 'cnh')?.build,
+    ).toBe('planned');
     for (const r of rows) {
       expect(Object.keys(r.capabilities.stats).sort()).toEqual([...VEHICLE_STAT_FIELDS].sort());
     }

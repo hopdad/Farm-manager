@@ -49,19 +49,16 @@ import type {
   SyncStepResult,
   SyncStepSpec,
 } from '../connectors/types';
+import { allMappedIds, mappedVehicleRefs, vehicleListUpsert } from '../connectors/vehicles/refs';
 import { exec } from '../db/exec';
 import { staleThresholdsOf } from '../db/queries/fleet';
 import { combineStepResults, statsUpsert } from './fleet';
-import {
-  mappedVehicleIds,
-  scopedMachineResolver,
-  VEHICLE_LIST_MIN_INTERVAL_SECONDS,
-  vehiclesUpsert,
-} from './fleet-motive';
+import { VEHICLE_LIST_MIN_INTERVAL_SECONDS } from './fleet-motive';
 import {
   type FleetConfig,
   type FleetJobOptions,
   httpFor,
+  machineResolver,
   positionsUpsert,
   publishSyncStatus,
   tickAfterRun,
@@ -118,11 +115,11 @@ export function createFleetGeotabJob(opts: FleetGeotabJobOptions = {}) {
     const cfg = (opts.config ?? getConfig)();
     const mode = cfg.CONNECTOR_GEOTAB ?? 'off';
     const http = httpFor(ctx, opts.http);
-    const resolve = scopedMachineResolver();
+    const resolve = machineResolver({ orgFallback: true });
     let client: GeotabClient | null = null;
     const geotab = async () => {
       if (!client) {
-        const only = await mappedVehicleIds(ctx.pool, 'geotab');
+        const only = allMappedIds(await mappedVehicleRefs(ctx.pool, 'geotab'));
         const store = (opts.sessionStore ?? geotabSessionStore)(ctx, cfg, mode);
         client = GeotabClient.forMode(mode, cfg, http, {
           store,
@@ -165,7 +162,7 @@ export function createFleetGeotabJob(opts: FleetGeotabJobOptions = {}) {
       upsert: statsUpsert(resolve),
       afterRun: publishSyncStatus,
     };
-    const vehicles = vehiclesUpsert(resolve);
+    const vehicles = vehicleListUpsert(resolve, publishSyncStatus);
     const vehiclesSpec: SyncStepSpec<GeotabVehicleRaw, NormalizedVehicle> = {
       ...step,
       stream: GEOTAB_VEHICLES_STREAM,

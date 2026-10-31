@@ -412,11 +412,15 @@ export class MotiveClient {
   /** Stream 'vehicles': each vehicle whose name, groups, make, model, year or VIN changed. */
   async pollVehicles(cursor: string | null): Promise<PollResult<RawItem<MotiveVehicleRaw>>> {
     const companyId = await this.companyId();
+    // The poll time in the id (as fleet.vehicles and fleet.terminal do): a vehicle back at an
+    // earlier version (groups A → B → A) lands again instead of being dropped by raw_events'
+    // dedupe; only versions that moved are emitted, so nothing lands twice.
+    const at = this.now();
     const items: RawItem<MotiveVehicleRaw>[] = [];
     for (const { vehicle, groups } of await this.vehicleList()) {
       if (!this.keep(vehicle.id)) continue;
       const payload: MotiveVehicleRaw = { companyId, vehicle, groups: [...groups].sort() };
-      items.push({ externalId: `${vehicle.id}:vehicle:${vehicleVersion(payload)}`, payload });
+      items.push({ externalId: `${vehicle.id}:vehicle:${vehicleVersion(payload)}:${at}`, payload });
     }
     const r = await pollSnapshotDiff({
       cursor,

@@ -154,8 +154,9 @@ export const VENDORS: readonly VendorEntry[] = [
       'Motive OpenAPI 3.1 and developer-docs.gomotive.com: /v1|v2 vehicle_locations (speed in mph; true_engine_hours, true_odometer, fuel_primary_remaining_percentage in current_location), v3 for Vehicle Gateway units only (kph, vehicle_state; no stats), /v1/fault_codes (open/closed, top-level paging), webhooks X-KT-Webhook-Signature (HMAC-SHA1)',
     capabilities: {
       positions: { live: 'yes', lastKnown: 'yes' },
+      // engineOn only for Vehicle Gateway units (v3 vehicle_state); OEM DTC fields per the OpenAPI.
       stats: stats('yes', 'yes', 'yes', 'unknown', 'yes'),
-      faults: faults('doc', 'yes', 'unknown'),
+      faults: faults('doc', 'yes', 'doc'),
       fieldOperations: 'no',
       webhooks: 'yes',
     },
@@ -166,7 +167,7 @@ export const VENDORS: readonly VendorEntry[] = [
     connection: 'geotab',
     label: 'Geotab',
     kind: 'truck',
-    build: 'planned',
+    build: 'built',
     reference:
       'my.geotab.com/api.json and developers.geotab.com: GetFeed LogRecord / StatusData / FaultData with toVersion (one cursor per entity type; since 11.119 LogRecord and StatusData GetFeed need a whole-fleet user), DeviceStatusInfo (last known); fuel level and engine faults need the GO Plan',
     capabilities: {
@@ -183,7 +184,7 @@ export const VENDORS: readonly VendorEntry[] = [
     connection: 'terminal',
     label: 'Terminal',
     kind: 'truck',
-    build: 'planned',
+    build: 'built',
     reference:
       "Terminal OpenAPI 3.1 (api.withterminal.com/tsp/openapi): /vehicles/locations (latest, a live call to the provider), /vehicles/{id}/locations and /stats/historical (Terminal's sync, lagging), /fault-codes/events (j1939, obdii), /providers per provider; webhooks are lifecycle events only (no location, stat or fault events)",
     capabilities: {
@@ -201,7 +202,7 @@ export const VENDORS: readonly VendorEntry[] = [
     provider: 'omnitracs-xrs',
     label: 'Omnitracs XRS (via Terminal)',
     kind: 'truck',
-    build: 'planned',
+    build: 'built',
     reference:
       'Terminal GET /providers (Oct 30, 2026): omnitracs-xrs: latest location, history 60 s / 120 days, stat types engine_state, odometer, engine_runtime, engine_rpm, fault code events; the demo hauler H3',
     capabilities: {
@@ -236,7 +237,7 @@ export const VENDORS: readonly VendorEntry[] = [
     connection: 'cnh',
     label: 'CNH FieldOps',
     kind: 'machine',
-    build: 'planned',
+    build: 'built',
     reference:
       'CNH FieldOps OpenAPI 1.0.0 (SwaggerHub CNH/FieldOps-API) and develop.cnh.com: /equipment (by VIN), /Fleet/{page} snapshot, /Fleet/Equipment/{vin}/{Series}/{start}/{end}/{page} (Locations, CumulativeOperatingHours, Distance, FuelRemainingRatio, DEFRemaining, EngineCondition, CautionCodes, Faults), /equipment/{vin}/metrics, companies, boundaries, Operations By Vehicle (metadata only); XML telemetry; webhooks for farm setup and operations (no telemetry events)',
     capabilities: {
@@ -253,7 +254,7 @@ export const VENDORS: readonly VendorEntry[] = [
     connection: 'aemp',
     label: 'AEMP (ISO 15143-3)',
     kind: 'machine',
-    build: 'planned',
+    build: 'built',
     reference:
       'ISO/TS 15143-3 edition-1 XSDs (standards.iso.org/iso/15143/-3/ed-1): a Fleet snapshot with optional sections (hours, distance, fuel %, DEF %, engine status, location); faults are a separate FaultCode time series with no state; Deere aemp.yaml, Trackunit aemp-iso-api.json, Samsara /beta/aemp; each provider sends a subset',
     capabilities: {
@@ -271,7 +272,7 @@ export const VENDORS: readonly VendorEntry[] = [
     provider: 'deere',
     label: 'John Deere (AEMP)',
     kind: 'machine',
-    build: 'planned',
+    build: 'built',
     reference:
       'developer.deere.com/dev-docs/aemp: partneraemp.deere.com/Fleet/{page} (sandbox sandboxaemp.deere.com), XML, the Deere user grant with eq1 offline_access, cached 1 h, 100 per page; no EngineStatus and no fault series',
     capabilities: {
@@ -307,7 +308,7 @@ export const VENDORS: readonly VendorEntry[] = [
     provider: 'kubota',
     label: 'Kubota (AEMP)',
     kind: 'machine',
-    build: 'planned',
+    build: 'built',
     reference:
       'KubotaNOW AEMP 2.0 with dealer credentials (Fleet ID, username, password: Geotab Kubota partner guide and data set; DEFRemaining on select models; KUBOTA_NOW in @trackunit/rest-apis-iso-feeds); no public Kubota API document: host, auth scheme and format come from the dealer',
     capabilities: {
@@ -325,7 +326,7 @@ export const VENDORS: readonly VendorEntry[] = [
     provider: 'samsara',
     label: 'Samsara (AEMP)',
     kind: 'machine',
-    build: 'planned',
+    build: 'built',
     reference:
       'Samsara OpenAPI getAempEquipmentList: GET /beta/aemp/Fleet/{pageNumber} (Read AEMP, 5 req/s, JSON wrapped in {"Fleet": …}, EquipmentID the stable id): CumulativeOperatingHours, Distance, FuelRemaining, DEFRemaining, EngineStatus, Location; no fault series',
     capabilities: {
@@ -346,7 +347,8 @@ export const VENDORS: readonly VendorEntry[] = [
     reference:
       'Samsara OpenAPI getEquipmentStatsFeed (at most 4 types; 10 req/s, locations 5 req/s): obdEngineSeconds (ECU, raw), gatewayEngineSeconds (synthetic), gatewayJ1939EngineSeconds (manual offset), obdEngineStates / gatewayEngineStates, gpsOdometerMeters (GPS + manual offset), fuelPercents; no DEF and no fault field on the feed',
     overrides: {
-      stats: { odometerMi: 'doc', defPct: 'no', engineOn: 'yes' },
+      // gpsOdometerMeters is in Samsara's OpenAPI (GPS plus a manual offset: adjusted).
+      stats: { odometerMi: 'yes', defPct: 'no', engineOn: 'yes' },
       faults: { j1939: 'unknown', obd2: 'no' },
     },
   },

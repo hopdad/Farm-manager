@@ -27,6 +27,7 @@ import { deterministicId } from '../../domain/ids';
 import { hash32 } from '../rng';
 import {
   SIM_CNH_COMPANY_ID,
+  SIM_MOTIVE_COMPANY_ID,
   SIM_TERMINAL_CONNECTION_ID,
   type SimTelematics,
   type SimTelematicsVendor,
@@ -378,7 +379,7 @@ export const FLEET: readonly FleetSpec[] = [
       deere: false,
       telematics:
         vendor === 'motive'
-          ? { vendor, gateway: true }
+          ? { vendor, provider: SIM_MOTIVE_COMPANY_ID, gateway: true }
           : vendor === 'terminal'
             ? { vendor, provider: SIM_TERMINAL_CONNECTION_ID, tsp: 'omnitracs-xrs' }
             : { vendor },

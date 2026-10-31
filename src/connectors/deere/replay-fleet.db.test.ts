@@ -71,13 +71,16 @@ afterAll(async () => {
 });
 
 describe('replay mode on the board', () => {
-  test('fleet.trucks: the four trucks at the poll time, one tick, stats and fault codes landed', async () => {
+  test('fleet.trucks: the four trucks and two pickups at the poll time, one tick, stats and fault codes landed', async () => {
     let result: unknown;
     const tick = await lastTick(async () => {
       result = await trucks(ctx('fleet.trucks'));
     });
-    // 4 positions + 4 vehicles x 3 stat types + 4 fault readings (the doc-derived faults fixture)
-    expect(result).toEqual({ items: 4 + 12 + 4 });
+    // 6 positions (4 semis + PU1, PU2) + 4 semis x 3 stat types + 2 pickups x fuel only + 4
+    // fault readings (the doc-derived faults fixture)
+    expect(result).toEqual({ items: 6 + 12 + 2 + 4 });
+    const pickups = tick.machines.filter((m) => m.kind === 'pickup');
+    expect(pickups.map((m) => m.unitNo).sort()).toEqual(['PU1', 'PU2']);
     const semis = tick.machines.filter((m) => m.kind === 'semi');
     expect(semis.map((m) => m.unitNo).sort()).toEqual(['S1', 'S2', 'S3', 'S4']);
     for (const m of semis) {
