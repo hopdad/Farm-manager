@@ -56,6 +56,7 @@ describe('Samsara equipment feeds (sim)', () => {
     expect(next.items).toHaveLength(12);
   });
 
+  // The first sim test warms the stand-in's demo world: ~3 s here, over 5 s on a CI runner.
   test('two stats calls of at most 4 types, each with its own cursor; obd hours preferred', async () => {
     const c = SamsaraEquipmentClient.forMode('sim', cfg, { http });
     const r = await c.pollStats(null);
@@ -74,7 +75,7 @@ describe('Samsara equipment feeds (sim)', () => {
     );
     expect(stats.some((x) => typeof x.engineOn === 'boolean')).toBe(true);
     expect(stats.every((x) => x.defPct === undefined)).toBe(true); // no DEF on the feed
-  });
+  }, 30_000);
 
   test('hoursFrom: only the J1939 offset count → adjusted engine hours', async () => {
     expect((await settings({ hoursFrom: ['j1939'] })).status).toBe(200);

@@ -39,6 +39,7 @@ const control = (path: string, body: unknown) =>
   });
 
 describe('AEMP stand-in (sim)', () => {
+  // The first sim test warms the stand-in's demo world: ~3 s here, over 5 s on a CI runner.
   test('each provider lists exactly its machines; XML and JSON map to last-known fixes and stats', async () => {
     const c = AempClient.forMode('sim', cfg, { http });
     const r = await c.pollFleet(null);
@@ -87,7 +88,7 @@ describe('AEMP stand-in (sim)', () => {
     );
     for (const i of r.items)
       expect(refs.has(`${i.payload.provider}:${i.payload.machineId}`)).toBe(true);
-  });
+  }, 30_000);
 
   test('the same snapshot polled again emits nothing new; the next grid instant moves it', async () => {
     const c = AempClient.forMode('sim', cfg, { http });
