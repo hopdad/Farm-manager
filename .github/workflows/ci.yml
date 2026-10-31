@@ -5,8 +5,9 @@
 #            migrations from zero twice (db:lint), production build. Nightly: every scenario
 #            headless with --assert.
 #   e2e      pull requests (and by hand): the same setup, then Playwright (Chromium) against
-#            `pnpm pilot --skip-build`, which playwright.config.ts starts; then the fleet specs
-#            again against an app in replay mode (CONNECTOR_DEERE=replay, CONNECTOR_SAMSARA=replay).
+#            `pnpm pilot --skip-build`, which playwright.config.ts starts; then the replay specs
+#            against an app with every connector that has a replay mode in replay (Deere,
+#            Samsara, Motive, Geotab, Terminal, AEMP; CNH has none).
 #   windows  pushes to main, nightly and by hand (Windows minutes count double): lint,
 #            typecheck, unit tests and `bootstrap --dry-run` (no Linux database on Windows
 #            runners; the PC covers that).
@@ -113,13 +114,21 @@ jobs:
       - run: pnpm build
       - name: End-to-end (starts pnpm pilot --skip-build)
         run: pnpm test:e2e
-      # Plan 1a done-when: CONNECTOR_DEERE=replay runs on the doc-derived fixtures (the replay
-      # spec skips itself under the default sim stack, so it runs here against a replay app).
-      - name: End-to-end in replay mode (Deere and the Samsara trucks from doc-derived fixtures)
+      # Plan 1a and slice 1f/1f.2 done-whens: every connector with a replay mode runs on its
+      # doc-derived fixtures (each replay spec skips itself under the default sim stack, so they
+      # run here against a replay app). CNH has no replay mode and stays on its stand-in.
+      - name: End-to-end in replay mode (every connector with a replay mode, doc-derived fixtures)
         env:
           CONNECTOR_DEERE: replay
           CONNECTOR_SAMSARA: replay
-        run: pnpm test:e2e e2e/fleet-panel-replay.spec.ts e2e/fleet-panel.spec.ts --project=wall
+          CONNECTOR_MOTIVE: replay
+          CONNECTOR_GEOTAB: replay
+          CONNECTOR_TERMINAL: replay
+          CONNECTOR_AEMP: replay
+        run: >-
+          pnpm test:e2e e2e/fleet-panel-replay.spec.ts e2e/fleet-panel.spec.ts
+          e2e/m1f-replay.spec.ts e2e/trucks-replay.spec.ts e2e/pickups-replay.spec.ts
+          --project=wall
       - name: Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
