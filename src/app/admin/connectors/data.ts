@@ -37,6 +37,8 @@ export interface StreamRow {
   lastErrorAt: Date | null;
   /** Numeric entries of sync_state.extra (call counters and the like). */
   counters: Record<string, number>;
+  /** What a stream's extra says in words (1f.2: CNH's EULA list, AEMP provider errors, …). */
+  notes: string[];
   raw: RawCounts;
 }
 
@@ -107,6 +109,45 @@ function counters(extra: unknown): Record<string, number> {
   };
   walk(extra as Record<string, unknown>, '');
   return out;
+}
+
+const MAX_NOTES = 6;
+
+/**
+ * The lists the part B jobs keep in sync_state.extra, in words (leniently: anything else is
+ * ignored): CNH's VINs without an accepted EULA (`needsEula`), an AEMP provider's last error or
+ * note (`providers`, e.g. Deere's "approve the org at …"), and Geotab's limited-scope fallback
+ * (`scopeFallback` = 1).
+ */
+export function streamNotes(extra: unknown): string[] {
+  if (!extra || typeof extra !== 'object') return [];
+  const e = extra as { needsEula?: unknown; providers?: unknown; scopeFallback?: unknown };
+  const out: string[] = [];
+  if (Array.isArray(e.needsEula)) {
+    for (const v of e.needsEula) {
+      const r = v as { vin?: unknown; reason?: unknown };
+      if (typeof r?.vin === 'string') {
+        out.push(
+          `VIN ${r.vin} skipped: ${typeof r.reason === 'string' ? r.reason : 'EULA not accepted'} (accept CNH's EULA for it in FieldOps)`,
+        );
+      }
+    }
+  }
+  if (e.providers && typeof e.providers === 'object' && !Array.isArray(e.providers)) {
+    for (const [id, v] of Object.entries(e.providers as Record<string, unknown>)) {
+      const p = v as { error?: unknown; note?: unknown } | null;
+      if (typeof p?.error === 'string' && p.error) out.push(`${id}: ${p.error}`);
+      else if (typeof p?.note === 'string' && p.note) out.push(`${id}: ${p.note}`);
+    }
+  }
+  if (e.scopeFallback === 1 || e.scopeFallback === true) {
+    out.push(
+      'limited-scope user: last known positions only (DeviceStatusInfo); give the service user whole-fleet scope for trails',
+    );
+  }
+  return out.length > MAX_NOTES
+    ? [...out.slice(0, MAX_NOTES), `and ${out.length - MAX_NOTES} more`]
+    : out;
 }
 
 /**
@@ -231,6 +272,7 @@ export async function loadConnectorsSnapshot(
       lastError: (r.last_error as string | null) ?? null,
       lastErrorAt: toDate(r.last_error_at),
       counters: counters(r.extra),
+      notes: streamNotes(r.extra),
       raw: rawBy.get(key) ?? emptyRaw,
     });
   }
@@ -249,6 +291,7 @@ export async function loadConnectorsSnapshot(
       lastError: null,
       lastErrorAt: null,
       counters: {},
+      notes: [],
       raw: counts,
     });
   }

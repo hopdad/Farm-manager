@@ -5,7 +5,8 @@
  * Every action returns an ActionResult for useActionState (no throws to the client).
  * Every action needs a manager (ROLE_FOR.admin, `assertAdmin` / requireRole, checked first, on
  * the server); sim controls refuse in production. 1f (sync-health): dead-letter requeue and
- * discard, and the Deere stand-in's org-approval knob.
+ * discard, and the Deere stand-in's org-approval knob. 1f merge: the Samsara stand-in's
+ * fault-code knob (fleet-faults).
  */
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -14,6 +15,7 @@ import { getDb } from '@/db/client';
 import { isAuthError, ROLE_FOR, requireRole } from '@/platform/auth/server';
 import { SCENARIO_NAMES } from '@/sim/types';
 import { DEERE_SIM_ORG_STATES } from '@/sim/vendors/deere/connections-control-types';
+import { SIM_RED_STOP_FAULT } from '@/sim/vendors/samsara/control-types';
 import { setClockPaused } from '../../../db/settings';
 import { AdminLockedError, assertAdmin } from '../_lib/guard';
 import { type ActionResult, actionResult as result } from '../action-result';
@@ -24,6 +26,7 @@ import {
   simDeereConnections,
   simFaults,
   simReset,
+  simSamsaraFaults,
   simScenario,
 } from './sim-control';
 
@@ -200,5 +203,31 @@ export async function simDeereOrgAction(
     return req.state === 'connected'
       ? `${req.orgId}: connected (the next fleet.deere run syncs it again)`
       : `${req.orgId}: ${req.state.replace('_', ' ')} (fleet.deere skips it from the next run)`;
+  });
+}
+
+const truckFaultForm = z.object({
+  vehicle: z.string().min(1).max(64),
+  op: z.enum(['raise', 'clear', 'schedule']),
+});
+
+/**
+ * Sim only: give a Samsara truck the red-stop-lamp engine code (J1939 SPN 110 FMI 0, critical),
+ * clear its codes, or hand it back to the scenario's schedule. fleet.trucks lands the change on
+ * its next run (the fleet panel's badge and "Critical fault: mark down?").
+ */
+export async function simTruckFaultAction(
+  _prev: ActionResult | null,
+  form: FormData,
+): Promise<ActionResult> {
+  return attempt(async () => {
+    const req = truckFaultForm.parse({ vehicle: field(form, 'vehicle'), op: field(form, 'op') });
+    const codes = req.op === 'raise' ? [SIM_RED_STOP_FAULT] : req.op === 'clear' ? [] : null;
+    await simSamsaraFaults(simBase(), { vehicle: req.vehicle, codes });
+    return req.op === 'raise'
+      ? `${req.vehicle}: critical engine code (SPN 110 FMI 0) from the next fleet.trucks run`
+      : req.op === 'clear'
+        ? `${req.vehicle}: codes cleared from the next fleet.trucks run`
+        : `${req.vehicle}: back to the scenario's schedule`;
   });
 }

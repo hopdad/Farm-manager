@@ -34,6 +34,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <Link href="/admin/connectors" className={css.navLink}>
             Connectors
           </Link>
+          <Link href="/admin/vehicles" className={css.navLink}>
+            Vehicles
+          </Link>
           <Link href="/admin/realtime" className={css.navLink}>
             Realtime
           </Link>

@@ -22,6 +22,11 @@ import {
   type DeereSimConnectionsRequest,
   type DeereSimConnectionsStatus,
 } from '../../../sim/vendors/deere/connections-control-types';
+import {
+  SAMSARA_SIM_FAULTS_CONTROL_PATH,
+  type SamsaraSimFaultsRequest,
+  type SamsaraSimFaultsStatus,
+} from '../../../sim/vendors/samsara/control-types';
 
 export class SimControlError extends Error {
   readonly status: number | null;
@@ -105,6 +110,19 @@ export const simDeereConnections = (
   req: DeereSimConnectionsRequest,
   o: SimControlOptions = {},
 ) => call<DeereSimConnectionsStatus>(base, 'POST', DEERE_SIM_CONNECTIONS_CONTROL_PATH, req, o);
+
+/** The Samsara stand-in's fault-code knob (fleet-faults; samsara/control-types.ts). */
+export const getSimSamsaraFaults = (base: string, o: SimControlOptions = {}) =>
+  call<SamsaraSimFaultsStatus>(base, 'GET', SAMSARA_SIM_FAULTS_CONTROL_PATH, undefined, {
+    timeoutMs: 1_500,
+    ...o,
+  });
+
+export const simSamsaraFaults = (
+  base: string,
+  req: SamsaraSimFaultsRequest,
+  o: SimControlOptions = {},
+) => call<SamsaraSimFaultsStatus>(base, 'POST', SAMSARA_SIM_FAULTS_CONTROL_PATH, req, o);
 
 // ---------------------------------------------------------------------------------------------
 // Fault toggles on /admin/connectors. Each preset is added with a stable id (`admin-<key>`), so

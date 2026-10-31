@@ -20,7 +20,8 @@
  * (./feed.ts), so the board mounts it with one element (docs/contracts-m1.md §12).
  */
 import { useCallback, useState } from 'react';
-import { KIND_COLORS, KIND_LABELS } from '../map/fleet/style';
+import { KIND_COLORS } from '../map/fleet/style';
+import { VehicleKindBadge } from '../vehicles/KindBadge';
 import type { FleetPanelData, MachineStatusResult, PanelMachine } from './contract';
 import css from './fleet-panel.module.css';
 import { faultBadgeText, faultListText, rowAge, rowDetail, rowHeadline, rowStats } from './format';
@@ -98,7 +99,7 @@ function Row(props: {
             {rowStats(m)}
           </span>
           <span className={css.meta}>
-            <span className={css.kind}>{KIND_LABELS[m.kind]}</span>
+            <VehicleKindBadge kind={m.kind} kindSetBy={m.kindSetBy} via={m.via} compact />
             {badge && (
               <span
                 className={css.badge}

@@ -19,6 +19,7 @@ import { getPool } from '@/db/client';
 import { registry } from '@/jobs/registry';
 import { SCENARIO_NAMES, type SimStatus } from '@/sim/types';
 import type { DeereSimConnectionsStatus } from '@/sim/vendors/deere/connections-control-types';
+import type { SamsaraSimFaultsStatus } from '@/sim/vendors/samsara/control-types';
 import { ActionForm, NoticeProvider, SubmitButton } from '../_components/controls';
 import { LiveRefresh } from '../_components/LiveRefresh';
 import { Locked } from '../_components/Locked';
@@ -46,8 +47,15 @@ import {
   DeadLettersCard,
   DeereCard,
   DocDerivedCard,
+  SimTruckFaultsCard,
 } from './health-cards';
-import { faultPresets, getSimDeereConnections, getSimStatus, SPEED_PRESETS } from './sim-control';
+import {
+  faultPresets,
+  getSimDeereConnections,
+  getSimSamsaraFaults,
+  getSimStatus,
+  SPEED_PRESETS,
+} from './sim-control';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Connectors · Farm Ops' };
@@ -339,10 +347,17 @@ function StreamsCard({ snap, now }: { snap: ConnectorsSnapshot; now: Date }) {
                         </span>
                       </div>
                     </td>
-                    <td className={css.mono}>
-                      {Object.entries(s.counters)
-                        .map(([k, v]) => `${k} ${v}`)
-                        .join(' · ') || '-'}
+                    <td>
+                      <div className={css.mono}>
+                        {Object.entries(s.counters)
+                          .map(([k, v]) => `${k} ${v}`)
+                          .join(' · ') || '-'}
+                      </div>
+                      {s.notes.map((n) => (
+                        <div key={n} className={css.muted} data-testid="stream-note">
+                          {n}
+                        </div>
+                      ))}
                     </td>
                   </tr>
                 );
@@ -459,6 +474,8 @@ export default async function ConnectorsPage() {
   let simError: string | null = null;
   let simOrgs: DeereSimConnectionsStatus | null = null;
   let simOrgsError: string | null = null;
+  let simTruckFaults: SamsaraSimFaultsStatus | null = null;
+  let simTruckFaultsError: string | null = null;
   if (!cfg.isProduction) {
     try {
       sim = await getSimStatus(cfg.VENDOR_SIM_URL);
@@ -470,6 +487,13 @@ export default async function ConnectorsPage() {
         simOrgs = await getSimDeereConnections(cfg.VENDOR_SIM_URL);
       } catch (e) {
         simOrgsError = (e as Error).message;
+      }
+    }
+    if (cfg.CONNECTOR_SAMSARA === 'sim' && sim) {
+      try {
+        simTruckFaults = await getSimSamsaraFaults(cfg.VENDOR_SIM_URL);
+      } catch (e) {
+        simTruckFaultsError = (e as Error).message;
       }
     }
   }
@@ -503,6 +527,12 @@ export default async function ConnectorsPage() {
               simOrgs={simOrgs}
               simOrgsError={simOrgsError}
             />
+            <div style={{ height: 16 }} />
+          </>
+        )}
+        {(simTruckFaults || simTruckFaultsError) && (
+          <>
+            <SimTruckFaultsCard status={simTruckFaults} error={simTruckFaultsError} />
             <div style={{ height: 16 }} />
           </>
         )}

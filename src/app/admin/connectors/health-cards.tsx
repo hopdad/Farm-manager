@@ -19,10 +19,16 @@ import {
   DEERE_SIM_ORG_STATE_LABELS,
   type DeereSimConnectionsStatus,
 } from '@/sim/vendors/deere/connections-control-types';
+import type { SamsaraSimFaultsStatus } from '@/sim/vendors/samsara/control-types';
 import { ActionForm, SubmitButton } from '../_components/controls';
 import css from '../admin.module.css';
 import { ago, detroitTime, short } from '../format';
-import { discardDeadAction, requeueDeadAction, simDeereOrgAction } from './actions';
+import {
+  discardDeadAction,
+  requeueDeadAction,
+  simDeereOrgAction,
+  simTruckFaultAction,
+} from './actions';
 import type { ConnectorsSnapshot } from './data';
 import type { SyncHealthSnapshot } from './health';
 
@@ -444,6 +450,66 @@ function CapabilityCells({ c }: { c: VendorCapabilities }) {
         <Level s={c.webhooks} label="webhooks" />
       </td>
     </>
+  );
+}
+
+/** Sim only: the Samsara stand-in's fault-code knob (fleet-faults), one row per truck. */
+export function SimTruckFaultsCard({
+  status,
+  error,
+}: {
+  status: SamsaraSimFaultsStatus | null;
+  error: string | null;
+}) {
+  return (
+    <section className={css.card} data-testid="sim-truck-faults">
+      <h2>Simulated truck fault codes</h2>
+      <p className={css.muted}>
+        Samsara's faultCodes feed in the stand-in. A critical code shows on the fleet panel within
+        one fleet.trucks run and offers drivers "Critical fault: mark down?"; it never marks the
+        truck down by itself.
+        {status?.schedule
+          ? ` The ${status.scenario} scenario gives ${status.schedule.vehicle} a code at ${detroitTime(new Date(status.schedule.simAt))} sim time.`
+          : ''}
+      </p>
+      {error ? (
+        <p className={css.muted}>{error}</p>
+      ) : status ? (
+        <div className={css.stack}>
+          {status.vehicles.map((v) => (
+            <ActionForm key={v.id} action={simTruckFaultAction} className={css.row}>
+              <input type="hidden" name="vehicle" value={v.name} />
+              <span className={css.mono}>{v.name}</span>
+              <span data-testid={`sim-truck-${v.name}-codes`}>
+                {v.codes.length === 0
+                  ? 'no codes'
+                  : v.codes
+                      .map((c) =>
+                        c.system === 'j1939'
+                          ? `J1939 SPN ${c.spn} FMI ${c.fmi}`
+                          : c.system === 'obd2'
+                            ? c.dtc
+                            : `OEM ${c.code}`,
+                      )
+                      .join(', ')}
+                {v.from === 'knob' ? ' (set here)' : v.from === 'schedule' ? ' (scenario)' : ''}
+              </span>
+              <SubmitButton name="op" value="raise" testId={`sim-truck-${v.name}-raise`}>
+                Critical engine code
+              </SubmitButton>
+              <SubmitButton name="op" value="clear" testId={`sim-truck-${v.name}-clear`}>
+                Clear
+              </SubmitButton>
+              {v.from === 'knob' && (
+                <SubmitButton name="op" value="schedule" testId={`sim-truck-${v.name}-schedule`}>
+                  Back to the scenario
+                </SubmitButton>
+              )}
+            </ActionForm>
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
