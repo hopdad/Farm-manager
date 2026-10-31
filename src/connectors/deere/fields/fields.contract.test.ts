@@ -184,3 +184,19 @@ describe('Deere fields in sim mode', () => {
     expect(b?.reading.valueAsDouble).toBeGreaterThanOrEqual(a?.reading.valueAsDouble as number);
   });
 });
+
+describe('the plan §5 ports over these calls', () => {
+  test('FieldSource, FlagSource and MachineSource give normalized items of every connected org', async () => {
+    const fields = await api.asFieldSource().listFields();
+    const shared = farm.fields.filter((f) => f.sharedWith).length;
+    expect(fields).toHaveLength(farm.fields.length + shared + 1);
+    expect(fields.every((f) => f.boundary?.geom.type === 'MultiPolygon')).toBe(true);
+    expect(fields.filter((f) => f.externalId === only?.deereFieldId)).toHaveLength(1);
+    const flags = await api.asFlagSource(now).flagsSince(null);
+    expect(flags.items).toHaveLength(simFlags(farm, 1).length);
+    expect(flags.cursor).toBe(now().toISOString());
+    const machines = await api.asMachineSource().listMachines();
+    expect(machines).toHaveLength(6);
+    expect(machines.every((m) => m.kind !== null && m.sourceOrg === SIM_DEERE_HOME_ORG)).toBe(true);
+  });
+});
