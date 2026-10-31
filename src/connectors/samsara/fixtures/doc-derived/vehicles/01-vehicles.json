@@ -1,0 +1,139 @@
+{
+  "format": 1,
+  "source": "samsara",
+  "stream": "vehicles",
+  "kind": "doc-derived",
+  "reference": "https://developers.samsara.com/reference/listvehicles (GET /fleet/vehicles?limit=&after=: data[] with id, name, make, model, year as a string, tags[{id,name}], gateway{model,serial} (absent for a carmaker-cloud vehicle), pagination.endCursor/hasNextPage); shapes as in developers.samsara.com/openapi/samsara-api.json (VehiclesListVehiclesResponseBody). Values: the simulated demo farm (src/sim, seed 1), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fleet/vehicles"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "281474977545313",
+              "name": "S1",
+              "createdAtTime": "2026-03-02T15:00:00.000Z",
+              "updatedAtTime": "2026-03-02T15:00:00.000Z",
+              "make": "Peterbilt",
+              "model": "579",
+              "year": "2021",
+              "tags": [
+                {
+                  "id": "3565",
+                  "name": "Semi"
+                }
+              ],
+              "gateway": {
+                "model": "VG54NA",
+                "serial": "GVR1JV8"
+              },
+              "vehicleRegulationMode": "regulated"
+            },
+            {
+              "id": "281474976985156",
+              "name": "S2",
+              "createdAtTime": "2026-03-02T15:00:00.000Z",
+              "updatedAtTime": "2026-03-02T15:00:00.000Z",
+              "make": "Kenworth",
+              "model": "T680",
+              "year": "2019",
+              "tags": [
+                {
+                  "id": "3565",
+                  "name": "Semi"
+                }
+              ],
+              "gateway": {
+                "model": "VG54NA",
+                "serial": "GVRHD92"
+              },
+              "vehicleRegulationMode": "regulated"
+            },
+            {
+              "id": "281474976831855",
+              "name": "S3",
+              "createdAtTime": "2026-03-02T15:00:00.000Z",
+              "updatedAtTime": "2026-03-02T15:00:00.000Z",
+              "make": "Freightliner",
+              "model": "Cascadia",
+              "year": "2018",
+              "tags": [
+                {
+                  "id": "3565",
+                  "name": "Semi"
+                }
+              ],
+              "gateway": {
+                "model": "VG54NA",
+                "serial": "GVR4KEG"
+              },
+              "vehicleRegulationMode": "regulated"
+            },
+            {
+              "id": "281474977403556",
+              "name": "S4",
+              "createdAtTime": "2026-03-02T15:00:00.000Z",
+              "updatedAtTime": "2026-03-02T15:00:00.000Z",
+              "make": "Peterbilt",
+              "model": "389",
+              "year": "2016",
+              "tags": [
+                {
+                  "id": "3565",
+                  "name": "Semi"
+                }
+              ],
+              "gateway": {
+                "model": "VG54NA",
+                "serial": "GVR3ISU"
+              },
+              "vehicleRegulationMode": "regulated"
+            },
+            {
+              "id": "281474977204501",
+              "name": "PU1",
+              "createdAtTime": "2026-03-02T15:00:00.000Z",
+              "updatedAtTime": "2026-03-02T15:00:00.000Z",
+              "make": "Ford",
+              "model": "F-250 Super Duty",
+              "year": "2023",
+              "tags": [
+                {
+                  "id": "7438",
+                  "name": "Pickup"
+                }
+              ],
+              "vehicleRegulationMode": "unregulated"
+            },
+            {
+              "id": "281474977629300",
+              "name": "PU2",
+              "createdAtTime": "2026-03-02T15:00:00.000Z",
+              "updatedAtTime": "2026-03-02T15:00:00.000Z",
+              "make": "Ram",
+              "model": "2500 Tradesman",
+              "year": "2022",
+              "tags": [
+                {
+                  "id": "7438",
+                  "name": "Pickup"
+                }
+              ],
+              "vehicleRegulationMode": "unregulated"
+            }
+          ],
+          "pagination": {
+            "endCursor": "",
+            "hasNextPage": false
+          }
+        }
+      }
+    }
+  ]
+}

@@ -255,7 +255,8 @@ function page<T>(req: SimRequest, all: T[]): SimResponse {
   const cursor = req.url.searchParams.get('cursor');
   let offset = 0;
   if (cursor) {
-    const n = Number(Buffer.from(cursor, 'base64url').toString('utf8'));
+    const text = Buffer.from(cursor, 'base64url').toString('utf8');
+    const n = /^\d+$/.test(text) ? Number(text) : Number.NaN;
     if (!Number.isInteger(n) || n < 0) {
       return terminalError(400, 'Invalid request', {}, 'bad cursor');
     }
