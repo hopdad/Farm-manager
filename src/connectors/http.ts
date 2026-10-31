@@ -12,8 +12,9 @@
  *    counts and the call budget (ingest.api_calls_daily, decision 4). The default does nothing;
  *    a hook that throws is ignored (counting never fails a vendor call).
  *  - `withCallStream(stream, fn)` (1f fix): label every call made inside `fn` with a stream
- *    (`VendorCall.stream`), for calls made OUTSIDE a sync step: the CLIs (`deere:backfill` →
- *    'backfill', `connectors:record` → 'record') and anything else that isn't runSyncStep.
+ *    (`VendorCall.stream`), for calls made OUTSIDE a sync step: the CLIs (`connectors:record` →
+ *    'record'; the deferred `deere:backfill` → 'backfill') and anything else that isn't
+ *    runSyncStep.
  *    sync-health's counter counts those under that stream and flushes them when `fn` settles
  *    (inside a step, the step's stream wins). Frozen export (docs/contracts-1f.md §5.0).
  */
@@ -92,6 +93,12 @@ export class VendorHttpError extends Error {
   readonly detail?: string;
   /** OAuth `error` code from the body (invalid_grant, …) when present. */
   readonly oauthError?: string;
+  /**
+   * The few response headers that explain a refusal (KEPT_ERROR_HEADERS, lower-case names):
+   * Deere's `x-deere-terms-location` (terms to accept, not an approval), `www-authenticate`
+   * (CNH's APIM names the missing subscription key there).
+   */
+  readonly headers?: Readonly<Record<string, string>>;
   constructor(init: {
     vendor: string;
     status: number;
@@ -99,6 +106,7 @@ export class VendorHttpError extends Error {
     retryAfterSeconds?: number;
     detail?: string;
     oauthError?: string;
+    headers?: Readonly<Record<string, string>>;
   }) {
     super(
       `${init.vendor} ${init.path}: HTTP ${init.status}${init.detail ? ` (${init.detail})` : ''}`,
@@ -110,7 +118,20 @@ export class VendorHttpError extends Error {
     this.retryAfterSeconds = init.retryAfterSeconds;
     this.detail = init.detail;
     this.oauthError = init.oauthError;
+    if (init.headers && Object.keys(init.headers).length) this.headers = init.headers;
   }
+}
+
+/** Response headers a VendorHttpError keeps (no tokens or cookies are ever among them). */
+export const KEPT_ERROR_HEADERS = ['x-deere-terms-location', 'www-authenticate'] as const;
+
+function keptHeaders(h: Headers): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  for (const k of KEPT_ERROR_HEADERS) {
+    const v = h.get(k);
+    if (v) out[k] = v.length > 500 ? v.slice(0, 500) : v;
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** The vendor couldn't be reached (connection refused/reset, DNS, timeout). */
@@ -137,11 +158,16 @@ export class VendorResponseError extends Error {
   }
 }
 
-/** Retry-After: delta-seconds or an HTTP-date → seconds from `now` (undefined if absent/bad). */
+/**
+ * Retry-After: delta-seconds or an HTTP-date → whole seconds from `now` (undefined if
+ * absent/bad). Fractional delta-seconds round up: Samsara sends `0.40235` and Terminal `0.62`
+ * (their rate-limit docs), and `Date.parse('1.5')` would otherwise read a date in 2001.
+ */
 export function parseRetryAfter(value: string | null | undefined, now: Date): number | undefined {
   if (!value) return undefined;
   const v = value.trim();
-  if (/^\d+$/.test(v)) return Number(v);
+  if (/^\d+(\.\d+)?$/.test(v)) return Math.ceil(Number(v));
+  if (/^[\d.]+$/.test(v)) return undefined;
   const t = Date.parse(v);
   if (Number.isNaN(t)) return undefined;
   return Math.max(0, Math.ceil((t - now.getTime()) / 1000));
@@ -283,6 +309,7 @@ export async function vendorFetch(
       path,
       retryAfterSeconds: retryAfter,
       ...errorDetail(body),
+      headers: keptHeaders(res.headers),
     });
   }
 }

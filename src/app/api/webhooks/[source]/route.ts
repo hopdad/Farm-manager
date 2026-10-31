@@ -1,8 +1,10 @@
 /**
  * POST /api/webhooks/<source>: vendor webhooks only nudge (plan §5, src/connectors/webhooks.ts):
- * verify, land in ingest.raw_events, make the source's streams due, 200. Never processes
- * inline and never answers 3xx (contracts §5). A mode that takes no webhooks is refused before
- * the body is read, and the body is read with a 4 MB cap (chunked bodies have no length).
+ * verify (each vendor's documented scheme), land in ingest.raw_events, make the source's streams
+ * due, acknowledge (Samsara and Motive 200; Deere 204 No Content, as its Data Subscription
+ * Service requires). Never processes inline and never answers 3xx (contracts §5). A mode that
+ * takes no webhooks is refused before the body is read, and the body is read with a 4 MB cap
+ * (chunked bodies have no length).
  */
 import { getConfig } from '@/config';
 import { connectionMode, connectionOfSource } from '@/connectors/vendors';
@@ -44,6 +46,7 @@ export async function POST(
       now: new Date(),
       simSecret: simWebhookSecret(cfg.SESSION_SECRET, source),
     });
+    if (out.body === null) return new Response(null, { status: out.status, headers });
     return limitedJson(out.body, { status: out.status, headers });
   } catch (e) {
     console.error(`[api/webhooks/${source}]`, (e as Error).message);

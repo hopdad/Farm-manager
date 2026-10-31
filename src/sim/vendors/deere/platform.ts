@@ -19,16 +19,20 @@ export function apiError(
   return json(status, { errors: [{ message, guid: `sim-${status}` }] }, headers);
 }
 
-/** `pageOffset` / `itemLimit` (1-100) of a collection request, or the 400 reply. */
+/**
+ * `pageOffset` / `itemLimit` of a collection request (1-100 on /platform; the Equipment API
+ * allows up to 5000), or the 400 reply.
+ */
 export function paging(
   url: URL,
   defaultLimit: number,
+  maxLimit = 100,
 ): { offset: number; limit: number } | SimResponse {
   const offset = Number(url.searchParams.get('pageOffset') ?? 0);
   const limit = Number(url.searchParams.get('itemLimit') ?? defaultLimit);
   if (!Number.isInteger(offset) || offset < 0) return apiError(400, 'pageOffset must be >= 0');
-  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
-    return apiError(400, 'itemLimit must be 1-100');
+  if (!Number.isInteger(limit) || limit < 1 || limit > maxLimit) {
+    return apiError(400, `itemLimit must be 1-${maxLimit}`);
   }
   return { offset, limit };
 }

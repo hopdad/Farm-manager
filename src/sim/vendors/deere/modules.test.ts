@@ -7,8 +7,9 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { DeereClient } from '../../../connectors/deere/client';
 import {
+  DEERE_EQUIPMENT_MEDIA_TYPE,
+  deereEquipmentListSchema,
   deereFieldsSchema,
-  deereMachinesSchema,
   deereOrganizationsSchema,
 } from '../../../connectors/deere/schemas';
 import { type ConnectorConfig, deereEndpoints } from '../../../connectors/endpoints';
@@ -26,12 +27,16 @@ import { DEERE_ROUTE_MODULES, deereModuleWith } from './routes';
 
 const seen: { days: boolean | null } = { days: null };
 
-/** A connections module whose knob blocks one org (the stub world has only org-home). */
+/**
+ * A connections module whose knob blocks one org (the stub world has only org-home): every
+ * request that names it, a /platform/organizations/{org}/… path or the Equipment API's
+ * `organizationIds`.
+ */
 const connections: DeereRouteModule = {
   key: 'connections',
-  route: ({ ctx, parts }) => {
+  route: ({ ctx, orgIds }) => {
     const blocked = deereModuleState(ctx, 'connections').blocked;
-    return blocked && parts[0] === 'organizations' && parts[1] === blocked
+    return typeof blocked === 'string' && orgIds.includes(blocked)
       ? json(403, { errors: [{ message: 'needs approval' }] })
       : null;
   },
@@ -111,16 +116,18 @@ describe('Deere stand-in route modules', () => {
       (await client.getOne(deereOrganizationsSchema, client.apiUrl('organizations'))).values
         .find((o) => o.id === 'org-home')
         ?.links?.map((l) => l.rel);
-    expect(await rels()).toEqual(['machines', 'fields']);
+    // A connected org: `self` and `manage_connections` (Deere's docs), plus the modules' links.
+    expect(await rels()).toEqual(['self', 'manage_connections', 'fields']);
     // The knob (persisted in the module's bag) blocks the org.
     expect(await (await block('org-home')).json()).toEqual({ path: '/block', blocked: 'org-home' });
-    expect(await rels()).toEqual(['machines', 'connections', 'fields']);
+    expect(await rels()).toEqual(['self', 'connections', 'fields']);
     await expect(client.fields('org-home')).rejects.toMatchObject({ status: 403 });
-    // The core's own org-scoped routes are refused too (modules run first).
+    // The core's own org-scoped routes are refused too (modules run first), the Equipment API's
+    // listing included (its org is in `organizationIds`).
     await expect(client.machines('org-home')).rejects.toMatchObject({ status: 403 });
     await block(null);
     expect(await client.machines('org-home')).toEqual(expect.any(Array));
-    expect(await rels()).toEqual(['machines', 'fields']);
+    expect(await rels()).toEqual(['self', 'manage_connections', 'fields']);
   });
 
   test('a path no module or core route serves is 404 "not simulated"', async () => {
@@ -183,19 +190,37 @@ describe('core field listing and machine details (1f)', () => {
     await expect(c.fields('org-nobody')).rejects.toMatchObject({ status: 403 });
   });
 
-  test("the core's machines carry equipment type, make and model from the simulated machine", async () => {
-    const page = await c.getOne(
-      deereMachinesSchema,
-      c.apiUrl('organizations', 'org-home', 'machines'),
-    );
-    expect(page.values.length).toBeGreaterThan(0);
-    for (const m of page.values) {
+  test("the Equipment API lists each org's machines: principalId ≠ id, ISG type, make, model", async () => {
+    const machines = await c.machines('org-home');
+    expect(machines.length).toBeGreaterThan(0);
+    for (const m of machines) {
       expect(m).toMatchObject({
-        equipmentType: { name: expect.any(String) },
-        equipmentMake: { name: expect.any(String) },
-        equipmentModel: { name: expect.any(String) },
+        principalId: expect.any(String),
+        isgType: { name: expect.any(String) },
+        type: { name: expect.any(String) },
+        make: { name: expect.any(String) },
+        model: { name: expect.any(String) },
+        modelYear: expect.stringMatching(/^\d{4}$/),
       });
+      expect(m.id).not.toBe(m.principalId);
     }
+    // Deere's rules: organizationIds is required, one org at a time, application/json.
+    const url = `${c.endpoints.equipmentBase}/equipment`;
+    await expect(c.getOne(deereEquipmentListSchema, url)).rejects.toMatchObject({
+      status: 406,
+    });
+    await expect(
+      c.getOne(deereEquipmentListSchema, url, { accept: DEERE_EQUIPMENT_MEDIA_TYPE }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      c.getOne(deereEquipmentListSchema, `${url}?organizationIds=org-home,org-nobody`, {
+        accept: DEERE_EQUIPMENT_MEDIA_TYPE,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    // The deprecated /platform machines API is gone.
+    await expect(
+      c.getPaged(deereFieldsSchema, c.apiUrl('organizations', 'org-home', 'machines')),
+    ).rejects.toMatchObject({ status: 404 });
   });
 
   test('a module answers the fields path before the core (shadowing)', async () => {

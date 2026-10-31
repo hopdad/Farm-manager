@@ -3,7 +3,7 @@
   "source": "deere",
   "stream": "organizations",
   "kind": "doc-derived",
-  "reference": "https://developer.deere.com/dev-docs/machine-locations (GET /machines/{principalId}/breadcrumbs, Breadcrumb, MeasurementAsDouble/Integer, nextPage paging); https://developer.deere.com/dev-docs/organizations; org `machines` link as recorded in RealmFive/my_john_deere_api test/support/vcr/get_organizations.yml. Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "reference": "https://developer.deere.com/dev-docs/machine-locations (GET /machines/{principalId}/breadcrumbs, Breadcrumb, MeasurementAsDouble/Integer, nextPage paging with pageOffset/itemLimit); https://developer.deere.com/dev-docs/equipment (GET https://equipmentapi.deere.com/isg/equipment?organizationIds=, equipmentForList: id, principalId, isgType, type, make, model, modelYear as a string); https://developer.deere.com/dev-docs/organizations (self and manage_connections links). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
   "anchor": "2026-10-15T13:00:00.000Z",
   "basePath": "/platform",
   "exchanges": [
@@ -37,8 +37,8 @@
                 },
                 {
                   "@type": "Link",
-                  "rel": "machines",
-                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/machines"
+                  "rel": "manage_connections",
+                  "uri": "https://connections.deere.com/connections"
                 },
                 {
                   "@type": "Link",
@@ -71,8 +71,8 @@
                 },
                 {
                   "@type": "Link",
-                  "rel": "machines",
-                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/machines"
+                  "rel": "manage_connections",
+                  "uri": "https://connections.deere.com/connections"
                 },
                 {
                   "@type": "Link",
@@ -105,8 +105,8 @@
                 },
                 {
                   "@type": "Link",
-                  "rel": "machines",
-                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/machines"
+                  "rel": "manage_connections",
+                  "uri": "https://connections.deere.com/connections"
                 },
                 {
                   "@type": "Link",

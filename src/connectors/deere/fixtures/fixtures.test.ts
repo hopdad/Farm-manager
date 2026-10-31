@@ -18,11 +18,11 @@ import {
   deereBoundariesSchema,
   deereBoundarySchema,
   deereBreadcrumbsSchema,
+  deereEquipmentListSchema,
   deereFieldOperationMeasurementsSchema,
   deereFieldOperationsSchema,
   deereFieldsSchema,
   deereFlagsSchema,
-  deereMachinesSchema,
   deereOrganizationsSchema,
 } from '../schemas';
 import { buildDeereDocDerivedFixtures, fixtureFarm } from './build';
@@ -33,10 +33,10 @@ const built = buildDeereDocDerivedFixtures();
 /** Which live schema validates a response, by request path (minus the /platform base). */
 function schemaFor(p: string): ZodType {
   const rules: [RegExp, ZodType][] = [
-    [/^\/organizations(;.*)?$/, deereOrganizationsSchema],
-    [/^\/organizations\/[^/]+\/machines(;.*)?$/, deereMachinesSchema],
-    [/^\/machines\/[^/]+\/breadcrumbs(;.*)?$/, deereBreadcrumbsSchema],
-    [/^\/organizations\/[^/]+\/fields(;.*)?$/, deereFieldsSchema],
+    [/^\/organizations$/, deereOrganizationsSchema],
+    [/^\/isg\/equipment$/, deereEquipmentListSchema],
+    [/^\/machines\/[^/]+\/breadcrumbs$/, deereBreadcrumbsSchema],
+    [/^\/organizations\/[^/]+\/fields$/, deereFieldsSchema],
     [/^\/organizations\/[^/]+\/boundaries$/, deereBoundariesSchema],
     [/^\/organizations\/[^/]+\/fields\/[^/]+\/boundaries$/, deereBoundariesSchema],
     [/^\/organizations\/[^/]+\/fields\/[^/]+\/fieldOperations$/, deereFieldOperationsSchema],
@@ -105,9 +105,19 @@ describe('Deere doc-derived fixtures', () => {
       ).exchanges
         .filter((x) => p.test(x.request.path))
         .flatMap((x) => (x.response.body as { values: { id: string; links?: never[] }[] }).values);
-    const machines = body('locations', /^\/organizations\/org-home\/machines/);
+    // Machines come from the Equipment API; the refs (and breadcrumb paths) use the principalId.
+    const loc = built['locations/01-machine-locations.json'] as ReplayFixture;
+    const machines = loc.exchanges
+      .filter((x) => x.request.path === '/isg/equipment')
+      .filter((x) => x.request.query?.organizationIds === 'org-home')
+      .flatMap(
+        (x) => (x.response.body as { values: { id: string; principalId: number }[] }).values,
+      );
     expect(machines.length).toBe(6);
-    for (const m of machines) expect(known.has(`machine|org-home|${m.id}`)).toBe(true);
+    for (const m of machines) {
+      expect(known.has(`machine|org-home|${m.principalId}`)).toBe(true);
+      expect(m.id).not.toBe(String(m.principalId));
+    }
     const fields = body('fields', /^\/organizations\/org-home\/fields/);
     expect(fields.length).toBeGreaterThan(25); // paged: more than one page
     const mapped = fields.filter((f) => known.has(`field|org-home|${f.id}`));

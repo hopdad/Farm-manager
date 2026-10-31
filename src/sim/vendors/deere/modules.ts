@@ -11,15 +11,19 @@
  *                                         engine hours
  *   ops          ./ops-routes.ts          deere-ops: field operations, measurements, coverage
  *
- * Order of a GET /platform/... request (bearer token and Accept already checked by the core):
+ * Order of a GET /platform/... or /isg/... request (bearer token and Accept already checked by
+ * the core):
  *   1. each module's `route()` in DEERE_ROUTE_MODULES order (connections, fields, ops); the first
- *      non-null reply wins, so connections can refuse an org before anyone serves it;
+ *      non-null reply wins, so connections can refuse an org before anyone serves it (it reads
+ *      `r.orgIds`: the org of a /platform/organizations/{org}/… path, or the Equipment API's
+ *      `organizationIds`);
  *   2. the core routes; 3. 404 "not simulated".
- * A module answers only the paths contracts-1f §7 gives it and returns null for everything else.
- * GET /organizations is the core's: modules add links to each org through `orgLinks()`. The
- * fields module shadows the core's minimal fields listing (same ids: ./platform.ts
- * simDeereFields); the core machines listing is never shadowed (deere-data reads it with its own
- * looser schema).
+ * A module answers only the paths contracts-1f §7 gives it and returns null for everything else
+ * (check `r.api`: most modules answer `platform` requests only). GET /organizations is the
+ * core's: modules add links to each org through `orgLinks()`. The fields module shadows the
+ * core's minimal fields listing (same ids: ./platform.ts simDeereFields); the core's Equipment
+ * API listing (GET /isg/equipment, machines with `principalId`, `isgType`, `make`, `model`) is
+ * never shadowed.
  *
  * Knobs: `control()` is served at `/_control/vendor/deere/<key>/...` (req.path is the part after
  * `/<key>`), behind the stand-in's loopback/Origin/JSON guard; a module keeps its state in
@@ -30,13 +34,20 @@ import type { DeereLink } from '../../../connectors/deere/schemas';
 import type { VendorContext, VendorControlContext } from '../context';
 import type { SimRequest, SimResponse } from '../http';
 
-/** One GET /deere/platform/... request as a module sees it. */
+/** One GET /deere/platform/... (or /deere/isg/..., the Equipment API) request as a module sees it. */
 export interface DeerePlatformRequest {
   req: SimRequest;
   ctx: VendorContext;
-  /** Decoded path segments after `/platform`, e.g. ['organizations', 'org-home', 'fields']. */
+  /** Which Deere API: the Operations Center platform, or the Equipment API (equipmentapi.deere.com/isg). */
+  api: 'platform' | 'equipment';
+  /**
+   * Decoded path segments after `/platform` (or `/isg`), e.g. ['organizations', 'org-home',
+   * 'fields'] or ['equipment'].
+   */
   parts: string[];
-  /** `<origin>/deere/platform`, the base of every link in a reply. */
+  /** The org ids the request names: `/organizations/{org}/…`, or `organizationIds=` (Equipment API). */
+  orgIds: string[];
+  /** `<origin>/deere/platform`, the base of every platform link in a reply. */
   base: string;
 }
 

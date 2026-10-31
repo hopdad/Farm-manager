@@ -51,6 +51,13 @@ describe('parseRetryAfter', () => {
     expect(parseRetryAfter('soon', now)).toBeUndefined();
     expect(parseRetryAfter(null, now)).toBeUndefined();
   });
+  test('fractional delta seconds round up (Samsara 0.40235, Terminal 0.62), never a date', () => {
+    expect(parseRetryAfter('0.40235', now)).toBe(1);
+    expect(parseRetryAfter('0.62', now)).toBe(1);
+    expect(parseRetryAfter('1.5', now)).toBe(2);
+    expect(parseRetryAfter('2.0', now)).toBe(2);
+    expect(parseRetryAfter('1.2.3', now)).toBeUndefined();
+  });
 });
 
 describe('vendorFetch retries', () => {

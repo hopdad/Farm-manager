@@ -9,6 +9,7 @@ import { VendorHttpError } from '../http';
 import { DeereClient } from './client';
 import {
   DEERE_REPLAY_HOME_ORG,
+  deereDenialOf,
   deereHomeOrg,
   deereMayCreateRows,
   deereOrgAccess,
@@ -57,8 +58,18 @@ describe('Deere org access (decision 5)', () => {
       name: 'Home',
       status: 'connected',
       approvalUrl: null,
+      manageUrl: null,
       detail: null,
     });
+    // A connected org lists where its connection is managed (both spellings appear in Deere's docs).
+    for (const rel of ['manage_connections', 'manage_connection']) {
+      expect(
+        deereOrgAccess({
+          id: 'org-home',
+          links: [{ rel, uri: 'https://connections.deere.com/m' }],
+        }),
+      ).toMatchObject({ status: 'connected', manageUrl: 'https://connections.deere.com/m' });
+    }
     const pending = deereOrgAccess({
       id: 'org-customer-1',
       links: [{ rel: 'connections', uri: 'https://connections.deere.com/connections/abc' }],
@@ -87,6 +98,27 @@ describe('Deere org access (decision 5)', () => {
       status: 'needs_approval',
       detail: '403 from /platform/organizations/org-customer-1/fields',
     });
+    expect(deereDenialOf(denied)).toBe('needs_approval');
+  });
+
+  test('a 403 can also be terms to accept or a missing scope (not an approval)', () => {
+    const terms = new VendorHttpError({
+      vendor: 'deere',
+      status: 403,
+      path: '/platform/organizations/org-a/fields',
+      headers: { 'x-deere-terms-location': 'https://terms.deere.com/accept' },
+    });
+    expect(deereDenialOf(terms)).toBe('terms');
+    expect(deniedOrgAccess({ id: 'org-a' }, terms).detail).toMatch(
+      /accept Deere's terms at https:\/\/terms\.deere\.com\/accept/,
+    );
+    const scope = new VendorHttpError({
+      vendor: 'deere',
+      status: 403,
+      path: '/platform/organizations/org-a/fields/f/fieldOperations',
+      detail: 'The client does not have a proper access for this API',
+    });
+    expect(deereDenialOf(scope)).toBe('scope');
   });
 });
 

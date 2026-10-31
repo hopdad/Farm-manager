@@ -50,9 +50,14 @@ describe('Deere in replay mode: machine locations', () => {
     const orgs = await c.organizations();
     expect(orgs.map((o) => o.id)).toEqual(simDeereOrgs(farm).map((o) => o.id));
     expect(orgs.map((o) => o.id)).toContain('org-home');
+    expect(c.endpoints.equipmentBase).toBe(`${REPLAY_ORIGIN}/deere/isg`);
+    // The Equipment API, paged by pageOffset/itemLimit; refs by principalId (≠ the equipment id).
     const machines = await c.machines('org-home');
     expect(machines).toHaveLength(6); // 4 + 2 across two pages
-    for (const m of machines) expect(mapped('machine', 'org-home', m.id)).not.toBeNull();
+    for (const m of machines) {
+      expect(mapped('machine', 'org-home', m.principalId as string)).not.toBeNull();
+      expect(mapped('machine', 'org-home', m.id)).toBeNull();
+    }
     expect(await c.machines('org-customer-1')).toEqual([]);
   });
 

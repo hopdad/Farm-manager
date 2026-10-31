@@ -26,8 +26,27 @@ import { VendorHttpError } from '../http';
 import type { Mode } from '../types';
 import type { DeereLink } from './schemas';
 
-/** Link rel on an organization that still needs approval. // doc-derived, confirm */
+/** Link rel on an organization that still needs approval (Deere's Connections docs). */
 export const DEERE_CONNECTIONS_REL = 'connections';
+/**
+ * Link rels of a CONNECTED organization (where its connection is managed). Deere's docs spell
+ * it both ways; either one means the org already approved the app.
+ */
+export const DEERE_MANAGE_CONNECTIONS_RELS = ['manage_connections', 'manage_connection'] as const;
+
+/**
+ * Why Deere refused an org-scoped call (403). Deere's 403 is not always "needs approval": an
+ * `x-deere-terms-location` header means terms must be accepted at that URL, and a body naming a
+ * missing scope or license is the app's configuration (a re-consent with DEERE_SCOPES, or the
+ * API's licence in My Applications), not the org's.
+ */
+export type DeereDenial = 'needs_approval' | 'terms' | 'scope';
+
+export function deereDenialOf(err: VendorHttpError): DeereDenial {
+  if (err.headers?.['x-deere-terms-location']) return 'terms';
+  if (/\b(scope|licen[cs]e|proper access)\b/i.test(err.detail ?? '')) return 'scope';
+  return 'needs_approval';
+}
 
 export const DEERE_ORG_STATUSES = ['connected', 'needs_approval'] as const;
 export type DeereOrgStatus = (typeof DEERE_ORG_STATUSES)[number];
@@ -39,6 +58,8 @@ export interface DeereOrgAccess {
   status: DeereOrgStatus;
   /** Where a person approves the connection (the `connections` link), when known. */
   approvalUrl: string | null;
+  /** Where a connected org's connection is managed (`manage_connections`), when listed. */
+  manageUrl?: string | null;
   /** Short reason when not connected ("403 from /organizations/{id}/fields"), no secrets. */
   detail: string | null;
 }
@@ -50,16 +71,23 @@ export function deereOrgAccess(org: {
   links?: readonly DeereLink[];
 }): DeereOrgAccess {
   const link = org.links?.find((l) => l.rel === DEERE_CONNECTIONS_REL);
+  const manage = org.links?.find((l) =>
+    (DEERE_MANAGE_CONNECTIONS_RELS as readonly string[]).includes(l.rel),
+  );
   return {
     orgId: org.id,
     name: org.name ?? null,
     status: link ? 'needs_approval' : 'connected',
     approvalUrl: link?.uri ?? null,
+    manageUrl: link ? null : (manage?.uri ?? null),
     detail: link ? 'the organization has not approved this app (Deere Connections)' : null,
   };
 }
 
-/** True when `err` is Deere refusing an org-scoped call (403): the org needs approval. */
+/**
+ * True when `err` is Deere refusing an org-scoped call (403). Most mean the org needs approval;
+ * `deereDenialOf(err)` tells terms and missing scopes apart (shown differently on /admin).
+ */
 export function isDeereOrgDenied(err: unknown): err is VendorHttpError {
   return err instanceof VendorHttpError && err.vendor === 'deere' && err.status === 403;
 }
@@ -70,7 +98,14 @@ export function deniedOrgAccess(
   err: VendorHttpError,
 ): DeereOrgAccess {
   const base = deereOrgAccess(org);
-  return { ...base, status: 'needs_approval', detail: `403 from ${err.path}` };
+  const why = deereDenialOf(err);
+  const detail =
+    why === 'terms'
+      ? `403 from ${err.path}: accept Deere's terms at ${err.headers?.['x-deere-terms-location']}`
+      : why === 'scope'
+        ? `403 from ${err.path}: the app's scopes or API licence (${err.detail ?? 'no detail'})`
+        : `403 from ${err.path}`;
+  return { ...base, status: 'needs_approval', detail };
 }
 
 // ---------------------------------------------------------------------------------------------
