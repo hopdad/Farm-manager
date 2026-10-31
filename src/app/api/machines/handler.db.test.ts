@@ -179,6 +179,85 @@ describe('GET /api/machines', () => {
   });
 });
 
+describe('GET /api/machines: 1f faults, vendor badge and stats', () => {
+  test('faults, vendor and kind of the fix, counters and levels, via, what is not reported', async () => {
+    const ins = async (unit: string, kind: string, extra = '') =>
+      (
+        await t().admin.query<{ id: string }>(
+          `insert into farm.machines (kind, unit_no, engine_hours, odometer_mi, telematics_via,
+             kind_set_by)
+           values ($1, $2, ${extra || 'null, null, null, $3'}) returning id::text as id`,
+          extra ? [kind, unit] : [kind, unit, 'default'],
+        )
+      ).rows[0]?.id as string;
+    const truck = await ins('S7', 'semi', `4312.0, 412300.4, null, 'vendor'`);
+    const pickup = await ins('PU7', 'pickup', `null, null, 'ford_pro', 'admin'`);
+    const loader = await ins('L7', 'loader', `1210.5, null, null, 'default'`);
+    const state = (id: string, vendor: string, kind: string, codes: unknown, fuel: number | null) =>
+      t().pool.query(
+        `insert into farm.machine_state (machine_id, ts, geom, speed_mph, heading, activity,
+           position_source, position_vendor, position_kind, fault_codes, fuel_pct, def_pct)
+         values ($1, now() - interval '30 seconds',
+                 extensions.ST_SetSRID(extensions.ST_MakePoint(-83.9, 41.9), 4326), 0, 0, 'idle',
+                 'eld', $2, $3, $4::jsonb, $5, $6)`,
+        [id, vendor, kind, JSON.stringify(codes), fuel, fuel === null ? null : 54.2],
+      );
+    const red = {
+      code: 'J1939 SPN 110 FMI 0',
+      severity: 'critical',
+      description: 'Coolant hot',
+      system: 'j1939',
+      spn: 110,
+      fmi: 0,
+      lamps: { redStop: true },
+      since: new Date(Date.now() - 600_000).toISOString(),
+    };
+    await state(truck, 'samsara', 'live', [red], 62);
+    await state(pickup, 'samsara', 'live', [], 54);
+    await state(loader, 'aemp_kubota', 'last_known', [{ junk: true }], null);
+
+    const data = fleetPanelDataSchema.parse((await list(as('viewer'))).body);
+    const by = new Map(data.machines.map((m) => [m.unitNo, m]));
+    expect(by.get('S7')).toMatchObject({
+      faults: [red],
+      engineHours: 4312,
+      odometerMi: 412300.4,
+      fuelPct: 62,
+      defPct: 54.2,
+      via: null,
+      kindSetBy: 'vendor',
+      notReported: [],
+      faultsNotReported: false,
+      position: { vendor: 'samsara' },
+    });
+    expect(by.get('S7')?.position).not.toHaveProperty('positionKind');
+    // The Ford pickup through Samsara: hours and odometer "not reported" (null, never 0).
+    expect(by.get('PU7')).toMatchObject({
+      faults: [],
+      engineHours: null,
+      odometerMi: null,
+      via: 'ford_pro',
+      kindSetBy: 'admin',
+      faultsNotReported: false,
+    });
+    expect(by.get('PU7')?.notReported).toEqual(
+      expect.arrayContaining(['engineHours', 'odometerMi']),
+    );
+    // Kubota on AEMP: a last-known fix; no fault system reported; a malformed summary reads none.
+    expect(by.get('L7')).toMatchObject({
+      faults: [],
+      fuelPct: null,
+      faultsNotReported: true,
+      position: { vendor: 'aemp_kubota', positionKind: 'last_known' },
+    });
+    // A machine with no fix yet: nothing known about its route.
+    expect(by.get('C1')).toMatchObject({ faults: [], notReported: [], faultsNotReported: false });
+    await t().admin.query('delete from farm.machines where id = any($1::uuid[])', [
+      [truck, pickup, loader],
+    ]);
+  });
+});
+
 describe('POST /api/machines/<id>/status', () => {
   test('signed out 401, a viewer 403, and nothing changes', async () => {
     expect((await post(null, combine, { status: 'down', reason: 'Flat tire' })).status).toBe(401);

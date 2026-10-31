@@ -1,0 +1,148 @@
+{
+  "format": 1,
+  "source": "samsara",
+  "stream": "faults",
+  "kind": "doc-derived",
+  "reference": "https://developers.samsara.com/reference/getvehiclestatsfeed (GET /fleet/vehicles/stats/feed?types=faultCodes&after=; data[].faultCodes[] = VehicleStatsFaultCodesWithDecoration: time, canBusType, j1939.checkEngineLights + diagnosticTroubleCodes[spnId, fmiId, txId, milStatus, occurrenceCount, spnDescription, fmiDescription, sourceAddressName]) and https://developers.samsara.com/docs/fault-monitoring; Samsara's OpenAPI 3.0.1 (developers.samsara.com/openapi/samsara-api.json). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fleet/vehicles/stats/feed",
+        "query": {
+          "types": "faultCodes",
+          "after": "replay-faults-0001"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "pagination": {
+            "endCursor": "replay-faults-0001",
+            "hasNextPage": false
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fleet/vehicles/stats/feed",
+        "query": {
+          "types": "faultCodes"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "281474977545313",
+              "name": "S1",
+              "faultCodes": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "canBusType": "CANBUS_J1939_500",
+                  "j1939": {
+                    "checkEngineLights": {
+                      "stopIsOn": false,
+                      "warningIsOn": false,
+                      "protectIsOn": false,
+                      "emissionsIsOn": false
+                    },
+                    "diagnosticTroubleCodes": []
+                  }
+                }
+              ]
+            },
+            {
+              "id": "281474976985156",
+              "name": "S2",
+              "faultCodes": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "canBusType": "CANBUS_J1939_500",
+                  "j1939": {
+                    "checkEngineLights": {
+                      "stopIsOn": false,
+                      "warningIsOn": true,
+                      "protectIsOn": false,
+                      "emissionsIsOn": false
+                    },
+                    "diagnosticTroubleCodes": [
+                      {
+                        "spnId": 3216,
+                        "fmiId": 2,
+                        "txId": 61,
+                        "milStatus": 0,
+                        "occurrenceCount": 3,
+                        "spnDescription": "Aftertreatment 1 Intake NOx",
+                        "fmiDescription": "Data Erratic, Intermittent Or Incorrect",
+                        "sourceAddressName": "Exhaust Emission Controller"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "281474976831855",
+              "name": "S3",
+              "faultCodes": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "canBusType": "CANBUS_J1939_500",
+                  "j1939": {
+                    "checkEngineLights": {
+                      "stopIsOn": true,
+                      "warningIsOn": true,
+                      "protectIsOn": false,
+                      "emissionsIsOn": false
+                    },
+                    "diagnosticTroubleCodes": [
+                      {
+                        "spnId": 110,
+                        "fmiId": 0,
+                        "txId": 0,
+                        "milStatus": 0,
+                        "occurrenceCount": 1,
+                        "spnDescription": "Engine Coolant Temperature",
+                        "fmiDescription": "Data Valid But Above Normal Operational Range - Most Severe Level",
+                        "sourceAddressName": "Engine #1"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "281474977403556",
+              "name": "S4",
+              "faultCodes": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "canBusType": "CANBUS_J1939_500",
+                  "j1939": {
+                    "checkEngineLights": {
+                      "stopIsOn": false,
+                      "warningIsOn": false,
+                      "protectIsOn": false,
+                      "emissionsIsOn": false
+                    },
+                    "diagnosticTroubleCodes": []
+                  }
+                }
+              ]
+            }
+          ],
+          "pagination": {
+            "endCursor": "replay-faults-0001",
+            "hasNextPage": false
+          }
+        }
+      }
+    }
+  ]
+}

@@ -10,15 +10,28 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { buildDemoFarm } from '../../../sim/farm/build';
 import { simExternalRefs } from '../../../sim/types';
-import { type ReplayFixture, replayFixtureSchema } from '../../replay';
+import { matchExchange, type ReplayFixture, replayFixtureSchema } from '../../replay';
+import { mapSamsaraFaults } from '../mapper';
 import { samsaraDocDerivedFixtures, samsaraReplayFixtures } from '../replay';
-import { samsaraLocationsFeedSchema, samsaraStatsFeedSchema } from '../schemas';
-import { buildSamsaraDocDerivedFixtures, LOOP_PAGES, loopCursor, STATS_CURSOR } from './build';
+import {
+  samsaraFaultCodesFeedSchema,
+  samsaraFaultCodesReadingSchema,
+  samsaraLocationsFeedSchema,
+  samsaraStatsFeedSchema,
+} from '../schemas';
+import {
+  buildSamsaraDocDerivedFixtures,
+  FAULTS_CURSOR,
+  LOOP_PAGES,
+  loopCursor,
+  STATS_CURSOR,
+} from './build';
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'doc-derived');
 const built = buildSamsaraDocDerivedFixtures();
 const positions = built['positions/01-locations-feed.json'] as ReplayFixture;
 const stats = built['stats/01-stats-feed.json'] as ReplayFixture;
+const faults = built['faults/01-fault-codes-feed.json'] as ReplayFixture;
 
 describe('Samsara doc-derived fixtures', () => {
   test('the committed files are what the builder makes (and replay.ts ships all of them)', () => {
@@ -46,6 +59,55 @@ describe('Samsara doc-derived fixtures', () => {
     for (const x of stats.exchanges) {
       expect(samsaraStatsFeedSchema.safeParse(x.response.body).success).toBe(true);
     }
+    for (const x of faults.exchanges) {
+      const page = samsaraFaultCodesFeedSchema.parse(x.response.body);
+      for (const v of page.data) {
+        for (const r of v.faultCodes ?? []) {
+          expect(samsaraFaultCodesReadingSchema.safeParse(r).success).toBe(true);
+        }
+      }
+    }
+  });
+
+  test('no two exchanges answer the same request; faultCodes and stats calls never cross', () => {
+    const keys = samsaraReplayFixtures.flatMap((f) =>
+      f.exchanges.map((x) =>
+        JSON.stringify([
+          x.request.method,
+          x.request.path,
+          Object.entries(x.request.query ?? {}).sort(),
+          x.request.body ?? null,
+        ]),
+      ),
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+    const base = 'https://replay.invalid/samsara/fleet/vehicles/stats/feed';
+    const hit = (q: string) =>
+      matchExchange(samsaraReplayFixtures, 'GET', new URL(`${base}?${q}`))?.fixture.stream;
+    expect(hit('types=faultCodes')).toBe('faults');
+    expect(hit(`types=faultCodes&after=${FAULTS_CURSOR}`)).toBe('faults');
+    expect(hit('types=obdEngineSeconds%2CfuelPercents%2CobdOdometerMeters')).toBe('stats');
+    expect(hit(`types=obdEngineSeconds,fuelPercents,obdOdometerMeters&after=${STATS_CURSOR}`)).toBe(
+      'stats',
+    );
+  });
+
+  test('the faults fixture: S3 critical, S2 warning, S1 and S4 clean; then caught up', () => {
+    const first = faults.exchanges.find((x) => !x.request.query?.after);
+    const page = samsaraFaultCodesFeedSchema.parse(first?.response.body);
+    const byName = new Map(
+      page.data.map((v) => [
+        v.name,
+        mapSamsaraFaults({ id: v.id, reading: v.faultCodes?.[0] })[0]?.faultCodes ?? [],
+      ]),
+    );
+    expect([...byName.keys()].sort()).toEqual(['S1', 'S2', 'S3', 'S4']);
+    expect(byName.get('S3')?.map((f) => f.severity)).toEqual(['critical']);
+    expect(byName.get('S2')?.map((f) => f.severity)).toEqual(['warning']);
+    expect(byName.get('S1')).toEqual([]);
+    expect(byName.get('S4')).toEqual([]);
+    const after = faults.exchanges.find((x) => x.request.query?.after === FAULTS_CURSOR);
+    expect(after?.response.body).toMatchObject({ data: [] });
   });
 
   test('a closed loop: every cursor a page hands out leads to exactly one next page', () => {
@@ -85,6 +147,11 @@ describe('Samsara doc-derived fixtures', () => {
     for (const x of positions.exchanges) {
       const ids = (x.response.body as { data: { id: string }[] }).data.map((v) => v.id);
       expect(new Set(ids)).toEqual(known);
+    }
+    for (const x of faults.exchanges) {
+      for (const v of (x.response.body as { data: { id: string }[] }).data) {
+        expect(known.has(v.id)).toBe(true);
+      }
     }
   });
 });

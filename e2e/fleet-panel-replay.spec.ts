@@ -2,7 +2,9 @@
  * Replay mode on the board (plan 1a done-when "CONNECTOR_DEERE=replay runs on the doc-derived
  * fixtures"; contracts-m1 §10): with CONNECTOR_DEERE=replay and CONNECTOR_SAMSARA=replay the board
  * shows the replayed trucks and working machines, fresh (time-shifted to now), moving, without
- * the vendor stand-in. The panel flags the replay so nobody takes it for live data.
+ * the vendor stand-in. The panel flags the replay so nobody takes it for live data. 1f: the
+ * doc-derived Samsara faults fixture lands (S3's red stop lamp: a critical badge) and each row's
+ * vendor badge says "· replay".
  *
  * Runs only against an app started in replay mode; under the default sim stack it skips. To run:
  *   PowerShell:  $env:CONNECTOR_DEERE='replay'; $env:CONNECTOR_SAMSARA='replay'; pnpm pilot
@@ -32,7 +34,9 @@ test('replay mode: replayed machines on the board, fresh and moving, flagged as 
 
   await page.goto('/board');
   await waitForMap(page);
-  await expect(page.getByTestId('fleet-mode-badge')).toHaveText(/Deere: replay.*Samsara: replay/i);
+  await expect(page.getByTestId('fleet-mode-badge')).toHaveText(/Deere: replay.*Samsara: replay/i, {
+    timeout: 30_000,
+  });
 
   const fleet = () => page.evaluate(() => window.__map?.fleet() ?? []);
   // The four replayed trucks (ELD) and at least two working Deere machines, none stale.
@@ -50,6 +54,14 @@ test('replay mode: replayed machines on the board, fresh and moving, flagged as 
   const rows = page.getByTestId('fleet-panel-row');
   await expect(rows.filter({ hasText: 'ELD' }).first()).toBeVisible();
   await expect(rows.filter({ hasText: 'Deere' }).first()).toBeVisible();
+  // 1f: the replayed fault codes (S3 critical, S2 warning) and the vendor + mode badges.
+  const s3 = page.locator('[data-testid="fleet-panel-row"][data-unit="S3"]');
+  await expect(s3.getByTestId('fleet-fault-badge')).toHaveText('Critical: J1939 SPN 110 FMI 0', {
+    timeout: 60_000,
+  });
+  await expect(s3.getByTestId('fleet-vendor-badge')).toHaveText('Samsara · replay');
+  const s2 = page.locator('[data-testid="fleet-panel-row"][data-unit="S2"]');
+  await expect(s2.getByTestId('fleet-fault-badge')).toHaveAttribute('data-severity', 'warning');
 
   // The trucks move from one poll to the next (5 s demo cadence, 30 s live).
   const where = async () =>

@@ -6,12 +6,18 @@ import { describe, expect, test } from 'vitest';
 import { mapDeereBreadcrumb, speedToMph } from './deere/mapper';
 import { mapMotivePosition } from './motive/client';
 import {
+  mapSamsaraFaults,
   mapSamsaraPosition,
   mapSamsaraStat,
+  samsaraFaultItems,
   samsaraPositionItems,
   samsaraStatItems,
 } from './samsara/mapper';
-import { samsaraLocationsFeedSchema, samsaraStatsFeedSchema } from './samsara/schemas';
+import {
+  samsaraFaultCodesFeedSchema,
+  samsaraLocationsFeedSchema,
+  samsaraStatsFeedSchema,
+} from './samsara/schemas';
 
 /** Shape from Samsara's reference (VehicleLocationsListResponse), extra fields included. */
 const SAMSARA_FEED = {
@@ -81,6 +87,90 @@ describe('Samsara mapping', () => {
       expect.objectContaining({ externalMachineId: '112', engineHours: 1200 }),
       expect.objectContaining({ fuelPct: 54 }),
       expect.objectContaining({ odometerMi: 100_000 }),
+    ]);
+  });
+
+  test("faultCodes feed (the Fault Monitoring guide's examples) → snapshot reports, decision 1f-2", () => {
+    const feed = samsaraFaultCodesFeedSchema.parse({
+      data: [
+        {
+          id: '112',
+          name: 'Truck A7',
+          faultCodes: [
+            {
+              j1939: {
+                checkEngineLights: {
+                  emissionsIsOn: false,
+                  protectIsOn: true,
+                  stopIsOn: false,
+                  warningIsOn: true,
+                },
+                diagnosticTroubleCodes: [
+                  {
+                    fmiDescription: 'Voltage Below Normal',
+                    fmiId: 4,
+                    occurrenceCount: 25,
+                    spnId: 3510,
+                    spnDescription: 'Sensor supply voltage 2',
+                    milStatus: 1,
+                    txId: 1,
+                    sourceAddressName: 'Engine #2',
+                  },
+                ],
+              },
+              canBusType: 'CANBUS_J1939_250',
+              time: '2020-10-27T14:11:00Z',
+            },
+          ],
+        },
+        {
+          id: '113',
+          name: 'Pickup',
+          faultCodes: [
+            {
+              obdii: {
+                diagnosticTroubleCodes: [
+                  {
+                    confirmedDtcs: [
+                      {
+                        dtcDescription: 'Fuel Rail/System Pressure - Too Low Bank 1',
+                        dtcId: 135,
+                        dtcShortCode: 'P0087',
+                      },
+                    ],
+                    pendingDtcs: [],
+                    permanentDtcs: [],
+                    monitorStatus: {},
+                    txId: 2024,
+                    ignitionType: 'spark',
+                    milStatus: true,
+                  },
+                ],
+                checkEngineLightIsOn: true,
+              },
+              canBusType: 'CANBUS_PASSENGER_15765_11_500',
+              time: '2020-10-27T14:11:00Z',
+            },
+          ],
+        },
+      ],
+      pagination: { endCursor: 'x', hasNextPage: false },
+    });
+    const stats = samsaraFaultItems(feed).flatMap((i) => mapSamsaraFaults(i.payload));
+    expect(stats).toEqual([
+      expect.objectContaining({
+        externalMachineId: '112',
+        faultReport: 'snapshot',
+        faultCodes: [
+          expect.objectContaining({ code: 'J1939 SPN 3510 FMI 4', severity: 'warning' }),
+        ],
+      }),
+      expect.objectContaining({
+        externalMachineId: '113',
+        faultCodes: [
+          expect.objectContaining({ code: 'P0087', severity: 'warning', module: '2024' }),
+        ],
+      }),
     ]);
   });
 });

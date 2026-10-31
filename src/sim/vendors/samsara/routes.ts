@@ -4,7 +4,15 @@
  *
  *   GET /fleet/vehicles/locations/feed?after=&vehicleIds=
  *   GET /fleet/vehicles/stats/feed?types=obdEngineSeconds,fuelPercents,obdOdometerMeters&after=
+ *   GET /fleet/vehicles/stats/feed?types=faultCodes&after=      (1f, fleet-faults: ./fault-codes.ts)
  *   Authorization: Bearer SIM_CREDENTIALS.samsara.apiToken
+ *
+ * faultCodes (slice 1f): a reading per vehicle whenever its active set changes (detected on a
+ * 5 s wall grid), the first call (no cursor) the latest reading of every vehicle that reports
+ * faults; the codes come from the knob (`/_control/vendor/samsara/fault-codes`, the core's own
+ * control path next to the route modules' dispatch) or the scenario's schedule (breakdown: S3).
+ * It may share a call with the stat types (Samsara allows any 3 types); those then report on
+ * their own 60 s grid within the window.
  *
  * Shapes are typed by the shared zod schemas (src/connectors/samsara/schemas.ts). Vehicles are
  * the SimFarm machines on Samsara's vehicle feeds (`simTelematicsMachines(farm, 'samsara',
@@ -20,7 +28,9 @@
  */
 import { randomUUID } from 'node:crypto';
 import {
+  SAMSARA_FAULT_TYPE,
   SAMSARA_STAT_TYPES,
+  type SamsaraFaultCodesFeed,
   type SamsaraLocation,
   type SamsaraLocationsFeed,
   type SamsaraStatsFeed,
@@ -35,7 +45,7 @@ import {
   type SimMachineSample,
   simTelematicsMachines,
 } from '../../types';
-import type { VendorContext, VendorModule } from '../context';
+import type { VendorContext, VendorControlContext, VendorModule } from '../context';
 import { firstOfKind } from '../faults';
 import {
   decodeFeedCursor,
@@ -46,6 +56,18 @@ import {
   seededShuffle,
 } from '../feed';
 import { bearerToken, json, type SimRequest, type SimResponse } from '../http';
+import { type SamsaraSimFaultsStatus, samsaraSimFaultsRequestSchema } from './control-types';
+import {
+  activeFaults,
+  BREAKDOWN_SEMI_FAULT,
+  FAULT_GRID_MS,
+  faultReading,
+  faultsKey,
+  faultVehicles,
+  readFaultsState,
+  SAMSARA_FAULTS_STATE_KEY,
+  withFaultChange,
+} from './fault-codes';
 import { SAMSARA_ROUTE_MODULES } from './modules';
 
 interface FeedVehicle {
@@ -200,40 +222,132 @@ function statsFeed(req: SimRequest, ctx: VendorContext): SimResponse {
   if (!raw) return samsaraError(400, 'Missing required parameter: types');
   const types = [...new Set(raw.split(',').map((s) => s.trim()))];
   if (types.length > 3) return samsaraError(400, 'At most 3 stat types may be requested');
-  const unknown = types.filter((t) => !(SAMSARA_STAT_TYPES as readonly string[]).includes(t));
+  const known: readonly string[] = [...SAMSARA_STAT_TYPES, SAMSARA_FAULT_TYPE];
+  const unknown = types.filter((t) => !known.includes(t));
   if (unknown.length) return samsaraError(400, `Unsupported stat types: ${unknown.join(',')}`);
+  const withFaults = types.includes(SAMSARA_FAULT_TYPE);
+  const statTypes = types.filter((t): t is SamsaraStatType => t !== SAMSARA_FAULT_TYPE);
   const key = `samsara:stats:${types.join(',')}:${req.url.searchParams.get('vehicleIds') ?? ''}`;
   const dup = duplicateOf(req, ctx, key);
   if (dup) return dup;
   const vs = vehicles(ctx, req.url);
-  const win = windowFor(req, ctx, ctx.tuning.statsIntervalMs, vs.length * types.length);
+  const faulty = withFaults ? faultVehicles(ctx.world, req.url.searchParams.get('vehicleIds')) : [];
+  const interval = withFaults ? FAULT_GRID_MS : ctx.tuning.statsIntervalMs;
+  const win = windowFor(req, ctx, interval, Math.max(1, vs.length * types.length));
   if ('kind' in win) return win;
-  const data: SamsaraStatsFeed['data'] = [];
+  const first = !req.url.searchParams.get('after');
+  // With faultCodes in the call the window is on the 5 s fault grid; the stat types keep their
+  // own grid within it (and the first call's single instant).
+  const statInstants = withFaults
+    ? win.instants.filter((t) => first || t % ctx.tuning.statsIntervalMs === 0)
+    : win.instants;
+  const rows = new Map<string, SamsaraVehicleStats & { faultCodes?: unknown[] }>();
+  const rowOf = (id: string, name: string) => {
+    let row = rows.get(id);
+    if (!row) {
+      row = { id, name };
+      rows.set(id, row);
+    }
+    return row;
+  };
   for (const v of vs) {
-    const row: SamsaraVehicleStats = { id: v.id, name: v.name };
-    const sent = (types as SamsaraStatType[]).filter(
-      (type) => !v.notReported.includes(STAT_FIELD[type]),
-    );
+    const sent = statTypes.filter((type) => !v.notReported.includes(STAT_FIELD[type]));
     if (!sent.length) continue;
-    let any = false;
-    for (const t of win.instants) {
+    for (const t of statInstants) {
       const s = sample(ctx, v.machineId, t);
       if (!s) continue;
-      any = true;
+      const row = rowOf(v.id, v.name);
       for (const type of sent) {
         const list = row[type] ?? [];
         list.push({ time: new Date(t).toISOString(), value: statValue(type, s) });
         row[type] = list;
       }
     }
-    if (any) data.push(row);
   }
-  const body: SamsaraStatsFeed = {
-    data,
+  if (withFaults) {
+    const state = readFaultsState(ctx.state);
+    const simAt = (w: Date) => ctx.simAt(w);
+    for (const v of faulty) {
+      for (const t of win.instants) {
+        const now = activeFaults(ctx.world, state, v, t, simAt);
+        // A reading whenever the set changes (and the latest one on the first call).
+        if (!first) {
+          const before = activeFaults(ctx.world, state, v, t - FAULT_GRID_MS, simAt);
+          if (faultsKey(before.codes) === faultsKey(now.codes)) continue;
+        }
+        const row = rowOf(v.id, v.name);
+        row.faultCodes = [...(row.faultCodes ?? []), faultReading(v, now.codes, t)];
+      }
+    }
+  }
+  let data = [...rows.values()];
+  if (withFaults && firstOfKind(ctx.faults, 'out_of_order')) {
+    ctx.counters.faults.out_of_order = (ctx.counters.faults.out_of_order ?? 0) + 1;
+    data = seededShuffle(data, req.seq);
+  }
+  const body: SamsaraStatsFeed | SamsaraFaultCodesFeed = {
+    data: data as SamsaraStatsFeed['data'],
     pagination: { endCursor: encodeFeedCursor(win.endMs), hasNextPage: win.hasNextPage },
   };
   ctx.lastPages.set(key, { after: req.url.searchParams.get('after'), body });
   return json(200, body);
+}
+
+// ---- the fault-code knob (/_control/vendor/samsara/fault-codes) ---------------------------
+
+function faultsStatus(ctx: VendorControlContext): SamsaraSimFaultsStatus {
+  const nowMs = ctx.now().getTime();
+  const state = readFaultsState(ctx.state);
+  const simAt = (w: Date) => ctx.simAt(w);
+  const scheduled = faultVehicles(ctx.world).find((v) => v.name === BREAKDOWN_SEMI_FAULT.unitNo);
+  return {
+    scenario: ctx.world.scenario,
+    simNow: ctx.simAt(new Date(nowMs)).toISOString(),
+    vehicles: faultVehicles(ctx.world).map((v) => {
+      const a = activeFaults(ctx.world, state, v, nowMs, simAt);
+      return { id: v.id, name: v.name, codes: a.codes, from: a.from, setAt: a.setAt };
+    }),
+    schedule:
+      ctx.world.scenario === 'breakdown' && scheduled
+        ? {
+            vehicle: scheduled.name,
+            simAt: new Date(
+              ctx.world.startsAt.getTime() + BREAKDOWN_SEMI_FAULT.afterStartMs,
+            ).toISOString(),
+            codes: [...BREAKDOWN_SEMI_FAULT.codes],
+          }
+        : null,
+  };
+}
+
+function faultCodesControl(req: SimRequest, ctx: VendorControlContext): SimResponse {
+  if (req.method === 'GET') return json(200, faultsStatus(ctx));
+  if (req.method !== 'POST') {
+    return json(405, { error: `${req.method} not allowed on /fault-codes` });
+  }
+  let value: unknown;
+  try {
+    value = req.body ? JSON.parse(req.body) : {};
+  } catch {
+    return json(400, { error: 'body must be JSON' });
+  }
+  const parsed = samsaraSimFaultsRequestSchema.safeParse(value);
+  if (!parsed.success) {
+    const i = parsed.error.issues[0];
+    return json(400, {
+      error: i ? `${i.path.join('.') || '(body)'}: ${i.message}` : 'bad request',
+    });
+  }
+  const { vehicle, codes } = parsed.data;
+  const v = faultVehicles(ctx.world).find((x) => x.id === vehicle || x.name === vehicle);
+  if (!v) return json(404, { error: `no Samsara vehicle '${vehicle}' reports fault codes` });
+  const next = withFaultChange(readFaultsState(ctx.state), v.id, ctx.now(), codes);
+  ctx.state.vendors = { ...(ctx.state.vendors ?? {}), [SAMSARA_FAULTS_STATE_KEY]: next };
+  ctx.persist();
+  ctx.log(
+    `samsara fault codes: ${v.name} ${codes === null ? 'back to the scenario' : codes.length ? codes.map((c) => (c.system === 'j1939' ? `SPN ${c.spn} FMI ${c.fmi}` : c.system === 'obd2' ? c.dtc : c.code)).join(', ') : 'cleared'}`,
+  );
+  return json(200, faultsStatus(ctx));
 }
 
 export const samsaraModule: VendorModule = {
@@ -265,8 +379,13 @@ export const samsaraModule: VendorModule = {
         return samsaraError(404, `Not found: ${req.path} (not simulated)`);
     }
   },
-  /** /_control/vendor/samsara/<key>/... → that route module's control() (./modules.ts). */
+  /**
+   * /_control/vendor/samsara/fault-codes → the core's fault-code knob (1f, fleet-faults);
+   * /_control/vendor/samsara/<key>/... → that route module's control() (./modules.ts).
+   */
   async control(req, ctx) {
+    if ((req.path.replace(/\/+$/, '') || '/') === '/fault-codes')
+      return faultCodesControl(req, ctx);
     const [, key = '', ...rest] = req.path.split('/');
     const mod = SAMSARA_ROUTE_MODULES.find((m) => m.key === key);
     const hit = mod?.control

@@ -5,6 +5,11 @@
  * endCursor; later calls pass it as `after` and get only newer events; `hasNextPage` says more
  * are ready right now (runSyncStep keeps polling while it is true, within the job budget).
  * The stored cursor is the endCursor string; an empty endCursor keeps the previous one.
+ *
+ * Three feeds, three cursors (a Samsara cursor belongs to its `types` set): positions
+ * (/fleet/vehicles/locations/feed), stats (engine seconds, fuel, odometer: the 3-types limit) and,
+ * slice 1f, fault codes (/fleet/vehicles/stats/feed?types=faultCodes: one reading per change, the
+ * vehicle's complete active set; ./mapper.ts `mapSamsaraFaults`).
  */
 import {
   type ConnectorConfig,
@@ -13,19 +18,32 @@ import {
   samsaraEndpoint,
 } from '../endpoints';
 import { type VendorHttpOptions, vendorJson } from '../http';
-import type { Mode, PollResult, PositionSource, RawItem, VehicleStatsSource } from '../types';
+import type {
+  Mode,
+  NormalizedVehicleStat,
+  PollResult,
+  PositionSource,
+  RawItem,
+  VehicleStatsSource,
+} from '../types';
 import {
+  mapSamsaraFaults,
   mapSamsaraPosition,
   mapSamsaraStat,
+  samsaraFaultItems,
   samsaraPositionItems,
   samsaraStatItems,
 } from './mapper';
 import {
+  SAMSARA_FAULT_TYPE,
   SAMSARA_STAT_TYPES,
+  type SamsaraFaultCodesFeed,
+  type SamsaraFaultRaw,
   type SamsaraLocationsFeed,
   type SamsaraPositionRaw,
   type SamsaraStatRaw,
   type SamsaraStatsFeed,
+  samsaraFaultCodesFeedSchema,
   samsaraLocationsFeedSchema,
   samsaraStatsFeedSchema,
 } from './schemas';
@@ -56,7 +74,10 @@ export class SamsaraClient {
   }
 
   private get<T>(
-    schema: typeof samsaraLocationsFeedSchema | typeof samsaraStatsFeedSchema,
+    schema:
+      | typeof samsaraLocationsFeedSchema
+      | typeof samsaraStatsFeedSchema
+      | typeof samsaraFaultCodesFeedSchema,
     path: string,
     params: Record<string, string | null>,
   ): Promise<T> {
@@ -92,6 +113,14 @@ export class SamsaraClient {
     });
   }
 
+  /** GET /fleet/vehicles/stats/feed?types=faultCodes (its own call and cursor). */
+  faultCodesFeed(after: string | null): Promise<SamsaraFaultCodesFeed> {
+    return this.get(samsaraFaultCodesFeedSchema, '/fleet/vehicles/stats/feed', {
+      after,
+      types: SAMSARA_FAULT_TYPE,
+    });
+  }
+
   /** One page of the locations feed as raw items (the sync step's `poll`). */
   async pollPositions(cursor: string | null): Promise<PollResult<RawItem<SamsaraPositionRaw>>> {
     const page = await this.locationsFeed(cursor);
@@ -107,6 +136,16 @@ export class SamsaraClient {
     const page = await this.statsFeed(cursor);
     return {
       items: samsaraStatItems(page),
+      cursor: page.pagination.endCursor || (cursor ?? ''),
+      hasMore: page.pagination.hasNextPage,
+    };
+  }
+
+  /** One page of the fault-codes feed as raw items (one reading each; stream `faults`). */
+  async pollFaults(cursor: string | null): Promise<PollResult<RawItem<SamsaraFaultRaw>>> {
+    const page = await this.faultCodesFeed(cursor);
+    return {
+      items: samsaraFaultItems(page),
       cursor: page.pagination.endCursor || (cursor ?? ''),
       hasMore: page.pagination.hasNextPage,
     };
@@ -128,6 +167,16 @@ export class SamsaraClient {
       statsSince: async (cursor) => {
         const r = await this.pollStats(cursor);
         return { ...r, items: r.items.flatMap((i) => mapSamsaraStat(i.payload)) };
+      },
+    };
+  }
+
+  /** The vendor-neutral port's `faults` (1f.2): `snapshot` reports in the one fault model. */
+  asFaultsSource(): { faults(cursor: string | null): Promise<PollResult<NormalizedVehicleStat>> } {
+    return {
+      faults: async (cursor) => {
+        const r = await this.pollFaults(cursor);
+        return { ...r, items: r.items.flatMap((i) => mapSamsaraFaults(i.payload)) };
       },
     };
   }

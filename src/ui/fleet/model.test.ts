@@ -1,15 +1,24 @@
 import { describe, expect, test } from 'vitest';
 import type { Mode } from '../../connectors/types';
+import type { ActiveFaultCode } from '../../domain/fault-codes';
 import type { FleetTick, MachineView } from '../../domain/fleet';
 import type { FleetPanelData, PanelMachine } from './contract';
+import { MAX_DOWN_REASON_CHARS } from './contract';
 import {
+  criticalFault,
+  DEERE_STOPPED_WORKING_SECONDS,
+  deereStoppedWorkingSeconds,
   groupMachines,
   groupOf,
   initialPanelState,
+  markDownReason,
   modeNotices,
+  offersMarkDown,
   type PanelState,
   reducePanel,
   thresholdsOf,
+  vendorBadge,
+  worstFault,
 } from './model';
 
 const NOW = new Date('2026-11-30T15:00:00.000Z');
@@ -121,21 +130,45 @@ describe('groupOf / groupMachines', () => {
       status: 'down',
       position: { ...BASE_POS, ts: ago(3600) },
     });
-    expect(groupOf(m, NOW, TH)).toEqual({ group: 'down', stale: true });
+    expect(groupOf(m, NOW, TH)).toEqual({ group: 'down', stale: true, lastWorking: false });
   });
 
-  test('Deere working-only fixes use their own, longer threshold', () => {
-    const deere = (age: number) =>
+  test('1f: a Deere-only machine that stopped working shows its last working position, no alarm', () => {
+    const deere = (age: number, over: Partial<NonNullable<PanelMachine['position']>> = {}) =>
       machine(1, 'C1', {
+        kind: 'combine',
         position: {
           ...BASE_POS,
           activity: 'working',
           positionSource: 'deere_working',
           ts: ago(age),
+          ...over,
         },
       });
-    expect(groupOf(deere(700), NOW, TH).group).toBe('moving');
-    expect(groupOf(deere(901), NOW, TH).group).toBe('stale');
+    expect(DEERE_STOPPED_WORKING_SECONDS).toBe(180);
+    expect(groupOf(deere(60), NOW, TH)).toEqual({
+      group: 'moving',
+      stale: false,
+      lastWorking: false,
+    });
+    // No breadcrumb for 3 min: stopped working (idle), never "stale", even long after the
+    // Deere stale threshold (900 s here).
+    for (const age of [180, 700, 901, 6 * 3600]) {
+      expect(groupOf(deere(age), NOW, TH)).toEqual({
+        group: 'idle',
+        stale: false,
+        lastWorking: true,
+      });
+    }
+    // A Deere stale threshold under 3 min wins (the panel never says "working" past it).
+    expect(deereStoppedWorkingSeconds({ ...TH, deereStaleAfterSeconds: 60 })).toBe(60);
+    expect(groupOf(deere(70), NOW, { ...TH, deereStaleAfterSeconds: 60 }).lastWorking).toBe(true);
+    // Down still wins; a live telematics fix of the same age is still a stale alarm.
+    expect(groupOf({ ...deere(901), status: 'down' }, NOW, TH).group).toBe('down');
+    expect(groupOf(deere(901, { positionSource: 'eld' }), NOW, TH).group).toBe('stale');
+    expect(
+      groupMachines([deere(901)], NOW, TH).idle.map((r) => [r.machine.unitNo, r.lastWorking]),
+    ).toEqual([['C1', true]]);
   });
 
   test('thresholds default until the config loads', () => {
@@ -294,5 +327,97 @@ describe('modeNotices', () => {
       'Motive: sim',
       'AEMP (ISO 15143-3): sim',
     ]);
+  });
+});
+
+describe('1f: mode notices only for connections that serve a machine', () => {
+  const modes = data([]).modes;
+  const sim = { ...modes, samsara: 'sim' as const, cnh: 'sim' as const, terminal: 'sim' as const };
+  test('the connections of the machines on the panel (their latest fix), else all of them', () => {
+    const samsara = machine(1, 'S1', { position: { ...BASE_POS, vendor: 'samsara' } });
+    const kubota = machine(2, 'L1', { position: { ...BASE_POS, vendor: 'aemp_kubota' } });
+    expect(modeNotices(sim, [samsara])).toEqual(['Samsara: sim']);
+    expect(modeNotices({ ...sim, aemp: 'sim' }, [samsara, kubota])).toEqual([
+      'Samsara: sim',
+      'AEMP (ISO 15143-3): sim',
+    ]);
+    // Nothing known yet (a fresh database, no vendor on any fix): every non-live connection.
+    expect(modeNotices(sim, [machine(3, 'S2')])).toEqual([
+      'John Deere: sim',
+      'Samsara: sim',
+      'CNH FieldOps: sim',
+      'Terminal: sim',
+    ]);
+  });
+});
+
+describe('1f: the vendor badge and faults', () => {
+  const modes = { ...data([]).modes, samsara: 'sim' as const, aemp: 'sim' as const };
+  const withVendor = (vendor: string | null) =>
+    machine(1, 'S1', { position: { ...BASE_POS, vendor } });
+  const fault = (
+    code: string,
+    severity: ActiveFaultCode['severity'],
+    description: string | null = null,
+  ): ActiveFaultCode => ({ code, severity, description, since: ago(60) });
+
+  test('"Samsara · sim", a provider route, a vendor the registry does not know, none', () => {
+    expect(vendorBadge(withVendor('samsara'), modes)?.text).toBe('Samsara · sim');
+    expect(vendorBadge(withVendor('aemp_kubota'), modes)).toEqual({
+      text: 'Kubota (AEMP) · sim',
+      vendor: 'aemp_kubota',
+      mode: 'sim',
+    });
+    expect(vendorBadge(withVendor('deere'), { ...modes, deere: 'replay' })?.text).toBe(
+      'John Deere · replay',
+    );
+    expect(vendorBadge(withVendor('terminal_omnitracs_xrs'), modes)?.text).toBe(
+      'Omnitracs XRS (via Terminal) · off',
+    );
+    expect(vendorBadge(withVendor('acme_tracker'), modes)).toEqual({
+      text: 'acme_tracker',
+      vendor: 'acme_tracker',
+      mode: null,
+    });
+    expect(vendorBadge(withVendor(null), modes)).toBeNull();
+    expect(vendorBadge(machine(1, 'D1', { position: null }), modes)).toBeNull();
+  });
+
+  test('the worst code; a critical one offers "mark down?" to drivers and up, never when down', () => {
+    const faults = [fault('P0087', 'warning'), fault('J1939 SPN 110 FMI 0', 'critical', 'Hot')];
+    const m = machine(1, 'S3', { faults });
+    expect(worstFault(m)?.code).toBe('J1939 SPN 110 FMI 0');
+    expect(criticalFault(m)?.code).toBe('J1939 SPN 110 FMI 0');
+    expect(offersMarkDown(m, true)).toBe(true);
+    expect(offersMarkDown(m, false)).toBe(false); // a viewer: the badge only
+    expect(offersMarkDown({ ...m, status: 'down' }, true)).toBe(false);
+    const warn = machine(2, 'S2', { faults: [fault('P0087', 'warning')] });
+    expect(criticalFault(warn)).toBeNull();
+    expect(offersMarkDown(warn, true)).toBe(false);
+    expect(worstFault(machine(3, 'S1'))).toBeNull();
+  });
+
+  test('the reason the sheet opens with: the code and its description, within the limit', () => {
+    expect(
+      markDownReason(fault('J1939 SPN 110 FMI 0', 'critical', 'Engine Coolant Temperature')),
+    ).toBe('Critical fault J1939 SPN 110 FMI 0: Engine Coolant Temperature');
+    expect(markDownReason(fault('OEM X1', 'critical'))).toBe('Critical fault OEM X1');
+    const long = markDownReason(fault('P0087', 'critical', 'x'.repeat(400)));
+    expect(long.length).toBe(MAX_DOWN_REASON_CHARS);
+    expect(long.endsWith('…')).toBe(true);
+  });
+
+  test('a tick keeps the faults, stats and vendor the snapshot said', () => {
+    const m = machine(1, 'S1', {
+      faults: [fault('P0087', 'warning')],
+      engineHours: 4312,
+      position: { ...BASE_POS, vendor: 'samsara' },
+    });
+    const s = reducePanel(initialPanelState, { type: 'snapshot', data: data([m]) });
+    const tick: FleetTick = { ts: NOW.toISOString(), machines: [view(m, { speedMph: 30 })] };
+    const next = reducePanel(s, { type: 'tick', tick }).machines[0];
+    expect(next?.faults).toEqual(m.faults);
+    expect(next?.engineHours).toBe(4312);
+    expect(next?.position?.vendor).toBe('samsara');
   });
 });

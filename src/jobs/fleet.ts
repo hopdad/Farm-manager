@@ -3,7 +3,9 @@
  *
  *   fleet.trucks  Samsara vehicle positions (CONNECTOR_SAMSARA; the trucks and, 1f.2, the
  *                 pickups on Samsara's carmaker-cloud integrations) → farm.positions +
- *                 machine_state, then Samsara engine hours / odometer / fuel (stats feed)
+ *                 machine_state, then Samsara engine hours / odometer / fuel (stats feed), then
+ *                 (1f) Samsara fault codes (stream `faults`: the faultCodes stats type, its own
+ *                 cursor) → farm.machine_faults + machine_state.fault_codes
  *   fleet.deere   Deere breadcrumbs (working machines only) → the same tables
  *   (1f.2: every other telematics connection has its own job: fleet.motive, fleet.geotab,
  *   fleet.equipment, fleet.aemp, fleet.cnh, fleet.terminal; src/jobs/registry.ts)
@@ -26,8 +28,12 @@
  */
 import { getConfig } from '../config';
 import { SamsaraClient } from '../connectors/samsara/client';
-import { mapSamsaraPosition, mapSamsaraStat } from '../connectors/samsara/mapper';
-import type { SamsaraPositionRaw, SamsaraStatRaw } from '../connectors/samsara/schemas';
+import { mapSamsaraFaults, mapSamsaraPosition, mapSamsaraStat } from '../connectors/samsara/mapper';
+import type {
+  SamsaraFaultRaw,
+  SamsaraPositionRaw,
+  SamsaraStatRaw,
+} from '../connectors/samsara/schemas';
 import { runSyncStep } from '../connectors/sync-step';
 import {
   type NormalizedPosition,
@@ -56,6 +62,8 @@ export type { FleetConfig, FleetJobOptions } from './fleet-shared';
 
 export const TRUCKS_STREAM = 'positions';
 export const STATS_STREAM = 'stats';
+/** 1f: Samsara fault codes (WEBHOOK_NUDGES.samsara names it too). */
+export const FAULTS_STREAM = 'faults';
 /** fleet.trucks runs every 30 s with a 25 s budget; its stream lease must outlive the budget. */
 export const TRUCKS_BUDGET_MS = 25_000;
 export const TRUCKS_LEASE_SECONDS = 60;
@@ -116,10 +124,20 @@ export function createFleetTrucksJob(opts: FleetJobOptions = {}) {
       upsert: statsUpsert(resolve),
       afterRun: publishSyncStatus,
     };
-    // Positions first (they feed the tick); stats only while budget remains.
-    if (ctx.now().getTime() < ctx.deadline.getTime() && !ctx.signal.aborted) {
-      others.push(await runSyncStep(statsSpec, ctx));
-    }
+    const faultsSpec: SyncStepSpec<SamsaraFaultRaw, NormalizedVehicleStat> = {
+      source: 'samsara',
+      stream: FAULTS_STREAM,
+      mode,
+      leaseSeconds: TRUCKS_LEASE_SECONDS,
+      poll: (cursor) => samsara().pollFaults(cursor),
+      map: (raw) => mapSamsaraFaults(raw),
+      upsert: statsUpsert(resolve),
+      afterRun: publishSyncStatus,
+    };
+    // Positions first (they feed the tick); stats, then fault codes, only while budget remains.
+    const budgetLeft = () => ctx.now().getTime() < ctx.deadline.getTime() && !ctx.signal.aborted;
+    if (budgetLeft()) others.push(await runSyncStep(statsSpec, ctx));
+    if (budgetLeft()) others.push(await runSyncStep(faultsSpec, ctx));
     return combineStepResults(positions, others);
   };
 }
