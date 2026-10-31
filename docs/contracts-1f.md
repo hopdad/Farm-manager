@@ -1680,7 +1680,9 @@ picked are rows in `docs/decisions.md` "Slice 1f merge").
   (`installCallCounting`), which each CLI installs.
 - **§8 CI:** the replay step sets every connector with a replay mode to `replay` (Deere, Samsara,
   Motive, Geotab, Terminal, AEMP; CNH has none) and runs `fleet-panel-replay`, `fleet-panel`,
-  `m1f-replay`, `trucks-replay` and `pickups-replay` on the wall project. The conformance test
+  `m1f-replay`, `trucks-replay` and `pickups-replay` on the wall project. Samsara is set through
+  the deprecated `CONNECTOR_ELD=replay` (no `CONNECTOR_SAMSARA`), so `m1f-replay` also checks
+  §B.8.4's alias warning while Samsara replays (with `CONNECTOR_SAMSARA` set, that test skips). The conformance test
   asks the stand-in for operations with `embed=measurementTypes` and skips replay-only operation
   ids; the stand-in's Deere links carry `'@type': 'Link'`, so no tolerated gap remains for them.
 - **§B.1 H1:** its ref is `('motive', 'machine', <id>, SIM_MOTIVE_COMPANY_ID)` (the constant is in

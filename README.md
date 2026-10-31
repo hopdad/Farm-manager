@@ -268,7 +268,8 @@ CONNECTOR_AEMP=replay
 The fleet panel's badges then read "· replay" (one mode notice per connection that isn't live),
 the Deere fields, flags, machines and operations come from the fixtures, S3 shows a critical
 fault and S2 a warning; CNH, which has no replay mode, keeps its stand-in. Delete the lines to go
-back to the simulation. CI runs the replay specs this way.
+back to the simulation. CI runs the replay specs this way, except that it sets Samsara through
+the deprecated `CONNECTOR_ELD=replay` to check the warning `/admin/connectors` shows for it.
 
 **John Deere on the PC (sandbox).** With a Deere app from developer.deere.com:
 `CONNECTOR_DEERE=sandbox`, `DEERE_CLIENT_ID` and `DEERE_CLIENT_SECRET` in `.env.local`. In the

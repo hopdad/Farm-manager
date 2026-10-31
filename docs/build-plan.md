@@ -704,7 +704,8 @@ seeded ones kept as history) and the Deere-only field with tenure "not set", fla
 pins (rail toggle, popup), Deere machines from the Equipment API with engine hours, a field's
 History tab with this season's operations (coverage, or the measured area when Deere refuses
 it), the Samsara fault badges, and `/admin/connectors` with replay call counts, the orgs and the
-doc-derived list. The same flow runs in sim against the vendor stand-ins with the whole mixed
+doc-derived list (plus, as CI sets Samsara through the deprecated `CONNECTOR_ELD=replay`, its
+warning while Samsara replays). The same flow runs in sim against the vendor stand-ins with the whole mixed
 fleet (`e2e/m1f-mixed-fleet.spec.ts`): every vendor's machines with their vendor + mode badges
 (Samsara, Motive, MyGeotab, Terminal, CNH FieldOps, Kubota through AEMP, Samsara's asset gateway,
 the Ford and Ram pickups with "not reported"), a critical code raised from `/admin/connectors`

@@ -7,14 +7,19 @@
  *  - Deere machines from the Equipment API fixture with engine hours;
  *  - a field's History tab with this season's operations;
  *  - the Samsara fault badge on the fleet panel (S3 critical, S2 warning);
- *  - /admin/connectors with call counts in replay, the org status and the doc-derived list.
+ *  - /admin/connectors with call counts in replay, the org status and the doc-derived list;
+ *  - slice 1f.2 (§B.8.4): with the deprecated CONNECTOR_ELD=replay (and no CONNECTOR_SAMSARA),
+ *    the alias warning on /admin/connectors while Samsara replays.
  *
- * Runs only against an app started in replay mode (CI's replay step); under the default sim
- * stack it skips, like e2e/fleet-panel-replay.spec.ts. To run by hand:
- *   PowerShell:  $env:CONNECTOR_DEERE='replay'; $env:CONNECTOR_SAMSARA='replay'; pnpm pilot
- *   then:        pnpm test:e2e e2e/m1f-replay.spec.ts --project=wall
+ * Runs only against an app started in replay mode (CI's replay step, which sets Samsara through
+ * CONNECTOR_ELD=replay); under the default sim stack it skips, like
+ * e2e/fleet-panel-replay.spec.ts. With CONNECTOR_SAMSARA=replay instead, only the alias test
+ * skips. To run by hand (the test process reads the same environment):
+ *   PowerShell:  $env:CONNECTOR_DEERE='replay'; $env:CONNECTOR_ELD='replay'; pnpm pilot
+ *   then (same shell):  pnpm test:e2e e2e/m1f-replay.spec.ts --project=wall
  */
 import { expect, type Page, test } from '@playwright/test';
+import { getConfig } from '../src/config';
 import { fleetPanelDataSchema } from '../src/ui/fleet/contract';
 import { e2ePool, signInAs } from './support/auth';
 import { mapIdle, WEBGL_ARGS, waitForMap } from './support/map';
@@ -45,6 +50,29 @@ test.beforeEach(async ({ page }, info) => {
 const one = async <T>(sql: string, params: unknown[] = []): Promise<T | undefined> =>
   (await e2ePool().query(sql, params)).rows[0] as T | undefined;
 
+/**
+ * Wait until a stream has finished a successful run in replay. The sim and replay worlds share
+ * their Deere ids, and CI's replay step runs after the sim suite on the same database, so rows
+ * synced in sim would satisfy the checks by themselves; sync-health restarts a stream's
+ * `callsPerRunMode` (sync_state.extra) only on a successful run in the new mode, so once it reads
+ * 'replay' the fixtures went through the mappers and writers.
+ */
+async function replayRan(source: string, stream: string): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        (
+          await one<{ mode: string | null }>(
+            `select extra->>'callsPerRunMode' as mode from ingest.sync_state
+              where source = $1 and stream = $2 and mode = 'replay'`,
+            [source, stream],
+          )
+        )?.mode ?? null,
+      { timeout: SYNC_WAIT_MS, message: `${source}/${stream} finished a run in replay` },
+    )
+    .toBe('replay');
+}
+
 /** Turn a rail layer on or off (the rail opens if it is closed). */
 async function setLayer(page: Page, key: string, on: boolean): Promise<void> {
   const rail = page.getByTestId('layer-rail');
@@ -63,7 +91,8 @@ async function tapAt(page: Page, at: { lng: number; lat: number }): Promise<void
 }
 
 test('Deere fields: the demo fields matched (no duplicate), Deere boundaries current, the Deere-only field', async () => {
-  test.setTimeout(SYNC_WAIT_MS + 30_000);
+  test.setTimeout(2 * SYNC_WAIT_MS + 30_000);
+  await replayRan('deere', 'fields');
   await expect
     .poll(
       async () =>
@@ -108,7 +137,8 @@ test('Deere fields: the demo fields matched (no duplicate), Deere boundaries cur
 test('Deere flags: read-only pins behind the "Deere flags" toggle, a tap opens the popup', async ({
   page,
 }) => {
-  test.setTimeout(SYNC_WAIT_MS);
+  test.setTimeout(2 * SYNC_WAIT_MS);
+  await replayRan('deere', 'flags');
   await expect
     .poll(
       async () =>
@@ -149,7 +179,9 @@ test('Deere flags: read-only pins behind the "Deere flags" toggle, a tap opens t
 });
 
 test('Deere machines from the Equipment API fixture carry their engine hours', async ({ page }) => {
-  test.setTimeout(SYNC_WAIT_MS);
+  test.setTimeout(2 * SYNC_WAIT_MS);
+  await replayRan('deere', 'equipment');
+  await replayRan('deere', 'hours');
   // The machines the replayed Deere org maps (by principalId) report hours through deere.fields.
   await expect
     .poll(
@@ -180,7 +212,8 @@ test('Deere machines from the Equipment API fixture carry their engine hours', a
 });
 
 test("a field's History tab shows this season's operations", async ({ page }) => {
-  test.setTimeout(SYNC_WAIT_MS + 30_000);
+  test.setTimeout(2 * SYNC_WAIT_MS + 30_000);
+  await replayRan('deere', 'operations');
   await expect
     .poll(
       async () =>
@@ -224,7 +257,8 @@ test("a field's History tab shows this season's operations", async ({ page }) =>
 });
 
 test('the Samsara fault badge on the fleet panel: S3 critical, S2 warning', async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(SYNC_WAIT_MS + 90_000);
+  await replayRan('samsara', 'faults');
   await page.goto('/board');
   await waitForMap(page, 90_000);
   const id = async (unit: string) =>
@@ -261,4 +295,35 @@ test('/admin/connectors: calls in replay, the replayed orgs connected, the doc-d
   await expect(page.getByTestId('connector-mode-deere')).toContainText('replay');
   const doc = page.getByTestId('doc-derived');
   await expect(doc.getByTestId('doc-basis').first()).toBeVisible();
+});
+
+test('the deprecated CONNECTOR_ELD=replay: the alias warning on /admin/connectors, Samsara replayed', async ({
+  page,
+}) => {
+  const note = getConfig().connectorAliasNotes.find((n) => n.sets === 'CONNECTOR_SAMSARA');
+  test.skip(
+    !note,
+    "CI's replay step sets Samsara with CONNECTOR_ELD=replay (no CONNECTOR_SAMSARA) to check the alias",
+  );
+  test.setTimeout(90_000);
+  await signInAs(page.context(), 'manager');
+  // Samsara replays through the alias: its replay calls are counted (polled: the jobs run).
+  await expect
+    .poll(
+      async () => {
+        await page.goto('/admin/connectors');
+        return page.getByTestId('calls-samsara-replay').count();
+      },
+      { timeout: 60_000, intervals: [2_000, 5_000] },
+    )
+    .toBeGreaterThan(0);
+  const warning = page.getByTestId('connector-alias-warning');
+  await expect(warning).toHaveCount(1);
+  await expect(warning).toHaveText(note?.message ?? '');
+  await expect(warning).toContainText(
+    'CONNECTOR_ELD=replay is deprecated: it set CONNECTOR_SAMSARA=replay',
+  );
+  const mode = page.getByTestId('connector-mode-samsara');
+  await expect(mode).toContainText('replay');
+  await expect(mode).toContainText('CONNECTOR_SAMSARA');
 });
