@@ -80,7 +80,13 @@ export const deereConnectionsRoutes: DeereRouteModule = {
   },
   orgLinks(org, r) {
     return orgStates(r.ctx)[org.id] === 'needs_approval'
-      ? [{ rel: 'connections', uri: deereConnectionsUrl(SIM_CREDENTIALS.deere.clientId) }]
+      ? [
+          {
+            '@type': 'Link',
+            rel: 'connections',
+            uri: deereConnectionsUrl(SIM_CREDENTIALS.deere.clientId),
+          },
+        ]
       : [];
   },
   control(req, ctx) {

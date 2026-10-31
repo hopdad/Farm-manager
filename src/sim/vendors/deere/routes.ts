@@ -375,9 +375,15 @@ function organizations(r: DeerePlatformRequest, mods: readonly DeereRouteModule[
       type: 'customer',
       member: true,
       links: [
-        { rel: 'self', uri: self },
+        { '@type': 'Link', rel: 'self', uri: self },
         ...(connected
-          ? [{ rel: 'manage_connections', uri: 'https://connections.deere.com/connections' }]
+          ? [
+              {
+                '@type': 'Link',
+                rel: 'manage_connections',
+                uri: 'https://connections.deere.com/connections',
+              },
+            ]
           : []),
         ...extra,
       ],
@@ -462,9 +468,13 @@ function fields(req: SimRequest, ctx: VendorContext, orgId: string): SimResponse
         name: f.field.name,
         archived: false,
         links: [
-          { rel: 'self', uri: self },
-          { rel: 'owningOrganization', uri: `${base}/organizations/${encodeURIComponent(orgId)}` },
-          { rel: 'fieldOperation', uri: `${self}/fieldOperations` },
+          { '@type': 'Link', rel: 'self', uri: self },
+          {
+            '@type': 'Link',
+            rel: 'owningOrganization',
+            uri: `${base}/organizations/${encodeURIComponent(orgId)}`,
+          },
+          { '@type': 'Link', rel: 'fieldOperation', uri: `${self}/fieldOperations` },
         ],
       };
     });

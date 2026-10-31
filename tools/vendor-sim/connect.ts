@@ -6,8 +6,10 @@
  *    (`simAutoConnect`, sim only), tokens stored encrypted in ingest.oauth_tokens with
  *    TOKEN_ENC_KEY. An existing grant the stand-in still accepts is kept (refreshed if needed).
  *    Then one organizations + machines read proves the token works.
- *  - Trucks (1f.2: each telematics vendor on its own key; Samsara and Motive have sim clients
- *    today): sim bearer tokens are fixed (SIM_CREDENTIALS); one feed read proves each.
+ *  - Trucks (1f.2: each telematics vendor on its own key): sim credentials are fixed
+ *    (SIM_CREDENTIALS); one read proves each: Samsara's locations feed, Motive's vehicle
+ *    locations, MyGeotab's Authenticate + GetFeed from now (a toVersion back), Terminal's
+ *    connection discovery.
  *
  * It uses the stand-in already answering at VENDOR_SIM_URL, or starts one in-process on that
  * port for the duration, with the same state file (.data/vendor-sim/state.json), so the grant is
@@ -22,10 +24,12 @@ import type pg from 'pg';
 import { type Config, getConfig } from '../../src/config';
 import { DeereClient } from '../../src/connectors/deere/client';
 import { deereEndpoints } from '../../src/connectors/endpoints';
+import { GeotabClient } from '../../src/connectors/geotab/client';
 import { MotiveClient } from '../../src/connectors/motive/client';
 import { tokenKey } from '../../src/connectors/oauth/crypto';
 import { OAuthTokenStore, SIM_GRANT_ORG } from '../../src/connectors/oauth/token-store';
 import { SamsaraClient } from '../../src/connectors/samsara/client';
+import { TerminalClient } from '../../src/connectors/terminal/client';
 import { createPool } from '../../src/db/client';
 import { isMainModule } from '../../src/lib/proc';
 import { createSimWorld } from '../../src/sim/index';
@@ -38,14 +42,18 @@ export type ConnectConfig = Pick<
   | 'CONNECTOR_DEERE'
   | 'CONNECTOR_SAMSARA'
   | 'CONNECTOR_MOTIVE'
+  | 'CONNECTOR_GEOTAB'
+  | 'CONNECTOR_TERMINAL'
   | 'VENDOR_SIM_URL'
   | 'PUBLIC_URL'
   | 'TOKEN_ENC_KEY'
 >;
 
-/** The truck vendors with a sim client today (the 1f.2 builders add theirs). */
-export const CONNECT_TRUCK_VENDORS = ['samsara', 'motive'] as const;
-type TruckCheck = { status: 'skipped'; why: string } | { status: 'verified'; vehicles: number };
+/** The truck vendors this checks (each on its own mode key, 1f.2). */
+export const CONNECT_TRUCK_VENDORS = ['samsara', 'motive', 'geotab', 'terminal'] as const;
+type TruckCheck =
+  | { status: 'skipped'; why: string }
+  | { status: 'verified'; vehicles?: number; connections?: number };
 
 export interface ConnectSimOptions {
   cfg: ConnectConfig;
@@ -70,6 +78,8 @@ export async function connectSimVendors(o: ConnectSimOptions): Promise<ConnectSi
     trucks: {
       samsara: { status: 'skipped', why: `CONNECTOR_SAMSARA=${cfg.CONNECTOR_SAMSARA}` },
       motive: { status: 'skipped', why: `CONNECTOR_MOTIVE=${cfg.CONNECTOR_MOTIVE}` },
+      geotab: { status: 'skipped', why: `CONNECTOR_GEOTAB=${cfg.CONNECTOR_GEOTAB}` },
+      terminal: { status: 'skipped', why: `CONNECTOR_TERMINAL=${cfg.CONNECTOR_TERMINAL}` },
     },
   };
 
@@ -109,6 +119,22 @@ export async function connectSimVendors(o: ConnectSimOptions): Promise<ConnectSi
   } else {
     log(`Motive: ${cfg.CONNECTOR_MOTIVE} mode, skipped`);
   }
+  if (cfg.CONNECTOR_GEOTAB === 'sim') {
+    // A null cursor is "from now": no data, but Authenticate worked and a toVersion came back.
+    const r = await GeotabClient.forMode('sim', cfg).pollPositions(null);
+    if (!r.cursor) throw new Error('Geotab (sim): GetFeed gave no toVersion');
+    result.trucks.geotab = { status: 'verified' };
+    log('Geotab (sim): service user authenticates; GetFeed answers');
+  } else {
+    log(`Geotab: ${cfg.CONNECTOR_GEOTAB} mode, skipped`);
+  }
+  if (cfg.CONNECTOR_TERMINAL === 'sim') {
+    const connections = (await TerminalClient.forMode('sim', cfg).connections()).length;
+    result.trucks.terminal = { status: 'verified', connections };
+    log(`Terminal (sim): secret key works; ${connections} connection(s)`);
+  } else {
+    log(`Terminal: ${cfg.CONNECTOR_TERMINAL} mode, skipped`);
+  }
   return result;
 }
 
@@ -130,7 +156,9 @@ export async function main(): Promise<number> {
   if (
     cfg.CONNECTOR_DEERE !== 'sim' &&
     cfg.CONNECTOR_SAMSARA !== 'sim' &&
-    cfg.CONNECTOR_MOTIVE !== 'sim'
+    cfg.CONNECTOR_MOTIVE !== 'sim' &&
+    cfg.CONNECTOR_GEOTAB !== 'sim' &&
+    cfg.CONNECTOR_TERMINAL !== 'sim'
   ) {
     say('no connector is in sim mode; nothing to do');
     return 0;

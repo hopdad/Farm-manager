@@ -166,11 +166,6 @@ export interface ToleratedGap {
 export const TOLERATED_GAPS: readonly ToleratedGap[] = [
   {
     source: 'deere',
-    path: 'values[].links[].@type',
-    why: "Deere's links carry '@type': 'Link'; the stand-in's carry rel and uri only (all the clients read)",
-  },
-  {
-    source: 'deere',
     endpoints: /^\/organizations\/\{\}\/fields\/\{\}\/fieldOperations$/,
     path: 'values[].products',
     why: "the stand-in's applications come from the simulated day reports only (none at the field the 30 fixture's replay-only burndown sits on); seeding operations carry varieties",

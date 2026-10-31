@@ -139,6 +139,7 @@ describe('connectors:record samsara --scrub (sim)', () => {
     expect(r.failed).toEqual([]);
     expect(r.scrubErrors).toEqual([]);
     expect(r.fixtureFiles.map((f) => path.basename(path.dirname(f))).sort()).toEqual([
+      'faults',
       'positions',
       'stats',
     ]);

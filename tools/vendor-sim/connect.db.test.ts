@@ -20,6 +20,8 @@ beforeAll(async () => {
     CONNECTOR_SAMSARA: 'sim',
     // The stub world has no Motive vehicle; the Motive check is the same call shape.
     CONNECTOR_MOTIVE: 'sim',
+    CONNECTOR_GEOTAB: 'sim',
+    CONNECTOR_TERMINAL: 'sim',
     VENDOR_SIM_URL: sim.url,
     PUBLIC_URL: 'http://localhost:3000',
     TOKEN_ENC_KEY: 'cd'.repeat(32),
@@ -38,6 +40,9 @@ describe('connectSimVendors', () => {
       first.trucks.samsara.status === 'verified' && first.trucks.samsara.vehicles,
     ).toBeGreaterThan(0);
     expect(first.trucks.motive).toEqual({ status: 'verified', vehicles: 0 });
+    expect(first.trucks.geotab).toEqual({ status: 'verified' });
+    // The stub world has no hired hauler on Terminal: the key works, no connection listed.
+    expect(first.trucks.terminal).toMatchObject({ status: 'verified' });
     const rows = await t().pool.query(
       `select count(*)::int as n from ingest.oauth_tokens where source = 'deere'`,
     );
@@ -52,7 +57,14 @@ describe('connectSimVendors', () => {
 
   test('connectors outside sim mode are skipped', async () => {
     const r = await connectSimVendors({
-      cfg: { ...cfg, CONNECTOR_DEERE: 'off', CONNECTOR_SAMSARA: 'replay', CONNECTOR_MOTIVE: 'off' },
+      cfg: {
+        ...cfg,
+        CONNECTOR_DEERE: 'off',
+        CONNECTOR_SAMSARA: 'replay',
+        CONNECTOR_MOTIVE: 'off',
+        CONNECTOR_GEOTAB: 'off',
+        CONNECTOR_TERMINAL: 'off',
+      },
       pool: t().pool,
     });
     expect(r).toEqual({
@@ -60,6 +72,8 @@ describe('connectSimVendors', () => {
       trucks: {
         samsara: { status: 'skipped', why: 'CONNECTOR_SAMSARA=replay' },
         motive: { status: 'skipped', why: 'CONNECTOR_MOTIVE=off' },
+        geotab: { status: 'skipped', why: 'CONNECTOR_GEOTAB=off' },
+        terminal: { status: 'skipped', why: 'CONNECTOR_TERMINAL=off' },
       },
     });
   });

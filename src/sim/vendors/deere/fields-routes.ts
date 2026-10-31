@@ -205,10 +205,10 @@ export const deereFieldsRoutes: DeereRouteModule = {
   orgLinks: (org, { base }) => {
     const p = `${base}/organizations/${encodeURIComponent(org.id)}`;
     return [
-      { rel: 'fields', uri: `${p}/fields` },
-      { rel: 'farms', uri: `${p}/farms` },
-      { rel: 'boundaries', uri: `${p}/boundaries` },
-      { rel: 'flags', uri: `${p}/flags` },
+      { '@type': 'Link', rel: 'fields', uri: `${p}/fields` },
+      { '@type': 'Link', rel: 'farms', uri: `${p}/farms` },
+      { '@type': 'Link', rel: 'boundaries', uri: `${p}/boundaries` },
+      { '@type': 'Link', rel: 'flags', uri: `${p}/flags` },
     ];
   },
 };

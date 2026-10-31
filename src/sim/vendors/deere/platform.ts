@@ -40,12 +40,12 @@ export function paging(
 /** One collection page `{ links, total, values }` with a `nextPage` link when more remain. */
 export function collection<T>(url: URL, all: T[], offset: number, limit: number) {
   const self = new URL(url);
-  const links: DeereLink[] = [{ rel: 'self', uri: self.toString() }];
+  const links: DeereLink[] = [{ '@type': 'Link', rel: 'self', uri: self.toString() }];
   if (offset + limit < all.length) {
     const next = new URL(url);
     next.searchParams.set('pageOffset', String(offset + limit));
     next.searchParams.set('itemLimit', String(limit));
-    links.push({ rel: 'nextPage', uri: next.toString() });
+    links.push({ '@type': 'Link', rel: 'nextPage', uri: next.toString() });
   }
   return { links, total: all.length, values: all.slice(offset, offset + limit) };
 }

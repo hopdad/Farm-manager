@@ -7,17 +7,21 @@
  * Deere: organizations; per connected org (at most `maxOrgs`): the Equipment API's machines,
  * breadcrumbs of the first machines (the last hour), their engine hours, farms, clients, fields,
  * boundaries, flags; field operations of the first fields this crop season and the first
- * operation's measurement types. Samsara: the vehicle locations feed (two pages at most) and the
- * stats feed. An endpoint the stand-in answers 404 "not simulated" is skipped and listed, so a
+ * operation's measurement types. Samsara: the vehicle locations feed (two pages at most), the
+ * stats feed and the faultCodes feed. An endpoint the stand-in answers 404 "not simulated" is skipped and listed, so a
  * run against sim records only what the stand-in serves.
  */
-import { z } from 'zod';
+import type { z } from 'zod';
 import type { DeereClient } from '../../src/connectors/deere/client';
+import {
+  deereClientsSchema,
+  deereEngineHoursListSchema,
+  deereFarmsSchema,
+} from '../../src/connectors/deere/fields/schemas';
 import { deereOrgAccess } from '../../src/connectors/deere/orgs';
 import {
   deereBoundariesSchema,
   deereBreadcrumbsSchema,
-  deereCollectionSchema,
   deereEquipmentListSchema,
   deereFieldOperationMeasurementsSchema,
   deereFieldOperationsSchema,
@@ -27,6 +31,7 @@ import {
 } from '../../src/connectors/deere/schemas';
 import type { SamsaraClient } from '../../src/connectors/samsara/client';
 import {
+  samsaraFaultCodesFeedSchema,
   samsaraLocationsFeedSchema,
   samsaraStatsFeedSchema,
 } from '../../src/connectors/samsara/schemas';
@@ -56,10 +61,6 @@ export const DEFAULT_LIMITS: PlanLimits = {
   lookbackMs: 60 * 60_000,
 };
 
-/** A collection the 1f builders' own schemas will describe (farms, clients): lenient here. */
-const anyCollection = deereCollectionSchema(z.looseObject({}));
-const anyObject = z.looseObject({});
-
 export async function deerePlan(
   client: DeereClient,
   step: StepRunner,
@@ -83,15 +84,20 @@ export async function deerePlan(
       await step({ stream: 'locations', name: 'breadcrumbs', schema: deereBreadcrumbsSchema }, () =>
         client.breadcrumbs(pid, new Date(now.getTime() - limits.lookbackMs), now),
       );
-      await step({ stream: 'hours', name: 'engine-hours', schema: anyObject }, () =>
-        client.getOne(anyObject, `${client.apiUrl('machines', pid, 'engineHours')}?lastKnown=true`),
+      await step(
+        { stream: 'hours', name: 'engine-hours', schema: deereEngineHoursListSchema },
+        () =>
+          client.getOne(
+            deereEngineHoursListSchema,
+            `${client.apiUrl('machines', pid, 'engineHours')}?lastKnown=true`,
+          ),
       );
     }
-    await step({ stream: 'fields', name: 'farms', schema: anyCollection }, () =>
-      client.getPaged(anyCollection, client.apiUrl('organizations', org.id, 'farms')),
+    await step({ stream: 'fields', name: 'farms', schema: deereFarmsSchema }, () =>
+      client.getPaged(deereFarmsSchema, client.apiUrl('organizations', org.id, 'farms')),
     );
-    await step({ stream: 'fields', name: 'clients', schema: anyCollection }, () =>
-      client.getPaged(anyCollection, client.apiUrl('organizations', org.id, 'clients')),
+    await step({ stream: 'fields', name: 'clients', schema: deereClientsSchema }, () =>
+      client.getPaged(deereClientsSchema, client.apiUrl('organizations', org.id, 'clients')),
     );
     const fields =
       (await step({ stream: 'fields', name: 'fields', schema: deereFieldsSchema }, () =>
@@ -138,6 +144,10 @@ export async function samsaraPlan(client: SamsaraClient, step: StepRunner): Prom
   }
   await step({ stream: 'stats', name: 'stats-feed', schema: samsaraStatsFeedSchema }, () =>
     client.statsFeed(null),
+  );
+  await step(
+    { stream: 'faults', name: 'fault-codes-feed', schema: samsaraFaultCodesFeedSchema },
+    () => client.faultCodesFeed(null),
   );
 }
 
