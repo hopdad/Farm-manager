@@ -244,8 +244,8 @@ describe('FleetModel', () => {
     expect(m.counts().stale).toBe(0);
   });
 
-  test('Deere working-only fixes use their own, longer threshold', () => {
-    const wall = { now: T0 + 5 * 60_000 };
+  test('Deere working-only fixes: never stale; past 3 min without a breadcrumb, the last working position (1f)', () => {
+    const wall = { now: T0 + 2 * 60_000 };
     const m = new FleetModel({
       staleAfterSeconds: 60,
       deereStaleAfterSeconds: 900,
@@ -263,13 +263,20 @@ describe('FleetModel', () => {
       ],
       0,
     );
-    expect(m.frame(0).map((f) => [f.unitNo, f.stale])).toEqual([
-      ['GC1', false],
-      ['S1', true],
+    expect(m.frame(0).map((f) => [f.unitNo, f.stale, f.lastWorking ?? false])).toEqual([
+      ['GC1', false, false],
+      ['S1', true, false],
     ]);
-    wall.now = T0 + 16 * 60_000;
-    m.refreshStaleness();
-    expect(m.counts().stale).toBe(2);
+    // Stopped working (as the panel says), not a stale alarm, even past the Deere threshold.
+    for (const minutes of [5, 16]) {
+      wall.now = T0 + minutes * 60_000;
+      m.refreshStaleness();
+      expect(m.frame(0).map((f) => [f.unitNo, f.stale, f.lastWorking ?? false])).toEqual([
+        ['GC1', false, true],
+        ['S1', true, false],
+      ]);
+      expect(m.counts().stale).toBe(1);
+    }
   });
 
   test('the server stale flag does not override the browser clock', () => {

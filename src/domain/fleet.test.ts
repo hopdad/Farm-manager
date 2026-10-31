@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import {
+  DEERE_STOPPED_WORKING_SECONDS,
   DEFAULT_LAST_KNOWN_STALE_AFTER_SECONDS,
+  deereStoppedWorkingSeconds,
   type FleetTick,
   fleetTickSchema,
+  isLastWorking,
   isMachineStale,
   isPositionVendor,
   isStale,
@@ -143,5 +146,21 @@ describe('1f.2: vendor ids and last-known fixes', () => {
     for (const kind of ['service_truck', 'loader'] as const) {
       expect(MACHINE_KINDS).toContain(kind);
     }
+  });
+});
+
+describe('isLastWorking (1f, §5.3)', () => {
+  const t = { staleAfterSeconds: 60, deereStaleAfterSeconds: 900 };
+  const at = (ms: number) => new Date(Date.parse('2026-10-31T14:00:00Z') + ms);
+  const fix = { ts: '2026-10-31T14:00:00.000Z', positionSource: 'deere_working' as const };
+  test('a Deere working-only fix older than 3 min (or the Deere stale threshold if lower)', () => {
+    expect(isLastWorking(fix, at(179_000), t)).toBe(false);
+    expect(isLastWorking(fix, at(180_000), t)).toBe(true);
+    expect(isLastWorking(fix, at(60_000), { ...t, deereStaleAfterSeconds: 60 })).toBe(true);
+    expect(deereStoppedWorkingSeconds(t)).toBe(DEERE_STOPPED_WORKING_SECONDS);
+  });
+  test('never for other sources or a last-known snapshot', () => {
+    expect(isLastWorking({ ...fix, positionSource: 'eld' }, at(3_600_000), t)).toBe(false);
+    expect(isLastWorking({ ...fix, positionKind: 'last_known' }, at(3_600_000), t)).toBe(false);
   });
 });

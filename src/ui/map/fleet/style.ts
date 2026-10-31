@@ -80,6 +80,8 @@ export function markerLook(m: {
   status: 'active' | 'down' | 'retired';
   unitNo: string;
   positionKind?: 'live' | 'last_known';
+  /** 1f: a Deere machine that stopped working: its last working position, drawn like last-known. */
+  lastWorking?: boolean;
 }): MarkerLook {
   if (m.stale) {
     return {
@@ -90,7 +92,9 @@ export function markerLook(m: {
   }
   const kind = hexToRgba(KIND_COLORS[m.kind]);
   const icon =
-    m.positionKind === 'last_known' ? hexToRgba(KIND_COLORS[m.kind], LAST_KNOWN_ICON_ALPHA) : kind;
+    m.positionKind === 'last_known' || m.lastWorking
+      ? hexToRgba(KIND_COLORS[m.kind], LAST_KNOWN_ICON_ALPHA)
+      : kind;
   if (m.status === 'down') return { icon, ring: hexToRgba(DOWN_COLOR), label: `${m.unitNo} down` };
   return { icon, ring: kind, label: m.unitNo };
 }

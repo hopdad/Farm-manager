@@ -89,6 +89,12 @@ describe('markerLook', () => {
     expect(last.icon).toEqual(hexToRgba(KIND_COLORS.pickup, LAST_KNOWN_ICON_ALPHA));
     expect(last.ring).toEqual(live.ring);
     expect(LAST_KNOWN_ICON_ALPHA).toBeLessThan(255);
+    // A Deere machine that stopped working: its last working position, drawn the same way.
+    expect(markerLook({ ...base, kind: 'combine', lastWorking: true })).toEqual({
+      icon: hexToRgba(KIND_COLORS.combine, LAST_KNOWN_ICON_ALPHA),
+      ring: hexToRgba(KIND_COLORS.combine),
+      label: 'PU1',
+    });
   });
 
   test('stale wins over everything; down rings red', () => {

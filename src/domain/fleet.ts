@@ -211,6 +211,35 @@ export function isMachineStale(
   return isStale(m.ts, now, staleAfterFor(m.positionSource, t, m.positionKind ?? 'live'));
 }
 
+/**
+ * How long without a new Deere breadcrumb before a working-only machine reads "Last working
+ * position" (fleet.deere polls every 2 min and Deere's breadcrumbs arrive a minute or two late, so
+ * 3 min of silence means it stopped working; docs/contracts-1f.md §5.3).
+ */
+export const DEERE_STOPPED_WORKING_SECONDS = 180;
+
+/** The stopped-working threshold for these stale thresholds (never past the Deere stale one). */
+export function deereStoppedWorkingSeconds(t: number | StaleThresholds): number {
+  return Math.min(DEERE_STOPPED_WORKING_SECONDS, staleThresholds(t).deereStaleAfterSeconds);
+}
+
+/**
+ * A Deere working-only machine (breadcrumbs only while it works) whose last breadcrumb is older
+ * than `deereStoppedWorkingSeconds`: it stopped working, so the panel, the map and the board card
+ * show its last working position instead of a stale alarm (§5.3). Never stale while this holds.
+ */
+export function isLastWorking(
+  m: Pick<MachineView, 'ts' | 'positionSource' | 'positionKind'>,
+  now: Date,
+  t: number | StaleThresholds,
+): boolean {
+  return (
+    m.positionSource === 'deere_working' &&
+    (m.positionKind ?? 'live') !== 'last_known' &&
+    now.getTime() - Date.parse(m.ts) >= deereStoppedWorkingSeconds(t) * 1000
+  );
+}
+
 /** Normalize any heading to [0, 360). */
 export function normalizeHeading(deg: number | null | undefined): number {
   if (deg == null || !Number.isFinite(deg)) return 0;

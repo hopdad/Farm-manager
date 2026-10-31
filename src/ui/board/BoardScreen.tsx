@@ -9,6 +9,7 @@ import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { SessionChip } from '../../app/login/_components/SessionChip';
 import { FieldPanel } from '../fields/FieldPanel';
 import { FleetPanel } from '../fleet/FleetPanel';
+import { lastWorkingText } from '../fleet/format';
 import { MachineFaultTag } from '../fleet/MachineFaultTag';
 import { TileLineDrawTool, useTileDrawStore } from '../map/draw/TileLineDrawTool';
 import type { FleetFrame } from '../map/fleet/model';
@@ -127,6 +128,11 @@ function MachineDetails({ m, now }: { m: FleetFrame; now: number }) {
         Last fix {formatAge(m.ts, now)} · {SOURCE_LABELS[m.positionSource]}
       </div>
       {m.stale && <div className={css.staleTag}>Stale: no recent position</div>}
+      {m.lastWorking && (
+        <div className={css.muted} data-testid="machine-last-working">
+          {lastWorkingText(m.ts, now)}
+        </div>
+      )}
       {m.status === 'down' && <div className={css.downTag}>Down for repair</div>}
     </>
   );

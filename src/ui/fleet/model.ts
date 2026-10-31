@@ -25,7 +25,10 @@
 import { CONNECTIONS, connectionEntry, connectionOf, vendorLabel } from '../../connectors/vendors';
 import { type ActiveFaultCode, severityRank, sortFaultCodes } from '../../domain/fault-codes';
 import {
+  DEERE_STOPPED_WORKING_SECONDS,
+  deereStoppedWorkingSeconds,
   type FleetTick,
+  isLastWorking,
   isMachineStale,
   type MachineView,
   type PositionSource,
@@ -197,17 +200,8 @@ export interface PanelRow {
   lastWorking: boolean;
 }
 
-/**
- * How long without a new Deere breadcrumb before a working-only machine reads "Last working
- * position" (fleet.deere polls every 2 min and Deere's breadcrumbs arrive a minute or two late, so
- * 3 min of silence means it stopped working).
- */
-export const DEERE_STOPPED_WORKING_SECONDS = 180;
-
-/** The stopped-working threshold for these stale thresholds (never past the Deere stale one). */
-export function deereStoppedWorkingSeconds(thresholds: StaleThresholds): number {
-  return Math.min(DEERE_STOPPED_WORKING_SECONDS, thresholds.deereStaleAfterSeconds);
-}
+/** In src/domain/fleet.ts since the 1f merge (the map and the board card use them too). */
+export { DEERE_STOPPED_WORKING_SECONDS, deereStoppedWorkingSeconds };
 
 export function groupOf(
   m: PanelMachine,
@@ -217,9 +211,11 @@ export function groupOf(
   const p = m.position;
   const lastWorking =
     p !== null &&
-    p.positionSource === 'deere_working' &&
-    p.positionKind !== 'last_known' &&
-    now.getTime() - Date.parse(p.ts) >= deereStoppedWorkingSeconds(thresholds) * 1000;
+    isLastWorking(
+      { ts: p.ts, positionSource: p.positionSource, positionKind: p.positionKind },
+      now,
+      thresholds,
+    );
   const stale =
     p !== null &&
     !lastWorking &&
