@@ -103,6 +103,24 @@ describe('replay mode on the board', () => {
     }
     const grants = await t().pool.query('select count(*)::int as n from ingest.oauth_tokens');
     expect(grants.rows[0]?.n).toBe(0);
+    // 1f (sync-health): the replayed calls count under mode replay (never against a budget),
+    // and every fixture org is recorded as connected for replay, the replay home org kept.
+    const calls = await t().pool.query<{ mode: string; calls: number }>(
+      `select mode, sum(calls)::int as calls from ingest.api_calls_daily
+        where source = 'deere' and stream = 'locations' group by mode`,
+    );
+    expect(calls.rows).toEqual([{ mode: 'replay', calls: expect.any(Number) }]);
+    expect(calls.rows[0]?.calls).toBeGreaterThan(0);
+    const orgs = await t().pool.query<{ org: string; status: string }>(
+      `select org_external_id as org, status from ingest.connector_orgs
+        where source = 'deere' and mode = 'replay' order by 1`,
+    );
+    expect(orgs.rows.length).toBeGreaterThanOrEqual(2);
+    expect(orgs.rows.every((o) => o.status === 'connected')).toBe(true);
+    const extra = await t().pool.query(
+      `select extra from ingest.sync_state where source = 'deere' and stream = 'locations'`,
+    );
+    expect(extra.rows[0]?.extra?.homeOrg).toMatchObject({ source: 'replay', mode: 'replay' });
   });
 
   test('the trucks move run after run, and their hauls become geofence visits', async () => {

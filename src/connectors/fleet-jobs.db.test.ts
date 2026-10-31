@@ -260,6 +260,16 @@ describe('fleet.deere (sim)', () => {
     expect(sim.counters.tokenGrants.authorization_code).toBeGreaterThanOrEqual(1);
     // Org scoping: the refs it resolved are the home org's.
     expect(farm.machines.find((m) => m.unitNo === 'C1')?.deereOrgId).toBe(SIM_DEERE_HOME_ORG);
+    // 1f (sync-health): the org listing is kept per mode, and the run's calls counted under sim.
+    const orgs = await t().pool.query(
+      `select org_external_id as org, status from ingest.connector_orgs where source = 'deere' and mode = 'sim'`,
+    );
+    expect(orgs.rows).toEqual([{ org: SIM_DEERE_HOME_ORG, status: 'connected' }]);
+    const calls = await t().pool.query(
+      `select coalesce(sum(calls), 0)::int as n from ingest.api_calls_daily
+        where source = 'deere' and stream = 'locations' and mode = 'sim'`,
+    );
+    expect(calls.rows[0].n).toBeGreaterThanOrEqual(4); // authorize, token, orgs, equipment, crumbs
   });
 
   test('GET /api/fleet snapshot = the same machines, stale recomputed per request', async () => {
