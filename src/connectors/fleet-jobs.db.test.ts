@@ -10,6 +10,10 @@ import { fleetSnapshot } from '../db/queries/fleet';
 import { type FleetTick, fleetTickSchema } from '../domain/fleet';
 import { createFleetDeereJob, createFleetTrucksJob, type FleetConfig } from '../jobs/fleet';
 import { SIM_DEERE_HOME_ORG } from '../sim/types';
+import {
+  SAMSARA_SIM_FAULTS_CONTROL_PATH,
+  SIM_RED_STOP_FAULT,
+} from '../sim/vendors/samsara/control-types';
 import { startVendorSim, type VendorSim } from '../sim/vendors/server';
 import { buildStubFarm, createStubSimWorld } from '../sim/vendors/stub-world';
 import { setupTestDb } from '../test/db';
@@ -101,7 +105,8 @@ describe('fleet.trucks (Samsara, sim)', () => {
     const ticks = await ticksDuring(async () => {
       result = await trucks()(ctx('fleet.trucks'));
     });
-    expect(result).toEqual({ items: 3 + 9 }); // 3 positions + 9 stats (3 vehicles x 3 types)
+    // 3 positions + 9 stats (3 vehicles x 3 types) + 3 fault readings (one per vehicle, none set)
+    expect(result).toEqual({ items: 3 + 9 + 3 });
     expect(ticks).toHaveLength(1);
     const tick = ticks[0] as FleetTick;
     expect(tick.machines.map((m) => m.unitNo).sort()).toEqual(['GC1', 'S1', 'S2']);
@@ -224,6 +229,76 @@ describe('fleet.trucks (Samsara, sim)', () => {
     );
   });
 
+  test('fault codes: a code set in the stand-in lands within one run; cleared the same way', async () => {
+    const knob = async (codes: unknown[]) => {
+      const res = await fetch(`${sim.url}${SAMSARA_SIM_FAULTS_CONTROL_PATH}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ vehicle: 'S1', codes }),
+      });
+      expect(res.status).toBe(200);
+    };
+    const faultInvalidates = () =>
+      listener.of('fleet', 'invalidate').filter((m) => m.payload.reason === 'faults').length;
+    const openFaults = async () =>
+      (
+        await t().pool.query(
+          `select code, severity, source, system, spn, fmi, cleared_at from farm.machine_faults
+            where machine_id = $1 order by first_seen_at`,
+          [machineId('S1')],
+        )
+      ).rows;
+    const summary = async () =>
+      (
+        await t().pool.query('select fault_codes from farm.machine_state where machine_id = $1', [
+          machineId('S1'),
+        ])
+      ).rows[0]?.fault_codes;
+
+    // Past every cursor the earlier tests left (the 429 test moved this clock back to real time).
+    offset += 10 * 60_000;
+    await trucks()(ctx('fleet.trucks'));
+    await knob([SIM_RED_STOP_FAULT]);
+    offset += 10_000;
+    await listener.settle();
+    let before = faultInvalidates();
+    await trucks()(ctx('fleet.trucks'));
+    await listener.settle();
+    expect(await openFaults()).toMatchObject([
+      {
+        code: 'J1939 SPN 110 FMI 0',
+        severity: 'critical',
+        source: 'samsara',
+        system: 'j1939',
+        spn: 110,
+        fmi: 0,
+        cleared_at: null,
+      },
+    ]);
+    expect(await summary()).toMatchObject([{ code: 'J1939 SPN 110 FMI 0', severity: 'critical' }]);
+    expect(faultInvalidates() - before).toBe(1);
+
+    // Nothing new: nothing published. Then cleared: the row closes, the summary empties.
+    offset += 10_000;
+    before = faultInvalidates();
+    await trucks()(ctx('fleet.trucks'));
+    await knob([]);
+    offset += 10_000;
+    await trucks()(ctx('fleet.trucks'));
+    await listener.settle();
+    expect(faultInvalidates() - before).toBe(1);
+    const rows = await openFaults();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.cleared_at).toBeInstanceOf(Date);
+    expect(await summary()).toEqual([]);
+    // Its own stream, run OK since the outage of the earlier test.
+    const st = await t().pool.query(
+      `select last_ok_at > coalesce(last_error_at, '-infinity') as ok
+         from ingest.sync_state where source = 'samsara' and stream = 'faults'`,
+    );
+    expect(st.rows[0]).toEqual({ ok: true });
+  });
+
   test("mode 'off' polls nothing", async () => {
     const off = createFleetTrucksJob({
       config: () => ({ ...cfg, CONNECTOR_SAMSARA: 'off' }),
@@ -232,6 +307,7 @@ describe('fleet.trucks (Samsara, sim)', () => {
     expect(await off(ctx('fleet.trucks'))).toEqual({ items: 0, note: 'off' });
     await t().pool.query(`select app.ensure_stream('samsara', 'positions', 'sim')`);
     await t().pool.query(`select app.ensure_stream('samsara', 'stats', 'sim')`);
+    await t().pool.query(`select app.ensure_stream('samsara', 'faults', 'sim')`);
   });
 });
 

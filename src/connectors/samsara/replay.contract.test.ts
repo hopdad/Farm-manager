@@ -11,7 +11,7 @@ import type { ConnectorConfig } from '../endpoints';
 import { REPLAY_ORIGIN } from '../replay';
 import { SamsaraClient } from './client';
 import { LOOP_PAGES } from './fixtures/build';
-import { mapSamsaraPosition, mapSamsaraStat } from './mapper';
+import { mapSamsaraFaults, mapSamsaraPosition, mapSamsaraStat } from './mapper';
 
 const cfg: ConnectorConfig = {
   VENDOR_SIM_URL: 'http://127.0.0.1:1',
@@ -105,5 +105,31 @@ describe('Samsara in replay mode', () => {
     const next = await c.pollStats(first.cursor);
     expect(next.items).toEqual([]);
     expect(next.cursor).toBe(first.cursor);
+  });
+
+  test('fault codes: one reading per truck once (S3 critical, S2 warning), then caught up', async () => {
+    const now = new Date('2026-11-30T15:00:30Z');
+    const c = client(() => now);
+    const first = await c.pollFaults(null);
+    expect(first.items).toHaveLength(4);
+    const stats = first.items.flatMap((i) => mapSamsaraFaults(i.payload));
+    const byUnit = new Map(
+      stats.map((s) => [trucks.get(s.externalMachineId)?.unitNo, s.faultCodes ?? []]),
+    );
+    expect(byUnit.get('S3')).toMatchObject([
+      { code: 'J1939 SPN 110 FMI 0', severity: 'critical', lamps: { redStop: true } },
+    ]);
+    expect(byUnit.get('S2')).toMatchObject([{ code: 'J1939 SPN 3216 FMI 2', severity: 'warning' }]);
+    expect(byUnit.get('S1')).toEqual([]);
+    expect(byUnit.get('S4')).toEqual([]);
+    // Time-shifted to the poll (60 s steps), like every other replayed instant.
+    expect(stats.every((s) => s.ts === '2026-11-30T15:00:00.000Z')).toBe(true);
+    const next = await c.pollFaults(first.cursor);
+    expect(next.items).toEqual([]);
+    expect(next.cursor).toBe(first.cursor);
+    // The stats call never gets the fault fixture's answer, nor the other way round.
+    const st = await c.pollStats(null);
+    expect(st.items.every((i) => i.payload.type !== undefined)).toBe(true);
+    expect(st.items).toHaveLength(12);
   });
 });

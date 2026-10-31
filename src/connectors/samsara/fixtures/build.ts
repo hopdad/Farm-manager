@@ -23,10 +23,25 @@
  * poll (every 5 s in the demo cadence, 30 s live) shows the trucks one step further along their
  * hauls (into the elevator yards and back out: geofence visits included). A cursor the fixture
  * doesn't know (one saved in sim mode) falls through to the first page.
+ *
+ * FAULT CODES (slice 1f, fleet-faults): `types=faultCodes` is its own call (its own cursor), so
+ * its exchanges name `types` in their query, and so do the stats exchanges (a replay request
+ * matches on the query keys an exchange names: neither may answer the other's call). The first
+ * call answers one faultCodes reading per truck in Samsara's shape (built with the stand-in's own
+ * reading builder, src/sim/vendors/samsara/fault-codes.ts): S3 with a red-stop-lamp engine code
+ * (critical: the fleet panel's badge and "Critical fault: mark down?"), S2 with an amber
+ * aftertreatment code (warning), S1 and S4 with none; then nothing new.
  */
+
 import { simTelematicsMachines } from '../../../sim/types';
+import {
+  type SamsaraSimFault,
+  SIM_RED_STOP_FAULT,
+} from '../../../sim/vendors/samsara/control-types';
+import { faultReading, faultVehicles } from '../../../sim/vendors/samsara/fault-codes';
 import { createDemoWorld, type DemoWorld } from '../../../sim/world';
 import type { ReplayExchange, ReplayFixture } from '../../replay';
+import { SAMSARA_FAULT_TYPE, SAMSARA_STAT_TYPES } from '../schemas';
 
 const SEED = 1;
 export const POSITIONS_ANCHOR = '2026-10-15T13:00:00.000Z';
@@ -39,6 +54,8 @@ const REF_POSITIONS =
   'https://developers.samsara.com/reference/getvehiclelocationsfeed (GET /fleet/vehicles/locations/feed?after=, data[].locations[], pagination.endCursor/hasNextPage); shapes as in @samsarahq/samsara 14.11 (VehicleLocationsListResponse)';
 const REF_STATS =
   'https://developers.samsara.com/reference/getvehiclestatsfeed (GET /fleet/vehicles/stats/feed?types=obdEngineSeconds,fuelPercents,obdOdometerMeters&after=); shapes as in @samsarahq/samsara 14.11 (VehicleStatsListResponse)';
+const REF_FAULTS =
+  "https://developers.samsara.com/reference/getvehiclestatsfeed (GET /fleet/vehicles/stats/feed?types=faultCodes&after=; data[].faultCodes[] = VehicleStatsFaultCodesWithDecoration: time, canBusType, j1939.checkEngineLights + diagnosticTroubleCodes[spnId, fmiId, txId, milStatus, occurrenceCount, spnDescription, fmiDescription, sourceAddressName]) and https://developers.samsara.com/docs/fault-monitoring; Samsara's OpenAPI 3.0.1 (developers.samsara.com/openapi/samsara-api.json)";
 const SIMULATED =
   'Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.';
 
@@ -48,6 +65,17 @@ const r1 = (v: number) => Math.round(v * 10) / 10;
 /** Cursor that leads to loop page `k` (opaque to the client, like Samsara's own). */
 export const loopCursor = (k: number) => `replay-loop-${String(k % LOOP_PAGES).padStart(4, '0')}`;
 export const STATS_CURSOR = 'replay-stats-0001';
+export const FAULTS_CURSOR = 'replay-faults-0001';
+/** The stats call's `types` (the replay match names it, so faultCodes calls never match it). */
+export const STATS_TYPES_QUERY = SAMSARA_STAT_TYPES.join(',');
+
+/** The trucks' codes in the faults fixture, by unit number (others: none). */
+export const REPLAY_FAULTS: Readonly<Record<string, readonly SamsaraSimFault[]>> = {
+  S2: [
+    { system: 'j1939', spn: 3216, fmi: 2, txId: 61, occurrenceCount: 3, lamps: { warning: true } },
+  ],
+  S3: [SIM_RED_STOP_FAULT],
+};
 
 /**
  * The trucks on Samsara's vehicle feeds (the four M0 semis). 1f.2's pickups are on the same feeds
@@ -136,17 +164,59 @@ function statsFixture(world: DemoWorld): ReplayFixture {
     exchanges: [
       {
         // Caught up: nothing new since the first page.
-        request: { method: 'GET', path, query: { after: STATS_CURSOR } },
+        request: { method: 'GET', path, query: { types: STATS_TYPES_QUERY, after: STATS_CURSOR } },
         response: {
           status: 200,
           body: { data: [], pagination: { endCursor: STATS_CURSOR, hasNextPage: false } },
         },
       },
       {
-        request: { method: 'GET', path },
+        request: { method: 'GET', path, query: { types: STATS_TYPES_QUERY } },
         response: {
           status: 200,
           body: { data, pagination: { endCursor: STATS_CURSOR, hasNextPage: false } },
+        },
+      },
+    ],
+  };
+}
+
+function faultsFixture(world: DemoWorld): ReplayFixture {
+  const path = '/fleet/vehicles/stats/feed';
+  const anchorMs = Date.parse(POSITIONS_ANCHOR);
+  const semis = new Set(eldVehicles(world).map((m) => m.telematics?.id as string));
+  const data = faultVehicles(world)
+    .filter((v) => semis.has(v.id))
+    .map((v) => ({
+      id: v.id,
+      name: v.name,
+      faultCodes: [faultReading(v, REPLAY_FAULTS[v.name] ?? [], anchorMs)],
+    }));
+  return {
+    format: 1,
+    source: 'samsara',
+    stream: 'faults',
+    kind: 'doc-derived',
+    reference: `${REF_FAULTS}. ${SIMULATED}`,
+    anchor: POSITIONS_ANCHOR,
+    exchanges: [
+      {
+        // Caught up: no fault reading since the first page.
+        request: {
+          method: 'GET',
+          path,
+          query: { types: SAMSARA_FAULT_TYPE, after: FAULTS_CURSOR },
+        },
+        response: {
+          status: 200,
+          body: { data: [], pagination: { endCursor: FAULTS_CURSOR, hasNextPage: false } },
+        },
+      },
+      {
+        request: { method: 'GET', path, query: { types: SAMSARA_FAULT_TYPE } },
+        response: {
+          status: 200,
+          body: { data, pagination: { endCursor: FAULTS_CURSOR, hasNextPage: false } },
         },
       },
     ],
@@ -159,5 +229,6 @@ export function buildSamsaraDocDerivedFixtures(): Record<string, ReplayFixture> 
   return {
     'positions/01-locations-feed.json': positionsFixture(world),
     'stats/01-stats-feed.json': statsFixture(world),
+    'faults/01-fault-codes-feed.json': faultsFixture(world),
   };
 }

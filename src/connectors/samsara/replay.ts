@@ -8,12 +8,17 @@
  */
 import type { ReplayFixture } from '../replay';
 import { samsaraEquipmentReplayFixtures } from './equipment-replay';
+import faults from './fixtures/doc-derived/faults/01-fault-codes-feed.json';
 import positions from './fixtures/doc-derived/positions/01-locations-feed.json';
 import stats from './fixtures/doc-derived/stats/01-stats-feed.json';
 import { samsaraVehiclesReplayFixtures } from './vehicles-replay';
 
-/** The doc-derived fixtures (./fixtures/build.ts; ./fixtures/fixtures.test.ts checks them). */
-export const samsaraDocDerivedFixtures = [positions, stats] as unknown as ReplayFixture[];
+/**
+ * The doc-derived fixtures (./fixtures/build.ts; ./fixtures/fixtures.test.ts checks them): the
+ * positions loop, the stats feed and (1f) the fault-codes feed. The stats and faults exchanges
+ * name their `types`, so neither answers the other's call whatever the order.
+ */
+export const samsaraDocDerivedFixtures = [positions, stats, faults] as unknown as ReplayFixture[];
 
 /**
  * Everything CONNECTOR_SAMSARA=replay serves: the vehicle feeds (fleet-faults), then 1f.2's

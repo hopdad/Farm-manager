@@ -10,7 +10,11 @@
  * answers).
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import type { SamsaraLocationsFeed, SamsaraStatsFeed } from '../../connectors/samsara/schemas';
+import type {
+  SamsaraFaultCodesFeed,
+  SamsaraLocationsFeed,
+  SamsaraStatsFeed,
+} from '../../connectors/samsara/schemas';
 import { createSimWorld } from '../index';
 import { SIM_CREDENTIALS, simTelematicsMachines } from '../types';
 import { encodeFeedCursor } from './feed';
@@ -71,6 +75,26 @@ describe('the mixed fleet in the stand-in', () => {
     // no official source lists Stellantis engine hours).
     expect(kinds('PU1')).toEqual(['fuelPercents']);
     expect(kinds('PU2')).toEqual(['fuelPercents']);
+  });
+
+  test('faultCodes: the semis on J1939, the carmaker-cloud pickups OBD-II only', async () => {
+    const body = await samsara<SamsaraFaultCodesFeed>(
+      '/fleet/vehicles/stats/feed?types=faultCodes',
+    );
+    const reading = (name: string) =>
+      body.data.find((v) => v.name === name)?.faultCodes?.[0] as Record<string, unknown>;
+    expect(body.data.map((v) => v.name).sort()).toEqual(
+      ['PU1', 'PU2', 'S1', 'S2', 'S3', 'S4'].sort(),
+    );
+    for (const s of ['S1', 'S2', 'S3', 'S4']) {
+      expect(reading(s)).toHaveProperty('j1939');
+      expect(reading(s)).not.toHaveProperty('obdii');
+    }
+    // Ford Pro and Stellantis through Samsara: OBD-II only (no J1939 on a carmaker route).
+    for (const pu of ['PU1', 'PU2']) {
+      expect(reading(pu)).toHaveProperty('obdii');
+      expect(reading(pu)).not.toHaveProperty('j1939');
+    }
   });
 
   test("Motive lists only its own vehicle (the hired hauler H1), in Motive's ids", async () => {

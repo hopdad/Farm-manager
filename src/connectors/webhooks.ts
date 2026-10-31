@@ -53,7 +53,7 @@ export const DEERE_EVENT_NUDGES: Readonly<Record<string, readonly string[]>> = {
 
 /** sync_state streams a webhook from each source may make due (Deere: by event type, above). */
 export const WEBHOOK_NUDGES: Record<WebhookSource, readonly string[]> = {
-  samsara: ['positions', 'stats'],
+  samsara: ['positions', 'stats', 'faults'],
   deere: ['fields', 'flags', 'operations'],
   motive: ['positions', 'faults'],
 };

@@ -71,12 +71,13 @@ afterAll(async () => {
 });
 
 describe('replay mode on the board', () => {
-  test('fleet.trucks: the four trucks at the poll time, one tick, stats landed', async () => {
+  test('fleet.trucks: the four trucks at the poll time, one tick, stats and fault codes landed', async () => {
     let result: unknown;
     const tick = await lastTick(async () => {
       result = await trucks(ctx('fleet.trucks'));
     });
-    expect(result).toEqual({ items: 4 + 12 }); // 4 positions + 4 vehicles x 3 stat types
+    // 4 positions + 4 vehicles x 3 stat types + 4 fault readings (the doc-derived faults fixture)
+    expect(result).toEqual({ items: 4 + 12 + 4 });
     const semis = tick.machines.filter((m) => m.kind === 'semi');
     expect(semis.map((m) => m.unitNo).sort()).toEqual(['S1', 'S2', 'S3', 'S4']);
     for (const m of semis) {
@@ -88,6 +89,26 @@ describe('replay mode on the board', () => {
       `select count(*)::int as n from farm.machines where kind = 'semi' and engine_hours > 0`,
     );
     expect(hours.rows[0]?.n).toBe(4);
+    // The faults fixture: S3's red stop lamp (critical) and S2's amber code, on the panel's summary.
+    const faults = await t().pool.query<{
+      unit: string;
+      code: string;
+      severity: string;
+      codes: unknown;
+    }>(
+      `select m.unit_no as unit, f.code, f.severity, s.fault_codes as codes
+         from farm.machine_faults f
+         join farm.machines m on m.id = f.machine_id
+         join farm.machine_state s on s.machine_id = f.machine_id
+        where f.cleared_at is null order by m.unit_no`,
+    );
+    expect(faults.rows.map((r) => [r.unit, r.code, r.severity])).toEqual([
+      ['S2', 'J1939 SPN 3216 FMI 2', 'warning'],
+      ['S3', 'J1939 SPN 110 FMI 0', 'critical'],
+    ]);
+    expect(faults.rows[1]?.codes).toMatchObject([
+      { code: 'J1939 SPN 110 FMI 0', severity: 'critical' },
+    ]);
   });
 
   test('fleet.deere: the working machines at their latest breadcrumb, no OAuth grant needed', async () => {
