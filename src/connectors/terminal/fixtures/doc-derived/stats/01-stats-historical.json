@@ -1,0 +1,384 @@
+{
+  "format": 1,
+  "source": "terminal",
+  "stream": "stats",
+  "kind": "doc-derived",
+  "reference": "https://api.withterminal.com/tsp/openapi (GET /vehicles/{vehicleId}/stats/historical?types=: VehicleStatLog, one value field by type: odometer km, engine_runtime duration ms, engine_state on/off/idle; https://docs.withterminal.com/api-reference/vehicles/list-historical-vehicle-stats). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "basePath": "/tsp/v1",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/vehicles/vcl_0afec20a/stats/historical"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "results": [
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:50:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:50:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000001",
+              "sourceId": "-600000:engine_state",
+              "type": "engine_state",
+              "state": "off"
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:50:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:50:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000002",
+              "sourceId": "-600000:odometer",
+              "type": "odometer",
+              "odometer": 696472.61
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:50:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:50:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000003",
+              "sourceId": "-600000:engine_runtime",
+              "type": "engine_runtime",
+              "duration": 46738177200
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:51:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:51:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000004",
+              "sourceId": "-540000:engine_state",
+              "type": "engine_state",
+              "state": "off"
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:51:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:51:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000005",
+              "sourceId": "-540000:odometer",
+              "type": "odometer",
+              "odometer": 696472.61
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:51:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:51:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000006",
+              "sourceId": "-540000:engine_runtime",
+              "type": "engine_runtime",
+              "duration": 46738177200
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:52:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:52:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000007",
+              "sourceId": "-480000:engine_state",
+              "type": "engine_state",
+              "state": "off"
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:52:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:52:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000008",
+              "sourceId": "-480000:odometer",
+              "type": "odometer",
+              "odometer": 696472.61
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:52:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:52:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000009",
+              "sourceId": "-480000:engine_runtime",
+              "type": "engine_runtime",
+              "duration": 46738177200
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:53:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:53:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000010",
+              "sourceId": "-420000:engine_state",
+              "type": "engine_state",
+              "state": "off"
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:53:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:53:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000011",
+              "sourceId": "-420000:odometer",
+              "type": "odometer",
+              "odometer": 696472.61
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:53:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:53:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000012",
+              "sourceId": "-420000:engine_runtime",
+              "type": "engine_runtime",
+              "duration": 46738177200
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:54:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:54:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000013",
+              "sourceId": "-360000:engine_state",
+              "type": "engine_state",
+              "state": "off"
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:54:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:54:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000014",
+              "sourceId": "-360000:odometer",
+              "type": "odometer",
+              "odometer": 696472.61
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:54:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:54:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000015",
+              "sourceId": "-360000:engine_runtime",
+              "type": "engine_runtime",
+              "duration": 46738177200
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:55:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:55:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000016",
+              "sourceId": "-300000:engine_state",
+              "type": "engine_state",
+              "state": "off"
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:55:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:55:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000017",
+              "sourceId": "-300000:odometer",
+              "type": "odometer",
+              "odometer": 696472.61
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:55:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:55:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000018",
+              "sourceId": "-300000:engine_runtime",
+              "type": "engine_runtime",
+              "duration": 46738177200
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:56:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:56:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000019",
+              "sourceId": "-240000:engine_state",
+              "type": "engine_state",
+              "state": "off"
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:56:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:56:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000020",
+              "sourceId": "-240000:odometer",
+              "type": "odometer",
+              "odometer": 696472.61
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:56:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:56:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000021",
+              "sourceId": "-240000:engine_runtime",
+              "type": "engine_runtime",
+              "duration": 46738177200
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:57:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:57:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000022",
+              "sourceId": "-180000:engine_state",
+              "type": "engine_state",
+              "state": "off"
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:57:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:57:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000023",
+              "sourceId": "-180000:odometer",
+              "type": "odometer",
+              "odometer": 696472.61
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:57:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:57:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000024",
+              "sourceId": "-180000:engine_runtime",
+              "type": "engine_runtime",
+              "duration": 46738177200
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:58:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:58:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000025",
+              "sourceId": "-120000:engine_state",
+              "type": "engine_state",
+              "state": "off"
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:58:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:58:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000026",
+              "sourceId": "-120000:odometer",
+              "type": "odometer",
+              "odometer": 696472.61
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:58:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:58:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000027",
+              "sourceId": "-120000:engine_runtime",
+              "type": "engine_runtime",
+              "duration": 46738177200
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:59:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:59:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000028",
+              "sourceId": "-60000:engine_state",
+              "type": "engine_state",
+              "state": "off"
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:59:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:59:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000029",
+              "sourceId": "-60000:odometer",
+              "type": "odometer",
+              "odometer": 696472.61
+            },
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "timestamp": "2026-10-15T12:59:00.000Z",
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:59:10.000Z"
+              },
+              "id": "vcl_st_01JREPLAY00000000000000030",
+              "sourceId": "-60000:engine_runtime",
+              "type": "engine_runtime",
+              "duration": 46738177200
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
