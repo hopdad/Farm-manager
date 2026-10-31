@@ -5,7 +5,7 @@ import { defineConfig } from 'vitest/config';
  * Three projects:
  *  - unit: pure tests, no database (`pnpm test`).
  *  - db:   *.db.test.ts against the real supabase/postgres container (`pnpm test:db`). Each file
- *          gets its own database cloned from farm_test_template (src/test/db.ts); the global
+ *          gets its own database cloned from the test template, farm_tpl_<migrations hash> (src/test/db.ts); the global
  *          setup (re)builds the template when migrations changed.
  *  - live: *.live.test.ts, the connector contract suites against a vendor's sandbox or live API
  *          (`pnpm test:live`, plan §5/§7; slice 1f). By hand only, never in CI: they need real

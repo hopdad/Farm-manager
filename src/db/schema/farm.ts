@@ -299,8 +299,10 @@ export const machineState = farm.table(
     faultCodes: jsonb('fault_codes').$type<ActiveFaultCode[]>().notNull().default(sql`'[]'::jsonb`),
     /** Vendor time of the fault event `faultCodes` reflects (time guard: older pages lose). */
     faultsAt: tstz('faults_at'),
-    /** Vendor time of the stat `fuelPct` came from (time guard, contracts.md open item). */
+    /** Vendor time of the stat `fuelPct` (and `defPct`) came from (time guard, contracts.md open item). */
     statsAt: tstz('stats_at'),
+    /** 1f.2: diesel exhaust fluid level 0-100, guarded by `statsAt` like `fuelPct`. */
+    defPct: doublePrecision('def_pct'),
     updatedAt: tstz('updated_at').notNull().defaultNow(),
   },
   (t) => [

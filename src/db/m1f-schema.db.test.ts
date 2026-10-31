@@ -281,9 +281,14 @@ describe('farm.machine_hours and farm.machine_faults', () => {
       faultCodes: [],
       faultsAt: null,
       statsAt: null,
+      defPct: null,
       positionVendor: null,
       positionKind: 'live',
     });
+    // 1f.2: DEF level next to fuel, under the same stats_at guard.
+    await t().pool.query(`update farm.machine_state set def_pct = 62.5 where machine_id = $1`, [
+      id,
+    ]);
     // 1f.2: any vendor id of the format (no migration per vendor); the panel labels it.
     for (const v of ['samsara', 'geotab', 'aemp_kubota', 'terminal_omnitracs']) {
       await t().pool.query(

@@ -14,8 +14,21 @@ import { drizzleKitBin, type RunResult, runNode } from '../lib/proc';
 
 export const MIGRATIONS_DIR = 'db/migrations';
 export const PENDING_DIR = 'db/pending';
-/** Migrated template cloned by every DB test file (pnpm db:test-template). */
-export const TEST_TEMPLATE_DB = 'farm_test_template';
+/**
+ * The DB tests' migrated template is named per migrations hash (`farm_tpl_<12 hex>`, 1f): every
+ * checkout on the same migrations shares one, and a checkout on other migrations (another branch
+ * sharing the container) has its own, so neither rebuilds the other's mid-run.
+ */
+export const TEST_TEMPLATE_PREFIX = 'farm_tpl_';
+/** The template older checkouts use (one name for all): never dropped from here. */
+export const LEGACY_TEST_TEMPLATE_DB = 'farm_test_template';
+/** Templates of other migrations unused this long are dropped by a rebuild. */
+export const STALE_TEMPLATE_MS = 14 * 86_400_000;
+
+/** This checkout's template: `farm_tpl_` + the first 12 hex of migrationsHash(). */
+export function testTemplateDb(projectDir = process.cwd()): string {
+  return `${TEST_TEMPLATE_PREFIX}${migrationsHash(projectDir).slice(0, 12)}`;
+}
 /** Per-file test databases: `farm_test_<label>_<6 hex>`. */
 export const TEST_DB_PREFIX = 'farm_test_';
 /** Schemas the app owns; db:reset drops these (plus drizzle) and nothing else. */
@@ -366,14 +379,18 @@ export const TEST_DB_COMMENT_PREFIX = 'farm-manager test db; created ';
 /** dropStaleTestDatabases leaves test databases younger than this alone (a file may still be starting). */
 export const STALE_TEST_DB_MS = 60 * 60 * 1000;
 
-/** Is farm_test_template present and migrated with the current migrations? */
+const templateComment = (hash: string, builtAt: Date) =>
+  `${TEMPLATE_COMMENT_PREFIX}${hash}; built ${builtAt.toISOString()}`;
+
+/** Is this checkout's template present and migrated with the current migrations? */
 export async function testTemplateIsCurrent(admin: pg.Client): Promise<boolean> {
   const r = await admin.query(
     `select shobj_description(oid, 'pg_database') as comment from pg_database where datname = $1`,
-    [TEST_TEMPLATE_DB],
+    [testTemplateDb()],
   );
   if (!r.rowCount) return false;
-  return r.rows[0].comment === `${TEMPLATE_COMMENT_PREFIX}${migrationsHash()}`;
+  const comment = (r.rows[0].comment as string | null) ?? '';
+  return comment.startsWith(`${TEMPLATE_COMMENT_PREFIX}${migrationsHash()};`);
 }
 
 export interface RefreshTemplateOptions {
@@ -382,11 +399,49 @@ export interface RefreshTemplateOptions {
   log?: (msg: string) => void;
 }
 
+/** Drop, create, migrate, apply the settings defaults and stamp this checkout's template (lock held). */
+async function buildTemplate(admin: pg.Client, log: (msg: string) => void): Promise<void> {
+  const name = testTemplateDb();
+  log(`dropping ${name} (if present)`);
+  await dropDatabase(admin, name);
+  await createDatabase(admin, name);
+  const url = withDatabase(getMigrateUrl(), name);
+  log('applying migrations with drizzle-kit');
+  await migrateOrThrow(url);
+  await withClient(url, applySettingsDefaults);
+  await admin.query(
+    `comment on database ${ident(name)} is ${admin.escapeLiteral(
+      templateComment(migrationsHash(), new Date()),
+    )}`,
+  );
+}
+
 /**
- * Make farm_test_template current: under the server-wide template lock, check its migrations
- * stamp and, if stale or missing (or `force`), drop, create, drizzle-kit migrate, apply settings
- * defaults and stamp it. Concurrent callers (two `pnpm test:db` runs, several agents) rebuild
- * at most once; clones never see a half-built template.
+ * Drop the templates of OTHER migrations built more than STALE_TEMPLATE_MS ago with nobody
+ * connected (lock held). The legacy shared template is never touched; a checkout whose template
+ * went missing rebuilds it on its next clone.
+ */
+async function dropStaleTemplates(admin: pg.Client, now: Date): Promise<void> {
+  const r = await admin.query(
+    `select d.datname, shobj_description(d.oid, 'pg_database') as comment
+       from pg_database d
+      where d.datname like $1 and d.datname <> $2
+        and not exists (select 1 from pg_stat_activity a where a.datname = d.datname)`,
+    [`${TEST_TEMPLATE_PREFIX.replace(/_/g, '\\_')}%`, testTemplateDb()],
+  );
+  for (const row of r.rows as { datname: string; comment: string | null }[]) {
+    const built = Date.parse(/; built (\S+)$/.exec(row.comment ?? '')?.[1] ?? '');
+    if (Number.isFinite(built) && now.getTime() - built < STALE_TEMPLATE_MS) continue;
+    await dropDatabase(admin, row.datname);
+  }
+}
+
+/**
+ * Make this checkout's template current: under the server-wide template lock, check its
+ * migrations stamp and, if stale or missing (or `force`), drop, create, drizzle-kit migrate, apply
+ * settings defaults and stamp it. Concurrent callers (two `pnpm test:db` runs, several agents)
+ * rebuild at most once; clones never see a half-built template. Checkouts on other migrations
+ * use their own template (testTemplateDb), so they never rebuild this one.
  */
 export async function refreshTestTemplate(
   opts: RefreshTemplateOptions = {},
@@ -394,18 +449,8 @@ export async function refreshTestTemplate(
   const log = opts.log ?? (() => {});
   return withTemplateLock(async (admin) => {
     if (!opts.force && (await testTemplateIsCurrent(admin))) return 'current';
-    log(`dropping ${TEST_TEMPLATE_DB} (if present)`);
-    await dropDatabase(admin, TEST_TEMPLATE_DB);
-    await createDatabase(admin, TEST_TEMPLATE_DB);
-    const url = withDatabase(getMigrateUrl(), TEST_TEMPLATE_DB);
-    log('applying migrations with drizzle-kit');
-    await migrateOrThrow(url);
-    await withClient(url, applySettingsDefaults);
-    await admin.query(
-      `comment on database ${ident(TEST_TEMPLATE_DB)} is ${admin.escapeLiteral(
-        `${TEMPLATE_COMMENT_PREFIX}${migrationsHash()}`,
-      )}`,
-    );
+    await buildTemplate(admin, log);
+    await dropStaleTemplates(admin, new Date());
     return 'rebuilt';
   });
 }
@@ -420,15 +465,15 @@ async function stampTestDatabase(admin: pg.Client, name: string): Promise<void> 
 }
 
 /**
- * Clone farm_test_template into `name` (under the template lock) and stamp the clone with its
- * creation time, so dropStaleTestDatabases never drops a database that is still being set up.
+ * Clone this checkout's template into `name` (under the template lock) and stamp the clone with
+ * its creation time, so dropStaleTestDatabases never drops a database that is still being set up.
+ * A template that is missing or stale (another checkout's cleanup, a migration edited mid-run) is
+ * rebuilt first, so a clone never lacks a migration.
  */
 export async function cloneTestTemplate(name: string): Promise<void> {
   await withTemplateLock(async (admin) => {
-    if (!(await databaseExists(admin, TEST_TEMPLATE_DB))) {
-      throw new Error(`${TEST_TEMPLATE_DB} is missing: run \`pnpm db:test-template\``);
-    }
-    await createDatabase(admin, name, { template: TEST_TEMPLATE_DB });
+    if (!(await testTemplateIsCurrent(admin))) await buildTemplate(admin, () => {});
+    await createDatabase(admin, name, { template: testTemplateDb() });
     await stampTestDatabase(admin, name);
   });
 }
@@ -447,7 +492,8 @@ export function dropThrowawayDatabase(name: string): Promise<void> {
 }
 
 /**
- * Drop leftover per-file test databases (farm_test_*, not the template): nobody connected and
+ * Drop leftover per-file test databases (farm_test_*, not the legacy shared template; this
+ * checkout's farm_tpl_* template never matches): nobody connected and
  * created more than STALE_TEST_DB_MS ago (or unstamped). Runs under the template lock.
  */
 export async function dropStaleTestDatabases(now: Date = new Date()): Promise<string[]> {
@@ -457,7 +503,7 @@ export async function dropStaleTestDatabases(now: Date = new Date()): Promise<st
          from pg_database d
         where d.datname like $1 and d.datname <> $2
           and not exists (select 1 from pg_stat_activity a where a.datname = d.datname)`,
-      [`${TEST_DB_PREFIX.replace(/_/g, '\\_')}%`, TEST_TEMPLATE_DB],
+      [`${TEST_DB_PREFIX.replace(/_/g, '\\_')}%`, LEGACY_TEST_TEMPLATE_DB],
     );
     const dropped: string[] = [];
     for (const row of r.rows as { datname: string; comment: string | null }[]) {

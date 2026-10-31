@@ -219,15 +219,26 @@ create table if not exists farm.machine_faults (
 -- 1f.2 columns for a database that ran the first cut of 0007 (re-runnable).
 alter table farm.machine_faults add column if not exists system text;
 --> statement-breakpoint
-update farm.machine_faults set system = case when code ~ '^J1939 ' then 'j1939'
-  when code ~ '^[PBCU][0-9A-F]{4}$' then 'obd2' else 'oem' end
- where system is null;
---> statement-breakpoint
-alter table farm.machine_faults alter column system set not null;
---> statement-breakpoint
 alter table farm.machine_faults add column if not exists spn integer;
 --> statement-breakpoint
 alter table farm.machine_faults add column if not exists fmi integer;
+--> statement-breakpoint
+-- A first-cut row's system from its key (faultCodeKey): 'J1939 SPN <spn> FMI <fmi>' within the
+-- 19/5-bit ranges is j1939 with spn and fmi filled (the system CHECK needs both); an OBD-II DTC is
+-- obd2; anything else (an unparseable J1939 key included) is an oem code under the same key.
+update farm.machine_faults f set
+  system = case when p.spn is not null then 'j1939'
+                when f.code ~ '^[PBCU][0-9A-F]{4}$' then 'obd2' else 'oem' end,
+  spn = p.spn,
+  fmi = p.fmi
+  from (select id,
+               case when m[1]::bigint <= 524287 and m[2]::int <= 31 then m[1]::int end as spn,
+               case when m[1]::bigint <= 524287 and m[2]::int <= 31 then m[2]::int end as fmi
+          from (select id, regexp_match(code, '^J1939 SPN ([0-9]{1,7}) FMI ([0-9]{1,3})$') as m
+                  from farm.machine_faults where system is null) parsed) p
+ where f.id = p.id;
+--> statement-breakpoint
+alter table farm.machine_faults alter column system set not null;
 --> statement-breakpoint
 alter table farm.machine_faults add column if not exists source_address integer;
 --> statement-breakpoint
@@ -273,6 +284,9 @@ alter table farm.machine_state add column if not exists fault_codes jsonb defaul
 alter table farm.machine_state add column if not exists faults_at timestamp with time zone;
 --> statement-breakpoint
 alter table farm.machine_state add column if not exists stats_at timestamp with time zone;
+--> statement-breakpoint
+-- 1f.2: diesel exhaust fluid level (0-100) from the latest stat, guarded by stats_at like fuel_pct.
+alter table farm.machine_state add column if not exists def_pct double precision;
 --> statement-breakpoint
 -- 1f.2: 'live' = a trail point (also in farm.positions); 'last_known' = a vendor snapshot of where
 -- the machine was last seen (AEMP, Terminal's latest location): machine_state only, its own
@@ -399,6 +413,8 @@ comment on column farm.machine_state.fault_codes is 'Active fault codes (ActiveF
 comment on column farm.machine_state.position_vendor is 'Vendor id of the latest fix (samsara, motive, geotab, deere, cnh, aemp_<provider>, …; labelled by src/connectors/vendors.ts); null for manual fixes and rows older than 0007.';
 --> statement-breakpoint
 comment on column farm.machine_state.position_kind is 'live = a trail point; last_known = a vendor snapshot (AEMP, Terminal latest location), machine_state only (1f.2).';
+--> statement-breakpoint
+comment on column farm.machine_state.def_pct is 'Diesel exhaust fluid level 0-100 from the latest stat (1f.2); like fuel_pct, only a stat newer than stats_at moves it.';
 --> statement-breakpoint
 comment on column farm.machines.telematics_via is 'How the telematics vendor gets the data: ford_pro, stellantis (carmaker clouds), gateway, obd_device; null = the vendor does not say (1f.2).';
 --> statement-breakpoint

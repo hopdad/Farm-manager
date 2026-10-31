@@ -1,6 +1,6 @@
 /**
  * DB test harness. Each *.db.test.ts file gets its own database, cloned from the migrated
- * farm_test_template (CREATE DATABASE ... TEMPLATE: fast, no migrations per file) under the
+ * the test template, farm_tpl_<migrations hash> (CREATE DATABASE ... TEMPLATE: fast, no migrations per file) under the
  * server-wide template lock, named `farm_test_<file>_<6 hex>`, and dropped after the file.
  *
  *   import { setupTestDb } from '@/test/db';
