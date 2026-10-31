@@ -1,0 +1,44 @@
+{
+  "format": 1,
+  "source": "geotab",
+  "stream": "positions",
+  "kind": "doc-derived",
+  "reference": "https://my.geotab.com/api.json (GetFeed LogRecord: FeedResult { data, toVersion }; LogRecord dateTime, device, latitude, longitude, speed km/h) and https://developers.geotab.com/myGeotab/guides/dataFeed. Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "shiftStepSeconds": 1,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/apiv1",
+        "body": {
+          "method": "GetFeed",
+          "params": {
+            "typeName": "LogRecord"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "result": {
+            "data": [
+              {
+                "id": "b1A2F3",
+                "dateTime": "2026-10-15T13:00:00.000Z",
+                "device": {
+                  "id": "bE5D"
+                },
+                "latitude": 41.860259,
+                "longitude": -83.814753,
+                "speed": 0
+              }
+            ],
+            "toVersion": "0000000000a1b2c3"
+          },
+          "jsonrpc": "2.0"
+        }
+      }
+    }
+  ]
+}

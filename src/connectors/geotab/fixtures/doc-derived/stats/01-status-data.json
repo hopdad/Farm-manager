@@ -1,0 +1,128 @@
+{
+  "format": 1,
+  "source": "geotab",
+  "stream": "stats",
+  "kind": "doc-derived",
+  "reference": "https://my.geotab.com/api.json (GetFeed StatusData: every diagnostic, search ignored; StatusData dateTime, device, diagnostic, data; KnownId DiagnosticEngineHoursId, DiagnosticOdometerId, DiagnosticFuelLevelId, DiagnosticIgnitionId). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/apiv1",
+        "body": {
+          "method": "GetFeed",
+          "params": {
+            "typeName": "StatusData",
+            "fromVersion": "000000000014c3ee"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "result": {
+            "data": [],
+            "toVersion": "000000000014c3ee"
+          },
+          "jsonrpc": "2.0"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/apiv1",
+        "body": {
+          "method": "GetFeed",
+          "params": {
+            "typeName": "StatusData"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "result": {
+            "data": [
+              {
+                "id": "a7C0",
+                "version": "000000000014c3e0",
+                "dateTime": "2026-10-15T13:00:00.000Z",
+                "device": {
+                  "id": "bE5D"
+                },
+                "diagnostic": {
+                  "id": "DiagnosticEngineHoursId"
+                },
+                "data": 57754177
+              },
+              {
+                "id": "a7C1",
+                "version": "000000000014c3e1",
+                "dateTime": "2026-10-15T13:00:00.000Z",
+                "device": {
+                  "id": "bE5D"
+                },
+                "diagnostic": {
+                  "id": "DiagnosticOdometerId"
+                },
+                "data": 968081595
+              },
+              {
+                "id": "a7C2",
+                "version": "000000000014c3e2",
+                "dateTime": "2026-10-15T13:00:00.000Z",
+                "device": {
+                  "id": "bE5D"
+                },
+                "diagnostic": {
+                  "id": "DiagnosticFuelLevelId"
+                },
+                "data": 62.6
+              },
+              {
+                "id": "a7C3",
+                "version": "000000000014c3e3",
+                "dateTime": "2026-10-15T13:00:00.000Z",
+                "device": {
+                  "id": "bE5D"
+                },
+                "diagnostic": {
+                  "id": "DiagnosticIgnitionId"
+                },
+                "data": 0
+              },
+              {
+                "id": "a7C4",
+                "version": "000000000014c3e4",
+                "dateTime": "2026-10-15T13:00:00.000Z",
+                "device": {
+                  "id": "bE5D"
+                },
+                "diagnostic": {
+                  "id": "DiagnosticEngineSpeedId"
+                },
+                "data": 0
+              },
+              {
+                "id": "a7C5",
+                "version": "000000000014c3e5",
+                "dateTime": "2026-10-15T13:00:00.000Z",
+                "device": {
+                  "id": "bE5D"
+                },
+                "diagnostic": {
+                  "id": "DiagnosticEngineCoolantTemperatureId"
+                },
+                "data": 18
+              }
+            ],
+            "toVersion": "000000000014c3ee"
+          },
+          "jsonrpc": "2.0"
+        }
+      }
+    }
+  ]
+}
