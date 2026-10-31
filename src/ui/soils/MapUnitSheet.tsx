@@ -8,18 +8,26 @@
  *  - Opens at once from the tapped tile feature (symbol, name, drainage, hydrologic group,
  *    farmland class, NCCPI), then GET /api/soils/mapunits/<mukey> adds the components with their
  *    percentages and the survey.
- *  - Links each major series to its official description, online only (offline it says so).
+ *  - Each major series' official description (USDA, online): on phones a link, which says it
+ *    needs the internet, and an offline note instead when the browser is offline or the rail
+ *    sees the WAN down (../map/rail/internet.ts). On the wall a QR code and the address to open
+ *    on a phone, never a link: the wall runs Chrome --kiosk on a touch screen, where a new tab
+ *    has no way back to the board (docs/kiosk.md), and the phone brings its own connection.
+ *  - Details loaded once per tab and soils version (a `pnpm gis:soils` reload refetches them).
  *  - Outlines the map unit's polygons on the map while open (`layer:soils:selected`).
  *  - Wall: a side panel where the field panel goes (72 px targets); phone: a bottom sheet.
  *    Closes with the X, Escape, a tap elsewhere on the map, or a field or machine tap.
  */
 import type { FilterSpecification, Map as MapLibreMap } from 'maplibre-gl';
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { qrSvgPath } from '../../platform/auth/qr';
 import { SOILS_IDS, selectedFilter } from '../map/layers/soils';
+import { useInternet } from '../map/rail/internet';
 import type { MapVariant } from '../map/types';
 import {
   MAP_UNIT_PATH,
   type MapUnitDetail,
+  MapUnitDetailCache,
   type MapUnitPreview,
   type MapUnitView,
   mapUnitView,
@@ -39,18 +47,21 @@ type DetailState =
   | { status: 'not_found'; detail: null }
   | { status: 'error'; detail: null; error: string };
 
-/** Details already loaded in this tab (map units don't change while a page is open). */
-const cache = new Map<string, MapUnitDetail>();
+/** Details already loaded in this tab, for the soils version drawn (a reload empties it). */
+const cache = new MapUnitDetailCache();
 
-function useMapUnitDetail(mukey: string): { state: DetailState; retry(): void } {
+function useMapUnitDetail(
+  mukey: string,
+  version: string | null,
+): { state: DetailState; retry(): void } {
   const [state, setState] = useState<DetailState>(() => {
-    const hit = cache.get(mukey);
+    const hit = cache.get(version, mukey);
     return hit ? { status: 'ready', detail: hit } : { status: 'loading', detail: null };
   });
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     void attempt;
-    const hit = cache.get(mukey);
+    const hit = cache.get(version, mukey);
     if (hit) {
       setState({ status: 'ready', detail: hit });
       return;
@@ -65,30 +76,15 @@ function useMapUnitDetail(mukey: string): { state: DetailState; retry(): void } 
         }
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const detail = (await r.json()) as MapUnitDetail;
-        cache.set(mukey, detail);
+        cache.set(version, mukey, detail);
         setState({ status: 'ready', detail });
       })
       .catch((e: Error) => {
         if (!ctrl.signal.aborted) setState({ status: 'error', detail: null, error: e.message });
       });
     return () => ctrl.abort();
-  }, [mukey, attempt]);
+  }, [mukey, version, attempt]);
   return { state, retry: useCallback(() => setAttempt((n) => n + 1), []) };
-}
-
-function useOnline(): boolean {
-  const [online, setOnline] = useState(true);
-  useEffect(() => {
-    const update = () => setOnline(navigator.onLine !== false);
-    update();
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
-    };
-  }, []);
-  return online;
 }
 
 /** Outline the open map unit's polygons (and nothing once closed); survives a layer re-add. */
@@ -141,8 +137,9 @@ function SheetBody({
   onClose(): void;
 }) {
   const titleId = useId();
-  const { state, retry } = useMapUnitDetail(preview.mukey);
-  const online = useOnline();
+  const version = useMapUnitSheet((s) => s.version);
+  const { state, retry } = useMapUnitDetail(preview.mukey, version);
+  const online = useInternet();
   const v = mapUnitView(preview, state.detail);
   return (
     <aside
@@ -188,13 +185,11 @@ function SheetBody({
           <h3 className={css.sectionTitle}>Components</h3>
           <Components v={v} state={state} variant={variant} onRetry={retry} />
         </section>
-        <Series v={v} online={online} loading={state.status === 'loading'} />
-        <p className={css.foot}>
+        <Series v={v} variant={variant} online={online} loading={state.status === 'loading'} />
+        <p className={css.foot} data-testid="map-unit-foot">
           Drainage class and hydrologic group are the dominant component&apos;s
-          {state.detail?.components[0]
-            ? ` (${state.detail.components[0].name}, ${state.detail.components[0].pct} %)`
-            : ''}
-          ; NCCPI is weighted by component percent. Soils: USDA NRCS SSURGO.
+          {v.dominant ? ` (${v.dominant})` : ''}; NCCPI is weighted by component percent. Soils:
+          USDA NRCS SSURGO.
         </p>
       </div>
     </aside>
@@ -257,7 +252,7 @@ function Components({
     return (
       <div>
         {rows.map((c) => (
-          <div key={c.name} className={css.item} data-testid="map-unit-component">
+          <div key={c.key} className={css.item} data-testid="map-unit-component">
             <div>
               <strong>{c.name}</strong>
               {c.major && <span className={css.badge}>major</span>}
@@ -284,7 +279,7 @@ function Components({
       </thead>
       <tbody>
         {rows.map((c) => (
-          <tr key={c.name} data-testid="map-unit-component">
+          <tr key={c.key} data-testid="map-unit-component">
             <td>
               {c.name}
               {c.major && <span className={css.badge}>major</span>}
@@ -300,8 +295,32 @@ function Components({
   );
 }
 
-function Series({ v, online, loading }: { v: MapUnitView; online: boolean; loading: boolean }) {
+function Series({
+  v,
+  variant,
+  online,
+  loading,
+}: {
+  v: MapUnitView;
+  variant: MapVariant;
+  online: boolean;
+  loading: boolean;
+}) {
   if (loading || v.series.length === 0) return null;
+  if (variant === 'wall') {
+    // A kiosk on a touch screen: no link (a new tab would strand the board); a code to scan.
+    return (
+      <section className={css.section}>
+        <h3 className={css.sectionTitle}>Official series description</h3>
+        <p className={css.muted}>Scan with a phone to read it there (USDA, on the internet).</p>
+        <div className={css.qrs}>
+          {v.series.map((s) => (
+            <SeriesQr key={s.name} name={s.name} url={s.url} />
+          ))}
+        </div>
+      </section>
+    );
+  }
   return (
     <section className={css.section}>
       <h3 className={css.sectionTitle}>Official series description</h3>
@@ -316,15 +335,36 @@ function Series({ v, online, loading }: { v: MapUnitView; online: boolean; loadi
               rel="noopener noreferrer"
               data-testid="map-unit-osd-link"
             >
-              {s.name} series (USDA, opens online)
+              {s.name} series (USDA website, needs the internet)
             </a>
           ))}
         </div>
       ) : (
         <p className={css.muted} data-testid="map-unit-osd-offline">
-          Offline: the official series descriptions need the internet.
+          No internet: the official series descriptions are on the USDA website.
         </p>
       )}
     </section>
+  );
+}
+
+function SeriesQr({ name, url }: { name: string; url: string }) {
+  const qr = useMemo(() => qrSvgPath(url), [url]);
+  return (
+    <figure className={css.qr} data-testid="map-unit-osd-qr" data-url={url}>
+      <svg
+        viewBox={`0 0 ${qr.size} ${qr.size}`}
+        role="img"
+        aria-label={`QR code for the ${name} series description`}
+        shapeRendering="crispEdges"
+        className={css.qrCode}
+      >
+        <path d={qr.path} fill="#000" />
+      </svg>
+      <figcaption className={css.qrCaption}>
+        <strong>{name} series</strong>
+        <span className={css.qrUrl}>{url.replace(/^https:\/\//, '')}</span>
+      </figcaption>
+    </figure>
   );
 }

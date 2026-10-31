@@ -66,7 +66,18 @@ export const SOIL_UNKNOWN_COLOR = '#9ca3af';
 /** The map unit open in the sheet. */
 export const SELECTED_COLOR = '#f472b6';
 
-const typeOutlineColor = (flavor: Flavor) => (flavor === 'dark' ? '#fde047' : '#b45309');
+/**
+ * Soil type outlines: white on the dark wall, slate ink on the light phone map. No other line on
+ * the map uses these (field tenure green, yellow, blue and orange; tile lines in blues; parcels
+ * fuchsia; the open map unit pink), so a map unit boundary never reads as a field's, and they
+ * draw thinner than the field outlines at every zoom (outlineWidth). Not dashed: two neighbouring
+ * map units both draw their shared edge, and two dash patterns out of phase look solid.
+ */
+export const SOIL_TYPE_OUTLINE_COLORS: Record<Flavor, string> = {
+  dark: '#f8fafc',
+  light: '#334155',
+};
+const typeOutlineColor = (flavor: Flavor) => SOIL_TYPE_OUTLINE_COLORS[flavor];
 
 // ---------------------------------------------------------------------------------------------
 // Modes
@@ -415,9 +426,13 @@ interface PaintContext {
 /** [layer id, paint property, value] for everything a mode sets. */
 export type PaintSetting = readonly [layerId: string, property: string, value: unknown];
 
+/**
+ * Outline width: thin in the colour modes; in Soil type (`bold`) the boundaries are the map, but
+ * still thinner than the field outlines (../style.ts: 1.6 px at z12, 3 at z16) at every zoom.
+ */
 function outlineWidth(variant: 'wall' | 'phone', bold: boolean) {
-  const far = bold ? 0.8 : 0.4;
-  const near = bold ? (variant === 'wall' ? 3 : 2.2) : variant === 'wall' ? 2 : 1.5;
+  const far = bold ? 0.6 : 0.4;
+  const near = bold ? (variant === 'wall' ? 2.2 : 1.8) : variant === 'wall' ? 2 : 1.5;
   return ['interpolate', ['linear'], ['zoom'], 10, far, 16, near];
 }
 

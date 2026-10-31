@@ -154,6 +154,20 @@ describe('planLabelFetch', () => {
     expect(planLabelFetch(VIEW, 14.1, 'v', first)?.z).toBe(14);
     expect(planLabelFetch(VIEW, 13.4, 'w', first)?.version).toBe('w');
   });
+
+  test('a pan inside the request still in flight asks nothing (it would only abort it)', () => {
+    const pending = planLabelFetch(VIEW, 14.2, 'v', null);
+    if (!pending) throw new Error('expected a request');
+    const nudged = { ...VIEW, west: VIEW.west + 0.0005, east: VIEW.east + 0.0005 };
+    // Nothing answered yet (last is null), but the answer on its way covers the view.
+    expect(planLabelFetch(nudged, 14.3, 'v', null, pending)).toBeNull();
+    expect(planLabelFetch(VIEW, 14.2, 'v', null, pending)).toBeNull();
+    // Out of it, another zoom or version: a new request (the caller aborts the old one).
+    const far = { west: -83.5, south: 41.5, east: -83.46, north: 41.54 };
+    expect(planLabelFetch(far, 14.2, 'v', null, pending)).not.toBeNull();
+    expect(planLabelFetch(VIEW, 15.1, 'v', null, pending)?.z).toBe(15);
+    expect(planLabelFetch(VIEW, 14.2, 'w', null, pending)?.version).toBe('w');
+  });
 });
 
 describe('minLabelAreaDeg2', () => {

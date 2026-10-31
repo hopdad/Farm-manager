@@ -96,6 +96,8 @@ export interface MapUnitFact {
 }
 
 export interface MapUnitComponentRow {
+  /** Unique within the sheet (a map unit can list the same component name twice). */
+  key: string;
   name: string;
   pct: string;
   major: boolean;
@@ -113,6 +115,11 @@ export interface MapUnitView {
   facts: MapUnitFact[];
   /** null while the detail loads. */
   components: MapUnitComponentRow[] | null;
+  /**
+   * The dominant component the drainage class and hydrologic group come from, as the loader
+   * chose it ('Pewamo, 45 %'), or null (no detail yet, or no components).
+   */
+  dominant: string | null;
   /** Major series components, largest first, with their description pages. */
   series: { name: string; url: string }[];
   synthetic: boolean;
@@ -184,22 +191,27 @@ export function mapUnitView(preview: MapUnitPreview, detail: MapUnitDetail | nul
       color: nccpi.color,
     },
   ];
+  // Largest first; ties keep the loader's order (lowest cokey first, the way it picks the
+  // dominant component), so the table's first row is the component the facts describe.
+  const byShare = detail ? [...detail.components].sort((a, b) => b.pct - a.pct) : [];
   const components = detail
-    ? [...detail.components]
-        .sort((a, b) => b.pct - a.pct || a.name.localeCompare(b.name))
-        .map((c) => ({
-          name: c.name,
-          pct: pctText(c.pct),
-          major: c.major,
-          drainage: c.drainageClass ?? '—',
-          hydgrp: c.hydgrp ?? '—',
-          nccpi: c.nccpi === null ? '—' : c.nccpi.toFixed(2),
-        }))
+    ? byShare.map((c, i) => ({
+        key: `${i}:${c.name}`,
+        name: c.name,
+        pct: pctText(c.pct),
+        major: c.major,
+        drainage: c.drainageClass ?? '—',
+        hydgrp: c.hydgrp ?? '—',
+        nccpi: c.nccpi === null ? '—' : c.nccpi.toFixed(2),
+      }))
     : null;
+  // The component the facts describe: the one the loader named (not merely the first row).
+  const domName = detail?.dominantComponent ?? null;
+  const dom = domName === null ? undefined : byShare.find((c) => c.name === domName);
+  const dominant = domName === null ? null : dom ? `${dom.name}, ${pctText(dom.pct)}` : domName;
   const series = detail
-    ? [...detail.components]
+    ? byShare
         .filter((c) => c.major)
-        .sort((a, b) => b.pct - a.pct)
         .flatMap((c) => {
           const url = osdUrl(c.name);
           return url ? [{ name: c.name, url }] : [];
@@ -212,7 +224,34 @@ export function mapUnitView(preview: MapUnitPreview, detail: MapUnitDetail | nul
     area: detail ? areaText(detail.areasymbol, detail.surveyVersion) : null,
     facts,
     components,
+    dominant,
     series,
     synthetic: detail?.synthetic ?? false,
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Details already loaded in this tab
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The details the sheet has loaded, for one soils version (gis.map_layers 'soils'.version, which
+ * `pnpm gis:soils` changes on every load). A reload can keep the mukeys and change their
+ * components or ratings, so a new version empties the cache, like the tiles and labels refetch.
+ */
+export class MapUnitDetailCache {
+  private version: string | null = null;
+  private byMukey = new Map<string, MapUnitDetail>();
+
+  get(version: string | null, mukey: string): MapUnitDetail | undefined {
+    return version === this.version ? this.byMukey.get(mukey) : undefined;
+  }
+
+  set(version: string | null, mukey: string, detail: MapUnitDetail): void {
+    if (version !== this.version) {
+      this.version = version;
+      this.byMukey = new Map();
+    }
+    this.byMukey.set(mukey, detail);
+  }
 }

@@ -2,18 +2,18 @@
 /**
  * The soil map units drawn on screen, kept current while `enabled` (the soils layer on and the
  * rail showing its legend): re-read after the map stops moving and as soils tiles arrive,
- * coalesced (./in-view.ts does the counting). null while disabled. Owner: soils.
+ * coalesced, and only from zoom 12 in (./in-view.ts does the reading and the counting). null
+ * while disabled. Owner: soils.
  */
 import type { Map as MapLibreMap, MapSourceDataEvent } from 'maplibre-gl';
 import { useEffect, useState } from 'react';
 import { SOILS_IDS } from '../map/layers/soils';
-import { sameUnits, unitsInView } from './in-view';
-import type { MapUnitPreview } from './map-unit';
+import { type InView, readUnitsInView, sameInView } from './in-view';
 
 const SETTLE_MS = 300;
 
-export function useSoilsInView(map: MapLibreMap | null, enabled: boolean): MapUnitPreview[] | null {
-  const [units, setUnits] = useState<MapUnitPreview[] | null>(null);
+export function useSoilsInView(map: MapLibreMap | null, enabled: boolean): InView | null {
+  const [units, setUnits] = useState<InView | null>(null);
   useEffect(() => {
     if (!map || !enabled) {
       setUnits(null);
@@ -22,10 +22,8 @@ export function useSoilsInView(map: MapLibreMap | null, enabled: boolean): MapUn
     let timer: ReturnType<typeof setTimeout> | null = null;
     const read = () => {
       timer = null;
-      const next = map.getLayer(SOILS_IDS.fill)
-        ? unitsInView(map.queryRenderedFeatures({ layers: [SOILS_IDS.fill] }))
-        : [];
-      setUnits((prev) => (sameUnits(prev, next) ? prev : next));
+      const next = readUnitsInView(map);
+      setUnits((prev) => (sameInView(prev, next) ? prev : next));
     };
     const schedule = () => {
       if (timer) clearTimeout(timer);

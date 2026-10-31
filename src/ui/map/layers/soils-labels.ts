@@ -191,18 +191,22 @@ export interface LabelCoverage {
 
 /**
  * What to ask for after the map moved: null when nothing is needed (below the label zoom, or
- * the view is still inside the last answer at the same zoom and version), else the request.
+ * the view is still inside the last answer, or inside the request still in flight, at the same
+ * zoom and version), else the request. A small pan while an answer is on its way must not
+ * cancel it and ask the same URL again: the server would run the query twice, and someone who
+ * keeps nudging the map would never see labels.
  */
 export function planLabelFetch(
   view: Bbox,
   zoom: number,
   version: string | null,
   last: LabelCoverage | null,
+  pending: LabelCoverage | null = null,
 ): LabelCoverage | null {
   const z = Math.min(SOIL_LABELS_MAX_Z, Math.floor(zoom + 1e-9));
   if (z < SOIL_LABELS_MIN_Z) return null;
-  if (last && last.z === z && last.version === version && containsBbox(last.bbox, view)) {
-    return null;
-  }
+  const covers = (c: LabelCoverage | null) =>
+    c !== null && c.z === z && c.version === version && containsBbox(c.bbox, view);
+  if (covers(last) || covers(pending)) return null;
   return { z, bbox: snapBbox(view, z), version };
 }

@@ -188,7 +188,7 @@ function PhoneMachineCard({ m, onClose }: { m: FleetFrame; onClose(): void }) {
  * (SprayFieldState), the field panel's highlight and the tile tool. Field taps open the panel,
  * except while a tile line is being drawn; the rail's "Machines and trucks" toggle hides the
  * deck.gl fleet. With soils on, a tap on empty map opens the soil map unit sheet in the field
- * panel's place (a field tap still opens the field panel).
+ * panel's place (a field tap still opens the field panel), except while the tile tool is open.
  */
 export function BoardScreen({ data, variant }: { data: MapPageData; variant: MapVariant }) {
   useKiosk();
@@ -207,6 +207,8 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
   const fleetVisible = useLayerVisible('fleet', true);
   const soilsVisible = useLayerVisible('soils', false);
   const drawing = useTileDrawStore((s) => s.drawing);
+  // Taps belong to the open tile tool (selecting a line, a point of the sketch): no soil sheet.
+  const tileToolOpen = useTileDrawStore((s) => s.open);
   const selected = status.machines.find((m) => m.id === selectedId) ?? null;
   const closeMapUnit = useMapUnitSheet((s) => s.close);
   // A machine picked on the map closes the field panel and the map unit sheet: its card would
@@ -271,7 +273,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
           flyTo={flyTo}
           fleetVisible={fleetVisible}
           onFieldTap={drawing ? undefined : onFieldTap}
-          onEmptyTap={drawing ? undefined : onEmptyTap}
+          onEmptyTap={drawing || tileToolOpen ? undefined : onEmptyTap}
           onMapReady={setMap}
         />
         <SprayFieldState map={map} />

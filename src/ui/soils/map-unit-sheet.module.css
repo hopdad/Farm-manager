@@ -275,3 +275,37 @@
   font-size: calc(var(--font) * 0.7);
   color: rgb(231 239 233 / 60%);
 }
+
+/* Wall: each series' description as a QR code to scan with a phone (no link on the kiosk). */
+.qrs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.qr {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin: 0;
+}
+
+.qrCode {
+  width: 200px;
+  height: 200px;
+  background: #fff;
+  border-radius: 12px;
+}
+
+.qrCaption {
+  display: grid;
+  gap: 2px;
+  font-size: calc(var(--font) * 0.8);
+}
+
+.qrUrl {
+  font-size: 0.8em;
+  color: rgb(231 239 233 / 65%);
+  overflow-wrap: anywhere;
+}

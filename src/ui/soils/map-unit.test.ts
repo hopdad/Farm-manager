@@ -5,11 +5,21 @@
  * in-view list, and the sheet store.
  */
 import { beforeEach, describe, expect, test } from 'vitest';
+import type { SoilComponent } from '../../domain/soils';
 import { FARMLAND_COLORS, HYDGRP_COLORS, NCCPI_COLORS, SOILS_IDS } from '../map/layers/soils';
-import { compareSymbols, IN_VIEW_MAX_ROWS, sameUnits, unitsInView } from './in-view';
+import {
+  compareSymbols,
+  IN_VIEW_MAX_ROWS,
+  IN_VIEW_MIN_ZOOM,
+  readUnitsInView,
+  sameInView,
+  sameUnits,
+  unitsInView,
+} from './in-view';
 import {
   isSeriesComponent,
   type MapUnitDetail,
+  MapUnitDetailCache,
   mapUnitView,
   osdUrl,
   parseComponents,
@@ -125,6 +135,7 @@ describe('mapUnitView', () => {
     const v = mapUnitView(preview, BLOUNT);
     expect(v.components).toEqual([
       {
+        key: '0:Blount',
         name: 'Blount',
         pct: '85 %',
         major: true,
@@ -133,6 +144,7 @@ describe('mapUnitView', () => {
         nccpi: '0.62',
       },
       {
+        key: '1:Pewamo',
         name: 'Pewamo',
         pct: '10 %',
         major: false,
@@ -141,6 +153,7 @@ describe('mapUnitView', () => {
         nccpi: '0.66',
       },
       {
+        key: '2:Glynwood',
         name: 'Glynwood',
         pct: '5 %',
         major: false,
@@ -150,10 +163,66 @@ describe('mapUnitView', () => {
       },
     ]);
     expect(v.area).toBe('Lenawee County, Michigan · survey of 2025-09-05');
+    expect(v.dominant).toBe('Blount, 85 %');
     expect(v.series).toEqual([
       { name: 'Blount', url: 'https://soilseries.sc.egov.usda.gov/OSD_Docs/B/BLOUNT.html' },
     ]);
     expect(v.synthetic).toBe(false);
+    expect(mapUnitView(preview, null).dominant).toBeNull();
+  });
+
+  test('tied shares: the loader’s order and its dominant component, not the alphabet', () => {
+    // 45 % each; the loader put Pewamo first (lower cokey) and took its drainage and group.
+    const tied: MapUnitDetail = {
+      ...BLOUNT,
+      dominantComponent: 'Pewamo',
+      drainageClass: 'Very poorly drained',
+      components: [
+        { ...(BLOUNT.components[0] as SoilComponent), pct: 45, major: true },
+        { ...(BLOUNT.components[1] as SoilComponent), pct: 45 },
+        { ...(BLOUNT.components[2] as SoilComponent), pct: 10 },
+      ],
+    };
+    const v = mapUnitView(preview, tied);
+    expect(v.components?.map((c) => c.name)).toEqual(['Pewamo', 'Blount', 'Glynwood']);
+    expect(v.dominant).toBe('Pewamo, 45 %');
+    expect(v.series.map((x) => x.name)).toEqual(['Pewamo', 'Blount']);
+  });
+
+  test('the same component name twice: each row keeps its own key', () => {
+    // SSURGO lists e.g. two 'Seward' components of 3 % in MI091 YpA.
+    const seward = {
+      name: 'Seward',
+      pct: 3,
+      major: false,
+      drainageClass: 'Moderately well drained',
+      hydgrp: 'B/D',
+      nccpi: 0.55,
+    };
+    const v = mapUnitView(preview, {
+      ...BLOUNT,
+      components: [...BLOUNT.components, seward, { ...seward, nccpi: 0.5 }],
+    });
+    const keys = v.components?.map((c) => c.key) ?? [];
+    expect(keys).toHaveLength(5);
+    expect(new Set(keys).size).toBe(5);
+    expect(v.components?.filter((c) => c.name === 'Seward').map((c) => c.nccpi)).toEqual([
+      '0.55',
+      '0.50',
+    ]);
+  });
+
+  test('the detail cache holds one soils version: a reload of the soils empties it', () => {
+    const cache = new MapUnitDetailCache();
+    cache.set('ssurgo-1', BLOUNT.mukey, BLOUNT);
+    expect(cache.get('ssurgo-1', BLOUNT.mukey)).toBe(BLOUNT);
+    expect(cache.get('ssurgo-1', '99901002')).toBeUndefined();
+    // `pnpm gis:soils` ran again: same mukeys, maybe new components.
+    expect(cache.get('ssurgo-2', BLOUNT.mukey)).toBeUndefined();
+    const reloaded = { ...BLOUNT, nccpi: 0.7 };
+    cache.set('ssurgo-2', BLOUNT.mukey, reloaded);
+    expect(cache.get('ssurgo-2', BLOUNT.mukey)).toBe(reloaded);
+    expect(cache.get('ssurgo-1', BLOUNT.mukey)).toBeUndefined();
   });
 
   test('water: nothing rated, no series page; the synthetic fixture says so', () => {
@@ -308,5 +377,40 @@ describe('in this view', () => {
     expect(sameUnits(a, [{ mukey: '1' }, { mukey: '2' }])).toBe(true);
     expect(sameUnits(a, [{ mukey: '2' }, { mukey: '1' }])).toBe(false);
     expect(sameUnits(null, [])).toBe(false);
+  });
+
+  test('read off the map only from zoom 12: at county zoom it would stall the wall', () => {
+    let queries = 0;
+    let zoom = 11.5;
+    const map = {
+      getZoom: () => zoom,
+      getLayer: (id: string) => (id === SOILS_IDS.fill ? {} : undefined),
+      queryRenderedFeatures: (o: { layers: string[] }) => {
+        queries++;
+        expect(o.layers).toEqual([SOILS_IDS.fill]);
+        return [{ properties: { mukey: '1', musym: 'BnB' } }];
+      },
+    };
+    expect(readUnitsInView(map)).toEqual({ status: 'zoom-in' });
+    zoom = 10;
+    expect(readUnitsInView(map)).toEqual({ status: 'zoom-in' });
+    expect(queries, 'no full-screen query below zoom 12').toBe(0);
+    zoom = IN_VIEW_MIN_ZOOM;
+    expect(readUnitsInView(map)).toEqual({
+      status: 'ready',
+      units: [expect.objectContaining({ mukey: '1', musym: 'BnB' })],
+    });
+    expect(queries).toBe(1);
+    // Soils not on the map: nothing to list (and nothing asked).
+    expect(readUnitsInView({ ...map, getLayer: () => undefined })).toEqual({
+      status: 'ready',
+      units: [],
+    });
+    expect(queries).toBe(1);
+    const ready = readUnitsInView(map);
+    expect(sameInView(ready, readUnitsInView(map))).toBe(true);
+    expect(sameInView({ status: 'zoom-in' }, { status: 'zoom-in' })).toBe(true);
+    expect(sameInView(ready, { status: 'zoom-in' })).toBe(false);
+    expect(sameInView(null, { status: 'zoom-in' })).toBe(false);
   });
 });

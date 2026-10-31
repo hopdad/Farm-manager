@@ -10,14 +10,22 @@ import { type MapUnitPreview, previewOf } from './map-unit';
 export interface MapUnitSheetState {
   /** The open map unit (what the sheet shows until its detail loads), or null. */
   current: MapUnitPreview | null;
+  /**
+   * The soils version drawn (gis.map_layers 'soils'.version, set by the layer rail from the
+   * registry, live): the sheet's loaded details belong to it, and a new one refetches them.
+   */
+  version: string | null;
   show(unit: MapUnitPreview): void;
   close(): void;
+  setVersion(version: string | null): void;
 }
 
 export const useMapUnitSheet = create<MapUnitSheetState>()((set) => ({
   current: null,
+  version: null,
   show: (unit) => set({ current: unit }),
   close: () => set((s) => (s.current ? { current: null } : s)),
+  setVersion: (version) => set((s) => (s.version === version ? s : { version })),
 }));
 
 /** What mapUnitAt needs of a MapLibre map. */

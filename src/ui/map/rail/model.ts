@@ -20,6 +20,7 @@ import type { LayerLegend } from '../../../domain/map-layers';
 import {
   LAYER_GROUP_LABELS,
   LAYER_GROUPS,
+  type LayerDef,
   type LayerGroup,
   type ResolvedLayer,
 } from '../layers/types';
@@ -86,11 +87,28 @@ export interface RailModelInput {
   modeRegistry?: Readonly<Record<string, LayerModes>>;
 }
 
+/** Its tiles come over the internet (an online layer, or one that doesn't work offline). */
+export function isOnlineOnly(def: Pick<LayerDef, 'kind' | 'offline'>): boolean {
+  return def.kind === 'online' || !def.offline;
+}
+
+/**
+ * Is the internet down behind a working LAN? Yes while an online-only layer's tiles fail (a
+ * local layer failing is the app or the PC, not the internet). ./internet.ts carries it to the
+ * soil map unit sheet.
+ */
+export function wanDownOf(
+  resolved: readonly { def: Pick<LayerDef, 'key' | 'kind' | 'offline'> }[],
+  failing: ReadonlySet<string>,
+): boolean {
+  return resolved.some((r) => isOnlineOnly(r.def) && failing.has(r.def.key));
+}
+
 function itemOf(r: ResolvedLayer, input: RailModelInput): RailItem {
   const { def, row } = r;
   const on = isLayerVisible(input.overrides, def.key, r.defaultVisible);
   const needsRow = def.render === 'maplibre' && def.requiresRow;
-  const onlineOnly = def.kind === 'online' || !def.offline;
+  const onlineOnly = isOnlineOnly(def);
   let status: RailItemStatus = 'ready';
   let message: string | null = null;
   if (needsRow && !input.loaded && !row) {

@@ -14,7 +14,9 @@
  * The tool draws on the map with its own sources and layers, prefixed `draw:tile:` (never
  * `layer:`, so the rail's applyLayers leaves them alone), and re-adds them after a style reload.
  * While it is drawing, `useTileDrawStore().drawing` is true: the board should not open the field
- * panel for those taps (BoardScreen passes no onFieldTap to WarRoomMap while drawing).
+ * panel for those taps (BoardScreen passes no onFieldTap to WarRoomMap while drawing). While it
+ * is open at all, `open` is true: the board opens no soil map unit sheet for a tap (it would
+ * cover the tool's panel and the line just selected).
  */
 import type {
   GeoJSONSource,
@@ -67,10 +69,22 @@ export const DRAW_LAYER = {
   vertex: 'draw:tile:sketch-vertex',
 } as const;
 
-/** Is the tool drawing (taps add points)? The board reads it to keep taps off the field panel. */
-export const useTileDrawStore = create<{ drawing: boolean; set(drawing: boolean): void }>()(
-  (set) => ({ drawing: false, set: (drawing) => set({ drawing }) }),
-);
+/**
+ * Is the tool drawing (taps add points)? The board reads it to keep taps off the field panel.
+ * Is it open at all (browsing, drawing or filling in the form)? Then taps belong to the tool
+ * and the board opens no soil map unit sheet over its panel.
+ */
+export const useTileDrawStore = create<{
+  drawing: boolean;
+  open: boolean;
+  set(drawing: boolean): void;
+  setOpen(open: boolean): void;
+}>()((set) => ({
+  drawing: false,
+  open: false,
+  set: (drawing) => set({ drawing }),
+  setOpen: (open) => set({ open }),
+}));
 
 const EMPTY_FC = { type: 'FeatureCollection' as const, features: [] };
 
@@ -231,6 +245,11 @@ export function TileLineDrawTool({ map, variant, config, onOpen }: TileLineDrawT
     setDrawing(mode.kind === 'draw');
     return () => setDrawing(false);
   }, [mode.kind, setDrawing]);
+  const setToolOpen = useTileDrawStore((s) => s.setOpen);
+  useEffect(() => {
+    setToolOpen(open);
+    return () => setToolOpen(false);
+  }, [open, setToolOpen]);
 
   // ---- map drawing -----------------------------------------------------------------------
   const selectedId = mode.kind === 'browse' ? mode.selectedId : null;

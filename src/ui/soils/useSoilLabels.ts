@@ -6,7 +6,8 @@
  *
  *  - After the map settles (moveend, debounced) at zoom 13 and in: one request for the view
  *    snapped outward to whole tiles plus a margin (../map/layers/soils-labels.ts), so pans
- *    inside the last answer ask nothing; a newer request aborts the one in flight.
+ *    inside the last answer, or inside the request still in flight, ask nothing; a request for
+ *    another area, zoom or version aborts the one in flight.
  *  - The answer goes into the GeoJSON source with setData; if the rail re-adds the source (a new
  *    soils version, a style reload), the last answer is put back.
  *  - A failed request keeps the labels drawn and tries again on the next move.
@@ -35,6 +36,8 @@ export function useSoilLabels(map: MapLibreMap | null, { enabled, version }: Soi
   useEffect(() => {
     if (!map || !enabled) return;
     let last: LabelCoverage | null = null;
+    /** The request in flight (its answer will cover this). */
+    let pending: LabelCoverage | null = null;
     let data: SoilLabelsResponse | null = null;
     let filled: object | null = null;
     let ctrl: AbortController | null = null;
@@ -57,7 +60,7 @@ export function useSoilLabels(map: MapLibreMap | null, { enabled, version }: Soi
         east: b.getEast(),
         north: b.getNorth(),
       };
-      const plan = planLabelFetch(view, map.getZoom(), version, last);
+      const plan = planLabelFetch(view, map.getZoom(), version, last, pending);
       if (!plan) {
         ensure();
         return;
@@ -65,6 +68,7 @@ export function useSoilLabels(map: MapLibreMap | null, { enabled, version }: Soi
       ctrl?.abort();
       const mine = new AbortController();
       ctrl = mine;
+      pending = plan;
       fetch(soilLabelsUrl(plan.bbox, plan.z, plan.version), { signal: mine.signal })
         .then((r) => {
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -79,6 +83,13 @@ export function useSoilLabels(map: MapLibreMap | null, { enabled, version }: Soi
         })
         .catch((e: Error) => {
           if (!mine.signal.aborted) console.warn('[soil labels]', e.message);
+        })
+        .finally(() => {
+          // Answered or failed (the next move tries again); a newer request owns `pending`.
+          if (ctrl === mine) {
+            ctrl = null;
+            pending = null;
+          }
         });
     };
     const schedule = () => {

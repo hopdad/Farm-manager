@@ -9,8 +9,10 @@ import { createRequire } from 'node:module';
 import { describe, expect, test } from 'vitest';
 import { legendSchema } from '../../../domain/map-layers';
 import { DRAINAGE_CLASSES } from '../../../domain/soils';
-import { FIELD_LAYER_IDS } from '../style';
+import { FIELD_LAYER_IDS, fieldLayers, TENURE_COLORS } from '../style';
 import { applyLayers, type MapLike, validateSpec } from './apply';
+import { CUSTOMER_OUTLINE_COLOR } from './builtin';
+import { PARCEL_LINE_COLOR } from './parcels';
 import { LAYER_DEFS } from './registry';
 import {
   applySoilsMode,
@@ -31,9 +33,11 @@ import {
   nccpiClassOf,
   nccpiColorExpression,
   placeSoilsLayers,
+  SELECTED_COLOR,
   SOIL_LABEL_MINZOOM,
   SOIL_MAP_MODE_LABELS,
   SOIL_MAP_MODES,
+  SOIL_TYPE_OUTLINE_COLORS,
   SOIL_UNKNOWN_COLOR,
   SOILS_IDS,
   SOILS_LEGEND,
@@ -47,6 +51,7 @@ import {
   soilsModePaint,
 } from './soils';
 import { row } from './test-fixtures';
+import { TILE_KIND_COLORS } from './tile';
 import { styleErrors } from './tile-style-validate';
 import { resolveLayers } from './types';
 
@@ -55,6 +60,12 @@ const ctx = {
   flavor: 'dark' as const,
   variant: 'wall' as const,
 };
+
+/** Chroma (0-1: max minus min channel) of a #rrggbb colour: 0 for white, grey and black. */
+function chroma(hex: string): number {
+  const ch = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
+  return Math.max(...ch) - Math.min(...ch);
+}
 
 // MapLibre's expression engine (maplibre-gl's own style-spec dependency; tests only).
 type Evaluator = (props: Record<string, unknown>, zoom?: number) => unknown;
@@ -374,16 +385,53 @@ describe('colour-by modes', () => {
     const paint = soilsModePaint('type', ctx);
     expect(paint).toContainEqual([SOILS_IDS.fill, 'fill-opacity', 0]);
     const color = paint.find(([, n]) => n === 'line-color')?.[2];
-    expect(color).toBe('#fde047');
+    expect(color).toBe(SOIL_TYPE_OUTLINE_COLORS.dark);
     expect(soilClassOf('type', { musym: 'BnB' }, 'dark')).toEqual({ label: 'BnB', color });
     expect(soilsModePaint('type', { ...ctx, flavor: 'light' })).toContainEqual([
       SOILS_IDS.outline,
       'line-color',
-      '#b45309',
+      SOIL_TYPE_OUTLINE_COLORS.light,
     ]);
     for (const mode of SOIL_MAP_MODES.filter((m) => m !== 'type')) {
       const opacity = soilsModePaint(mode, ctx).find(([, n]) => n === 'fill-opacity')?.[2];
       expect(opacity, mode).toBeGreaterThan(0);
+    }
+  });
+
+  test('Soil type boundaries never read as field boundaries: another colour, thinner', () => {
+    // No line the map draws with these colours: field tenures, tile lines, parcels, customers,
+    // the open map unit.
+    const taken = [
+      ...Object.values(TENURE_COLORS),
+      ...Object.values(TILE_KIND_COLORS),
+      PARCEL_LINE_COLOR,
+      CUSTOMER_OUTLINE_COLOR,
+      SELECTED_COLOR,
+    ].map((c) => c.toLowerCase());
+    for (const flavor of ['dark', 'light'] as const) {
+      const own = SOIL_TYPE_OUTLINE_COLORS[flavor];
+      expect(taken, flavor).not.toContain(own.toLowerCase());
+      // Every one of those is a strong hue; the soil lines are neutral (white, slate ink), so
+      // they can't pass for a cash-rent yellow or a custom-work orange.
+      for (const c of taken) expect(chroma(c), c).toBeGreaterThan(0.3);
+      expect(chroma(own), flavor).toBeLessThan(0.15);
+      expect(soilsLegend('type', flavor).items[0]?.color).toBe(SOIL_TYPE_OUTLINE_COLORS[flavor]);
+    }
+    // Thinner than the field outline at every zoom the soils draw, on the wall and on phones.
+    const fieldOutline = fieldLayers(false, 'dark').below.find(
+      (l) => l.id === FIELD_LAYER_IDS.outline,
+    ) as { paint: Record<string, unknown> };
+    const fieldWidth = evaluator(fieldOutline.paint['line-width']);
+    for (const variant of ['wall', 'phone'] as const) {
+      const width = soilsModePaint('type', { ...ctx, variant }).find(
+        ([, n]) => n === 'line-width',
+      )?.[2];
+      const soilWidth = evaluator(width);
+      for (let z = 10; z <= 20; z += 0.5) {
+        expect(soilWidth({}, z) as number, `${variant} z${z}`).toBeLessThan(
+          (fieldWidth({}, z) as number) * 0.8,
+        );
+      }
     }
   });
 
@@ -435,7 +483,7 @@ describe('legends', () => {
     expect(soilsLegend('nccpi').items.map((i) => i.label)).toContain('0.60 to 0.75');
     // Soil type: outlines (as lines), in the flavour's colour.
     const type = soilsLegend('type', 'light');
-    expect(type.items[0]).toMatchObject({ swatch: 'line', color: '#b45309' });
+    expect(type.items[0]).toMatchObject({ swatch: 'line', color: SOIL_TYPE_OUTLINE_COLORS.light });
     expect(type.note).toMatch(/zoom 13/);
     expect(type.note).toMatch(/zoom 16/);
   });
@@ -474,7 +522,7 @@ describe('applySoilsMode', () => {
     );
     applySoilsMode(f.map, 'type', ctx);
     expect(f.paint.get(SOILS_IDS.fill)?.['fill-opacity']).toBe(0);
-    expect(f.paint.get(SOILS_IDS.outline)?.['line-color']).toBe('#fde047');
+    expect(f.paint.get(SOILS_IDS.outline)?.['line-color']).toBe(SOIL_TYPE_OUTLINE_COLORS.dark);
     applySoilsMode(f.map, 'drainage', ctx);
     for (const id of [SOILS_IDS.fill, SOILS_IDS.outline]) {
       expect(f.paint.get(id)).toEqual(before[id]);

@@ -6,8 +6,10 @@
  *  - the map units in view listed under the legend;
  *  - map unit labels from GET /api/soils/labels: one point per polygon, drawn from zoom 13;
  *  - with soils on, a tap outside any field opens the map unit sheet (components with %, the
- *    official series link, online only), while a field tap still opens the field panel; the
- *    field Soils tab opens the sheet for one of its map units.
+ *    dominant component named; the official series description as a link on phones, online
+ *    only, also when the WAN is down behind a working LAN, and as a QR code on the wall kiosk,
+ *    never a link), while a field tap still opens the field panel; an open tile tool keeps its
+ *    taps; the field Soils tab opens the sheet for one of its map units.
  *
  * Data: the soils the database has (the synthetic fixture on a fresh database, loaded here the
  * way e2e/soils.spec.ts does). Assertions go through window.__map / window.__soils, not pixels.
@@ -23,7 +25,7 @@ import { RAIL_STORAGE_PREFIX } from '../src/ui/map/rail/persist';
 import { loadSoilsRun } from '../tools/gis/soils-load';
 import { openRun } from '../tools/gis/soils-raw';
 import { signInAs } from './support/auth';
-import { mapIdle, mapPathFor, WEBGL_ARGS, waitForMap } from './support/map';
+import { blockExternalHosts, mapIdle, mapPathFor, WEBGL_ARGS, waitForMap } from './support/map';
 
 test.use({ launchOptions: { args: WEBGL_ARGS } });
 
@@ -35,6 +37,7 @@ interface EmptySpot extends Spot {
   mukey: string;
   musym: string;
   components: number;
+  dominant: string | null;
 }
 interface FieldSpot extends Spot {
   id: string;
@@ -59,6 +62,7 @@ test.beforeAll(async () => {
   }
   const e = await pool.query<EmptySpot>(
     `select sp.mukey, u.musym, jsonb_array_length(u.components)::int as components,
+            u.dominant_component as dominant,
             extensions.ST_X(c.p) as lng, extensions.ST_Y(c.p) as lat
        from gis.soil_polygons sp
        join gis.soil_mapunits u on u.mukey = sp.mukey
@@ -290,6 +294,10 @@ test('colour-by modes from the rail: legends per mode, paint only, remembered ac
   expect(listed.length).toBeGreaterThan(0);
   expect(listed.every((m) => drawn.has(m))).toBe(true);
   await expect(inView).toContainText(/dominant component/);
+  // Further out than zoom 12 the screen holds most of a county: no list (no full-screen read).
+  await jumpTo(page, field, 11.5);
+  await expect(page.getByTestId('soils-in-view-zoom')).toContainText('from zoom 12');
+  await expect(page.getByTestId('soils-in-view-row')).toHaveCount(0);
 
   // Remembered on this device: Hydrologic group survives a reload.
   await page.getByTestId('layer-mode-soils-hydgrp').click();
@@ -417,22 +425,44 @@ test('with soils on, a tap outside the fields opens the map unit; a field tap st
   await expect(sheet).toHaveAttribute('data-state', 'ready');
   await expect(page.getByTestId('map-unit-component')).toHaveCount(spot.components);
   await expect(page.getByTestId('map-unit-component').first()).toContainText(/\d %/);
-  await expect(sheet).toContainText(/dominant component/);
-  // The official series description, online only.
-  const link = page.getByTestId('map-unit-osd-link').first();
-  await expect(link).toHaveAttribute(
-    'href',
-    /^https:\/\/soilseries\.sc\.egov\.usda\.gov\/OSD_Docs\/[A-Z]\/[A-Z_]+\.html$/,
-  );
-  await expect(link).toHaveAttribute('target', '_blank');
-  await context.setOffline(true);
-  try {
-    await expect(page.getByTestId('map-unit-osd-offline')).toBeVisible();
-    await expect(page.getByTestId('map-unit-osd-link')).toHaveCount(0);
-  } finally {
-    await context.setOffline(false);
+  await expect(page.getByTestId('map-unit-foot')).toContainText(/dominant component/);
+  if (spot.dominant) {
+    await expect(page.getByTestId('map-unit-foot')).toContainText(`(${spot.dominant}, `);
   }
-  await expect(page.getByTestId('map-unit-osd-link').first()).toBeVisible();
+  // The official series description.
+  const OSD = /^https:\/\/soilseries\.sc\.egov\.usda\.gov\/OSD_Docs\/[A-Z]\/[A-Z_]+\.html$/;
+  if (testInfo.project.name === 'wall') {
+    // The wall is a touch kiosk: a new tab would strand it. A code to scan, never a link.
+    const qr = page.getByTestId('map-unit-osd-qr').first();
+    await expect(qr).toBeVisible();
+    await expect(qr).toHaveAttribute('data-url', OSD);
+    await expect(qr.locator('svg path')).toHaveAttribute('d', /^M/);
+    await expect(sheet.locator('a[href^="http"]')).toHaveCount(0);
+    await expect(page.locator('a[target="_blank"]')).toHaveCount(0);
+    // The phone that scans it brings its own connection: still there offline.
+    await context.setOffline(true);
+    try {
+      await expect(page.getByTestId('map-unit-osd-qr').first()).toBeVisible();
+      await expect(page.getByTestId('map-unit-osd-offline')).toHaveCount(0);
+    } finally {
+      await context.setOffline(false);
+    }
+  } else {
+    // Phones: a link, online only, which says it needs the internet.
+    const link = page.getByTestId('map-unit-osd-link').first();
+    await expect(link).toHaveAttribute('href', OSD);
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toContainText('needs the internet');
+    await expect(page.getByTestId('map-unit-osd-qr')).toHaveCount(0);
+    await context.setOffline(true);
+    try {
+      await expect(page.getByTestId('map-unit-osd-offline')).toBeVisible();
+      await expect(page.getByTestId('map-unit-osd-link')).toHaveCount(0);
+    } finally {
+      await context.setOffline(false);
+    }
+    await expect(page.getByTestId('map-unit-osd-link').first()).toBeVisible();
+  }
   // The map unit's polygons are outlined while the sheet is open.
   await expect
     .poll(async () => (await rendered(page, 'layer:soils:selected')).map((f) => f.properties.mukey))
@@ -458,6 +488,106 @@ test('with soils on, a tap outside the fields opens the map unit; a field tap st
   await page.getByTestId('map-unit-close').click();
   await expect(page.getByTestId('map-unit-sheet')).toHaveCount(0);
   expect(await page.evaluate(() => window.__map?.errors())).toEqual([]);
+});
+
+test('internet down behind a working LAN: phones say so instead of a dead link; the wall keeps its code', async ({
+  page,
+  baseURL,
+}, testInfo) => {
+  test.slow();
+  // The WAN is down, the farm's LAN is up: every non-local host fails, navigator.onLine stays true.
+  await blockExternalHosts(page, baseURL);
+  await openBoard(page, testInfo);
+  const spot = await quietest(page, empties);
+  await jumpAbovePhoneSheet(page, testInfo, spot);
+  await soilsOn(page);
+  // The online aerial photos can't load: the rail calls them offline.
+  const naip = page.getByTestId('layer-toggle-naip');
+  if ((await naip.getAttribute('aria-pressed')) !== 'true') await naip.click();
+  await expect(page.getByTestId('layer-status-naip')).toContainText(/offline/i, {
+    timeout: 30_000,
+  });
+  expect(await page.evaluate(() => navigator.onLine)).toBe(true);
+  await clearMap(page, testInfo);
+  await soilsDrawnAt(page, spot, spot.mukey);
+  await tapAt(page, spot);
+  const sheet = page.getByTestId('map-unit-sheet');
+  await expect(sheet).toHaveAttribute('data-mukey', spot.mukey);
+  await expect(sheet).toHaveAttribute('data-state', 'ready');
+  if (testInfo.project.name === 'wall') {
+    // The phone that scans the code has its own connection.
+    await expect(page.getByTestId('map-unit-osd-qr').first()).toBeVisible();
+  } else {
+    await expect(page.getByTestId('map-unit-osd-offline')).toBeVisible();
+    await expect(page.getByTestId('map-unit-osd-link')).toHaveCount(0);
+  }
+});
+
+test('an open tile tool keeps its taps: no map unit sheet over its panel', async ({
+  page,
+  context,
+}, testInfo) => {
+  test.slow();
+  // Managers draw tile (ROLE_FOR.editTileLines).
+  await signInAs(context, 'manager');
+  await openBoard(page, testInfo);
+  const spot = await quietest(page, empties);
+  await jumpAbovePhoneSheet(page, testInfo, spot);
+  await soilsOn(page);
+  await clearMap(page, testInfo);
+  await soilsDrawnAt(page, spot, spot.mukey);
+
+  // Open, browsing (not drawing): a tap outside the fields is the tool's (it selects lines).
+  await page.getByTestId('tile-tool-toggle').click();
+  const panel = page.getByTestId('tile-tool-panel');
+  await expect(panel).toBeVisible();
+  await tapAt(page, spot);
+  await page.waitForTimeout(500);
+  await expect(page.getByTestId('map-unit-sheet')).toHaveCount(0);
+  await expect(panel).toBeVisible();
+
+  // Closed again: the same tap opens the map unit.
+  await page.getByTestId('tile-tool-toggle').click();
+  await expect(panel).toHaveCount(0);
+  await tapAt(page, spot);
+  await expect(page.getByTestId('map-unit-sheet')).toHaveAttribute('data-mukey', spot.mukey);
+});
+
+test('a small pan while the labels are on their way does not ask for them again', async ({
+  page,
+}, testInfo) => {
+  // A slow answer (a slow PC, or the first request after a soils reload).
+  const asked: string[] = [];
+  await page.route(
+    (url) => url.pathname === '/api/soils/labels',
+    async (route) => {
+      asked.push(route.request().url());
+      await new Promise((r) => setTimeout(r, 2_500));
+      // The page may have given up on it meanwhile.
+      await route.continue().catch(() => {});
+    },
+  );
+  await openBoard(page, testInfo);
+  const field = await quietest(page, fields);
+  await jumpTo(page, field, 12.4);
+  await soilsOn(page);
+  await clearMap(page, testInfo);
+  await jumpTo(page, field, 14.2);
+  await expect.poll(() => asked.length, { timeout: 10_000 }).toBe(1);
+  // Three nudges, each after the debounce, all inside the snapped bbox being fetched.
+  for (let i = 1; i <= 3; i++) {
+    await page.evaluate((c) => window.__map?.jumpTo({ center: c, zoom: 14.2 }), [
+      field.lng + i * 0.0005,
+      field.lat,
+    ] as [number, number]);
+    await page.waitForTimeout(400);
+  }
+  expect(asked, 'one request, not one per nudge').toHaveLength(1);
+  // …and that one answer is drawn.
+  await expect
+    .poll(async () => (await rendered(page, 'layer:soils:label')).length, { timeout: 20_000 })
+    .toBeGreaterThan(0);
+  expect(asked).toHaveLength(1);
 });
 
 test('the field Soils tab opens a map unit’s sheet over the field', async ({ page }, testInfo) => {

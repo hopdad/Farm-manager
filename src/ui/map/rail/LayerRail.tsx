@@ -13,7 +13,8 @@
  *  - The map is kept in step with applyLayers on every change and after each style reload
  *    ('styledata', coalesced to one apply per frame).
  *  - Online-only layers say "offline" when the browser is offline or their tiles fail (the WAN
- *    can be down while the LAN is up), and come back when a tile loads again.
+ *    can be down while the LAN is up), and come back when a tile loads again. The same "WAN
+ *    down" goes to ./internet.ts for the soil map unit sheet's online links.
  *  - A layer drawn more than one way (./modes.ts: the soils colour-by modes) shows a mode picker
  *    under its toggle while on; the choice is remembered with the rest, its legend follows it,
  *    and after every applyLayers the layer paints itself for the mode (no tile refetch).
@@ -30,6 +31,7 @@ import type {
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicConfig } from '../../../config';
 import type { LayerLegend, ResolvedMapLayer } from '../../../domain/map-layers';
+import { useMapUnitSheet } from '../../soils/sheet-store';
 import { installSoilsTestApi } from '../../soils/test-api';
 import { useSoilLabels } from '../../soils/useSoilLabels';
 import { applyLayers } from '../layers/apply';
@@ -39,7 +41,8 @@ import { type LayerDef, resolveLayers } from '../layers/types';
 import { useLayerVisibilityStore } from '../layers/visibility';
 import type { BasemapFlavor, MapVariant } from '../types';
 import { railRealtime, startLayersFeed } from './feed';
-import { layerKeyOfSource, type RailItem, railModel } from './model';
+import { useInternetStore, useNavigatorOnline } from './internet';
+import { layerKeyOfSource, type RailItem, railModel, wanDownOf } from './model';
 import { LAYER_MODES, layerModeOf, useLayerModeStore } from './modes';
 import { browserStorage, loadRailPrefs, saveRailPrefs } from './persist';
 import css from './rail.module.css';
@@ -75,22 +78,6 @@ interface ApplyState {
 }
 
 const DEFAULT_CONFIG: NonNullable<LayerRailProps['config']> = { realtime: 'sse' };
-
-function useOnline(): boolean {
-  const [online, setOnline] = useState(true);
-  useEffect(() => {
-    const update = () =>
-      setOnline(typeof navigator === 'undefined' ? true : navigator.onLine !== false);
-    update();
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
-    };
-  }, []);
-  return online;
-}
 
 /** Layer keys whose tiles are failing (map 'error' on a `layer:` source), cleared on a good tile. */
 function useFailingLayers(map: MapLibreMap | null): ReadonlySet<string> {
@@ -251,7 +238,7 @@ export function LayerRail({
   const [hydrated, setHydrated] = useState(false);
   const overrides = useLayerVisibilityStore((s) => s.overrides);
   const modes = useLayerModeStore((s) => s.modes);
-  const online = useOnline();
+  const online = useNavigatorOnline();
   const failing = useFailingLayers(map);
   const zoom = useZoom(map);
 
@@ -330,11 +317,23 @@ export function LayerRail({
 
   // Soils: one label point per polygon, while the layer is drawn.
   const soils = resolved.find((r) => r.def.key === SOILS_LAYER_KEY);
+  const soilsVersion = soils?.row?.version ?? null;
   useSoilLabels(map, {
     enabled:
       soils?.status === 'ready' && (overrides[SOILS_LAYER_KEY] ?? soils.defaultVisible) && loaded,
-    version: soils?.row?.version ?? null,
+    version: soilsVersion,
   });
+  // The map unit sheet keeps the details it loaded per soils version (a reload refetches them).
+  useEffect(() => {
+    if (loaded) useMapUnitSheet.getState().setVersion(soilsVersion);
+  }, [loaded, soilsVersion]);
+  // The internet is down behind a working LAN when an online-only layer's tiles fail: the map
+  // unit sheet's series links read it (./internet.ts).
+  const wanDown = wanDownOf(resolved, failing);
+  useEffect(() => {
+    useInternetStore.getState().setWanDown(wanDown);
+  }, [wanDown]);
+  useEffect(() => () => useInternetStore.getState().setWanDown(false), []);
   useEffect(() => {
     if (!map) return;
     let frame = 0;
