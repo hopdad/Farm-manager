@@ -1,7 +1,8 @@
 /**
  * Read model of /admin/connectors (server only): per connector stream its mode, lease, last OK,
  * last error, raw-event counts and counters; per registered job its schedule, lease and recent
- * runs; the dead-lettered raw events; and the job clock's pause flag.
+ * runs; the dead-lettered raw events (the latest 25 and the total); and the job clock's pause
+ * flag. The 1f sync-health parts (calls, budget, OAuth, orgs) are in ./health.ts.
  * Sources: ingest.sync_state, ingest.job_runs, ingest.raw_events, app.settings.
  */
 import { type Executor, exec, toDate } from '../../../db/exec';
@@ -14,6 +15,7 @@ import {
   validateRegistry,
 } from '../../../jobs/schedule';
 import type { JobRegistry } from '../../../jobs/types';
+import { deadCounts } from './dead-letters';
 
 export interface RawCounts {
   pending: number;
@@ -80,7 +82,11 @@ export interface ConnectorsSnapshot {
   clockPaused: boolean;
   streams: StreamRow[];
   jobs: JobRow[];
+  /** The 25 most recent dead-lettered events (`deadTotal` counts them all). */
   dead: DeadEvent[];
+  /** Every dead-lettered event (1f: the page shows the total, not just the latest 25). */
+  deadTotal: number;
+  deadByStream: { source: string; stream: string; count: number }[];
   /** validateRegistry's message when the registry is invalid. */
   registryError: string | null;
 }
@@ -132,7 +138,7 @@ export async function loadConnectorsSnapshot(
     registryError = (e as Error).message;
   }
 
-  const [clockPaused, state, raw, runs, last, failures, dead] = await Promise.all([
+  const [clockPaused, state, raw, runs, last, failures, dead, deadAll] = await Promise.all([
     readClockPaused(ex),
     exec<Record<string, unknown>>(
       ex,
@@ -180,6 +186,7 @@ export async function loadConnectorsSnapshot(
       `select id, source, stream, external_id, attempts, last_error, fetched_at
          from ingest.raw_events where status = 'dead' order by fetched_at desc limit 25`,
     ),
+    deadCounts(ex),
   ]);
 
   const rawBy = new Map(
@@ -300,6 +307,8 @@ export async function loadConnectorsSnapshot(
       lastError: (r.last_error as string | null) ?? null,
       fetchedAt: toDate(r.fetched_at),
     })),
+    deadTotal: deadAll.total,
+    deadByStream: deadAll.byStream,
     registryError,
   };
 }

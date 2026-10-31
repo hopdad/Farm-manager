@@ -5,17 +5,20 @@
  *    "trucks API down", through the stand-in's control API (server actions; it is loopback-only).
  *  - Per connector stream: mode, last OK, last error, lease, raw-event counts, counters.
  *  - Per job: schedule, running, last run, last OK/failure, runs and failures (1 h / 24 h).
- *  - Dead-lettered raw events.
- *  - Configuration: every connection's mode (1f.2: one key per vendor) and the warning while the
- *    deprecated CONNECTOR_ELD / ELD_VENDOR are set (sync-health adds the capability matrix).
+ *  - Dead-lettered raw events: the total, requeue and discard (1f).
+ *  - 1f (sync-health, ./health-cards.tsx): vendor calls today/yesterday per source and mode with
+ *    the Deere budget and its split; the Deere connection (OAuth grant, scopes, orgs and their
+ *    approval, the home org, unmappable equipment, the sim org-approval knob); every connection's
+ *    mode and capability matrix with the deprecated-key warning; the doc-derived list.
  * Re-renders on admin realtime events and every 10 s (LiveRefresh).
  */
-import { Fragment, type ReactNode } from 'react';
 import { getConfig, publicConfig } from '@/config';
+import { DOC_DERIVED } from '@/connectors/doc-derived';
 import { capabilityMatrix } from '@/connectors/vendors';
 import { getPool } from '@/db/client';
 import { registry } from '@/jobs/registry';
 import { SCENARIO_NAMES, type SimStatus } from '@/sim/types';
+import type { DeereSimConnectionsStatus } from '@/sim/vendors/deere/connections-control-types';
 import { ActionForm, NoticeProvider, SubmitButton } from '../_components/controls';
 import { LiveRefresh } from '../_components/LiveRefresh';
 import { Locked } from '../_components/Locked';
@@ -35,14 +38,19 @@ import {
   loadConnectorsSnapshot,
   type StreamRow,
 } from './data';
-import { faultPresets, getSimStatus, SPEED_PRESETS } from './sim-control';
+import { loadSyncHealth, type SyncHealthSnapshot } from './health';
+import {
+  Badge,
+  CallsCard,
+  ConnectionsCard,
+  DeadLettersCard,
+  DeereCard,
+  DocDerivedCard,
+} from './health-cards';
+import { faultPresets, getSimDeereConnections, getSimStatus, SPEED_PRESETS } from './sim-control';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Connectors · Farm Ops' };
-
-function Badge({ kind, children }: { kind: 'ok' | 'bad' | 'warn' | 'idle'; children: ReactNode }) {
-  return <span className={`${css.badge} ${css[kind]}`}>{children}</span>;
-}
 
 function streamHealth(
   s: StreamRow,
@@ -365,7 +373,7 @@ function JobsCard({ snap, now }: { snap: ConnectorsSnapshot; now: Date }) {
                 <th>Last run</th>
                 <th>Last OK</th>
                 <th>Last failure</th>
-                <th>Calls 1 h / 24 h</th>
+                <th>Runs 1 h / 24 h</th>
               </tr>
             </thead>
             <tbody>
@@ -427,46 +435,6 @@ function JobsCard({ snap, now }: { snap: ConnectorsSnapshot; now: Date }) {
   );
 }
 
-function DeadCard({ snap, now }: { snap: ConnectorsSnapshot; now: Date }) {
-  return (
-    <section className={css.card}>
-      <h2>Dead-lettered events</h2>
-      {snap.dead.length === 0 ? (
-        <p className={css.muted}>None. Events go here after 5 failed attempts.</p>
-      ) : (
-        <div className={css.tableWrap}>
-          <table className={css.table} data-testid="dead">
-            <thead>
-              <tr>
-                <th>Source / stream</th>
-                <th>External id</th>
-                <th>Attempts</th>
-                <th>Error</th>
-                <th>Fetched</th>
-              </tr>
-            </thead>
-            <tbody>
-              {snap.dead.map((e) => (
-                <tr key={e.id}>
-                  <td className={css.mono}>
-                    {e.source}/{e.stream}
-                  </td>
-                  <td className={css.mono}>{short(e.externalId, 40)}</td>
-                  <td>{e.attempts}</td>
-                  <td className={css.error} title={e.lastError ?? ''}>
-                    {short(e.lastError)}
-                  </td>
-                  <td>{ago(e.fetchedAt, now)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  );
-}
-
 export default async function ConnectorsPage() {
   if (!(await adminUnlocked())) return <Locked />;
   const cfg = getConfig();
@@ -481,13 +449,28 @@ export default async function ConnectorsPage() {
   } catch (e) {
     dbError = (e as Error).message;
   }
+  let health: SyncHealthSnapshot | null = null;
+  try {
+    health = await loadSyncHealth(getPool(), cfg, registry, now);
+  } catch (e) {
+    dbError ??= (e as Error).message;
+  }
   let sim: SimStatus | null = null;
   let simError: string | null = null;
+  let simOrgs: DeereSimConnectionsStatus | null = null;
+  let simOrgsError: string | null = null;
   if (!cfg.isProduction) {
     try {
       sim = await getSimStatus(cfg.VENDOR_SIM_URL);
     } catch (e) {
       simError = (e as Error).message;
+    }
+    if (cfg.CONNECTOR_DEERE === 'sim' && sim) {
+      try {
+        simOrgs = await getSimDeereConnections(cfg.VENDOR_SIM_URL);
+      } catch (e) {
+        simOrgsError = (e as Error).message;
+      }
     }
   }
 
@@ -510,54 +493,50 @@ export default async function ConnectorsPage() {
           />
           {!cfg.isProduction && <SimCard sim={sim} error={simError} baseUrl={cfg.VENDOR_SIM_URL} />}
         </div>
+        {health && (
+          <>
+            <CallsCard health={health} />
+            <div style={{ height: 16 }} />
+            <DeereCard
+              health={health}
+              publicUrl={cfg.PUBLIC_URL}
+              simOrgs={simOrgs}
+              simOrgsError={simOrgsError}
+            />
+            <div style={{ height: 16 }} />
+          </>
+        )}
         {snap && (
           <>
             <StreamsCard snap={snap} now={now} />
             <div style={{ height: 16 }} />
             <JobsCard snap={snap} now={now} />
             <div style={{ height: 16 }} />
-            <DeadCard snap={snap} now={now} />
+            <DeadLettersCard snap={snap} now={now} />
           </>
         )}
         <div style={{ height: 16 }} />
-        <section className={css.card}>
-          <h2>Configuration</h2>
-          {cfg.connectorAliasNotes.map((n) => (
-            <div key={n.message} className={css.banner} data-testid="connector-alias-warning">
-              {n.message}
-            </div>
-          ))}
-          <dl className={css.kv}>
-            {capabilityMatrix(cfg).map((row) => (
-              <Fragment key={row.connection}>
-                <dt>{row.label}</dt>
-                <dd data-testid={`connector-mode-${row.connection}`}>
-                  {row.mode}{' '}
-                  <span className={css.muted}>
-                    ({row.modeKey}
-                    {row.build === 'built' ? '' : ', client not built yet'})
-                  </span>
-                </dd>
-              </Fragment>
-            ))}
-            <dt>Weather</dt>
-            <dd>{cfg.CONNECTOR_WEATHER}</dd>
-            <dt>Deere write-back</dt>
-            <dd>{cfg.WRITEBACK_DEERE ? 'on' : 'off'}</dd>
-            <dt>Clock</dt>
-            <dd>
-              {cfg.CLOCK} (hosts {cfg.CLOCK_HOSTS.join(',')})
-            </dd>
-            <dt>Demo cadence</dt>
-            <dd>{cfg.JOBS_DEMO_CADENCE ? 'on (JOBS_DEMO_CADENCE)' : 'off'}</dd>
-            <dt>Stale after</dt>
-            <dd>
-              {cfg.FLEET_STALE_SECONDS} s (Deere {cfg.FLEET_STALE_SECONDS_DEERE} s)
-            </dd>
-            <dt>App env</dt>
-            <dd>{cfg.APP_ENV}</dd>
-          </dl>
-        </section>
+        <ConnectionsCard
+          rows={capabilityMatrix(cfg)}
+          aliasNotes={cfg.connectorAliasNotes}
+          terminalProviders={health?.terminalProviders ?? []}
+          modeNotes={[
+            { label: 'Weather', value: cfg.CONNECTOR_WEATHER },
+            { label: 'Deere write-back', value: cfg.WRITEBACK_DEERE ? 'on' : 'off' },
+            { label: 'Clock', value: `${cfg.CLOCK} (hosts ${cfg.CLOCK_HOSTS.join(',')})` },
+            {
+              label: 'Demo cadence',
+              value: cfg.JOBS_DEMO_CADENCE ? 'on (JOBS_DEMO_CADENCE)' : 'off',
+            },
+            {
+              label: 'Stale after',
+              value: `${cfg.FLEET_STALE_SECONDS} s (Deere ${cfg.FLEET_STALE_SECONDS_DEERE} s)`,
+            },
+            { label: 'App env', value: cfg.APP_ENV },
+          ]}
+        />
+        <div style={{ height: 16 }} />
+        <DocDerivedCard items={DOC_DERIVED} />
       </main>
     </NoticeProvider>
   );
