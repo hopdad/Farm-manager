@@ -222,8 +222,9 @@ SELECT/INSERT/UPDATE/DELETE on all of it. Checked by `src/db/m1f-schema.db.test.
 | `farm.operations` | `kind` text (`OPERATION_KINDS`: seeding, application, harvest, tillage), `field_id` → fields (set null; null = unmapped field, a dq row), `crop_year` int, `crop` text null (normalized, `src/domain/crops.ts`), `started_at`, `ended_at` null, `area_reported_ac` / `area_clipped_ac` numeric(12,4) null, `products` jsonb `OperationProduct[]` default `[]`, `measurements` jsonb `OperationMeasurements` default `{}`, `machine_ids` uuid[] default `{}`, `operator_party_id` → parties (set null; stays null in 1f: no party-matching rule yet), `operator_name` text null (the operator as the vendor names them: `NormalizedOperation.operatorName` → `OperationView.operatorName`), `weather` jsonb `OperationWeather` null (2b), `status` (provisional, final; default provisional), `geom` MultiPolygon null (coverage, simplified), `source`, `source_id`, `source_org` (Deere org id), `source_modified_at` (Deere `modifiedTime`) | unique (`source`, `source_id`); btree (`field_id`, `crop_year`, `started_at` desc); GiST `geom`; CHECKs kind, status, crop_year 1950-2100, `ended_at >= started_at`, areas ≥ 0 | deere-ops |
 | `farm.pins` | `kind` (`PIN_KINDS`: wet_hole, rock, tile_blowout, washout, hazard, note; default note), `field_id` → fields (set null), `geom` Geometry (CHECK: Point, LineString or Polygon), `note`, `category` (the vendor's category or label), `photo_keys` text[] (2c), `created_by` → app_users (set null), `resolved_at` (a Deere flag archived = resolved), `client_id` uuid null (offline dedupe, 2c), `read_only` bool default false, `source` default `'app'` (`deere_flag` for flags), `source_id`, `source_org`, `source_modified_at` | unique (`source`, `source_id`); unique `client_id` where not null; btree `field_id`; GiST `geom` | deere-data |
 | `farm.machine_hours` | `machine_id` → machines (cascade), `ts` (vendor time), `engine_hours` / `odometer_mi` numeric(10,1) null (at least one), `source` | PK (`machine_id`, `source`, `ts`); btree (`machine_id`, `ts` desc); CHECKs one value, values ≥ 0. Append with `on conflict do nothing` | deere-data (source `deere`, its own query), fleet-faults (**every telematics source**, source = the stat's `source`, in `upsertVehicleStat`); both keep `machines.engine_hours` / `odometer_mi` never decreasing (`greatest()`, §5.3) |
-| `farm.machine_faults` | `machine_id` → machines (cascade), `source`, `code` (`faultCodeKey()`), **1f.2 one fault model:** `system` (`FAULT_SYSTEMS`: j1939, obd2, oem), `spn` / `fmi` / `source_address` / `occurrence_count` (j1939), `dtc_state` (obd2: confirmed, pending, permanent), `oem_class` (oem: caution, fault), `lamps` jsonb `FaultLamps` null (redStop, amberWarning, protect, malfunction), `vendor_severity` (the vendor's label, verbatim); `severity` (`FAULT_SEVERITIES`: info, warning, critical), `description`, `first_seen_at`, `last_seen_at`, `cleared_at` null (= open) | unique (`machine_id`, `source`, `code`) **where `cleared_at` is null** (one open row; a code seen again after clearing opens a new row); btree (`machine_id`, `first_seen_at` desc); CHECKs severity, `last_seen_at >= first_seen_at`, `cleared_at >= first_seen_at`, and `machine_faults_system_check` (each system's fields only on its rows; spn and fmi exactly on j1939 rows, SPN ≤ 524287, FMI ≤ 31, address ≤ 255, lamps an object). **Oct 31:** re-running 0007 over a first-cut row fills `spn`/`fmi` from a `J1939 SPN <n> FMI <n>` key in range, else files it as `oem` (checked in a scratch database) | fleet-faults |
-| `farm.machine_state` + | `fault_codes` jsonb `ActiveFaultCode[]` default `[]` (worst first; 1f.2: the system fields optional), `faults_at` (vendor time of the fault event it reflects: **an older event never overwrites a newer one**), `stats_at` (vendor time of the stat `fuel_pct` came from: the same guard for fuel), **Oct 31** `def_pct` double precision null (DEF 0-100, guarded by `stats_at` like fuel), `position_vendor` text null (**1f.2: any vendor id**, `positionVendorId(source, provider)`: `samsara`, `geotab`, `cnh`, `aemp_kubota`, …; labelled by the registry, src/connectors/vendors.ts), **1f.2** `position_kind` (`POSITION_KINDS`: live, last_known; default live) | CHECK `position_vendor` null or `~ '^[a-z][a-z0-9_]{1,30}$'` (a format, so a new vendor needs no migration); CHECK `position_kind`; CHECK `jsonb_typeof(fault_codes) = 'array'` | fleet-faults (the foundation's `upsertPosition` already writes `position_vendor` and `position_kind`) |
+| `farm.machine_faults` | `machine_id` → machines (cascade), `source`, `code` (`faultCodeKey()`), **1f.2 one fault model:** `system` (`FAULT_SYSTEMS`: j1939, obd2, oem), `spn` / `fmi` / `source_address` / `occurrence_count` (j1939), `dtc_state` (obd2: confirmed, pending, permanent), `oem_class` (oem: caution, fault), `lamps` jsonb `FaultLamps` null (redStop, amberWarning, protect, malfunction), `vendor_severity` (the vendor's label, verbatim); `severity` (`FAULT_SEVERITIES`: info, warning, critical), `description`, `first_seen_at`, `last_seen_at`, `cleared_at` null (= open); **1f review round 2:** `closed_by` null / `off` / `mode` (`FAULT_CLOSED_BY`: why a mode change closed it, §5.3) | unique (`machine_id`, `source`, `code`) **where `cleared_at` is null** (one open row; a code seen again after clearing opens a new row); btree (`machine_id`, `first_seen_at` desc); CHECKs severity, `last_seen_at >= first_seen_at`, `cleared_at >= first_seen_at`, and `machine_faults_system_check` (each system's fields only on its rows; spn and fmi exactly on j1939 rows, SPN ≤ 524287, FMI ≤ 31, address ≤ 255, lamps an object). **Oct 31:** re-running 0007 over a first-cut row fills `spn`/`fmi` from a `J1939 SPN <n> FMI <n>` key in range, else files it as `oem` (checked in a scratch database); **1f review round 2:** CHECK `closed_by` null, or `off`/`mode` on a closed row | fleet-faults |
+| `farm.machine_fault_snapshots` (**1f review round 2**) | `machine_id` → machines (cascade), `source`, `reported_at` (vendor time of the newest snapshot report that source applied for the machine: the snapshot time guard), `updated_at` | pk (`machine_id`, `source`); created once with a backfill from the old per-machine guard (`faults_at`, or the newest `machine_faults` time) for every source the machine has a ref for | fleet-faults |
+| `farm.machine_state` + | `fault_codes` jsonb `ActiveFaultCode[]` default `[]` (worst first; 1f.2: the system fields optional), `faults_at` (vendor time of the newest fault report applied; **1f review round 2:** informational, the snapshot guard moved to `farm.machine_fault_snapshots`, one row per machine and source), `stats_at` (vendor time of the stat `fuel_pct` came from: the same guard for fuel), **Oct 31** `def_pct` double precision null (DEF 0-100, guarded by `stats_at` like fuel), `position_vendor` text null (**1f.2: any vendor id**, `positionVendorId(source, provider)`: `samsara`, `geotab`, `cnh`, `aemp_kubota`, …; labelled by the registry, src/connectors/vendors.ts), **1f.2** `position_kind` (`POSITION_KINDS`: live, last_known; default live) | CHECK `position_vendor` null or `~ '^[a-z][a-z0-9_]{1,30}$'` (a format, so a new vendor needs no migration); CHECK `position_kind`; CHECK `jsonb_typeof(fault_codes) = 'array'` | fleet-faults (the foundation's `upsertPosition` already writes `position_vendor` and `position_kind`) |
 | `farm.machines` + (**1f.2**) | `telematics_via` text null (how the vendor gets the data: `ford_pro`, `stellantis`, `gateway`, `obd_device`; any id of the vendor-id format), `kind_set_by` (`KIND_SET_BY`: default, vendor, admin; default `default`); `kind` gains **`service_truck`** and **`loader`** | CHECKs `machines_telematics_via_check` (format), `machines_kind_set_by_check`, `machines_kind_check` (re-added with the two kinds) | terminal-pickups (`src/db/queries/vehicles.ts`, §B.4.5; the seed writes `telematics_via` and never overwrites a kind set by a vendor or on /admin) |
 | `farm.fields` (tenure) | CHECK `fields_tenure_check` now allows **`unknown`** (`TENURES`): a field the Deere sync created, until someone sets it (decision 7; the map draws it grey, legends unchanged) | — | (deere-data writes it) |
 | `ingest.api_calls_daily` | `source`, `stream` (default `''`: calls outside a sync step and outside `withCallStream`; names in §9), `mode` (required; `COUNTED_MODES`: sim, replay, sandbox, live: the connector mode the calls went through), `day` date (**UTC**), `calls` (every HTTP attempt, retries included), `errors` (non-2xx other than 429, and attempts with no answer), `rate_limited` (429s), `updated_at` | PK (`source`, `stream`, `mode`, `day`); CHECKs mode, counts ≥ 0. Upsert `on conflict (source, stream, mode, day) do update set calls = api_calls_daily.calls + excluded.calls, …`. **Budget math reads sandbox/live rows only** (§5.5): a day of sim never counts against a real budget | sync-health |
@@ -464,7 +465,9 @@ vendors produce it):
   complete active set at `ts`, a code it no longer lists has cleared, `[]` = cleared) or
   **`delta`** (Motive, Geotab, AEMP, Terminal: each named fault carries its own `state` and times;
   codes it doesn't name are unchanged). The guard below applies per report: for a snapshot the
-  machine's `faults_at`; for a delta per fault, an item older than its open row's `last_seen_at`
+  time of the newest snapshot the **same source** applied for the machine
+  (`farm.machine_fault_snapshots`; 1f review round 2: per source, so a delta feed on the same
+  truck never makes a reading look older); for a delta per fault, an item older than its open row's `last_seen_at`
   only extends nothing and never clears; a `closed` item newer than the row sets `cleared_at`
   (= its `closedAt` or `ts`); an `open` item opens or refreshes the row (`first_seen_at` = its
   `firstSeenAt` when the vendor sends one). Both kinds then refresh `machine_state.fault_codes`
@@ -489,11 +492,26 @@ vendors produce it):
   `cleared_at` = `last_seen_at + age_out_seconds`; `machine_state.fault_codes` follows (never
   `faults_at`) and `fleet`/`invalidate` `faults` is published when the set changed. A snapshot
   code has no window (its vendor lists it while active), except the OBD-II case below.
-- **1f review, mode changes:** a faults stream whose stored mode differs from the configured one
-  (sim → live, a replay run back to sim, anything → off; AEMP with no provider serving a fault
-  series counts as off) closes every open row of its source before the stream switches
-  (`SyncStepSpec.onModeChange` → `closeSourceFaults`, `cleared_at` = the row's `last_seen_at`),
-  so the codes a stand-in or a fixture raised never outlive the mode that raised them.
+- **1f review, mode changes (reworked in round 2):** a faults stream whose stored mode differs
+  from the configured one acts before the stream switches (`SyncStepSpec.onModeChange`, in
+  `withFaultLifecycle`; `faultsModeAction` decides, the stream's `sync_state.extra.faultsMode`
+  remembers the last mode other than off):
+  - **another account** (sim, replay, sandbox, live: sim → live, a replay run back to sim, off →
+    a mode other than the one it was turned off from): `closeSourceFaults` closes every open row
+    of the source for good (`cleared_at` = the row's `last_seen_at`, `closed_by` `mode`), turns
+    suspended rows into `mode` too, and deletes the source's snapshot guards. The codes a
+    stand-in or a fixture raised never outlive the mode that raised them, and never hide the new
+    account's: Samsara's first feed call returns each vehicle's latest reading with its original
+    (older) time, and opens its codes; a delta sighting older than the close opens too (a row
+    with `closed_by` set never counts as "closed at or after" a sighting);
+  - **turned off** (anything → off; AEMP with no provider serving a fault series counts as off):
+    `suspendSourceFaults` closes the open rows as `closed_by` `off`, so no screen shows a code
+    nothing checks any more; the guards stay;
+  - **back on in the mode it was turned off from:** `resumeSourceFaults` reopens the suspended
+    rows as they were. The vendor still holds the codes that stayed active, and a restarted feed
+    won't send them again (Geotab's restarts from now; Samsara's sends a reading the guard has
+    seen); a code that cleared meanwhile clears with the next reading, its closed record or the
+    age-out.
 - **Oct 31, Samsara's OBD-II codes are per module:** a `faultCodes` reading lists OBD-II codes per
   module (`txId`), and Samsara doesn't say a reading carries every module. fleet-faults' mapper
   turns a module missing from a reading into "no change" for that module's codes (J1939 stays a
@@ -526,11 +544,11 @@ vendors produce it):
   panel's mode notices list only the connections that serve at least one machine on the panel
   (the demo otherwise reads seven notices, CNH and Terminal included).
 - Severity (decision 2, per system: `faultSeverity`) is applied by the mapper; in a `snapshot`
-  report `faultCodes: []` (no codes, no lamps) clears the machine. In the per-event transaction, with the **guard time** = `machine_state.
-  faults_at`, or while the machine has no `machine_state` row yet the newest `last_seen_at` /
-  `cleared_at` of its `machine_faults` rows:
+  report `faultCodes: []` (no codes, no lamps) clears the machine. In the per-event transaction, with the **guard time** = the
+  report source's row in `farm.machine_fault_snapshots` (1f review round 2; before it,
+  `machine_state.faults_at` for every source; no row = no guard):
   - an event **newer** than the guard updates `machine_faults` (open new codes, refresh
-    `last_seen_at`, clear the codes it no longer lists) and then `machine_state.fault_codes` /
+    `last_seen_at`, clear the codes it no longer lists), moves the guard, and then `machine_state.fault_codes` /
     `faults_at` (when the row exists); when the active set or its worst severity changed, publish
     `fleet`/`invalidate` `{ event: 'machine', reason: 'faults' }`;
   - an event **older** than the guard only extends `last_seen_at` (`greatest()`) of the open rows
@@ -538,7 +556,7 @@ vendors produce it):
   - a machine with no fix yet (no `machine_state` row) still gets its `machine_faults` rows; the
     **first position insert** (`upsertPosition` creating the row) seeds `fault_codes` from the
     open `machine_faults` rows (`sortFaultCodes`, `since` = `first_seen_at`) and `faults_at` from
-    the guard time, so the panel never misses faults `machine_faults` has open.
+    their newest time, so the panel never misses faults `machine_faults` has open.
 - Engine hours and odometer of **every telematics source** (Samsara, Motive, Geotab, AEMP, CNH,
   Terminal): `upsertVehicleStat` also appends the reading to `farm.machine_hours` (source = the
   stat's `source`, `ts` = its vendor time, `on conflict do nothing`). Both writers keep

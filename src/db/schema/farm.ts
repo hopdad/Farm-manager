@@ -41,6 +41,7 @@ import {
 } from '../../domain/farm';
 import {
   type ActiveFaultCode,
+  FAULT_CLOSED_BY,
   FAULT_SEVERITIES,
   FAULT_SYSTEMS,
   type FaultLamps,
@@ -293,11 +294,15 @@ export const machineState = farm.table(
     positionKind: text('position_kind', { enum: POSITION_KINDS }).notNull().default('live'),
     /**
      * Active fault codes (1f), worst first: the summary of the machine's open farm.machine_faults
-     * rows. '[]' = none. Updated only by a fault event newer than `faultsAt`; the first position
-     * insert seeds it from the open machine_faults rows.
+     * rows. '[]' = none. Refreshed by every fault report that changes rows (a snapshot older than
+     * its source's guard, farm.machine_fault_snapshots, changes none) and by the age-out and
+     * mode-change closes; the first position insert seeds it from the open machine_faults rows.
      */
     faultCodes: jsonb('fault_codes').$type<ActiveFaultCode[]>().notNull().default(sql`'[]'::jsonb`),
-    /** Vendor time of the fault event `faultCodes` reflects (time guard: older pages lose). */
+    /**
+     * Vendor time of the newest fault report applied (any source). Informational since the 1f
+     * review round 2: the snapshot guard is per source (farm.machine_fault_snapshots).
+     */
     faultsAt: tstz('faults_at'),
     /** Vendor time of the stat `fuelPct` (and `defPct`) came from (time guard, contracts.md open item). */
     statsAt: tstz('stats_at'),
@@ -940,6 +945,12 @@ export const machineFaults = farm.table(
     firstSeenAt: tstz('first_seen_at').notNull(),
     lastSeenAt: tstz('last_seen_at').notNull(),
     clearedAt: tstz('cleared_at'),
+    /**
+     * Set when a faults-stream mode change closed the row (1f review round 2): 'off' = the
+     * stream was turned off (the same mode coming back reopens it); 'mode' = the stream moved
+     * to another account (never reopens). Null = open, or closed by its vendor or the age-out.
+     */
+    closedBy: text('closed_by', { enum: FAULT_CLOSED_BY }),
     createdAt: tstz('created_at').notNull().defaultNow(),
     updatedAt: tstz('updated_at').notNull().defaultNow(),
   },
@@ -959,6 +970,10 @@ export const machineFaults = farm.table(
       sql`${t.ageOutSeconds} is null or ${t.ageOutSeconds} > 0`,
     ),
     check(
+      'machine_faults_closed_by_check',
+      sql`${t.closedBy} is null or (${t.closedBy} in (${inList(FAULT_CLOSED_BY)}) and ${t.clearedAt} is not null)`,
+    ),
+    check(
       'machine_faults_system_check',
       sql`${t.system} in (${inList(FAULT_SYSTEMS)})
   and (${t.system} = 'j1939') = (${t.spn} is not null and ${t.fmi} is not null)
@@ -972,4 +987,27 @@ export const machineFaults = farm.table(
   and (${t.lamps} is null or jsonb_typeof(${t.lamps}) = 'object')`,
     ),
   ],
+);
+
+/**
+ * The snapshot time guard (1f review round 2), per machine AND source: the vendor time of the
+ * newest snapshot fault report (Samsara's faultCodes) each source applied for a machine. A
+ * snapshot not newer than its own source's guard only extends the codes it names (an older page
+ * never brings a cleared code back); another source's reports never block it, and a faults-stream
+ * mode change to another account deletes the source's rows, so the stand-in's readings never
+ * block the live account's. Delta reports carry their own times and don't use it.
+ */
+export const machineFaultSnapshots = farm.table(
+  'machine_fault_snapshots',
+  {
+    machineId: uuid('machine_id')
+      .notNull()
+      .references(() => machines.id, { onDelete: 'cascade' }),
+    /** Connector source ('samsara', …). */
+    source: text('source').notNull(),
+    /** Vendor time of the newest snapshot applied. */
+    reportedAt: tstz('reported_at').notNull(),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ name: 'machine_fault_snapshots_pkey', columns: [t.machineId, t.source] })],
 );

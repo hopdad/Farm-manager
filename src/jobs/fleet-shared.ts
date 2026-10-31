@@ -10,8 +10,10 @@ import type { Config } from '../config';
 import type { ConnectorConfig } from '../connectors/endpoints';
 import type { VendorHttpOptions } from '../connectors/http';
 import {
+  CONNECTOR_MODES,
   type ConnectorSource,
   externalRefKey,
+  type Mode,
   type NormalizedPosition,
   type NormalizedVehicleStat,
   type SyncContext,
@@ -21,7 +23,13 @@ import {
 import { type Executor, exec, toDate } from '../db/exec';
 import { resolveExternalRefs } from '../db/external-refs';
 import { fleetSnapshot, upsertPosition } from '../db/queries/fleet';
-import { ageOutFaults, closeSourceFaults, type FaultCoverage } from '../db/queries/machine-faults';
+import {
+  ageOutFaults,
+  closeSourceFaults,
+  type FaultCoverage,
+  resumeSourceFaults,
+  suspendSourceFaults,
+} from '../db/queries/machine-faults';
 import type { StaleThresholds } from '../domain/fleet';
 import { publish } from '../platform/realtime/publish';
 import { detectGeofenceVisits } from './geofences';
@@ -161,10 +169,50 @@ export interface FaultsRunTrack {
   caughtUp: boolean;
 }
 
+/** What a faults stream's mode change does to its source's codes (`faultsModeAction`). */
+export type FaultsModeAction = 'switch' | 'suspend' | 'resume';
+
+/**
+ * 1f review round 2: a mode change means a different ACCOUNT only between sim, replay, sandbox
+ * and live. Turning the stream off suspends the codes (none shows while nothing checks them);
+ * turning it back on in the mode it was turned off from (`offFrom`, the stream's
+ * `extra.faultsMode`) resumes them, since the vendor still holds the codes that stayed active and
+ * a restarted feed won't send them again; any other mode is another account (`switch`). With no
+ * `offFrom` known (a stream turned off before this rule) it counts as another account.
+ */
+export function faultsModeAction(
+  change: { from: Mode; to: Mode },
+  offFrom: Mode | null,
+): FaultsModeAction {
+  if (change.to === 'off') return 'suspend';
+  if (change.from === 'off') return offFrom === change.to ? 'resume' : 'switch';
+  return 'switch';
+}
+
+/** The stream's `extra.faultsMode`: the last mode other than off it ran in (null: unknown). */
+async function storedFaultsMode(
+  ex: Executor,
+  source: string,
+  stream: string,
+): Promise<Mode | null> {
+  const r = await exec<{ m: string | null }>(
+    ex,
+    `select extra->>'faultsMode' as m from ingest.sync_state where source = $1 and stream = $2`,
+    [source, stream],
+  );
+  const m = r.rows[0]?.m ?? null;
+  return m && m !== 'off' && (CONNECTOR_MODES as readonly string[]).includes(m)
+    ? (m as Mode)
+    : null;
+}
+
 /**
  * A faults stream with the fault lifecycle around it (decision 1f-12, docs/contracts-1f.md §5.3):
- *  - a mode change (sim → live, replay → sim, → off) closes the source's open codes
- *    (`closeSourceFaults`);
+ *  - a mode change closes, suspends or resumes the source's codes (`faultsModeAction`:
+ *    `closeSourceFaults` for another account, which also drops its snapshot guards;
+ *    `suspendSourceFaults` when turned off; `resumeSourceFaults` when back on in the same mode),
+ *    and keeps the last mode other than off in the stream's `extra.faultsMode`, in one
+ *    transaction (a failed hook runs again on the next run and lands the same way);
  *  - after a successful run that caught up and left no raw event pending, the age-out sweep
  *    (`ageOutFaults`) closes the codes whose window ran out before the time the run checked their
  *    machine through. `coverage` says what the run covered (default: every machine of the source,
@@ -186,12 +234,31 @@ export function withFaultLifecycle<TRaw>(
       return r;
     },
     onModeChange: async (change, sctx) => {
-      const r = await sctx.job.db.transaction((tx) => closeSourceFaults(tx, spec.source));
-      sctx.job.log.info('faults: mode changed; the open codes of the source were closed', {
+      const r = await sctx.job.db.transaction(async (tx) => {
+        const action = faultsModeAction(
+          change,
+          await storedFaultsMode(tx, spec.source, spec.stream),
+        );
+        let cleared = 0;
+        let reopened = 0;
+        if (action === 'resume') reopened = (await resumeSourceFaults(tx, spec.source)).reopened;
+        else if (action === 'suspend')
+          cleared = (await suspendSourceFaults(tx, spec.source)).cleared;
+        else cleared = (await closeSourceFaults(tx, spec.source)).cleared;
+        await exec(
+          tx,
+          `update ingest.sync_state
+              set extra = coalesce(extra, '{}'::jsonb) || jsonb_build_object('faultsMode', $3::text)
+            where source = $1 and stream = $2`,
+          [spec.source, spec.stream, change.to === 'off' ? change.from : change.to],
+        );
+        return { action, cleared, reopened };
+      });
+      sctx.job.log.info('faults: mode changed', {
         source: spec.source,
         from: change.from,
         to: change.to,
-        cleared: r.cleared,
+        ...r,
       });
     },
     afterRun: async (result, sctx) => {

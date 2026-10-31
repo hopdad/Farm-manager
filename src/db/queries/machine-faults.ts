@@ -7,19 +7,25 @@
  * faults land through the same rules:
  *
  *  - `snapshot` reports (Samsara's faultCodes stat; the default): the complete active set at `ts`.
- *    The GUARD is the machine's `faults_at` (or, while it has no machine_state row or no faults_at
- *    yet, the newest last_seen_at / cleared_at of its machine_faults rows).
+ *    The GUARD is the time of the newest snapshot the SAME source applied for the machine
+ *    (`farm.machine_fault_snapshots`, 1f review round 2; none yet = no guard). Per source, so
+ *    another source's reports (a delta feed on the same truck) never make a reading look older,
+ *    and a mode change to another account deletes the source's guards (the stand-in's readings
+ *    must not hide the live account's current codes, which Samsara's first feed call returns with
+ *    their original, older times).
  *      newer than the guard: open the codes it names (or refresh their last_seen_at and details),
- *        clear the open codes of this source it no longer names, then refresh machine_state;
+ *        clear the open codes of this source it no longer names, move the guard, then refresh
+ *        machine_state;
  *      not newer: only extend last_seen_at (greatest) of the open rows it names. It never opens,
  *        clears or reopens a code, and never touches machine_state (so an older page can't bring
  *        a cleared code back).
  *  - `delta` reports (Motive, Geotab, AEMP, CNH, Terminal): each fault states its own state and
  *    times; codes not named are unchanged. Per fault, its time is `lastSeenAt` (open) or
  *    `closedAt` (closed), else `ts`: an open item newer than its open row refreshes it, with no
- *    open row it opens one (`first_seen_at` = its `firstSeenAt` when sent) unless the code was
- *    closed at or after that time; a closed item at or after its open row's last_seen_at clears
- *    it (`cleared_at` = that time); anything older changes nothing. Then machine_state is
+ *    open row it opens one (`first_seen_at` = its `firstSeenAt` when sent) unless its vendor
+ *    closed the code at or after that time (a row a mode change closed doesn't count: it says
+ *    nothing about the current account); a closed item at or after its open row's last_seen_at
+ *    clears it (`cleared_at` = that time); anything older changes nothing. Then machine_state is
  *    refreshed. Every row a delta item opens or refreshes keeps its age-out window
  *    (`machine_faults.age_out_seconds`, decision 1f-12): `faultAgeOutSeconds` for feeds with no
  *    cleared state (24 h), else the 7-day backstop (DELTA_FAULT_BACKSTOP_SECONDS).
@@ -29,16 +35,28 @@
  * run the job calls `ageOutFaults` with what the run covered (every machine of the source, a
  * provider or connection, or one machine) and the time it checked them through; an open row
  * whose `last_seen_at + age_out_seconds` is before that time closes (`cleared_at` = the moment
- * its window ran out, so a later sighting opens a new row). `closeSourceFaults` closes every open
- * row of a source when its faults stream changes mode (sim → live, replay → sim, → off): a
- * stand-in's or a fixture's codes never outlive the mode that raised them.
+ * its window ran out, so a later sighting opens a new row).
+ *
+ * A faults stream changing mode (1f review; round 2 for off and back): the job decides what the
+ * change means for the codes (src/jobs/fleet-shared.ts `faultsModeAction`) and calls one of
+ *  - `closeSourceFaults` (another account: sim ↔ replay ↔ sandbox ↔ live): every open row of the
+ *    source closes for good (`closed_by` 'mode'), and so does every row an earlier switch to off
+ *    suspended; the source's snapshot guards go. A stand-in's or a fixture's codes never outlive
+ *    the mode that raised them, and never hide the new account's;
+ *  - `suspendSourceFaults` (turned off): every open row closes as suspended (`closed_by` 'off'),
+ *    so no code shows while nothing is checking it; the guards stay;
+ *  - `resumeSourceFaults` (back on in the mode it was turned off from): the suspended rows reopen
+ *    as they were. The vendor still holds the codes that stayed active and a restarted feed won't
+ *    send them again (Geotab's starts from now, Samsara's sends a reading the guard has seen),
+ *    while a code that cleared meanwhile is cleared by the next reading or the age-out.
  *
  * Refreshing machine_state: `fault_codes` = the machine's open rows (every source, one entry per
  * code: the worst severity, the earliest `since`), sorted by `sortFaultCodes`; `faults_at` = the
- * newest event time. When the active set (codes and severities) changed, `fleet`/`invalidate`
- * `{ event: 'machine', reason: 'faults' }` is published in the same transaction, so the panel
- * refetches. A machine with no machine_state row (no fix yet) still gets its machine_faults rows;
- * the first position insert seeds its summary (`seedFaultSummary`, called by upsertPosition).
+ * newest event time (informational: no longer a guard). When the active set (codes and
+ * severities) changed, `fleet`/`invalidate` `{ event: 'machine', reason: 'faults' }` is
+ * published in the same transaction, so the panel refetches. A machine with no machine_state row
+ * (no fix yet) still gets its machine_faults rows; the first position insert seeds its summary
+ * (`seedFaultSummary`, called by upsertPosition).
  *
  * Per-module clearing (fleet-faults; in the contract types since the 1f merge): a snapshot may
  * say which OBD-II control modules it covers (`NormalizedVehicleStat.faultScope`) and each
@@ -62,6 +80,7 @@ import {
   type ActiveFaultCode,
   activeFaultCodeSchema,
   DELTA_FAULT_BACKSTOP_SECONDS,
+  type FaultClosedBy,
   type FaultLamps,
   type FaultSeverity,
   type FaultSystem,
@@ -157,7 +176,7 @@ async function openRows(ex: Executor, machineId: string, source: string): Promis
   return r.rows;
 }
 
-/** Newest event time any machine_faults row of the machine records (the guard with no state). */
+/** Newest event time any machine_faults row of the machine records (seeds `faults_at`). */
 async function newestRowTime(ex: Executor, machineId: string): Promise<Date | null> {
   const r = await exec<{ t: Date | string | null }>(
     ex,
@@ -263,15 +282,30 @@ function inScope(row: OpenRow, scope: FaultModuleScope | undefined): boolean {
   return row.module === null || scope.obdModules.includes(row.module);
 }
 
+/** The snapshot guard of one machine and source (null: none applied yet, or a mode change). */
+async function snapshotGuard(
+  ex: Executor,
+  machineId: string,
+  source: string,
+): Promise<Date | null> {
+  const r = await exec<{ t: Date | string }>(
+    ex,
+    `select reported_at as t from farm.machine_fault_snapshots
+      where machine_id = $1::uuid and source = $2`,
+    [machineId, source],
+  );
+  return toDate(r.rows[0]?.t ?? null);
+}
+
 async function applySnapshot(
   ex: Executor,
   machineId: string,
   s: ScopedVehicleStat,
   faults: ModuleFault[],
-  guard: Date | null,
   out: FaultReportResult,
 ): Promise<boolean> {
   const ts = new Date(s.ts);
+  const guard = await snapshotGuard(ex, machineId, s.source);
   if (guard && ts.getTime() <= guard.getTime()) {
     // Older than what the machine already reflects: extend the codes it names, nothing more.
     out.applied = 'older';
@@ -288,6 +322,14 @@ async function applySnapshot(
     return false;
   }
   out.applied = 'newer';
+  await exec(
+    ex,
+    `insert into farm.machine_fault_snapshots as g (machine_id, source, reported_at)
+     values ($1::uuid, $2, $3::timestamptz)
+     on conflict (machine_id, source) do update
+       set reported_at = greatest(g.reported_at, excluded.reported_at), updated_at = now()`,
+    [machineId, s.source, ts.toISOString()],
+  );
   const open = await openRows(ex, machineId, s.source);
   for (const f of faults) {
     const r = await upsertOpen(ex, machineId, s.source, f, ts, null);
@@ -353,11 +395,13 @@ async function applyDelta(
       }
       continue;
     }
-    // No open row: open one, unless the code was closed at or after this sighting.
+    // No open row: open one, unless its vendor closed the code at or after this sighting (a
+    // row a mode change closed says nothing about this account's vendor).
     const closed = await exec<{ t: Date | string | null }>(
       ex,
       `select max(cleared_at) as t from farm.machine_faults
-        where machine_id = $1::uuid and source = $2 and code = $3 and cleared_at is not null`,
+        where machine_id = $1::uuid and source = $2 and code = $3 and cleared_at is not null
+          and closed_by is null`,
       [machineId, s.source, f.code],
     );
     const closedAt = toDate(closed.rows[0]?.t ?? null);
@@ -445,9 +489,9 @@ export async function applyFaultReport(
   const faults = checkedFaults(s);
   await exec(ex, 'select 1 from farm.machines where id = $1::uuid for update', [machineId]);
   const st = (
-    await exec<{ fault_codes: unknown; faults_at: Date | string | null }>(
+    await exec<{ fault_codes: unknown }>(
       ex,
-      `select fault_codes, faults_at from farm.machine_state where machine_id = $1::uuid for update`,
+      `select fault_codes from farm.machine_state where machine_id = $1::uuid for update`,
       [machineId],
     )
   ).rows[0];
@@ -460,8 +504,7 @@ export async function applyFaultReport(
   };
   let touchState: boolean;
   if ((s.faultReport ?? 'snapshot') === 'snapshot') {
-    const guard = toDate(st?.faults_at ?? null) ?? (await newestRowTime(ex, machineId));
-    touchState = await applySnapshot(ex, machineId, s, faults, guard, out);
+    touchState = await applySnapshot(ex, machineId, s, faults, out);
   } else {
     await applyDelta(ex, machineId, s, faults, out);
     touchState = true;
@@ -486,8 +529,8 @@ export async function applyFaultReport(
 
 /**
  * A machine's first machine_state row (its first fix): seed `fault_codes` from its open
- * machine_faults rows and `faults_at` from the guard time (the newest last_seen_at / cleared_at),
- * so the panel never misses faults reported before the machine's first fix. Called by
+ * machine_faults rows and `faults_at` from the newest last_seen_at / cleared_at, so the panel
+ * never misses faults reported before the machine's first fix. Called by
  * upsertPosition when it created the row; a machine with no fault history is left as is.
  */
 export async function seedFaultSummary(ex: Executor, machineId: string): Promise<void> {
@@ -527,16 +570,16 @@ export interface FaultCloseResult {
 
 /**
  * Lock one machine (the order every fault writer uses: farm.machines, then machine_state), run
- * `close` for it, then refresh `machine_state.fault_codes` when something closed. `faults_at`
- * is NOT moved: it is the vendor time of the newest report, and a wall-clock close must not make
- * the next real report look older than it is.
+ * `change` for it (it returns the rows it closed or reopened), then refresh
+ * `machine_state.fault_codes` when something changed. `faults_at` is NOT moved: it is the vendor
+ * time of the newest report, and a wall-clock close must not make the next report look older.
  */
-async function closeForMachine(
+async function changeForMachine(
   ex: Executor,
   machineId: string,
-  close: () => Promise<number>,
-  out: FaultCloseResult,
-): Promise<void> {
+  change: () => Promise<number>,
+  out: { changed: number },
+): Promise<number> {
   await exec(ex, 'select 1 from farm.machines where id = $1::uuid for update', [machineId]);
   const st = (
     await exec<{ fault_codes: unknown }>(
@@ -545,9 +588,8 @@ async function closeForMachine(
       [machineId],
     )
   ).rows[0];
-  const n = await close();
-  out.cleared += n;
-  if (!n || !st) return;
+  const n = await change();
+  if (!n || !st) return n;
   const active = await activeFaultSummary(ex, machineId);
   await exec(
     ex,
@@ -559,6 +601,7 @@ async function closeForMachine(
     out.changed++;
     await publish('fleet', 'invalidate', { event: 'machine', reason: 'faults' }, ex);
   }
+  return n;
 }
 
 /**
@@ -608,7 +651,7 @@ export async function ageOutFaults(
   );
   for (const row of due.rows) {
     const through = toDate(row.through) as Date;
-    await closeForMachine(
+    out.cleared += await changeForMachine(
       ex,
       row.machine_id,
       async () =>
@@ -631,34 +674,120 @@ export async function ageOutFaults(
   return out;
 }
 
-/**
- * Close every open row of `source` (its faults stream changed mode: the codes a stand-in or a
- * replay fixture raised, or the previous account's, must not outlive that mode). `cleared_at` =
- * the row's `last_seen_at`, the last moment that mode vouched for it, so the new mode's own
- * reports of the same code (newer than that) open a fresh row.
- */
-export async function closeSourceFaults(ex: Executor, source: string): Promise<FaultCloseResult> {
-  const out: FaultCloseResult = { cleared: 0, changed: 0 };
-  const due = await exec<{ machine_id: string }>(
+/** Machines with rows of `source` matching `where` (id order: the lock order of every writer). */
+async function machinesWith(ex: Executor, source: string, where: string): Promise<string[]> {
+  const r = await exec<{ machine_id: string }>(
     ex,
     `select distinct machine_id::text as machine_id from farm.machine_faults
-      where source = $1 and cleared_at is null order by 1`,
+      where source = $1 and ${where} order by 1`,
     [source],
   );
-  for (const { machine_id } of due.rows) {
-    await closeForMachine(
+  return r.rows.map((row) => row.machine_id);
+}
+
+/** Close the open rows of `source` on every machine with one, marking them `closedBy`. */
+async function closeOpenRows(
+  ex: Executor,
+  source: string,
+  closedBy: FaultClosedBy,
+): Promise<FaultCloseResult> {
+  const out: FaultCloseResult = { cleared: 0, changed: 0 };
+  for (const machineId of await machinesWith(ex, source, 'cleared_at is null')) {
+    out.cleared += await changeForMachine(
       ex,
-      machine_id,
+      machineId,
       async () =>
         (
           await exec(
             ex,
             `update farm.machine_faults
-                set cleared_at = greatest(last_seen_at, first_seen_at), updated_at = now()
+                set cleared_at = greatest(last_seen_at, first_seen_at), closed_by = $3,
+                    updated_at = now()
               where machine_id = $1::uuid and source = $2 and cleared_at is null`,
-            [machine_id, source],
+            [machineId, source, closedBy],
           )
         ).rowCount,
+      out,
+    );
+  }
+  return out;
+}
+
+/**
+ * The faults stream of `source` moved to another account (sim, replay, sandbox, live): close
+ * every open row for good (`closed_by` 'mode', `cleared_at` = the row's `last_seen_at`, the last
+ * moment that mode vouched for it), turn the rows an earlier switch to off suspended into 'mode'
+ * too, and delete the source's snapshot guards, so the new account's first readings (Samsara
+ * returns each vehicle's latest one with its original time) and sightings (a delta item older than
+ * the close) all open their codes.
+ */
+export async function closeSourceFaults(ex: Executor, source: string): Promise<FaultCloseResult> {
+  const out = await closeOpenRows(ex, source, 'mode');
+  await exec(
+    ex,
+    `update farm.machine_faults set closed_by = 'mode', updated_at = now()
+      where source = $1 and closed_by = 'off'`,
+    [source],
+  );
+  // After the per-machine closes (machine row, then guard: the writers' lock order).
+  await exec(ex, 'delete from farm.machine_fault_snapshots where source = $1', [source]);
+  return out;
+}
+
+/**
+ * The faults stream of `source` was turned off: close every open row as suspended (`closed_by`
+ * 'off'), so the screens show no code nothing is checking any more. The snapshot guards stay:
+ * the same mode coming back (`resumeSourceFaults`) continues where it stopped.
+ */
+export function suspendSourceFaults(ex: Executor, source: string): Promise<FaultCloseResult> {
+  return closeOpenRows(ex, source, 'off');
+}
+
+export interface FaultReopenResult {
+  /** Rows reopened. */
+  reopened: number;
+  /** Machines whose active set changed (each published one `fleet`/`invalidate`). */
+  changed: number;
+}
+
+/**
+ * The faults stream of `source` is back on in the mode it was turned off from: reopen the rows
+ * the switch to off suspended, as they were (times, details, age-out window). The vendor still
+ * holds the codes that stayed active, and a restarted feed won't send them again; one that
+ * cleared meanwhile clears with the next reading (snapshot) or its closed record / the age-out
+ * (delta). A suspended row whose code has an open row again stays closed (as 'mode').
+ */
+export async function resumeSourceFaults(ex: Executor, source: string): Promise<FaultReopenResult> {
+  const out: FaultReopenResult = { reopened: 0, changed: 0 };
+  for (const machineId of await machinesWith(ex, source, `closed_by = 'off'`)) {
+    out.reopened += await changeForMachine(
+      ex,
+      machineId,
+      async () => {
+        const r = await exec(
+          ex,
+          `with pick as (
+             select distinct on (code) id from farm.machine_faults
+              where machine_id = $1::uuid and source = $2 and closed_by = 'off'
+              order by code, last_seen_at desc, id
+           )
+           update farm.machine_faults f
+              set cleared_at = null, closed_by = null, updated_at = now()
+             from pick
+            where f.id = pick.id
+              and not exists (select 1 from farm.machine_faults o
+                               where o.machine_id = f.machine_id and o.source = f.source
+                                 and o.code = f.code and o.cleared_at is null)`,
+          [machineId, source],
+        );
+        await exec(
+          ex,
+          `update farm.machine_faults set closed_by = 'mode', updated_at = now()
+            where machine_id = $1::uuid and source = $2 and closed_by = 'off'`,
+          [machineId, source],
+        );
+        return r.rowCount;
+      },
       out,
     );
   }

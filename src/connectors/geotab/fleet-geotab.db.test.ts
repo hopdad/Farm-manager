@@ -4,7 +4,9 @@
  * frozen writers. The session lives in ingest.oauth_tokens (source `geotab`, encrypted) and is
  * reused by the next run (one Authenticate); each entity type resumes from its own stored
  * toVersion; StatusData lands only our diagnostics; H2 gets its vendor id, engine hours and
- * odometer; the limited-scope fallback says so in sync_state.extra.
+ * odometer; the limited-scope fallback says so in sync_state.extra. 1f review round 2: off and
+ * back to sim brings back the code the stand-in still lists as active (the restarted feed won't
+ * send it again); a switch to replay closes it for good.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createFleetGeotabJob } from '../../jobs/fleet-geotab';
@@ -62,6 +64,22 @@ async function state() {
   );
   return r.rows[0];
 }
+/** The Geotab rows of machine_faults (oldest first) and the panel summary of H2. */
+const geotabFaults = async () =>
+  (
+    await t().pool.query(
+      `select code, cleared_at is null as open, closed_by from farm.machine_faults
+        where source = 'geotab' order by first_seen_at, code`,
+    )
+  ).rows;
+const panelCodes = async () => {
+  const r = await t().pool.query(
+    `select fault_codes from farm.machine_state where machine_id = $1`,
+    [h2?.id],
+  );
+  const codes = (r.rows[0]?.fault_codes ?? []) as { code: string; severity: string }[];
+  return codes.map((f) => [f.code, f.severity]);
+};
 const cursorOf = async (stream: string) =>
   (
     await t().pool.query(
@@ -209,6 +227,29 @@ describe('fleet.geotab (sim)', () => {
     expect(ids.rows.map((r) => r.id)).toEqual([H2_ID]);
     expect(await geotab({ CONNECTOR_GEOTAB: 'off' })(ctx())).toEqual({ items: 0, note: 'off' });
   });
+
+  test('off and back to sim: the code the stand-in still lists as active comes back', async () => {
+    // The run with CONNECTOR_GEOTAB=off (above) suspended the knob's code: no screen shows it.
+    expect(await geotabFaults()).toMatchObject([
+      { code: 'J1939 SPN 110 FMI 0', open: false, closed_by: 'off' },
+    ]);
+    expect(await panelCodes()).toEqual([]);
+    expect((await simStatus()).faults).toMatchObject([{ kind: 'j1939', state: 'Active' }]);
+    // Back on in the same mode: the feed restarts from now and won't send the record again, so
+    // the code reopens as it was, and stays open run after run while MyGeotab says Active.
+    for (let i = 0; i < 4; i++) {
+      offset += 10_000;
+      await geotab()(ctx());
+      expect(await geotabFaults()).toMatchObject([
+        { code: 'J1939 SPN 110 FMI 0', open: true, closed_by: null },
+      ]);
+      expect(await panelCodes()).toEqual([['J1939 SPN 110 FMI 0', 'critical']]);
+    }
+    const mode = await t().pool.query(
+      `select extra->>'faultsMode' as m from ingest.sync_state where source = 'geotab' and stream = 'faults'`,
+    );
+    expect(mode.rows[0]?.m).toBe('sim');
+  });
 });
 
 describe('fleet.geotab (replay)', () => {
@@ -218,6 +259,12 @@ describe('fleet.geotab (replay)', () => {
     await t().admin.query(`update ingest.sync_state set cursor = null where source = 'geotab'`);
     const r = await geotab({ CONNECTOR_GEOTAB: 'replay' })(ctx());
     expect(r.items).toBeGreaterThanOrEqual(1 + 4 + 2);
+    // Another account: the stand-in's code closed for good at the switch.
+    expect(await geotabFaults()).toContainEqual({
+      code: 'J1939 SPN 110 FMI 0',
+      open: false,
+      closed_by: 'mode',
+    });
     const s = await state();
     expect(s.position_vendor).toBe('geotab');
     expect(Math.abs(s.ts.getTime() - wall().getTime())).toBeLessThan(1_000);

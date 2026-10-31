@@ -16,9 +16,11 @@
 --                 set by hand yet: decision 7)
 --   fleet-faults  farm.machine_faults (fault code history, one model for J1939, OBD-II and OEM
 --                 codes; `module`, the OBD-II control module, folded in from fleet-faults'
---                 db/pending at the 1f merge); farm.machine_state.fault_codes / faults_at (current summary + time
---                 guard), stats_at (fuel time guard), position_vendor (per-machine vendor badge),
---                 position_kind (live trail point or last-known snapshot)
+--                 db/pending at the 1f merge); farm.machine_fault_snapshots (the snapshot time
+--                 guard per machine and source); farm.machine_state.fault_codes / faults_at
+--                 (current summary + its time), stats_at (fuel time guard), position_vendor
+--                 (per-machine vendor badge), position_kind (live trail point or last-known
+--                 snapshot)
 --   1f.2          multi-vendor telematics (docs/contracts-1f.md part B, amended in place while
 --                 0007 is unmerged): position_vendor takes any vendor id of a fixed format (the
 --                 code registry src/connectors/vendors.ts labels it, no migration per vendor);
@@ -272,6 +274,19 @@ alter table farm.machine_faults drop constraint if exists machine_faults_age_out
 alter table farm.machine_faults add constraint machine_faults_age_out_check
   check (age_out_seconds is null or age_out_seconds > 0);
 --> statement-breakpoint
+-- closed_by: why a row closed when neither its vendor nor the age-out closed it (1f review,
+-- round 2; the fault writer's mode-change functions): 'off' = its source's faults stream was
+-- turned off, and the same mode coming back reopens it (the vendor still holds the codes that
+-- stayed active, and a restarted feed won't send them again); 'mode' = the stream moved to
+-- another account (sim, replay, sandbox, live), so it never reopens and never counts as closed
+-- by the new account's vendor. Null = open, or closed by its vendor or the age-out.
+alter table farm.machine_faults add column if not exists closed_by text;
+--> statement-breakpoint
+alter table farm.machine_faults drop constraint if exists machine_faults_closed_by_check;
+--> statement-breakpoint
+alter table farm.machine_faults add constraint machine_faults_closed_by_check
+  check (closed_by is null or (closed_by in ('off', 'mode') and cleared_at is not null));
+--> statement-breakpoint
 -- A database that ran fleet-faults' db/pending side table converges: its modules move into the
 -- column and the table goes.
 do $$
@@ -309,8 +324,9 @@ create index if not exists machine_faults_machine_id_first_seen_at_idx
 
 -- machine_state: the connector source of the latest fix (the per-machine "Samsara · sim"
 -- badge), the active fault codes (ActiveFaultCode[], worst first) with the vendor time of the
--- event they reflect (an older page never brings a cleared fault back), and the vendor time of
--- the stat fuel_pct came from (the time guard contracts.md listed as open).
+-- newest fault report applied (informational: the snapshot guard is per source,
+-- farm.machine_fault_snapshots), and the vendor time of the stat fuel_pct came from (the time
+-- guard contracts.md listed as open).
 alter table farm.machine_state add column if not exists position_vendor text;
 --> statement-breakpoint
 alter table farm.machine_state add column if not exists fault_codes jsonb default '[]'::jsonb not null;
@@ -345,6 +361,41 @@ alter table farm.machine_state drop constraint if exists machine_state_fault_cod
 --> statement-breakpoint
 alter table farm.machine_state add constraint machine_state_fault_codes_check
   check (jsonb_typeof(fault_codes) = 'array');
+--> statement-breakpoint
+
+-- The snapshot time guard (1f review, round 2), per machine AND source: the vendor time of the
+-- newest snapshot fault report (Samsara's faultCodes) each source applied for a machine. A
+-- snapshot not newer than its own source's guard only extends the codes it names (an older page
+-- never brings a cleared code back); another source's reports never block it, and a faults-stream
+-- mode change to another account deletes the source's rows (the stand-in's readings must not
+-- make the live account's current codes look older). Delta reports carry their own times.
+-- A database whose faults ran under the earlier per-machine guard (machine_state.faults_at, or
+-- before the first fix the newest machine_faults time) starts every source the machine has a
+-- ref for from that guard, once, when the table is created.
+do $$
+begin
+  if to_regclass('farm.machine_fault_snapshots') is null then
+    create table farm.machine_fault_snapshots (
+      machine_id uuid not null,
+      source text not null,
+      reported_at timestamp with time zone not null,
+      updated_at timestamp with time zone default now() not null,
+      constraint machine_fault_snapshots_pkey primary key (machine_id, source)
+    );
+    insert into farm.machine_fault_snapshots (machine_id, source, reported_at)
+    select g.machine_id, r.source, g.t
+      from (select m.id as machine_id,
+                   coalesce(s.faults_at,
+                            (select greatest(max(f.last_seen_at), max(f.cleared_at))
+                               from farm.machine_faults f where f.machine_id = m.id)) as t
+              from farm.machines m
+              left join farm.machine_state s on s.machine_id = m.id) g
+      join (select distinct entity_id, source from ingest.external_refs
+             where kind = 'machine') r on r.entity_id = g.machine_id
+     where g.t is not null
+    on conflict (machine_id, source) do nothing;
+  end if;
+end $$;
 --> statement-breakpoint
 
 -- ============================================================================================
@@ -415,6 +466,8 @@ begin
       ('farm.machine_hours', 'machine_hours_machine_id_machines_id_fk',
        'foreign key (machine_id) references farm.machines (id) on delete cascade'),
       ('farm.machine_faults', 'machine_faults_machine_id_machines_id_fk',
+       'foreign key (machine_id) references farm.machines (id) on delete cascade'),
+      ('farm.machine_fault_snapshots', 'machine_fault_snapshots_machine_id_machines_id_fk',
        'foreign key (machine_id) references farm.machines (id) on delete cascade')
     ) as t(tbl, name, def)
   loop
@@ -442,7 +495,13 @@ comment on table farm.machine_hours is 'Engine hours and odometer readings over 
 --> statement-breakpoint
 comment on table farm.machine_faults is 'Fault code history in one model (1f.2: J1939 SPN/FMI with lamps, OBD-II DTCs, OEM caution/fault codes); one open row per machine, source and code.';
 --> statement-breakpoint
-comment on column farm.machine_state.fault_codes is 'Active fault codes (ActiveFaultCode[], worst first); updated only by a fault event newer than faults_at; the first position insert seeds it from the open machine_faults rows.';
+comment on column farm.machine_faults.closed_by is 'Set when a faults-stream mode change closed the row: off = the stream was turned off (the same mode coming back reopens it); mode = the stream moved to another account (never reopens). Null = open, or closed by its vendor or the age-out.';
+--> statement-breakpoint
+comment on table farm.machine_fault_snapshots is 'Snapshot fault report time guard per machine and source: the vendor time of the newest snapshot each source applied (an older page never brings a cleared code back); a mode change to another account deletes the source rows.';
+--> statement-breakpoint
+comment on column farm.machine_state.fault_codes is 'Active fault codes (ActiveFaultCode[], worst first), the summary of the open machine_faults rows; refreshed by each fault report or close that changes them; the first position insert seeds it.';
+--> statement-breakpoint
+comment on column farm.machine_state.faults_at is 'Vendor time of the newest fault report applied (any source); informational, the snapshot guard is farm.machine_fault_snapshots.';
 --> statement-breakpoint
 comment on column farm.machine_state.position_vendor is 'Vendor id of the latest fix (samsara, motive, geotab, deere, cnh, aemp_<provider>, …; labelled by src/connectors/vendors.ts); null for manual fixes and rows older than 0007.';
 --> statement-breakpoint

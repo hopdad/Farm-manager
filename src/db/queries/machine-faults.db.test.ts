@@ -5,7 +5,10 @@
  * delta reports (open, refresh, close, an older item that changes nothing), the age-out sweep
  * against the time a run checked the machine through (no later sighting needed; occurrences in
  * any order; the backstop for vendors that send `closed`), Samsara's per-module OBD-II clearing
- * (a module left out ages out), and a mode change closing the source's codes.
+ * (a module left out ages out), and a mode change closing the source's codes. 1f review round 2:
+ * the snapshot guard is per machine and source (another source never makes a reading look
+ * older; a switch to another account drops it, so the live account's first, older readings open
+ * their codes), and off and back to the same mode suspends and then reopens the codes.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { listenAppEvents } from '../../connectors/testkit';
@@ -27,7 +30,9 @@ import {
   faultSetChanged,
   type ModuleFault,
   parseStoredFaults,
+  resumeSourceFaults,
   type ScopedVehicleStat,
+  suspendSourceFaults,
 } from './machine-faults';
 
 const t = setupTestDb(import.meta.url);
@@ -123,6 +128,7 @@ interface FaultRow {
   last_seen_at: Date;
   cleared_at: Date | null;
   age_out_seconds: number | null;
+  closed_by: string | null;
 }
 
 async function rows(id: string): Promise<FaultRow[]> {
@@ -130,7 +136,7 @@ async function rows(id: string): Promise<FaultRow[]> {
     await t().pool.query<FaultRow>(
       `select code, source, system, spn, fmi, source_address, occurrence_count, dtc_state,
               oem_class, module, lamps, severity, vendor_severity, description, first_seen_at,
-              last_seen_at, cleared_at, age_out_seconds
+              last_seen_at, cleared_at, age_out_seconds, closed_by
          from farm.machine_faults where machine_id = $1 order by first_seen_at, code`,
       [id],
     )
@@ -144,6 +150,15 @@ async function state(id: string) {
     [id],
   );
   return r.rows[0];
+}
+
+/** The snapshot guards of a machine (source → reported_at). */
+async function guards(id: string): Promise<Record<string, string>> {
+  const r = await t().pool.query<{ source: string; reported_at: Date }>(
+    'select source, reported_at from farm.machine_fault_snapshots where machine_id = $1',
+    [id],
+  );
+  return Object.fromEntries(r.rows.map((g) => [g.source, g.reported_at.toISOString()]));
 }
 
 async function invalidatesDuring(run: () => Promise<unknown>): Promise<number> {
@@ -286,7 +301,7 @@ describe('snapshot reports (Samsara)', () => {
     ).toBe(0);
     expect(await open(id)).toHaveLength(1);
     expect(await state(id)).toBeUndefined();
-    // A second, older report while there is no state: guarded by the rows' newest time.
+    // A second, older report while there is no state: guarded by the source's snapshot guard.
     await upsertVehicleStat(t().pool, id, snapshot(0.5, []));
     expect(await open(id)).toHaveLength(1);
     await upsertPosition(t().pool, id, fix(2));
@@ -624,5 +639,142 @@ describe('delta reports (Motive, Geotab, AEMP, CNH, Terminal)', () => {
       'J1939 SPN 100 FMI 0',
       'J1939 SPN 111 FMI 0',
     ]);
+  });
+});
+
+describe('the snapshot guard per source, and mode changes (1f review round 2)', () => {
+  // The day of the stand-in: sim readings from 10 h after the live account's last ones.
+  const SIM = 600;
+  const sim = (id: string, faultCodes: ModuleFault[]) =>
+    upsertVehicleStat(t().pool, id, snapshot(SIM, faultCodes));
+
+  test('a switch to another account drops the guard: the live account’s older readings open their codes', async () => {
+    const withCode = await machine('S7');
+    const clean = await machine('S8');
+    for (const id of [withCode, clean]) await upsertPosition(t().pool, id, fix(0));
+    await sim(withCode, [j1939(110, 0)]);
+    await sim(clean, []); // no code in sim, but the stand-in's reading time still guards
+    expect(await guards(clean)).toEqual({ samsara: iso(SIM) });
+
+    // CONNECTOR_SAMSARA sim → live: the stand-in's codes close for good, its guards go.
+    const closed = await closeSourceFaults(t().pool, 'samsara');
+    expect(closed.cleared).toBeGreaterThanOrEqual(1);
+    expect(await open(withCode)).toEqual([]);
+    expect((await rows(withCode))[0]).toMatchObject({ closed_by: 'mode' });
+    expect(await guards(withCode)).toEqual({});
+    expect(await guards(clean)).toEqual({});
+
+    // Samsara's first live feed call: each truck's latest reading, recorded yesterday (older than
+    // the stand-in's), with the red-stop-lamp code. It opens; the panel shows it critical.
+    const live = [j1939(3031, 9, RED)];
+    for (const id of [withCode, clean]) {
+      const r = await applyFaultReport(t().pool, id, snapshot(60, live));
+      expect(r).toMatchObject({ applied: 'newer', opened: 1 });
+      expect(parseStoredFaults((await state(id))?.fault_codes)).toMatchObject([
+        { code: 'J1939 SPN 3031 FMI 9', severity: 'critical', since: iso(60) },
+      ]);
+      expect(await guards(id)).toEqual({ samsara: iso(60) });
+    }
+    // The live account's own guard holds again: an older page changes nothing.
+    expect(await applyFaultReport(t().pool, clean, snapshot(30, []))).toMatchObject({
+      applied: 'older',
+    });
+    expect((await open(clean)).map((r) => r.code)).toEqual(['J1939 SPN 3031 FMI 9']);
+  });
+
+  test('another source’s report never makes a snapshot look older', async () => {
+    const id = await machine('S9');
+    await upsertPosition(t().pool, id, fix(0));
+    await upsertVehicleStat(t().pool, id, snapshot(10, [j1939(110, 0)]));
+    // A delta feed on the same truck reports a newer event (machine_state.faults_at moves to it).
+    await upsertVehicleStat(t().pool, id, {
+      ...delta(100, [normalizedFault({ system: 'oem', oemCode: 'X1', lastSeenAt: iso(100) })]),
+    });
+    expect((await state(id))?.faults_at?.toISOString()).toBe(iso(100));
+    // Samsara's next reading (newer than Samsara's own last one, older than Motive's) applies.
+    expect(await applyFaultReport(t().pool, id, snapshot(50, []))).toMatchObject({
+      applied: 'newer',
+      cleared: 1,
+    });
+    expect((await open(id)).map((r) => [r.source, r.code])).toEqual([['motive', 'OEM X1']]);
+  });
+
+  test('off and back to the same mode: the codes come back as they were; the guard stays', async () => {
+    const id = await machine('H8');
+    await upsertPosition(t().pool, id, fix(0));
+    await upsertVehicleStat(t().pool, id, snapshot(10, [j1939(3031, 9, RED)]));
+    await upsertVehicleStat(t().pool, id, {
+      ...delta(10, [normalizedFault({ system: 'oem', oemCode: 'M1', lastSeenAt: iso(10) })]),
+    });
+    const summary = async () =>
+      parseStoredFaults((await state(id))?.fault_codes).map((f) => f.code);
+
+    // CONNECTOR_SAMSARA=off: no Samsara code shows while nothing checks it; Motive's stays.
+    let suspended = { cleared: 0, changed: 0 };
+    expect(
+      await invalidatesDuring(async () => {
+        suspended = await suspendSourceFaults(t().pool, 'samsara');
+      }),
+    ).toBe(suspended.changed);
+    expect(suspended.cleared).toBeGreaterThanOrEqual(1);
+    expect(await summary()).toEqual(['OEM M1']);
+    expect((await rows(id)).find((r) => r.spn === 3031)).toMatchObject({ closed_by: 'off' });
+    expect(await guards(id)).toEqual({ samsara: iso(10) });
+
+    // Back to the same mode: the truck still has the code (the vendor never cleared it).
+    let resumed = { reopened: 0, changed: 0 };
+    expect(
+      await invalidatesDuring(async () => {
+        resumed = await resumeSourceFaults(t().pool, 'samsara');
+      }),
+    ).toBe(resumed.changed);
+    expect(resumed.reopened).toBeGreaterThanOrEqual(1);
+    expect(await summary()).toEqual(['J1939 SPN 3031 FMI 9', 'OEM M1']);
+    const back = (await rows(id)).find((r) => r.spn === 3031);
+    expect(back).toMatchObject({ cleared_at: null, closed_by: null, severity: 'critical' });
+    expect(back?.first_seen_at.toISOString()).toBe(iso(10));
+    // The restarted feed's first call returns the reading already applied: it changes nothing.
+    expect(await applyFaultReport(t().pool, id, snapshot(10, [j1939(3031, 9, RED)]))).toMatchObject(
+      { applied: 'older' },
+    );
+    expect(await summary()).toEqual(['J1939 SPN 3031 FMI 9', 'OEM M1']);
+    // A newer reading after the code cleared clears it as usual.
+    await upsertVehicleStat(t().pool, id, snapshot(20, []));
+    expect(await summary()).toEqual(['OEM M1']);
+
+    // Off, then another account: the suspended codes close for good; nothing to resume.
+    await upsertVehicleStat(t().pool, id, snapshot(30, [j1939(110, 0)]));
+    await suspendSourceFaults(t().pool, 'samsara');
+    await closeSourceFaults(t().pool, 'samsara');
+    expect((await rows(id)).find((r) => r.spn === 110)).toMatchObject({ closed_by: 'mode' });
+    expect(await guards(id)).toEqual({});
+    expect((await resumeSourceFaults(t().pool, 'samsara')).reopened).toBe(0);
+    expect(await summary()).toEqual(['OEM M1']);
+  });
+
+  test('a delta sighting older than a mode-change close opens its code; a vendor close still wins', async () => {
+    const id = await machine('H9');
+    await upsertPosition(t().pool, id, { ...fix(0), source: 'motive', sourceOrg: 'co-1' });
+    const item = (code: string, min: number, state: 'open' | 'closed' = 'open') =>
+      normalizedFault({
+        system: 'oem',
+        oemCode: code,
+        state,
+        lastSeenAt: iso(min),
+        ...(state === 'closed' ? { closedAt: iso(min) } : {}),
+      });
+    // The stand-in raised A until minute 100; the switch closes it there.
+    await upsertVehicleStat(t().pool, id, delta(100, [item('A', 100)]));
+    await closeSourceFaults(t().pool, 'motive');
+    // The new account lists A as active, last seen at minute 50: it opens.
+    await upsertVehicleStat(t().pool, id, delta(50, [item('A', 50)]));
+    expect((await open(id)).map((r) => [r.code, r.last_seen_at.toISOString()])).toEqual([
+      ['OEM A', iso(50)],
+    ]);
+    // Contrast: a code its vendor closed at minute 100 stays closed for a sighting at 50.
+    await upsertVehicleStat(t().pool, id, delta(90, [item('B', 90)]));
+    await upsertVehicleStat(t().pool, id, delta(100, [item('B', 100, 'closed')]));
+    await upsertVehicleStat(t().pool, id, delta(50, [item('B', 50)]));
+    expect((await open(id)).map((r) => r.code)).toEqual(['OEM A']);
   });
 });

@@ -1603,6 +1603,67 @@
       },
       "isRLSEnabled": false
     },
+    "farm.machine_fault_snapshots": {
+      "name": "machine_fault_snapshots",
+      "schema": "farm",
+      "columns": {
+        "machine_id": {
+          "name": "machine_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reported_at": {
+          "name": "reported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "machine_fault_snapshots_machine_id_machines_id_fk": {
+          "name": "machine_fault_snapshots_machine_id_machines_id_fk",
+          "tableFrom": "machine_fault_snapshots",
+          "tableTo": "machines",
+          "schemaTo": "farm",
+          "columnsFrom": [
+            "machine_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "machine_fault_snapshots_pkey": {
+          "name": "machine_fault_snapshots_pkey",
+          "columns": [
+            "machine_id",
+            "source"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "farm.machine_faults": {
       "name": "machine_faults",
       "schema": "farm",
@@ -1728,6 +1789,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "closed_by": {
+          "name": "closed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1829,6 +1896,10 @@
         "machine_faults_age_out_check": {
           "name": "machine_faults_age_out_check",
           "value": "\"farm\".\"machine_faults\".\"age_out_seconds\" is null or \"farm\".\"machine_faults\".\"age_out_seconds\" > 0"
+        },
+        "machine_faults_closed_by_check": {
+          "name": "machine_faults_closed_by_check",
+          "value": "\"farm\".\"machine_faults\".\"closed_by\" is null or (\"farm\".\"machine_faults\".\"closed_by\" in ('off', 'mode') and \"farm\".\"machine_faults\".\"cleared_at\" is not null)"
         },
         "machine_faults_system_check": {
           "name": "machine_faults_system_check",

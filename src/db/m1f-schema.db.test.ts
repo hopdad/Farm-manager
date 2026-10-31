@@ -12,6 +12,7 @@ import {
   apiCallsDaily,
   connectorOrgs,
   fields,
+  machineFaultSnapshots,
   machineFaults,
   machineHours,
   machineState,
@@ -275,6 +276,49 @@ describe('farm.machine_hours and farm.machine_faults', () => {
           .values({ ...fault, code: 'z', ageOutSeconds: 0 }),
       ),
     ).toBe('23514');
+    // closed_by (1f review round 2): only on a closed row, 'off' or 'mode'.
+    const closedAt = new Date('2026-10-15T15:00:00Z');
+    await t()
+      .db.insert(machineFaults)
+      .values({ ...fault, code: 'w', clearedAt: closedAt, closedBy: 'off' });
+    for (const bad of [
+      { code: 'v', closedBy: 'mode' as const },
+      { code: 'u', clearedAt: closedAt, closedBy: 'vendor' as 'off' },
+    ]) {
+      expect(
+        await pgCode(
+          t()
+            .db.insert(machineFaults)
+            .values({ ...fault, ...bad }),
+        ),
+        bad.code,
+      ).toBe('23514');
+    }
+  });
+
+  test('the snapshot guard: one row per machine and source, gone with the machine', async () => {
+    const id = await machine('S9');
+    const reportedAt = new Date('2026-10-15T14:00:00Z');
+    await t()
+      .db.insert(machineFaultSnapshots)
+      .values([
+        { machineId: id, source: 'samsara', reportedAt },
+        { machineId: id, source: 'geotab', reportedAt },
+      ]);
+    expect(
+      await pgCode(
+        t()
+          .db.insert(machineFaultSnapshots)
+          .values({ machineId: id, source: 'samsara', reportedAt }),
+      ),
+    ).toBe('23505');
+    await t().admin.query('delete from farm.machines where id = $1', [id]);
+    expect(
+      await t()
+        .db.select()
+        .from(machineFaultSnapshots)
+        .where(eq(machineFaultSnapshots.machineId, id)),
+    ).toEqual([]);
   });
 
   test('machine_state gains the fault summary (default none), its time guard and the vendor', async () => {

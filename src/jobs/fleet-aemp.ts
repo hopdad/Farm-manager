@@ -200,7 +200,8 @@ export function createFleetAempJob(opts: FleetJobOptions = {}) {
     const hasSeries = mode !== 'off' && !!endpointsOrNull(mode, cfg)?.some((e) => e.faultsPath);
     if (ctx.now().getTime() < ctx.deadline.getTime() && !ctx.signal.aborted) {
       // No provider with a fault series in this mode = the faults stream is off: its mode change
-      // closes the codes an earlier mode's series raised (nothing could close them later).
+      // suspends the codes an earlier mode's series raised (nothing could close them later); they
+      // come back only if that same mode's series returns (faultsModeAction).
       const faultsSpec = withFaultLifecycle<AempFaultRaw>(
         {
           source: 'aemp',

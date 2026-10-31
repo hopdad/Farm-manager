@@ -24,7 +24,8 @@
  *
  * Storage: `farm.machine_faults` keeps the history (one open row per machine, source and code,
  * with the system columns of migration 0007); `farm.machine_state.fault_codes` the current
- * summary (`ActiveFaultCode[]`, worst first), guarded by `faults_at`. A critical fault never
+ * summary (`ActiveFaultCode[]`, worst first). A snapshot is guarded by the time of the newest
+ * snapshot the same source applied for the machine (`farm.machine_fault_snapshots`). A critical fault never
  * marks a machine down by itself: it OFFERS "Critical fault: mark down?" to a driver and above.
  *
  * Pure TS + zod. Owned by the 1f foundation (contract file).
@@ -50,6 +51,16 @@ export type OemFaultClass = (typeof OEM_FAULT_CLASSES)[number];
 /** Open = active now; closed = the vendor says it cleared (machine_faults.cleared_at set). */
 export const FAULT_STATES = ['open', 'closed'] as const;
 export type FaultState = (typeof FAULT_STATES)[number];
+
+/**
+ * Why a row closed when neither its vendor nor the age-out closed it (machine_faults.closed_by,
+ * 1f review round 2): `off` = its source's faults stream was turned off (the same mode coming
+ * back reopens it, since the vendor still holds the codes that stayed active); `mode` = the
+ * stream moved to another account (sim, replay, sandbox, live), so the row never reopens and
+ * never counts as closed by the new account's vendor.
+ */
+export const FAULT_CLOSED_BY = ['off', 'mode'] as const;
+export type FaultClosedBy = (typeof FAULT_CLOSED_BY)[number];
 
 /** J1939 SPN is 19 bits, FMI 5 bits (the CHECKs of machine_faults use the same bounds). */
 export const J1939_MAX_SPN = 524_287;

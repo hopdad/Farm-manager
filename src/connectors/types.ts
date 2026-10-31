@@ -621,8 +621,9 @@ export interface SyncStepSpec<TRaw = unknown, TNorm = unknown> {
    * Optional hook (1f review): the stream's stored mode differs from `mode` (sim → live, replay
    * → sim, anything → off). Called by runSyncStep BEFORE ensureStream switches the row (so a
    * failure here is retried by the next run), also when the new mode is 'off'. A faults stream
-   * closes its source's open codes here (`closeSourceFaults`): codes raised by a stand-in or a
-   * fixture must not outlive the mode that raised them.
+   * closes, suspends or resumes its source's codes here (src/jobs/fleet-shared.ts
+   * `withFaultLifecycle`): codes raised by a stand-in or a fixture must not outlive the mode that
+   * raised them, nor hide the next account's; off and back to the same mode keeps them.
    */
   onModeChange?(change: { from: Mode; to: Mode }, ctx: SyncContext): Promise<void>;
 }
