@@ -20,6 +20,8 @@
  * `position.vendor` is any vendor id (labelled by `vendorLabel`), `position.positionKind` says
  * live or last-known; a machine says how its vendor gets the data (`via`) and which stats its
  * route doesn't report (`notReported`: shown as "not reported", never 0).
+ *
+ * 1f review: `feeds`, the health of each connection's positions feed.
  */
 import { z } from 'zod';
 import { CONNECTOR_MODES, VEHICLE_STAT_FIELDS } from '../../connectors/types';
@@ -32,6 +34,7 @@ import {
   MACHINE_STATUSES,
   POSITION_KINDS,
   POSITION_SOURCES,
+  positionFeedSchema,
   positionVendorSchema,
 } from '../../domain/fleet';
 import { KIND_SET_BY, telematicsViaSchema } from '../../domain/vehicles';
@@ -149,6 +152,12 @@ export const fleetPanelDataSchema = z.object({
    * one mode per connection since 1f.2.
    */
   modes: panelModesSchema,
+  /**
+   * 1f review: each connection's positions feed (when it last synced OK, whether it is failing
+   * now), so the panel says "John Deere: not connected since 9:17" instead of showing working
+   * machines as parked. Absent = unknown (an older server). Ticks refresh it (`FleetTick.feeds`).
+   */
+  feeds: z.array(positionFeedSchema).optional(),
   /** What the browser needs to follow the fleet live. */
   config: z.object({
     appEnv: z.enum(['development', 'test', 'production']),

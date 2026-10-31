@@ -82,6 +82,36 @@ describe('FleetModel', () => {
     expect(at(3_600)?.stale).toBe(true);
   });
 
+  test('1f review: "Last working position" follows the Deere feed the snapshot and ticks carry', () => {
+    const wall = { now: T0 + 240_000 };
+    const m = new FleetModel({
+      staleAfterSeconds: 90,
+      deereStaleAfterSeconds: 900,
+      wallNow: () => new Date(wall.now),
+    });
+    const combine = machine({
+      kind: 'combine',
+      positionSource: 'deere_working',
+      activity: 'working',
+    });
+    const feed = (okMs: number, failing = false) => [
+      { connection: 'deere', lastOkAt: new Date(T0 + okMs).toISOString(), failing },
+    ];
+    // Breadcrumb 4 min old, but the last poll was 90 s after it: still working on the map.
+    m.applySnapshot([combine], wall.now, feed(90_000));
+    expect(m.frame(wall.now)[0]?.lastWorking).toBeUndefined();
+    expect(m.feeds).toEqual(feed(90_000));
+    // A later poll found nothing newer: stopped working (drawn faint, never stale).
+    m.applyTick([combine], wall.now, feed(230_000));
+    expect(m.frame(wall.now)[0]).toMatchObject({ lastWorking: true, stale: false });
+    // The feed fails: not "parked" any more; stale once past the Deere limit.
+    m.applyTick([combine], wall.now, feed(230_000, true));
+    expect(m.frame(wall.now)[0]?.lastWorking).toBeUndefined();
+    wall.now = T0 + 901_000;
+    m.refreshStaleness();
+    expect(m.frame(wall.now)[0]).toMatchObject({ stale: true });
+  });
+
   test('a snapshot places machines without gliding', () => {
     const m = model();
     m.applySnapshot([machine()], 0);

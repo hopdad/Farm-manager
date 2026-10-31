@@ -9,8 +9,10 @@ import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { SessionChip } from '../../app/login/_components/SessionChip';
 import { FieldPanel } from '../fields/FieldPanel';
 import { FleetPanel } from '../fleet/FleetPanel';
-import { lastWorkingText } from '../fleet/format';
+import { lastKnownText, lastWorkingText } from '../fleet/format';
 import { MachineFaultTag } from '../fleet/MachineFaultTag';
+import { faultCounts, feedNotices } from '../fleet/model';
+import { useFleetPanel } from '../fleet/useFleetPanel';
 import { TileLineDrawTool, useTileDrawStore } from '../map/draw/TileLineDrawTool';
 import type { FleetFrame } from '../map/fleet/model';
 import { KIND_COLORS, KIND_LABELS } from '../map/fleet/style';
@@ -68,6 +70,11 @@ function StatusStrip({
   const now = useNow(1000);
   const clock = now === null ? null : formatClock(new Date(now));
   const { counts, connection } = status;
+  // 1f review: a failing positions feed and the machines with critical codes, on the strip too
+  // (the panel's shared feed: no fetch or subscription of its own).
+  const { state: panel } = useFleetPanel();
+  const feedsDown = feedNotices(status.feeds ?? panel.feeds, panel.modes);
+  const faults = faultCounts(panel.machines);
   const width = useViewportWidth();
   const badScale =
     variant === 'wall' &&
@@ -99,6 +106,22 @@ function StatusStrip({
         </span>
       )}
       {counts.down > 0 && <span className={`${css.pill} ${css.pillBad}`}>{counts.down} down</span>}
+      {faults.critical > 0 && (
+        <span className={`${css.pill} ${css.pillBad}`} data-testid="fleet-critical-count">
+          {faults.critical} critical fault{faults.critical === 1 ? '' : 's'}
+        </span>
+      )}
+      {feedsDown.map((n) => (
+        <span
+          key={n.connection}
+          className={`${css.pill} ${css.pillWarn}`}
+          title={n.text}
+          data-testid="fleet-feed-down"
+          data-connection={n.connection}
+        >
+          {variant === 'wall' ? n.text : n.short}
+        </span>
+      ))}
       <span className={css.pill} title={status.error ?? undefined} data-testid="fleet-connection">
         <span
           className={`${css.led} ${connection === 'live' ? css.ledLive : connection === 'unavailable' ? css.ledBad : ''}`}
@@ -119,14 +142,29 @@ function StatusStrip({
 }
 
 function MachineDetails({ m, now }: { m: FleetFrame; now: number }) {
+  // The vendor of the fix comes with the panel's data (the shared feed; the tick doesn't carry it).
+  const { state: panel } = useFleetPanel();
+  const vendor = panel.machines.find((x) => x.id === m.id)?.position?.vendor ?? null;
   return (
     <>
-      <div>
-        {ACTIVITY_LABELS[m.activity]} · {Math.round(m.speedMph)} mph {compassPoint(m.heading)}
-      </div>
-      <div className={css.muted}>
-        Last fix {formatAge(m.ts, now)} · {SOURCE_LABELS[m.positionSource]}
-      </div>
+      {m.positionKind === 'last_known' ? (
+        // A vendor snapshot (1f review): no invented speed or heading, and say what it is.
+        <>
+          <div data-testid="machine-last-known">
+            {lastKnownText(vendor)}, {formatAge(m.ts, now)}
+          </div>
+          <div className={css.muted}>A periodic snapshot, not a live tracker</div>
+        </>
+      ) : (
+        <>
+          <div>
+            {ACTIVITY_LABELS[m.activity]} · {Math.round(m.speedMph)} mph {compassPoint(m.heading)}
+          </div>
+          <div className={css.muted}>
+            Last fix {formatAge(m.ts, now)} · {SOURCE_LABELS[m.positionSource]}
+          </div>
+        </>
+      )}
       {m.stale && <div className={css.staleTag}>Stale: no recent position</div>}
       {m.lastWorking && (
         <div className={css.muted} data-testid="machine-last-working">
@@ -151,6 +189,7 @@ function MachineCard({ m, onClose }: { m: FleetFrame; onClose(): void }) {
         </button>
       </div>
       <MachineDetails m={m} now={now} />
+      <MachineFaultTag machineId={m.id} />
     </section>
   );
 }

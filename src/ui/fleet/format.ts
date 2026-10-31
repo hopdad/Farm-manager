@@ -1,5 +1,6 @@
 /** What a fleet panel row says (pure; times in America/Detroit like the rest of the board). */
 import type { VehicleStatField } from '../../connectors/types';
+import { vendorLabel } from '../../connectors/vendors';
 import { type ActiveFaultCode, sortFaultCodes } from '../../domain/fault-codes';
 import { ACTIVITY_LABELS, formatAge, formatClock } from '../board/format';
 import { formatVehicleStat } from '../vehicles/stats';
@@ -21,6 +22,11 @@ export function lastWorkingText(ts: string, now: number): string {
   return `Last working position, ${formatAge(ts, now)}`;
 }
 
+/** "Last known position from Kubota (AEMP)" (a vendor snapshot, not a live tracker; 1f review). */
+export function lastKnownText(vendor: string | null | undefined): string {
+  return vendor ? `Last known position from ${vendorLabel(vendor)}` : 'Last known position';
+}
+
 /** Main line: what the machine is doing (or why it is down). */
 export function rowHeadline(row: PanelRow, now: number = Date.now()): string {
   const m = row.machine;
@@ -28,6 +34,9 @@ export function rowHeadline(row: PanelRow, now: number = Date.now()): string {
   if (!m.position) return 'No position yet';
   if (row.lastWorking) return lastWorkingText(m.position.ts, now);
   if (row.stale) return 'No recent position';
+  // A vendor snapshot (AEMP, CNH's hourly fleet, Terminal's latest location) has no speed or
+  // heading worth showing: say what it is (1f review), never "Idle · 0 mph".
+  if (m.position.positionKind === 'last_known') return lastKnownText(m.position.vendor);
   const speed = m.position.speedMph >= 1 ? ` · ${Math.round(m.position.speedMph)} mph` : '';
   return `${ACTIVITY_LABELS[m.position.activity]}${speed}`;
 }
@@ -91,6 +100,20 @@ export function faultBadgeText(faults: readonly ActiveFaultCode[]): string | nul
     worst.severity === 'critical' ? 'Critical' : worst.severity === 'warning' ? 'Warning' : 'Info';
   const more = sorted.length > 1 ? ` +${sorted.length - 1}` : '';
   return `${level}: ${worst.code}${more}`;
+}
+
+/** Longest description line under a fault badge (the full text stays in the title). */
+export const FAULT_DESCRIPTION_CHARS = 70;
+
+/**
+ * The worst code's plain-language meaning, shortened, for the line under the badge (1f review:
+ * a touch wall and a phone never show the title, so "J1939 SPN 110 FMI 0" alone says nothing):
+ * "Engine coolant temperature: Data valid but above normal…". Null when the vendor sent none.
+ */
+export function faultDescriptionText(faults: readonly ActiveFaultCode[]): string | null {
+  const d = sortFaultCodes(faults)[0]?.description?.replace(/\s+/g, ' ').trim();
+  if (!d) return null;
+  return d.length <= FAULT_DESCRIPTION_CHARS ? d : `${d.slice(0, FAULT_DESCRIPTION_CHARS - 1)}…`;
 }
 
 /** Every active code on its own line (the badge's title: hover on the wall, long-press on a phone). */

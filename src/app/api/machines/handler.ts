@@ -16,7 +16,7 @@ import { type Config, getConfig } from '@/config';
 import { type ConnectionModeKey, connectionModes } from '@/connectors/vendors';
 import type { Db } from '@/db/client';
 import type { Executor } from '@/db/exec';
-import { fleetPanelMachines, setMachineStatus } from '@/db/queries/fleet';
+import { fleetPanelMachines, positionFeeds, setMachineStatus } from '@/db/queries/fleet';
 import { isUuid } from '@/domain/ids';
 import { authErrorResponse, requireRole } from '@/platform/auth/server';
 import { ROLE_FOR, roleAtLeast } from '@/platform/auth/types';
@@ -62,11 +62,13 @@ export async function handleListMachines(
   }
   try {
     const c = cfg();
+    const [machines, feeds] = await Promise.all([fleetPanelMachines(ex), positionFeeds(ex)]);
     const body: FleetPanelData = {
       builtAt: now.toISOString(),
-      machines: await fleetPanelMachines(ex),
+      machines,
       canMarkDown: roleAtLeast(role, ROLE_FOR.markMachineDown),
       modes: connectionModes(c),
+      feeds,
       config: {
         appEnv: c.APP_ENV,
         realtime: c.NEXT_PUBLIC_REALTIME,

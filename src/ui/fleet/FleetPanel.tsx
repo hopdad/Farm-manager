@@ -12,6 +12,8 @@
  * machine that isn't down, "Critical fault: mark down?" to drivers and up: it opens the status
  * sheet with the reason filled in (never automatic; viewers and the wall see the badge only).
  * A Deere-only machine that stopped working reads "Last working position, N min ago".
+ * 1f review: machines with critical, then warning codes lead their group; the summary counts
+ * them; a failing positions feed reads "John Deere: not connected since 9:17" above the list.
  *
  *  - wall: a column docked on the left of the map, 72 px touch targets, collapsible.
  *  - phone: a "Fleet" button over the map opening a full-height sheet.
@@ -24,11 +26,21 @@ import { KIND_COLORS } from '../map/fleet/style';
 import { VehicleKindBadge } from '../vehicles/KindBadge';
 import type { FleetPanelData, MachineStatusResult, PanelMachine } from './contract';
 import css from './fleet-panel.module.css';
-import { faultBadgeText, faultListText, rowAge, rowDetail, rowHeadline, rowStats } from './format';
+import {
+  faultBadgeText,
+  faultDescriptionText,
+  faultListText,
+  rowAge,
+  rowDetail,
+  rowHeadline,
+  rowStats,
+} from './format';
 import {
   criticalFault,
   FLEET_GROUPS,
   type FleetGroup,
+  faultCounts,
+  feedNotices,
   GROUP_LABELS,
   groupMachines,
   markDownReason,
@@ -72,6 +84,7 @@ function Row(props: {
   const headline = rowHeadline(row, now);
   const worst = worstFault(m);
   const faultText = worst ? faultBadgeText(m.faults ?? []) : null;
+  const faultDesc = worst ? faultDescriptionText(m.faults ?? []) : null;
   const critical = offersMarkDown(m, props.canMarkDown) ? criticalFault(m) : null;
   return (
     <li
@@ -133,6 +146,11 @@ function Row(props: {
               data-testid="fleet-fault-badge"
             >
               {faultText}
+              {faultDesc && (
+                <span className={css.faultDesc} data-testid="fleet-fault-description">
+                  {faultDesc}
+                </span>
+              )}
             </span>
           ) : m.faultsNotReported ? (
             <span className={css.faultsUnknown} data-testid="fleet-faults-not-reported">
@@ -209,8 +227,15 @@ export function FleetPanel({ variant, onLocate }: FleetPanelProps) {
   const now = useNow(5_000);
   const [open, setOpen] = useState(variant === 'wall');
   const [editing, setEditing] = useState<{ machine: PanelMachine; reason?: string } | null>(null);
-  const groups = groupMachines(state.machines, new Date(now), thresholdsOf(state.config));
+  const groups = groupMachines(
+    state.machines,
+    new Date(now),
+    thresholdsOf(state.config),
+    state.feeds,
+  );
   const notices = modeNotices(state.modes, state.machines);
+  const down = feedNotices(state.feeds, state.modes, new Date(now));
+  const faults = faultCounts(state.machines);
   const edit = useCallback(
     (machine: PanelMachine, reason?: string) =>
       setEditing(reason === undefined ? { machine } : { machine, reason }),
@@ -238,6 +263,8 @@ export function FleetPanel({ variant, onLocate }: FleetPanelProps) {
   const onMap = state.machines.length - groups.unplaced.length;
   const summary = [
     `${onMap} on the map`,
+    ...(faults.critical ? [`${faults.critical} critical`] : []),
+    ...(faults.warning ? [`${faults.warning} warning${faults.warning === 1 ? '' : 's'}`] : []),
     `${groups.down.length} down`,
     `${groups.stale.length} stale`,
     ...(groups.unplaced.length ? [`${groups.unplaced.length} no position`] : []),
@@ -259,6 +286,15 @@ export function FleetPanel({ variant, onLocate }: FleetPanelProps) {
           ×
         </button>
       </header>
+      {down.length > 0 && (
+        <div className={css.feedDown} role="status" data-testid="fleet-feed-down">
+          {down.map((n) => (
+            <div key={n.connection} data-connection={n.connection}>
+              {n.text}
+            </div>
+          ))}
+        </div>
+      )}
       {notices.length > 0 && (
         <div className={css.modes} data-testid="fleet-mode-badge" title="Where positions come from">
           {notices.join(' · ')}

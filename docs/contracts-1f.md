@@ -556,6 +556,16 @@ vendors produce it):
   new breadcrumb for a while: Deere records positions only while working) shows "Last working
   position, N min ago" instead of a stale alarm; fleet-faults picks and tests the threshold. A
   failing Deere stream still shows as failing (the panel's mode notice, `/admin/connectors`).
+  **1f review:** "stopped" is judged against the Deere positions feed, not the wall clock:
+  `isLastWorking(m, now, t, feed)` is true once the feed's last OK sync came
+  `DEERE_STOPPED_WORKING_SECONDS` (180 s) or more after the newest breadcrumb, and false while
+  the feed is failing or hasn't synced OK within FLEET_STALE_SECONDS_DEERE (so a dead connection
+  turns its machines stale), and false after `DEERE_LAST_WORKING_MAX_SECONDS` (12 h). The feeds
+  come from `ingest.sync_state` (`POSITION_STREAMS` in src/connectors/vendors.ts: each
+  connection's positions stream; `positionFeeds` in src/db/queries/fleet.ts): `FleetPanelData.
+  feeds` carries every connection that isn't off; `FleetTick.feeds` (and GET /api/fleet) carries
+  Deere's and any failing one only (the tick's size limit). The panel and the status strip show a
+  failing feed as "John Deere: not connected since 9:17" (`feedNotices`).
   **fleet-faults covers the fleet panel only**: `MachineView.stale` (`src/domain/fleet.ts`), the
   map markers' stale ring (`src/ui/map/fleet/**`) and the board's machine card (`src/ui/board/**`)
   are integrator-owned and stay as they are; fleet-faults reports what they need (e.g. a "last

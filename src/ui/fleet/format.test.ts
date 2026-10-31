@@ -2,7 +2,9 @@ import { describe, expect, test } from 'vitest';
 import type { ActiveFaultCode } from '../../domain/fault-codes';
 import type { PanelMachine } from './contract';
 import {
+  FAULT_DESCRIPTION_CHARS,
   faultBadgeText,
+  faultDescriptionText,
   faultListText,
   lastWorkingText,
   rowAge,
@@ -47,6 +49,38 @@ describe('fleet panel row text', () => {
   test('moving: activity and speed; age of the fix', () => {
     expect(rowHeadline(row({}))).toBe('On the road · 45 mph');
     expect(rowAge(row({}), NOW)).toBe('Seen 30 s ago');
+  });
+
+  test('1f review: a last-known snapshot says what it is (no invented speed or heading)', () => {
+    const snap = {
+      ...base.position,
+      activity: 'idle',
+      speedMph: 0,
+      positionKind: 'last_known',
+      vendor: 'aemp_kubota',
+    } as PanelMachine['position'];
+    expect(rowHeadline(row({ position: snap }))).toBe('Last known position from Kubota (AEMP)');
+    expect(
+      rowHeadline(row({ position: { ...snap, vendor: null } as PanelMachine['position'] })),
+    ).toBe('Last known position');
+    // A stale snapshot is still "No recent position".
+    expect(rowHeadline(row({ position: snap }, true))).toBe('No recent position');
+  });
+
+  test("1f review: the worst code's meaning, shortened, for the line under the badge", () => {
+    const f = (code: string, severity: ActiveFaultCode['severity'], description: string | null) =>
+      ({ code, severity, description, since: '2026-11-30T14:00:00.000Z' }) as ActiveFaultCode;
+    expect(
+      faultDescriptionText([
+        f('P0087', 'warning', 'Fuel rail pressure low'),
+        f('J1939 SPN 110 FMI 0', 'critical', 'Engine coolant temperature:  above   normal'),
+      ]),
+    ).toBe('Engine coolant temperature: above normal');
+    expect(faultDescriptionText([f('P0087', 'warning', null)])).toBeNull();
+    expect(faultDescriptionText([])).toBeNull();
+    const long = faultDescriptionText([f('X', 'critical', 'y'.repeat(200))]) as string;
+    expect(long).toHaveLength(FAULT_DESCRIPTION_CHARS);
+    expect(long.endsWith('…')).toBe(true);
   });
 
   test('stopped, stale and never seen', () => {

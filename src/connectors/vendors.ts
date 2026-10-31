@@ -64,6 +64,20 @@ export const CONNECTIONS = [
 ] as const;
 export type Connection = (typeof CONNECTIONS)[number];
 
+/**
+ * Each connection's positions stream (ingest.sync_state source/stream): the feed whose health
+ * the screens show (1f review: a dead connection must not look like parked machines).
+ */
+export const POSITION_STREAMS = {
+  deere: { source: 'deere', stream: 'locations' },
+  samsara: { source: 'samsara', stream: 'positions' },
+  motive: { source: 'motive', stream: 'positions' },
+  geotab: { source: 'geotab', stream: 'positions' },
+  aemp: { source: 'aemp', stream: 'fleet' },
+  cnh: { source: 'cnh', stream: 'positions' },
+  terminal: { source: 'terminal', stream: 'positions' },
+} as const satisfies Record<Connection, { source: string; stream: string }>;
+
 /** The config key of each connection's mode. */
 export const CONNECTION_MODE_KEYS = {
   deere: 'CONNECTOR_DEERE',

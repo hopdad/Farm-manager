@@ -8,6 +8,8 @@ import {
   criticalFault,
   DEERE_STOPPED_WORKING_SECONDS,
   deereStoppedWorkingSeconds,
+  faultCounts,
+  feedNotices,
   groupMachines,
   groupOf,
   initialPanelState,
@@ -419,5 +421,111 @@ describe('1f: the vendor badge and faults', () => {
     expect(next?.faults).toEqual(m.faults);
     expect(next?.engineHours).toBe(4312);
     expect(next?.position?.vendor).toBe('samsara');
+  });
+
+  // ---- 1f review --------------------------------------------------------------------------
+
+  test('a working Deere machine stays working between polls; a failing Deere feed is not "parked"', () => {
+    const deere = (age: number) =>
+      machine(1, 'C1', {
+        kind: 'combine',
+        position: {
+          ...BASE_POS,
+          activity: 'working',
+          positionSource: 'deere_working',
+          ts: ago(age),
+        },
+      });
+    const feed = (okAgo: number | null, failing = false) => [
+      { connection: 'deere', lastOkAt: okAgo === null ? null : ago(okAgo), failing },
+    ];
+    // Last poll 150 s ago saw a breadcrumb 90 s older than the poll: still working 4 min on
+    // (a paced fleet.deere hasn't polled again), not "Last working position".
+    expect(groupOf(deere(240), NOW, TH, feed(150)).group).toBe('moving');
+    // The next poll (10 s ago) found nothing newer: it stopped.
+    expect(groupOf(deere(240), NOW, TH, feed(10))).toEqual({
+      group: 'idle',
+      stale: false,
+      lastWorking: true,
+    });
+    // The Deere token was revoked: runs fail. Within FLEET_STALE_SECONDS_DEERE the machine still
+    // shows its fix; past it, stale (no longer "parked at its last field").
+    expect(groupOf(deere(240), NOW, TH, feed(150, true)).group).toBe('moving');
+    expect(groupOf(deere(1000), NOW, TH, feed(300, true))).toEqual({
+      group: 'stale',
+      stale: true,
+      lastWorking: false,
+    });
+    // The job not running at all (no OK sync within the Deere stale limit): the same.
+    expect(groupOf(deere(1000), NOW, TH, feed(950)).group).toBe('stale');
+  });
+
+  test('machines with critical, then warning codes lead their group; faultCounts', () => {
+    const rows = groupMachines(
+      [
+        machine(1, 'C1'),
+        machine(2, 'H1', { faults: [fault('P0217', 'info')] }),
+        machine(3, 'H2', { faults: [fault('J1939 SPN 110 FMI 0', 'critical')] }),
+        machine(4, 'S2', { faults: [fault('P0087', 'warning')] }),
+        machine(5, 'S3', { faults: [fault('J1939 SPN 100 FMI 1', 'critical')] }),
+        machine(6, 'S4', {
+          status: 'down',
+          downReason: 'x',
+          faults: [fault('J1939 SPN 111 FMI 0', 'critical')],
+        }),
+      ],
+      NOW,
+      TH,
+    );
+    expect(rows.moving.map((r) => r.machine.unitNo)).toEqual(['H2', 'S3', 'S2', 'C1', 'H1']);
+    expect(
+      faultCounts([
+        machine(3, 'H2', { faults: [fault('J1939 SPN 110 FMI 0', 'critical')] }),
+        machine(4, 'S2', { faults: [fault('P0087', 'warning')] }),
+        machine(6, 'S4', { status: 'down', faults: [fault('X', 'critical')] }),
+      ]),
+    ).toEqual({ critical: 1, warning: 1 });
+  });
+
+  test('feedNotices: a failing positions feed says since when; ticks refresh the feeds', () => {
+    const modes = data([]).modes;
+    const at = '2026-11-30T14:17:00.000Z'; // 9:17 in America/Detroit
+    expect(
+      feedNotices(
+        [
+          { connection: 'deere', lastOkAt: at, failing: true },
+          { connection: 'samsara', lastOkAt: at, failing: false },
+          { connection: 'geotab', lastOkAt: null, failing: true }, // off: not said
+        ],
+        modes,
+        NOW,
+      ),
+    ).toEqual([
+      {
+        connection: 'deere',
+        text: 'John Deere: not connected since 9:17 AM',
+        short: 'John Deere offline',
+      },
+    ]);
+    expect(feedNotices(null, modes, NOW)).toEqual([]);
+    expect(
+      feedNotices([{ connection: 'motive', lastOkAt: null, failing: true }], modes, NOW)[0]?.text,
+    ).toBe('Motive: not connected');
+    const s = reducePanel(initialPanelState, {
+      type: 'snapshot',
+      data: data([], { feeds: [{ connection: 'deere', lastOkAt: at, failing: false }] }),
+    });
+    expect(s.feeds).toEqual([{ connection: 'deere', lastOkAt: at, failing: false }]);
+    const failing = [{ connection: 'deere', lastOkAt: at, failing: true }];
+    expect(
+      reducePanel(s, {
+        type: 'tick',
+        tick: { ts: NOW.toISOString(), machines: [], feeds: failing },
+      }).feeds,
+    ).toEqual(failing);
+    // A tick from an older server (no feeds) leaves them.
+    expect(
+      reducePanel(s, { type: 'tick', tick: { ts: NOW.toISOString(), machines: [] } }).feeds,
+    ).toEqual(s.feeds);
   });
 });

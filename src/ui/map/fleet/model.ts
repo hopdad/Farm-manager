@@ -13,11 +13,16 @@
  *    gap (an idle Deere cart starting again) doesn't stretch the glide past the next fix; jumps
  *    longer than `teleportMeters` snap. After a gap longer than `maxIntervalMs` (outage, idle
  *    machine) the machine's last regular interval is used, else the arrival estimate.
+ *  - 1f review: the positions feeds the snapshot and each tick carry (`feeds`): the Deere feed's
+ *    last OK poll decides "Last working position" (`isLastWorking`), and a failing feed is kept
+ *    for the status strip.
  */
 import {
+  deereFeedOf,
   isLastWorking,
   isMachineStale,
   type MachineView,
+  type PositionFeed,
   type StaleThresholds,
 } from '../../../domain/fleet';
 import {
@@ -102,6 +107,8 @@ export class FleetModel {
     lastKnownStaleAfterSeconds?: number;
   };
   private intervalMs: number;
+  /** 1f review: the latest positions feeds (snapshot, then ticks); null = not said yet. */
+  private feedList: PositionFeed[] | null = null;
   private lastTickAt: number | null = null;
   /** Bumped on every change that affects counts or the list (not on animation). */
   version = 0;
@@ -128,8 +135,23 @@ export class FleetModel {
     return this.machines.size;
   }
 
+  /** The positions feeds last heard of (null until a snapshot or tick said). */
+  get feeds(): PositionFeed[] | null {
+    return this.feedList;
+  }
+
+  /** Replace the feeds (a snapshot's or tick's `feeds`); undefined leaves them as they are. */
+  private takeFeeds(feeds: readonly PositionFeed[] | undefined): void {
+    if (feeds) this.feedList = [...feeds];
+  }
+
   /** Replace the fleet with a snapshot (GET /api/fleet). */
-  applySnapshot(machines: readonly MachineView[], now: number): void {
+  applySnapshot(
+    machines: readonly MachineView[],
+    now: number,
+    feeds?: readonly PositionFeed[],
+  ): void {
+    this.takeFeeds(feeds);
     const ids = new Set(machines.map((m) => m.id));
     for (const id of [...this.machines.keys()]) if (!ids.has(id)) this.machines.delete(id);
     for (const m of machines) this.upsert(m, now);
@@ -137,7 +159,8 @@ export class FleetModel {
   }
 
   /** Apply a realtime tick: upsert every machine it carries. */
-  applyTick(machines: readonly MachineView[], now: number): void {
+  applyTick(machines: readonly MachineView[], now: number, feeds?: readonly PositionFeed[]): void {
+    this.takeFeeds(feeds);
     if (this.lastTickAt !== null) {
       this.intervalMs = nextIntervalEstimate(
         this.intervalMs,
@@ -163,7 +186,7 @@ export class FleetModel {
 
   /** Stale or stopped working at wall-clock `wall` (a stopped Deere machine is never stale). */
   private stateOf(m: MachineView, wall: Date): { stale: boolean; lastWorking: boolean } {
-    const lastWorking = isLastWorking(m, wall, this.thresholds);
+    const lastWorking = isLastWorking(m, wall, this.thresholds, deereFeedOf(this.feedList));
     return { lastWorking, stale: !lastWorking && isMachineStale(m, wall, this.thresholds) };
   }
 

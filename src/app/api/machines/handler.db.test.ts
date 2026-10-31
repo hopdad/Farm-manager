@@ -6,6 +6,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import { listenAppEvents } from '@/connectors/testkit';
+import { fleetSnapshot } from '@/db/queries/fleet';
 import { makeSession, runWithSession } from '@/platform/auth/testing';
 import type { Role, Session } from '@/platform/auth/types';
 import { setupTestDb } from '@/test/db';
@@ -176,6 +177,40 @@ describe('GET /api/machines', () => {
       const data = (await list(as(role))).body as FleetPanelData;
       expect(data.canMarkDown).toBe(true);
     }
+  });
+});
+
+describe('GET /api/machines: 1f review, the positions feeds', () => {
+  test('each connection that is not off: last OK sync and whether its last run failed', async () => {
+    const ok = '2026-11-30T14:00:00.000Z';
+    const err = '2026-11-30T14:17:00.000Z';
+    await t().pool.query(
+      `insert into ingest.sync_state (source, stream, mode, last_ok_at, last_error_at, last_error)
+       values ('deere', 'locations', 'sim', $1, $2, 'deere: not connected'),
+              ('samsara', 'positions', 'sim', $2, $1, 'old'),
+              ('samsara', 'stats', 'sim', null, $2, 'not a positions stream'),
+              ('motive', 'positions', 'off', null, $2, 'off: not listed'),
+              ('aemp', 'fleet', 'sim', null, null, null)
+       on conflict (source, stream) do update
+         set mode = excluded.mode, last_ok_at = excluded.last_ok_at,
+             last_error_at = excluded.last_error_at, last_error = excluded.last_error`,
+      [ok, err],
+    );
+    const res = await list(as('viewer'));
+    expect(res.status).toBe(200);
+    expect((res.body as { feeds: unknown }).feeds).toEqual([
+      { connection: 'deere', lastOkAt: ok, failing: true },
+      { connection: 'samsara', lastOkAt: err, failing: false },
+      { connection: 'aemp', lastOkAt: null, failing: false },
+    ]);
+    // The tick carries Deere's feed and the failing ones only (its size limit).
+    const tick = await fleetSnapshot(t().pool, new Date(err), 600);
+    expect(tick.feeds).toEqual([{ connection: 'deere', lastOkAt: ok, failing: true }]);
+    await t().pool.query(
+      `delete from ingest.sync_state
+        where (source, stream) in (('deere','locations'), ('samsara','positions'),
+                                   ('samsara','stats'), ('motive','positions'), ('aemp','fleet'))`,
+    );
   });
 });
 

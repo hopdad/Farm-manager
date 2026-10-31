@@ -1,8 +1,9 @@
 'use client';
 /**
- * The fault tag on the phone's machine card (slice 1f, fleet-faults; docs/contracts-1f.md §1.2:
- * BoardScreen mounts it with one element, no layout or style change there): the tapped machine's
- * worst active code ("Critical: J1939 SPN 110 FMI 0 +1", every code in the title), "Faults not
+ * The fault tag on the machine card, wall and phone (slice 1f, fleet-faults; docs/contracts-1f.md
+ * §1.2: BoardScreen mounts it with one element, no layout or style change there): the tapped
+ * machine's worst active code ("Critical: J1939 SPN 110 FMI 0 +1", every code in the title) with
+ * its meaning on a second line (1f review: touch screens never show a title), "Faults not
  * reported" when its route reports none, else nothing.
  *
  * It reads the fleet panel's data through the shared feed (./useFleetPanel.ts), so it adds no
@@ -10,7 +11,7 @@
  * the panel.
  */
 import css from './fleet-panel.module.css';
-import { faultBadgeText, faultListText } from './format';
+import { faultBadgeText, faultDescriptionText, faultListText } from './format';
 import { worstFault } from './model';
 import { useFleetPanel, useNow } from './useFleetPanel';
 
@@ -20,6 +21,7 @@ export function MachineFaultTag({ machineId }: { machineId: string }) {
   const m = state.machines.find((x) => x.id === machineId);
   if (!m) return null;
   const worst = worstFault(m);
+  const description = faultDescriptionText(m.faults ?? []);
   if (!worst) {
     return m.faultsNotReported ? (
       <div className={css.faultTag} data-severity="none" data-testid="machine-fault-tag">
@@ -35,6 +37,11 @@ export function MachineFaultTag({ machineId }: { machineId: string }) {
       data-testid="machine-fault-tag"
     >
       {faultBadgeText(m.faults ?? [])}
+      {description && (
+        <div className={css.faultDesc} data-testid="machine-fault-description">
+          {description}
+        </div>
+      )}
     </div>
   );
 }

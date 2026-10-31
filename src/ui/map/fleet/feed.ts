@@ -85,7 +85,8 @@ export function startFleetFeed(opts: FleetFeedOptions): () => void {
         const parsed = fleetTickSchema.safeParse(await res.json());
         if (!parsed.success) throw new Error(`GET ${FLEET_SNAPSHOT_URL}: unexpected response`);
         if (disposed) return;
-        model.applySnapshot(parsed.data.machines, animationNow());
+        model.applySnapshot(parsed.data.machines, animationNow(), parsed.data.feeds);
+        model.refreshStaleness();
         loaded = true;
         offlineSince = null;
         report({ connection: 'live', lastSnapshotAt: wallNow(), error: null, offlineSince: null });
@@ -117,7 +118,8 @@ export function startFleetFeed(opts: FleetFeedOptions): () => void {
         console.warn('[fleet] ignoring a malformed tick');
         return;
       }
-      model.applyTick(parsed.data.machines, animationNow());
+      model.applyTick(parsed.data.machines, animationNow(), parsed.data.feeds);
+      model.refreshStaleness();
       offlineSince = null;
       report({ connection: 'live', lastTickAt: wallNow(), offlineSince: null });
     },

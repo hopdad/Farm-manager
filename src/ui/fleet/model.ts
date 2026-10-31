@@ -13,28 +13,41 @@
  * 1f (fleet-faults, docs/contracts-1f.md §5.3):
  *  - A Deere-only machine (latest fix `deere_working`) that stopped working: Deere records
  *    positions only while a machine works, so no new breadcrumb for a while is normal, not an
- *    alarm. Once its fix is older than `deereStoppedWorkingSeconds` (3 min, or the Deere stale
- *    threshold if that is shorter) the row says "Last working position, N min ago" in the idle
- *    group, never "stale". (The panel only: the map's stale ring and the board's machine card are
- *    the integrator's. A failing Deere stream still shows: the mode notice, /admin/connectors.)
+ *    alarm. Once a successful Deere poll came `deereStoppedWorkingSeconds` (3 min) or more after
+ *    its newest breadcrumb, the row says "Last working position, N min ago" in the idle group,
+ *    never "stale" (`isLastWorking` with the Deere feed: 1f review). A failing Deere feed shows
+ *    as failing: its machines go stale like any other, and `feedNotices` says "John Deere: not
+ *    connected since 9:17" (the panel's notice and the status strip; also /admin/connectors).
+ *  - 1f review: within each group, machines with a critical code come first, then warnings
+ *    (`faultRank`), so a fault is on the first screen of the wall; `faultCounts` for the summary
+ *    and the status strip.
  *  - `vendorBadge`: "Samsara · sim" (`vendorLabel(position.vendor)` · its connection's mode).
  *  - Faults: `worstFault`, `criticalFault` (offers "Critical fault: mark down?" to drivers and
  *    up: never automatic) and `markDownReason` (the reason the sheet opens with).
  *  - `modeNotices` lists only the connections that serve a machine on the panel.
  */
-import { CONNECTIONS, connectionEntry, connectionOf, vendorLabel } from '../../connectors/vendors';
+import {
+  CONNECTIONS,
+  type Connection,
+  connectionEntry,
+  connectionOf,
+  vendorLabel,
+} from '../../connectors/vendors';
 import { type ActiveFaultCode, severityRank, sortFaultCodes } from '../../domain/fault-codes';
 import {
   DEERE_STOPPED_WORKING_SECONDS,
+  deereFeedOf,
   deereStoppedWorkingSeconds,
   type FleetTick,
   isLastWorking,
   isMachineStale,
   type MachineView,
+  type PositionFeed,
   type PositionSource,
   type StaleThresholds,
 } from '../../domain/fleet';
 import type { MachineStatusPayload } from '../../platform/realtime/types';
+import { formatClock } from '../board/format';
 import { type FleetPanelData, MAX_DOWN_REASON_CHARS, type PanelMachine } from './contract';
 
 /**
@@ -72,6 +85,8 @@ export interface PanelState {
   error: string | null;
   /** A tick disagreed with what we know (a status we never heard about): refetch. */
   needsRefetch: boolean;
+  /** 1f review: the positions feeds (snapshot, then each tick); null = unknown. */
+  feeds: PositionFeed[] | null;
 }
 
 export const initialPanelState: PanelState = {
@@ -82,6 +97,7 @@ export const initialPanelState: PanelState = {
   config: null,
   error: null,
   needsRefetch: false,
+  feeds: null,
 };
 
 export type PanelAction =
@@ -142,6 +158,7 @@ export function reducePanel(state: PanelState, action: PanelAction): PanelState 
         config: action.data.config,
         error: null,
         needsRefetch: false,
+        feeds: action.data.feeds ?? null,
       };
     case 'tick': {
       if (!state.loaded) return state;
@@ -162,6 +179,7 @@ export function reducePanel(state: PanelState, action: PanelAction): PanelState 
         ...state,
         machines: machines.filter((m) => m.status !== 'retired'),
         needsRefetch: state.needsRefetch || odd || unknown,
+        ...(action.tick.feeds ? { feeds: action.tick.feeds } : {}),
       };
     }
     case 'machine': {
@@ -207,6 +225,7 @@ export function groupOf(
   m: PanelMachine,
   now: Date,
   thresholds: StaleThresholds,
+  feeds?: readonly PositionFeed[] | null,
 ): { group: FleetGroup; stale: boolean; lastWorking: boolean } {
   const p = m.position;
   const lastWorking =
@@ -215,6 +234,7 @@ export function groupOf(
       { ts: p.ts, positionSource: p.positionSource, positionKind: p.positionKind },
       now,
       thresholds,
+      deereFeedOf(feeds),
     );
   const stale =
     p !== null &&
@@ -232,11 +252,22 @@ export function groupOf(
   return { group: a === 'working' || a === 'transport' ? 'moving' : 'idle', stale, lastWorking };
 }
 
-/** Rows by group, each group in unit-number order. */
+/** 2 for a machine whose worst code is critical, 1 for a warning, else 0 (the row order). */
+export function faultRank(m: Pick<PanelMachine, 'faults'>): number {
+  const w = worstFault(m);
+  if (!w) return 0;
+  return w.severity === 'critical' ? 2 : w.severity === 'warning' ? 1 : 0;
+}
+
+/**
+ * Rows by group: machines with a critical code first, then warnings (1f review: a fault must be
+ * on the wall's first screen, not row 8), each part in unit-number order.
+ */
 export function groupMachines(
   machines: readonly PanelMachine[],
   now: Date,
   thresholds: StaleThresholds,
+  feeds?: readonly PositionFeed[] | null,
 ): Record<FleetGroup, PanelRow[]> {
   const out: Record<FleetGroup, PanelRow[]> = {
     moving: [],
@@ -245,9 +276,65 @@ export function groupMachines(
     stale: [],
     unplaced: [],
   };
-  for (const machine of machines) {
-    const { group, stale, lastWorking } = groupOf(machine, now, thresholds);
+  for (const machine of sortMachines([...machines])) {
+    const { group, stale, lastWorking } = groupOf(machine, now, thresholds, feeds);
     out[group].push({ machine, group, stale, lastWorking });
+  }
+  for (const g of FLEET_GROUPS) {
+    // Array.prototype.sort is stable: unit order holds within each rank.
+    out[g].sort((a, b) => faultRank(b.machine) - faultRank(a.machine));
+  }
+  return out;
+}
+
+/** Machines (not down nor retired) whose worst code is critical, and those at warning. */
+export function faultCounts(machines: readonly PanelMachine[]): {
+  critical: number;
+  warning: number;
+} {
+  let critical = 0;
+  let warning = 0;
+  for (const m of machines) {
+    if (m.status !== 'active') continue;
+    const r = faultRank(m);
+    if (r === 2) critical++;
+    else if (r === 1) warning++;
+  }
+  return { critical, warning };
+}
+
+/** A failing positions feed, as the panel's notice and the status strip say it. */
+export interface FeedNotice {
+  connection: Connection;
+  /** "John Deere: not connected since 9:17" (America/Detroit; a date when not today). */
+  text: string;
+  /** The short form for the status strip: "John Deere offline". */
+  short: string;
+}
+
+/**
+ * The failing positions feeds of the connections that aren't off (1f review): a dead Deere token
+ * or a vendor outage reads "<Vendor>: not connected since <its last OK sync>" on the panel and
+ * as a warning pill on the status strip, instead of its machines looking parked.
+ */
+export function feedNotices(
+  feeds: readonly PositionFeed[] | null,
+  modes: FleetPanelData['modes'] | null,
+  now: Date = new Date(),
+): FeedNotice[] {
+  if (!feeds) return [];
+  const out: FeedNotice[] = [];
+  for (const c of CONNECTIONS) {
+    const f = feeds.find((x) => x.connection === c);
+    if (!f?.failing || (modes && modes[c] === 'off')) continue;
+    const label = connectionEntry(c).label;
+    let since = '';
+    if (f.lastOkAt) {
+      const at = formatClock(new Date(f.lastOkAt));
+      const today = formatClock(now).date;
+      since = ` since ${at.date === today ? at.time : `${at.date} ${at.time}`}`;
+    }
+    out.push({ connection: c, text: `${label}: not connected${since}`, short: `${label} offline` });
   }
   return out;
 }

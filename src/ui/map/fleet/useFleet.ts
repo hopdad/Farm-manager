@@ -10,6 +10,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import type { PublicConfig } from '../../../config';
+import type { PositionFeed } from '../../../domain/fleet';
 import { type FleetConnection, startFleetFeed } from './feed';
 import { type FleetCounts, type FleetFrame, FleetModel } from './model';
 import { resolveRealtimeClient } from './realtime';
@@ -24,6 +25,8 @@ export interface FleetStatus {
   error: string | null;
   /** Since when (wall ms) the server can't be reached; null when fine. */
   offlineSince: number | null;
+  /** 1f review: the positions feeds (Deere's and any failing one); null until said. */
+  feeds: PositionFeed[] | null;
 }
 
 export function useFleet(opts: {
@@ -51,6 +54,7 @@ export function useFleet(opts: {
     lastTickAt: null,
     error: null,
     offlineSince: null,
+    feeds: null,
   });
 
   useEffect(
@@ -60,7 +64,13 @@ export function useFleet(opts: {
         realtime: resolveRealtimeClient({ appEnv, realtime }),
         onChange: (patch) => {
           const machines = model.frame(Number.POSITIVE_INFINITY);
-          setStatus((s) => ({ ...s, ...patch, counts: model.counts(), machines }));
+          setStatus((s) => ({
+            ...s,
+            ...patch,
+            counts: model.counts(),
+            machines,
+            feeds: model.feeds,
+          }));
         },
       }),
     [appEnv, realtime, model],

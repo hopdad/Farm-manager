@@ -32,7 +32,12 @@
  */
 
 import type { NormalizedPosition, NormalizedVehicleStat } from '../../connectors/types';
-import { faultsNotReported, statsNotReported } from '../../connectors/vendors';
+import {
+  CONNECTIONS,
+  faultsNotReported,
+  POSITION_STREAMS,
+  statsNotReported,
+} from '../../connectors/vendors';
 import {
   DEFAULT_STALE_AFTER_SECONDS,
   type FleetTick,
@@ -40,6 +45,7 @@ import {
   isPositionVendor,
   type MachineView,
   normalizeHeading,
+  type PositionFeed,
   type PositionKind,
   positionVendorId,
   type StaleThresholds,
@@ -115,13 +121,50 @@ export async function fleetMachines(
   });
 }
 
+/**
+ * The positions feed of every connection that isn't off (1f review; POSITION_STREAMS): when its
+ * positions stream last synced OK, and whether its last run failed (an error newer than its last
+ * success). A connection whose stream never ran is absent.
+ */
+export async function positionFeeds(ex: Executor): Promise<PositionFeed[]> {
+  const pairs = CONNECTIONS.map((c) => ({ c, ...POSITION_STREAMS[c] }));
+  const r = await exec<{
+    connection: string;
+    last_ok_at: Date | string | null;
+    failing: boolean;
+  }>(
+    ex,
+    `select p.c as connection, s.last_ok_at,
+            (s.last_error_at is not null
+             and (s.last_ok_at is null or s.last_error_at > s.last_ok_at)) as failing
+       from jsonb_to_recordset($1::jsonb) as p(c text, source text, stream text)
+       join ingest.sync_state s on s.source = p.source and s.stream = p.stream
+      where s.mode <> 'off'`,
+    [JSON.stringify(pairs)],
+  );
+  const order = new Map<string, number>(CONNECTIONS.map((c, i) => [c, i]));
+  return r.rows
+    .map((row) => ({
+      connection: row.connection,
+      lastOkAt: toDate(row.last_ok_at)?.toISOString() ?? null,
+      failing: row.failing,
+    }))
+    .sort((a, b) => (order.get(a.connection) ?? 99) - (order.get(b.connection) ?? 99));
+}
+
+/** The feeds a tick carries: Deere's (it decides "Last working position") and failing ones. */
+export function tickFeeds(feeds: readonly PositionFeed[]): PositionFeed[] {
+  return feeds.filter((f) => f.connection === 'deere' || f.failing);
+}
+
 /** The FleetTick body (realtime `fleet`/`tick` and GET /api/fleet). */
 export async function fleetSnapshot(
   ex: Executor,
   now: Date,
   stale: number | StaleThresholds,
 ): Promise<FleetTick> {
-  return { ts: now.toISOString(), machines: await fleetMachines(ex, now, stale) };
+  const [machines, feeds] = await Promise.all([fleetMachines(ex, now, stale), positionFeeds(ex)]);
+  return { ts: now.toISOString(), machines, feeds: tickFeeds(feeds) };
 }
 
 /** The stale thresholds from config (FLEET_STALE_SECONDS / _DEERE / _LAST_KNOWN). */
