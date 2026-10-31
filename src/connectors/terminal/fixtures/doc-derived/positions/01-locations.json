@@ -1,0 +1,1012 @@
+{
+  "format": 1,
+  "source": "terminal",
+  "stream": "positions",
+  "kind": "doc-derived",
+  "reference": "https://api.withterminal.com/tsp/openapi (GET /vehicles/locations: LatestVehicleLocation, a live call to the provider, odometer km, engine runtime ms; GET /vehicles/{vehicleId}/locations: VehicleLocation with metadata.modifiedAt; https://docs.withterminal.com/api-reference/vehicles/list-latest-vehicle-locations, https://docs.withterminal.com/api-reference/vehicles/list-historical-vehicle-locations). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "shiftStepSeconds": 1,
+  "basePath": "/tsp/v1",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/vehicles/locations"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "results": [
+            {
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T13:00:00.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "odometer": 696472.61,
+              "engineState": "off",
+              "engineRuntime": 46738177200
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/vehicles/vcl_0afec20a/locations"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "results": [
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000001",
+              "sourceId": "1001",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:50:00.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:50:10.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000002",
+              "sourceId": "1002",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:50:10.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:50:20.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000003",
+              "sourceId": "1003",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:50:20.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:50:30.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000004",
+              "sourceId": "1004",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:50:30.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:50:40.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000005",
+              "sourceId": "1005",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:50:40.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:50:50.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000006",
+              "sourceId": "1006",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:50:50.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:51:00.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000007",
+              "sourceId": "1007",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:51:00.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:51:10.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000008",
+              "sourceId": "1008",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:51:10.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:51:20.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000009",
+              "sourceId": "1009",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:51:20.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:51:30.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000010",
+              "sourceId": "1010",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:51:30.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:51:40.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000011",
+              "sourceId": "1011",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:51:40.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:51:50.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000012",
+              "sourceId": "1012",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:51:50.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:52:00.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000013",
+              "sourceId": "1013",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:52:00.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:52:10.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000014",
+              "sourceId": "1014",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:52:10.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:52:20.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000015",
+              "sourceId": "1015",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:52:20.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:52:30.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000016",
+              "sourceId": "1016",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:52:30.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:52:40.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000017",
+              "sourceId": "1017",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:52:40.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:52:50.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000018",
+              "sourceId": "1018",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:52:50.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:53:00.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000019",
+              "sourceId": "1019",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:53:00.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:53:10.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000020",
+              "sourceId": "1020",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:53:10.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:53:20.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000021",
+              "sourceId": "1021",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:53:20.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:53:30.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000022",
+              "sourceId": "1022",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:53:30.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:53:40.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000023",
+              "sourceId": "1023",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:53:40.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:53:50.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000024",
+              "sourceId": "1024",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:53:50.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:54:00.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000025",
+              "sourceId": "1025",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:54:00.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:54:10.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000026",
+              "sourceId": "1026",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:54:10.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:54:20.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000027",
+              "sourceId": "1027",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:54:20.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:54:30.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000028",
+              "sourceId": "1028",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:54:30.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:54:40.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000029",
+              "sourceId": "1029",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:54:40.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:54:50.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000030",
+              "sourceId": "1030",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:54:50.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:55:00.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000031",
+              "sourceId": "1031",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:55:00.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:55:10.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000032",
+              "sourceId": "1032",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:55:10.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:55:20.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000033",
+              "sourceId": "1033",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:55:20.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:55:30.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000034",
+              "sourceId": "1034",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:55:30.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:55:40.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000035",
+              "sourceId": "1035",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:55:40.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:55:50.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000036",
+              "sourceId": "1036",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:55:50.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:56:00.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000037",
+              "sourceId": "1037",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:56:00.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:56:10.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000038",
+              "sourceId": "1038",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:56:10.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:56:20.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000039",
+              "sourceId": "1039",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:56:20.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:56:30.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000040",
+              "sourceId": "1040",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:56:30.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:56:40.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000041",
+              "sourceId": "1041",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:56:40.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:56:50.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000042",
+              "sourceId": "1042",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:56:50.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:57:00.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000043",
+              "sourceId": "1043",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:57:00.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:57:10.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000044",
+              "sourceId": "1044",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:57:10.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:57:20.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000045",
+              "sourceId": "1045",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:57:20.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:57:30.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000046",
+              "sourceId": "1046",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:57:30.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:57:40.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000047",
+              "sourceId": "1047",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:57:40.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:57:50.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000048",
+              "sourceId": "1048",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:57:50.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:58:00.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000049",
+              "sourceId": "1049",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:58:00.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:58:10.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000050",
+              "sourceId": "1050",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:58:10.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:58:20.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000051",
+              "sourceId": "1051",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:58:20.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:58:30.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000052",
+              "sourceId": "1052",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:58:30.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:58:40.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000053",
+              "sourceId": "1053",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:58:40.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:58:50.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000054",
+              "sourceId": "1054",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:58:50.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:59:00.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000055",
+              "sourceId": "1055",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:59:00.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:59:10.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000056",
+              "sourceId": "1056",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:59:10.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:59:20.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000057",
+              "sourceId": "1057",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:59:20.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:59:30.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000058",
+              "sourceId": "1058",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:59:30.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:59:40.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000059",
+              "sourceId": "1059",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:59:40.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T12:59:50.000Z"
+              }
+            },
+            {
+              "id": "vcl_loc_01JREPLAY00000000000000060",
+              "sourceId": "1060",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "locatedAt": "2026-10-15T12:59:50.000Z",
+              "location": {
+                "longitude": -83.8145361,
+                "latitude": 41.8602587
+              },
+              "heading": 181.5,
+              "speed": 0,
+              "metadata": {
+                "modifiedAt": "2026-10-15T13:00:00.000Z"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

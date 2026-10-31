@@ -1,0 +1,93 @@
+{
+  "format": 1,
+  "source": "terminal",
+  "stream": "faults",
+  "kind": "doc-derived",
+  "reference": "https://api.withterminal.com/tsp/openapi (GET /fault-codes/events?modifiedAfter=&vehicleIds=: FaultCodeEvent, protocol j1939 with spn/fmi/sourceAddress/occurrenceCount, status open/pending/closed, observedAt, milStatus; https://docs.withterminal.com/api-reference/fault-codes/list-fault-code-events). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "basePath": "/tsp/v1",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fault-codes/events"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "results": [
+            {
+              "id": "fc_evt_01JREPLAY00000000000000001",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "protocol": "j1939",
+              "status": "open",
+              "code": "SPN110-FMI0",
+              "description": "Engine Coolant Temperature - Data Valid But Above Normal Operational Range - Most Severe Level",
+              "observedAt": "2026-10-15T12:40:00.000Z",
+              "milStatus": "on",
+              "j1939": {
+                "spn": 110,
+                "fmi": 0,
+                "spnDescription": "Engine Coolant Temperature",
+                "fmiDescription": "Data Valid But Above Normal Operational Range - Most Severe Level",
+                "occurrenceCount": 1,
+                "sourceAddress": 0
+              },
+              "metadata": {
+                "addedAt": "2026-10-15T12:40:10.000Z",
+                "modifiedAt": "2026-10-15T12:40:10.000Z"
+              }
+            },
+            {
+              "id": "fc_evt_01JREPLAY00000000000000002",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "protocol": "j1939",
+              "status": "closed",
+              "code": "SPN110-FMI0",
+              "description": "Engine Coolant Temperature - Data Valid But Above Normal Operational Range - Most Severe Level",
+              "observedAt": "2026-10-15T12:45:00.000Z",
+              "milStatus": "off",
+              "j1939": {
+                "spn": 110,
+                "fmi": 0,
+                "spnDescription": "Engine Coolant Temperature",
+                "fmiDescription": "Data Valid But Above Normal Operational Range - Most Severe Level",
+                "occurrenceCount": 1,
+                "sourceAddress": 0
+              },
+              "metadata": {
+                "addedAt": "2026-10-15T12:45:10.000Z",
+                "modifiedAt": "2026-10-15T12:45:10.000Z"
+              }
+            },
+            {
+              "id": "fc_evt_01JREPLAY00000000000000003",
+              "provider": "omnitracs-xrs",
+              "vehicle": "vcl_0afec20a",
+              "protocol": "j1939",
+              "status": "open",
+              "code": "SPN3031-FMI9",
+              "description": "Aftertreatment 1 SCR Intake Temperature - Abnormal Update Rate",
+              "observedAt": "2026-10-15T12:55:00.000Z",
+              "milStatus": "off",
+              "j1939": {
+                "spn": 3031,
+                "fmi": 9,
+                "spnDescription": "Aftertreatment 1 SCR Intake Temperature",
+                "fmiDescription": "Abnormal Update Rate",
+                "occurrenceCount": 2,
+                "sourceAddress": 61
+              },
+              "metadata": {
+                "addedAt": "2026-10-15T12:55:10.000Z",
+                "modifiedAt": "2026-10-15T12:55:10.000Z"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
