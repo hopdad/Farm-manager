@@ -30,7 +30,7 @@ let fixture: SoilsRun;
 let tmp: string;
 
 beforeAll(async () => {
-  await seedDemo(t().pool, { seed: 1, eldVendor: 'samsara' });
+  await seedDemo(t().pool, { seed: 1 });
   fixture = await openRun(FIXTURE_DIR);
   tmp = await mkdtemp(path.join(tmpdir(), 'farm-soils-db-'));
 });

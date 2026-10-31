@@ -42,6 +42,8 @@ const TENURES = [
   ['cash_rent', 'Cash rent'],
   ['share', 'Share'],
   ['custom', 'Custom work'],
+  // A field the Deere sync created (1f) until someone picks one of the above.
+  ['unknown', 'Not set'],
 ] as const;
 
 const pad = (n: number) => String(n).padStart(2, '0');

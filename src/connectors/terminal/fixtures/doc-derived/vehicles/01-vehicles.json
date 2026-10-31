@@ -1,0 +1,53 @@
+{
+  "format": 1,
+  "source": "terminal",
+  "stream": "vehicles",
+  "kind": "doc-derived",
+  "reference": "https://api.withterminal.com/tsp/openapi (GET /vehicles?expand=groups: Vehicle, ExpandedGroup; no tags on a Terminal vehicle; https://docs.withterminal.com/api-reference/vehicles/list-vehicles). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "basePath": "/tsp/v1",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/vehicles"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "results": [
+            {
+              "id": "vcl_0afec20a",
+              "sourceId": "402870",
+              "provider": "omnitracs-xrs",
+              "status": "active",
+              "name": "H3",
+              "make": "Mack",
+              "model": "Anthem",
+              "year": 2021,
+              "groups": [
+                {
+                  "id": "group_01JREPLAYHIREDTRUCKS0000001",
+                  "sourceId": "12",
+                  "provider": "omnitracs-xrs",
+                  "name": "Hired trucks",
+                  "metadata": {
+                    "addedAt": "2026-09-01T12:00:00.000Z",
+                    "modifiedAt": "2026-09-01T12:00:00.000Z",
+                    "visibility": "visible"
+                  }
+                }
+              ],
+              "metadata": {
+                "addedAt": "2026-09-01T12:00:00.000Z",
+                "modifiedAt": "2026-09-01T12:00:00.000Z",
+                "deletedAt": null,
+                "visibility": "visible"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

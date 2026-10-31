@@ -184,9 +184,19 @@ export function planEnvFiles(
   // M0 demo tuning for the PC (sim connectors): jobs every few seconds and trucks stale after a
   // minute without a fix, so pausing the simulation or "trucks API down" shows within a minute.
   // The demo cadence is refused once a connector is sandbox/live, so it isn't added then.
-  const realConnector = ['CONNECTOR_DEERE', 'CONNECTOR_ELD', 'CONNECTOR_WEATHER'].some((k) =>
-    ['sandbox', 'live'].includes(envLocal[k] ?? ''),
-  );
+  // Every mode key (1f.2: one per vendor; src/config.ts CONNECTOR_MODE_KEYS) and the deprecated
+  // CONNECTOR_ELD alias. Listed here, not imported: env:init runs before a config exists.
+  const realConnector = [
+    'CONNECTOR_DEERE',
+    'CONNECTOR_SAMSARA',
+    'CONNECTOR_MOTIVE',
+    'CONNECTOR_GEOTAB',
+    'CONNECTOR_AEMP',
+    'CONNECTOR_CNH',
+    'CONNECTOR_TERMINAL',
+    'CONNECTOR_WEATHER',
+    'CONNECTOR_ELD',
+  ].some((k) => ['sandbox', 'live'].includes(envLocal[k] ?? ''));
   if (!realConnector) setLocal('JOBS_DEMO_CADENCE', () => DEMO_TUNING.JOBS_DEMO_CADENCE);
   setLocal('FLEET_STALE_SECONDS', () => DEMO_TUNING.FLEET_STALE_SECONDS);
   setLocal('FLEET_STALE_SECONDS_DEERE', () => DEMO_TUNING.FLEET_STALE_SECONDS_DEERE);
@@ -221,7 +231,9 @@ const ENV_HEADER = `# .env: read by Docker Compose (database container) and by t
 `;
 const ENV_LOCAL_HEADER = `# .env.local: app secrets and URLs, read by Next and by every script via src/config.ts.
 # Written by \`pnpm env:init\`; existing values are never regenerated. Never commit this file.
-# Connector modes default to sim (CONNECTOR_DEERE / CONNECTOR_ELD / CONNECTOR_WEATHER=sim|replay|sandbox|live|off).
+# Connector modes default to sim (sim|replay|sandbox|live|off): CONNECTOR_DEERE, CONNECTOR_WEATHER and one
+# key per telematics vendor: CONNECTOR_SAMSARA, CONNECTOR_MOTIVE, CONNECTOR_GEOTAB, CONNECTOR_AEMP,
+# CONNECTOR_CNH, CONNECTOR_TERMINAL (CONNECTOR_ELD / ELD_VENDOR still work but are deprecated).
 # JOBS_DEMO_CADENCE / FLEET_STALE_SECONDS(_DEERE) below are M0 demo tuning: delete them for the plan
 # defaults (trucks every 30 s, stale after 10 min); turn JOBS_DEMO_CADENCE off before going live.
 `;

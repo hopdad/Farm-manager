@@ -19,7 +19,11 @@ export const PARTY_ROLES = [
 ] as const;
 export type PartyRole = (typeof PARTY_ROLES)[number];
 
-export const TENURES = ['owned', 'cash_rent', 'share', 'custom'] as const;
+/**
+ * `unknown` (1f, migration 0007): a field the Deere sync created has no tenure until someone sets
+ * it by hand (decision 7 in docs/contracts-1f.md); the map and panels show "Tenure not set".
+ */
+export const TENURES = ['owned', 'cash_rent', 'share', 'custom', 'unknown'] as const;
 export type Tenure = (typeof TENURES)[number];
 
 export const GEOFENCE_KINDS = ['elevator', 'field_entrance', 'shop', 'bin_site', 'fuel'] as const;

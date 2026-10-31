@@ -3,7 +3,7 @@
  * the replay fixtures (./fixtures, ./replay.ts) and the vendor stand-in (src/sim/vendors/deere),
  * so the same schemas validate real, replayed and simulated responses (plan §5).
  *
- * SOURCES. developer.deere.com is not reachable from the build machine (Oct 29, 2026). The
+ * SOURCES. developer.deere.com was not reachable from the build machine on Oct 29, 2026. The
  * shapes below follow Deere's own OpenAPI documents as published on the developer portal
  * (https://developer.deere.com/dev-docs/<api>; the portal's raw specs, fetched Oct 19, 2026 from
  * https://developer.deere.com/devDoc/apiDetails, are mirrored in the open-source
@@ -15,7 +15,8 @@
  *    a Breadcrumb has point {lat, lon, altitude}, eventTimestamp, createTimestamp, speed
  *    (MeasurementAsDouble, unit "km1hr-1"), heading (MeasurementAsInteger), machineState
  *    ({ value: Idle | Working | Transporting }), fuelLevel, origin, correlationId; collections page
- *    with `nextPage` links such as `…/breadcrumbs;start=10;count=10`.
+ *    with `nextPage` links (`?pageOffset=10&itemLimit=10`; the matrix form `;start=10;count=10`
+ *    fails since June 1, 2024).
  *  - Fields, https://developer.deere.com/dev-docs/fields (fields.yaml): GET
  *    /organizations/{orgId}/fields, Field { id, name, archived, lastModifiedTime, links }.
  *  - Boundaries, https://developer.deere.com/dev-docs/boundaries (boundaries.yaml): GET
@@ -36,24 +37,46 @@
  *    /organizations/{orgId}/flags and /organizations/{orgId}/fields/{fieldId}/flags, Flag { id,
  *    geometry (GeoJSON Point/LineString/Polygon, sent as a JSON STRING on GET), notes, archived,
  *    proximityAlertEnabled, createdTime, lastModifiedTime, links }.
- * Still `doc-derived, confirm` until a recorded sandbox response (1f, listed on
- * /admin/connectors via src/connectors/doc-derived.ts): the OAuth issuer path and scopes, the
- * org `machines` link (the Equipment API's successor paths), units as the org sends them.
+ *
+ * CHECKED AGAINST THE OFFICIAL DOCS (Oct 30, 2026: developer.deere.com dev-docs pages, the
+ * portal's own spec feed developer.deere.com/devDoc/apiDetails/<key>, the Okta discovery
+ * document): the paths and shapes above; the OAuth issuer and paths; field operations, their
+ * measurement types and the generated boundary need scope `ag2`; the old Machine API
+ * (`/organizations/{orgId}/machines`) is deprecated (Deere's "Equipment API Changes", June 2024)
+ * and machines are listed by the Equipment API at https://equipmentapi.deere.com/isg/equipment
+ * (one host for sandbox and production apps, `Accept: application/json`), whose items carry a
+ * `principalId` (≠ `id`) that the /platform machine paths (breadcrumbs, engineHours, alerts)
+ * take; paging is `?pageOffset=&itemLimit=` (matrix parameters fail since June 1, 2024); a
+ * breadcrumb's `machineState` may come as `{ rawState }`.
+ * Still to confirm with a recorded sandbox response (listed on /admin/connectors via
+ * src/connectors/doc-derived.ts): units as our org sends them, the Equipment API's link form
+ * (absolute or relative) and ISG type names, whether refresh tokens rotate.
  * Objects are `loose`: extra vendor fields never fail a response.
  */
 import { z } from 'zod';
 
-/** The Deere API media type (Accept header). */
+/** The Operations Center ("platform") media type (Accept header of every /platform call). */
 export const DEERE_MEDIA_TYPE = 'application/vnd.deere.axiom.v3+json';
 
-/** Okta authorization-server id in Deere's sign-in URLs. // doc-derived, confirm */
+/** The Equipment API's media type (https://developer.deere.com/dev-docs/equipment). */
+export const DEERE_EQUIPMENT_MEDIA_TYPE = 'application/json';
+
+/**
+ * Okta authorization-server id in Deere's sign-in URLs (confirmed: the discovery document at
+ * https://signin.johndeere.com/oauth2/aus78tnlaysMraFhC1t7/.well-known/oauth-authorization-server).
+ */
 export const DEERE_AUTH_SERVER_ID = 'aus78tnlaysMraFhC1t7';
 
 /**
- * Scopes requested at consent. `offline_access` returns a refresh token; `eq1` reads equipment,
- * `org1` organizations, `ag1` fields/operations (1f). // doc-derived, confirm
+ * Scopes requested at consent (https://developer.deere.com/dev-docs/oauth and each API page's
+ * "OAuth Scope Required"): `offline_access` returns a refresh token; `ag1` reads fields, farms,
+ * clients, boundaries and flags; `ag2` field operations, their measurement types and the
+ * generated boundary; `eq1` equipment, breadcrumbs, engine hours and alerts. Listing
+ * organizations needs no scope; `org1` (staff, operators, partners) and `openid profile` are not
+ * requested, as Deere asks apps not to request unused scopes. A grant made with the old scopes
+ * must consent again (and the org's permission be raised in connections.deere.com).
  */
-export const DEERE_SCOPES = ['openid', 'profile', 'offline_access', 'ag1', 'eq1', 'org1'] as const;
+export const DEERE_SCOPES = ['offline_access', 'ag1', 'ag2', 'eq1'] as const;
 
 const time = z.iso.datetime({ offset: true });
 
@@ -80,17 +103,43 @@ export const deereOrganizationSchema = z.looseObject({
 export type DeereOrganization = z.infer<typeof deereOrganizationSchema>;
 export const deereOrganizationsSchema = deereCollectionSchema(deereOrganizationSchema);
 
-/** A machine in an org. // doc-derived, confirm (Equipment API field names) */
-export const deereMachineSchema = z.looseObject({
-  '@type': z.literal('Machine').optional(),
-  id: z.string().min(1),
+const anyId = z.union([z.string().min(1), z.number()]).transform((v) => String(v));
+
+/** An Equipment API reference (`make`, `type`, `isgType`, `model`): `{ id, name, ERID, … }`. */
+const deereEquipmentRefSchema = z.looseObject({
+  id: anyId.optional(),
   name: z.string().optional(),
-  vin: z.string().optional(),
-  modelYear: z.number().int().optional(),
+});
+
+/**
+ * One machine or implement of GET https://equipmentapi.deere.com/isg/equipment (the Equipment
+ * API, which replaced the deprecated `/organizations/{orgId}/machines`; spec
+ * equipment__equipment.yaml, `equipmentForList`). `id` is the ORGANIZATION-EQUIPMENT id;
+ * `principalId` (a string in the schema, an integer in Deere's example) is the machine id the
+ * /platform paths take (`/machines/{principalId}/breadcrumbs`, `/engineHours`, `/alerts`) and the
+ * one the app's `('deere', 'machine', …)` refs use. `modelYear` is a STRING; there is no `vin`
+ * (`serialNumber`). The kind maps from `isgType.name` (current), falling back to `type.name`
+ * (the deprecated EquipmentType).
+ */
+export const deereEquipmentSchema = z.looseObject({
+  '@type': z.string().optional(),
+  id: anyId,
+  principalId: anyId.optional(),
+  name: z.string().optional(),
+  serialNumber: z.string().optional(),
+  modelYear: anyId.optional(),
+  make: deereEquipmentRefSchema.optional(),
+  type: deereEquipmentRefSchema.optional(),
+  isgType: deereEquipmentRefSchema.optional(),
+  model: deereEquipmentRefSchema.optional(),
+  organization: z.array(z.looseObject({ id: anyId })).optional(),
+  telematicsCapable: z.boolean().optional(),
+  archived: z.boolean().optional(),
   links: z.array(deereLinkSchema).optional(),
 });
-export type DeereMachine = z.infer<typeof deereMachineSchema>;
-export const deereMachinesSchema = deereCollectionSchema(deereMachineSchema);
+export type DeereEquipment = z.infer<typeof deereEquipmentSchema>;
+/** An Equipment API page: `{ links, values }` (paged by `pageOffset` / `itemLimit` ≤ 5000). */
+export const deereEquipmentListSchema = deereCollectionSchema(deereEquipmentSchema);
 
 /** Deere `MeasurementAsDouble` (`{ valueAsDouble, unit }`, e.g. km1hr-1, ha, prcnt). */
 export const deereMeasurementAsDoubleSchema = z.looseObject({

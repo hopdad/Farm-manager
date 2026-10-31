@@ -1,0 +1,106 @@
+{
+  "format": 1,
+  "source": "motive",
+  "stream": "faults",
+  "kind": "doc-derived",
+  "reference": "https://developer-docs.gomotive.com/reference/fetch-a-list-of-all-the-vehicles-fault-codes (GET /v1/fault_codes: status open/closed, first/last_observed_at, network, code_label SPN-n + fmi; per_page/page_no/total at the top level). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/fault_codes"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "fault_codes": [
+            {
+              "fault_code": {
+                "id": 51204,
+                "code": "110",
+                "code_label": "SPN-110",
+                "code_description": "Engine Coolant Temperature",
+                "source_address_label": "Engine #1",
+                "status": "open",
+                "first_observed_at": "2026-10-15T12:31:00Z",
+                "last_observed_at": "2026-10-15T12:59:00Z",
+                "type": "intermittent",
+                "fmi": 0,
+                "occurrence_count": 2,
+                "num_observations": 29,
+                "sum_num_observations": 29,
+                "source_address_name": null,
+                "source_address": "0",
+                "is_sid": false,
+                "fmi_description": "Data Valid But Above Normal Operational Range - Most Severe Level",
+                "dtc_status": null,
+                "dtc_severity": null,
+                "functional_grp_id": null,
+                "ftb": null,
+                "eld_device": {
+                  "id": 63621,
+                  "identifier": "SIM939680",
+                  "model": "lbb-3.6ca"
+                },
+                "vehicle": {
+                  "id": 939680,
+                  "number": "H1",
+                  "year": "2020",
+                  "make": "Kenworth",
+                  "model": "T880 + hopper trailer (hired)",
+                  "vin": "",
+                  "metric_units": false
+                },
+                "network": "j1939"
+              }
+            },
+            {
+              "fault_code": {
+                "id": 51198,
+                "code": "P0217",
+                "code_label": "P0217",
+                "code_description": "Engine Coolant Over Temperature Condition",
+                "source_address_label": "2024",
+                "status": "closed",
+                "first_observed_at": "2026-10-14T19:02:00Z",
+                "last_observed_at": "2026-10-14T19:40:00Z",
+                "type": "constant",
+                "fmi": null,
+                "occurrence_count": null,
+                "num_observations": 39,
+                "sum_num_observations": 39,
+                "source_address_name": null,
+                "source_address": "2024",
+                "is_sid": false,
+                "fmi_description": null,
+                "dtc_status": null,
+                "dtc_severity": null,
+                "functional_grp_id": null,
+                "ftb": null,
+                "eld_device": {
+                  "id": 63621,
+                  "identifier": "SIM939680",
+                  "model": "lbb-3.6ca"
+                },
+                "vehicle": {
+                  "id": 939680,
+                  "number": "H1",
+                  "year": "2020",
+                  "make": "Kenworth",
+                  "model": "T880 + hopper trailer (hired)",
+                  "vin": "",
+                  "metric_units": false
+                },
+                "network": "obdii"
+              }
+            }
+          ],
+          "per_page": 100,
+          "page_no": 1,
+          "total": 2
+        }
+      }
+    }
+  ]
+}

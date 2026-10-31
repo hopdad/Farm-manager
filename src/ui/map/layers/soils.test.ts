@@ -66,6 +66,10 @@ function chroma(hex: string): number {
   const ch = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
   return Math.max(...ch) - Math.min(...ch);
 }
+function lightness(hex: string): number {
+  const ch = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
+  return (Math.max(...ch) + Math.min(...ch)) / 2;
+}
 
 // MapLibre's expression engine (maplibre-gl's own style-spec dependency; tests only).
 type Evaluator = (props: Record<string, unknown>, zoom?: number) => unknown;
@@ -411,9 +415,14 @@ describe('colour-by modes', () => {
     for (const flavor of ['dark', 'light'] as const) {
       const own = SOIL_TYPE_OUTLINE_COLORS[flavor];
       expect(taken, flavor).not.toContain(own.toLowerCase());
-      // Every one of those is a strong hue; the soil lines are neutral (white, slate ink), so
-      // they can't pass for a cash-rent yellow or a custom-work orange.
-      for (const c of taken) expect(chroma(c), c).toBeGreaterThan(0.3);
+      // Every one of those is a strong hue, except the grey of a field whose tenure isn't set yet
+      // (1f); the soil lines are neutral (white, slate ink), so they can't pass for a cash-rent
+      // yellow or a custom-work orange, and sit far from that grey in lightness.
+      const neutral = TENURE_COLORS.unknown.toLowerCase();
+      for (const c of taken) {
+        if (c === neutral) expect(Math.abs(lightness(c) - lightness(own)), c).toBeGreaterThan(0.3);
+        else expect(chroma(c), c).toBeGreaterThan(0.3);
+      }
       expect(chroma(own), flavor).toBeLessThan(0.15);
       expect(soilsLegend('type', flavor).items[0]?.color).toBe(SOIL_TYPE_OUTLINE_COLORS[flavor]);
     }

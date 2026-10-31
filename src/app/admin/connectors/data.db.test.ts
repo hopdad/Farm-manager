@@ -108,6 +108,9 @@ describe('loadConnectorsSnapshot', () => {
         lastError: 'no machine for vehicle v3',
       }),
     ]);
+    // 1f: the total and per stream, not just the latest 25.
+    expect(s.deadTotal).toBe(1);
+    expect(s.deadByStream).toEqual([{ source: 'samsara', stream: 'positions', count: 1 }]);
   });
 
   test('an invalid registry is reported, not thrown', async () => {

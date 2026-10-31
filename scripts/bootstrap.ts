@@ -8,7 +8,7 @@
  *   2. Env files (scripts/env.ts initEnvFiles): .env + .env.local; never regenerates a secret;
  *      stops when a database volume exists but its password is gone.
  *   3. Database: `docker compose up -d db` + wait (scripts/db.ts up), unless already healthy.
- *   4. Migrations (scripts/db.ts migrate) when behind; the DB tests' farm_test_template;
+ *   4. Migrations (scripts/db.ts migrate) when behind; the DB tests' template (farm_tpl_<migrations hash>);
  *      db/pending/*.sql; `db:configure local`; `db:check`.
  *   5. Demo seed: scripts/seed.ts demo (when present; it is idempotent).
  *   6. Offline basemap: tools/gis/basemap.ts when tiles/basemap.json or its file is missing, or
@@ -765,15 +765,15 @@ async function databaseSteps(a: DbStepArgs): Promise<boolean> {
   // 4b. The DB tests' template (clone source for every *.db.test.ts file).
   try {
     const current = await withMaintenance(testTemplateIsCurrent);
-    if (current) line('DONE', 'farm_test_template', 'current');
-    else if (dry) line('TODO', 'farm_test_template', 'would rebuild it for the current migrations');
+    if (current) line('DONE', 'test template', 'current');
+    else if (dry) line('TODO', 'test template', 'would rebuild it for the current migrations');
     else {
-      line('RUN', 'farm_test_template', 'rebuilding for the current migrations');
+      line('RUN', 'test template', 'rebuilding for the current migrations');
       await refreshTestTemplate();
-      line('DONE', 'farm_test_template', 'current');
+      line('DONE', 'test template', 'current');
     }
   } catch (e) {
-    line('WARN', 'farm_test_template', `${(e as Error).message} (pnpm test:db rebuilds it)`);
+    line('WARN', 'test template', `${(e as Error).message} (pnpm test:db rebuilds it)`);
   }
 
   // 4c. db/pending/*.sql (parallel stages' SQL that isn't a migration yet; idempotent).

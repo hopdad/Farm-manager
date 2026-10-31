@@ -1,0 +1,67 @@
+{
+  "format": 1,
+  "source": "aemp",
+  "stream": "fleet",
+  "kind": "doc-derived",
+  "reference": "Samsara getAempEquipmentList (https://developers.samsara.com/openapi/samsara-api.json, GET /beta/aemp/Fleet/{pageNumber}): {\"Fleet\": { version \"1\", snapshotTime, Links, Equipment[] { EquipmentHeader.EquipmentID, Location, CumulativeOperatingHours, Distance, FuelRemaining, DEFRemaining, EngineStatus } }}. Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/samsara/Fleet/1"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "Fleet": {
+            "version": "1",
+            "snapshotTime": "2026-10-15T13:00:00.000Z",
+            "Links": [
+              {
+                "rel": "self",
+                "href": "https://api.samsara.com/aemp/Fleet/1"
+              }
+            ],
+            "Equipment": [
+              {
+                "EquipmentHeader": {
+                  "EquipmentID": "281474977562924",
+                  "OEMName": "RoGator",
+                  "Model": "RG1100C",
+                  "SerialNumber": "SN-SP2"
+                },
+                "Location": {
+                  "Latitude": 41.860259,
+                  "Longitude": -83.815404,
+                  "datetime": "2026-10-15T13:00:00.000Z"
+                },
+                "CumulativeOperatingHours": {
+                  "Hour": 2794.7,
+                  "datetime": "2026-10-15T13:00:00.000Z"
+                },
+                "Distance": {
+                  "Odometer": 15207.7,
+                  "OdometerUnits": "kilometre",
+                  "datetime": "2026-10-15T13:00:00.000Z"
+                },
+                "FuelRemaining": {
+                  "Percent": 100,
+                  "datetime": "2026-10-15T13:00:00.000Z"
+                },
+                "DEFRemaining": {
+                  "Percent": 67,
+                  "datetime": "2026-10-15T13:00:00.000Z"
+                },
+                "EngineStatus": {
+                  "Running": false,
+                  "datetime": "2026-10-15T13:00:00.000Z"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

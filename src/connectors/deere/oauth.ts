@@ -85,7 +85,11 @@ export function exchangeDeereCode(
   );
 }
 
-/** refresh_token → new tokens (rotating: the old refresh token is dead afterwards). */
+/**
+ * refresh_token → new tokens. Deere's docs describe a long-lived refresh token (365 days idle);
+ * whether a refresh returns a new one is unconfirmed, so the token store keeps whichever comes
+ * back (the stand-in rotates, the stricter case).
+ */
 export function refreshDeereTokens(
   ep: DeereEndpoints,
   refreshToken: string,

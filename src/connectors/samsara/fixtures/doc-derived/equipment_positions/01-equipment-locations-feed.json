@@ -1,0 +1,74 @@
+{
+  "format": 1,
+  "source": "samsara",
+  "stream": "equipment_positions",
+  "kind": "doc-derived",
+  "reference": "https://developers.samsara.com/openapi/samsara-api.json getEquipmentLocationsFeed (GET /fleet/equipment/locations/feed?after=; data[].locations[] { time, latitude, longitude, heading, speed }, pagination.endCursor/hasNextPage). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "shiftStepSeconds": 1,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fleet/equipment/locations/feed",
+        "query": {
+          "after": "replay-equipment-locations-0001"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "281474977562924",
+              "name": "SP2",
+              "locations": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "latitude": 41.860259,
+                  "longitude": -83.815404,
+                  "heading": 181.5,
+                  "speed": 0
+                }
+              ]
+            }
+          ],
+          "pagination": {
+            "endCursor": "replay-equipment-locations-0001",
+            "hasNextPage": false
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/fleet/equipment/locations/feed"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "281474977562924",
+              "name": "SP2",
+              "locations": [
+                {
+                  "time": "2026-10-15T13:00:00.000Z",
+                  "latitude": 41.860259,
+                  "longitude": -83.815404,
+                  "heading": 181.5,
+                  "speed": 0
+                }
+              ]
+            }
+          ],
+          "pagination": {
+            "endCursor": "replay-equipment-locations-0001",
+            "hasNextPage": false
+          }
+        }
+      }
+    }
+  ]
+}

@@ -6,6 +6,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import { listenAppEvents } from '@/connectors/testkit';
+import { fleetSnapshot } from '@/db/queries/fleet';
 import { makeSession, runWithSession } from '@/platform/auth/testing';
 import type { Role, Session } from '@/platform/auth/types';
 import { setupTestDb } from '@/test/db';
@@ -25,8 +26,12 @@ const cfg = () => ({
   FLEET_STALE_SECONDS: 600,
   FLEET_STALE_SECONDS_DEERE: 900,
   CONNECTOR_DEERE: 'replay' as const,
-  CONNECTOR_ELD: 'sim' as const,
-  ELD_VENDOR: 'samsara' as const,
+  CONNECTOR_SAMSARA: 'sim' as const,
+  CONNECTOR_MOTIVE: 'off' as const,
+  CONNECTOR_GEOTAB: 'off' as const,
+  CONNECTOR_AEMP: 'off' as const,
+  CONNECTOR_CNH: 'off' as const,
+  CONNECTOR_TERMINAL: 'off' as const,
 });
 
 let combine: string;
@@ -141,7 +146,15 @@ describe('GET /api/machines', () => {
     const data = fleetPanelDataSchema.parse(body);
     expect(data.machines.map((m) => m.unitNo)).toEqual(['C1', 'S1']);
     expect(data.canMarkDown).toBe(false);
-    expect(data.modes).toEqual({ deere: 'replay', eld: 'sim', eldVendor: 'samsara' });
+    expect(data.modes).toEqual({
+      deere: 'replay',
+      samsara: 'sim',
+      motive: 'off',
+      geotab: 'off',
+      aemp: 'off',
+      cnh: 'off',
+      terminal: 'off',
+    });
     expect(data.config).toEqual({
       appEnv: 'development',
       realtime: 'sse',
@@ -164,6 +177,119 @@ describe('GET /api/machines', () => {
       const data = (await list(as(role))).body as FleetPanelData;
       expect(data.canMarkDown).toBe(true);
     }
+  });
+});
+
+describe('GET /api/machines: 1f review, the positions feeds', () => {
+  test('each connection that is not off: last OK sync and whether its last run failed', async () => {
+    const ok = '2026-11-30T14:00:00.000Z';
+    const err = '2026-11-30T14:17:00.000Z';
+    await t().pool.query(
+      `insert into ingest.sync_state (source, stream, mode, last_ok_at, last_error_at, last_error)
+       values ('deere', 'locations', 'sim', $1, $2, 'deere: not connected'),
+              ('samsara', 'positions', 'sim', $2, $1, 'old'),
+              ('samsara', 'stats', 'sim', null, $2, 'not a positions stream'),
+              ('motive', 'positions', 'off', null, $2, 'off: not listed'),
+              ('aemp', 'fleet', 'sim', null, null, null)
+       on conflict (source, stream) do update
+         set mode = excluded.mode, last_ok_at = excluded.last_ok_at,
+             last_error_at = excluded.last_error_at, last_error = excluded.last_error`,
+      [ok, err],
+    );
+    const res = await list(as('viewer'));
+    expect(res.status).toBe(200);
+    expect((res.body as { feeds: unknown }).feeds).toEqual([
+      { connection: 'deere', lastOkAt: ok, failing: true },
+      { connection: 'samsara', lastOkAt: err, failing: false },
+      { connection: 'aemp', lastOkAt: null, failing: false },
+    ]);
+    // The tick carries Deere's feed and the failing ones only (its size limit).
+    const tick = await fleetSnapshot(t().pool, new Date(err), 600);
+    expect(tick.feeds).toEqual([{ connection: 'deere', lastOkAt: ok, failing: true }]);
+    await t().pool.query(
+      `delete from ingest.sync_state
+        where (source, stream) in (('deere','locations'), ('samsara','positions'),
+                                   ('samsara','stats'), ('motive','positions'), ('aemp','fleet'))`,
+    );
+  });
+});
+
+describe('GET /api/machines: 1f faults, vendor badge and stats', () => {
+  test('faults, vendor and kind of the fix, counters and levels, via, what is not reported', async () => {
+    const ins = async (unit: string, kind: string, extra = '') =>
+      (
+        await t().admin.query<{ id: string }>(
+          `insert into farm.machines (kind, unit_no, engine_hours, odometer_mi, telematics_via,
+             kind_set_by)
+           values ($1, $2, ${extra || 'null, null, null, $3'}) returning id::text as id`,
+          extra ? [kind, unit] : [kind, unit, 'default'],
+        )
+      ).rows[0]?.id as string;
+    const truck = await ins('S7', 'semi', `4312.0, 412300.4, null, 'vendor'`);
+    const pickup = await ins('PU7', 'pickup', `null, null, 'ford_pro', 'admin'`);
+    const loader = await ins('L7', 'loader', `1210.5, null, null, 'default'`);
+    const state = (id: string, vendor: string, kind: string, codes: unknown, fuel: number | null) =>
+      t().pool.query(
+        `insert into farm.machine_state (machine_id, ts, geom, speed_mph, heading, activity,
+           position_source, position_vendor, position_kind, fault_codes, fuel_pct, def_pct)
+         values ($1, now() - interval '30 seconds',
+                 extensions.ST_SetSRID(extensions.ST_MakePoint(-83.9, 41.9), 4326), 0, 0, 'idle',
+                 'eld', $2, $3, $4::jsonb, $5, $6)`,
+        [id, vendor, kind, JSON.stringify(codes), fuel, fuel === null ? null : 54.2],
+      );
+    const red = {
+      code: 'J1939 SPN 110 FMI 0',
+      severity: 'critical',
+      description: 'Coolant hot',
+      system: 'j1939',
+      spn: 110,
+      fmi: 0,
+      lamps: { redStop: true },
+      since: new Date(Date.now() - 600_000).toISOString(),
+    };
+    await state(truck, 'samsara', 'live', [red], 62);
+    await state(pickup, 'samsara', 'live', [], 54);
+    await state(loader, 'aemp_kubota', 'last_known', [{ junk: true }], null);
+
+    const data = fleetPanelDataSchema.parse((await list(as('viewer'))).body);
+    const by = new Map(data.machines.map((m) => [m.unitNo, m]));
+    expect(by.get('S7')).toMatchObject({
+      faults: [red],
+      engineHours: 4312,
+      odometerMi: 412300.4,
+      fuelPct: 62,
+      defPct: 54.2,
+      via: null,
+      kindSetBy: 'vendor',
+      notReported: [],
+      faultsNotReported: false,
+      position: { vendor: 'samsara' },
+    });
+    expect(by.get('S7')?.position).not.toHaveProperty('positionKind');
+    // The Ford pickup through Samsara: hours and odometer "not reported" (null, never 0).
+    expect(by.get('PU7')).toMatchObject({
+      faults: [],
+      engineHours: null,
+      odometerMi: null,
+      via: 'ford_pro',
+      kindSetBy: 'admin',
+      faultsNotReported: false,
+    });
+    expect(by.get('PU7')?.notReported).toEqual(
+      expect.arrayContaining(['engineHours', 'odometerMi']),
+    );
+    // Kubota on AEMP: a last-known fix; no fault system reported; a malformed summary reads none.
+    expect(by.get('L7')).toMatchObject({
+      faults: [],
+      fuelPct: null,
+      faultsNotReported: true,
+      position: { vendor: 'aemp_kubota', positionKind: 'last_known' },
+    });
+    // A machine with no fix yet: nothing known about its route.
+    expect(by.get('C1')).toMatchObject({ faults: [], notReported: [], faultsNotReported: false });
+    await t().admin.query('delete from farm.machines where id = any($1::uuid[])', [
+      [truck, pickup, loader],
+    ]);
   });
 });
 

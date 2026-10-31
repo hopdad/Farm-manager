@@ -86,6 +86,8 @@ const MAX_SPEED_MPH: Record<MachineKind, number> = {
   trailer: 55.5,
   drone: 25,
   pickup: 65,
+  service_truck: 65,
+  loader: 12,
 };
 
 class RoadIndex {

@@ -1,0 +1,89 @@
+{
+  "format": 1,
+  "source": "terminal",
+  "stream": "providers",
+  "kind": "doc-derived",
+  "reference": "https://api.withterminal.com/tsp/openapi (GET /providers: a bare array of Provider, no key needed; the Omnitracs XRS entry as Terminal's catalog listed it on Oct 30, 2026, trimmed; https://docs.withterminal.com/api-reference/providers/list-providers). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "basePath": "/tsp/v1",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/providers"
+      },
+      "response": {
+        "status": 200,
+        "body": [
+          {
+            "name": "Omnitracs XRS",
+            "status": "live",
+            "code": "omnitracs-xrs",
+            "logo": "https://cdn.withterminal.com/providers/omnitracs-xrs/logo.png",
+            "icon": "https://cdn.withterminal.com/providers/omnitracs-xrs/icon.png",
+            "references": [
+              {
+                "type": "login-page",
+                "url": "https://xataxrs.com/",
+                "label": "Omnitracs XRS Login"
+              }
+            ],
+            "passthrough": {
+              "supported": true
+            },
+            "supportedModels": {
+              "Vehicle": {
+                "supportedOperations": {
+                  "read": "supported"
+                }
+              },
+              "Driver": {
+                "supportedOperations": {
+                  "read": "supported"
+                }
+              },
+              "VehicleLocation": {
+                "sampleRate": "60 seconds",
+                "availableHistory": "Vehicle location: 120 days. Safety events: 90 days",
+                "supportedOperations": {
+                  "read": "supported"
+                }
+              },
+              "VehicleStatLog": {
+                "supportedOperations": {
+                  "read": "supported"
+                },
+                "types": ["engine_state", "odometer", "engine_runtime", "engine_rpm"]
+              },
+              "LatestVehicleLocation": {
+                "supportedOperations": {
+                  "read": "supported"
+                }
+              },
+              "Trip": {
+                "supportedOperations": {
+                  "read": "supported"
+                }
+              },
+              "Group": {
+                "supportedOperations": {
+                  "read": "supported"
+                }
+              },
+              "FaultCodeEvent": {
+                "supportedOperations": {
+                  "read": "supported"
+                }
+              },
+              "VehicleUtilization": {
+                "supportedOperations": {
+                  "read": "not_supported_by_terminal"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

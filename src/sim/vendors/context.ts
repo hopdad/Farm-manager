@@ -3,8 +3,41 @@
  * faults, the mutable persisted state and a few knobs. Built per request by ./server.ts.
  */
 import type { FaultRule, SimVendor, SimWorld } from '../types';
+import type { SimDayReport } from '../world';
 import type { SimRequest, SimResponse } from './http';
 import type { VendorSimState } from './state';
+
+/**
+ * The demo world's day reports (1f seam, docs/contracts-1f.md §7): what each simulated day did,
+ * field by field (work ranges with acres, passes and implement width; elevator loads), so the
+ * Deere stand-in can emit an operation when a field is finished. Days run 05:00-05:00 local;
+ * index 0 is the scenario's first day. Present only when the world is the sim's DemoWorld
+ * (`createSimWorld`); null for the stub world of the contract tests.
+ */
+export interface SimDayReports {
+  /** Day index of a sim instant (negative before the scenario starts). */
+  dayIndexAt(simTime: Date): number;
+  dayWindow(index: number): { start: Date; end: Date };
+  /** Plans the day on first use (tens of ms), cached after. */
+  dayReport(index: number): SimDayReport;
+}
+
+/** The world's day reports, or null when it has none (the stub world). */
+export function simDayReportsOf(world: SimWorld): SimDayReports | null {
+  const w = world as Partial<SimDayReports>;
+  if (
+    typeof w.dayIndexAt !== 'function' ||
+    typeof w.dayWindow !== 'function' ||
+    typeof w.dayReport !== 'function'
+  ) {
+    return null;
+  }
+  return {
+    dayIndexAt: (t) => (w.dayIndexAt as SimDayReports['dayIndexAt']).call(world, t),
+    dayWindow: (i) => (w.dayWindow as SimDayReports['dayWindow']).call(world, i),
+    dayReport: (i) => (w.dayReport as SimDayReports['dayReport']).call(world, i),
+  };
+}
 
 export interface VendorSimTuning {
   /** Samsara GPS sample spacing (wall ms, epoch-aligned grid). */
@@ -51,6 +84,8 @@ export interface VendorSimCounters {
 export interface VendorContext {
   readonly vendor: SimVendor;
   readonly world: SimWorld;
+  /** The world's day reports (1f): null for a world without them (the stub world). */
+  readonly days: SimDayReports | null;
   readonly tuning: VendorSimTuning;
   /** Wall clock (injectable in tests). */
   now(): Date;
@@ -78,6 +113,8 @@ export interface VendorContext {
 export interface VendorControlContext {
   readonly vendor: SimVendor;
   readonly world: SimWorld;
+  /** As VendorContext.days. */
+  readonly days: SimDayReports | null;
   now(): Date;
   simAt(wall: Date): Date;
   readonly state: VendorSimState;

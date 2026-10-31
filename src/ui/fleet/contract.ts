@@ -9,11 +9,35 @@
  *
  * After a change the server publishes `fleet`/`machine` (MachineStatusPayload) and, in the same
  * transaction, `fleet`/`invalidate` { event: 'machine', reason: 'changed' } (contracts-m1 §6).
+ *
+ * 1f (docs/contracts-1f.md §5.3, fleet-faults): each machine may carry its active fault codes
+ * (`faults`, worst first; a change publishes `fleet`/`invalidate` { event: 'machine', reason:
+ * 'faults' }), its position the connector it came from (`position.vendor`, for the
+ * "Samsara · sim" badge with `modes`), and its engine hours, odometer and fuel. All optional so
+ * the 1a code keeps compiling; absent = none known.
+ *
+ * 1f.2 (part B): `modes` has one entry per connection (src/connectors/vendors.ts CONNECTIONS);
+ * `position.vendor` is any vendor id (labelled by `vendorLabel`), `position.positionKind` says
+ * live or last-known; a machine says how its vendor gets the data (`via`) and which stats its
+ * route doesn't report (`notReported`: shown as "not reported", never 0).
+ *
+ * 1f review: `feeds`, the health of each connection's positions feed.
  */
 import { z } from 'zod';
-import { CONNECTOR_MODES } from '../../connectors/types';
+import { CONNECTOR_MODES, VEHICLE_STAT_FIELDS } from '../../connectors/types';
+import { CONNECTIONS, type Connection } from '../../connectors/vendors';
 import { GEOFENCE_KINDS } from '../../domain/farm';
-import { ACTIVITIES, MACHINE_KINDS, MACHINE_STATUSES, POSITION_SOURCES } from '../../domain/fleet';
+import { activeFaultCodeSchema } from '../../domain/fault-codes';
+import {
+  ACTIVITIES,
+  MACHINE_KINDS,
+  MACHINE_STATUSES,
+  POSITION_KINDS,
+  POSITION_SOURCES,
+  positionFeedSchema,
+  positionVendorSchema,
+} from '../../domain/fleet';
+import { KIND_SET_BY, telematicsViaSchema } from '../../domain/vehicles';
 
 export const MACHINES_URL = '/api/machines';
 export const machineStatusUrl = (id: string) => `${MACHINES_URL}/${encodeURIComponent(id)}/status`;
@@ -44,6 +68,13 @@ export const panelPositionSchema = z.object({
   ts: iso,
   fieldId: z.uuid().nullable(),
   fieldName: z.string().nullable(),
+  /**
+   * 1f: the vendor the fix came from (machine_state.position_vendor; 1f.2: any vendor id, e.g.
+   * `samsara`, `aemp_kubota`, labelled by `vendorLabel`); null = manual/unknown.
+   */
+  vendor: positionVendorSchema.nullable().optional(),
+  /** 1f.2: a trail point (live) or a vendor snapshot (last_known); absent = live. */
+  positionKind: z.enum(POSITION_KINDS).optional(),
 });
 export type PanelPosition = z.infer<typeof panelPositionSchema>;
 
@@ -70,28 +101,71 @@ export const panelMachineSchema = z.object({
   /** Null until the first fix arrives. */
   position: panelPositionSchema.nullable(),
   place: panelPlaceSchema.nullable(),
+  /**
+   * 1f: active fault codes (machine_state.fault_codes), worst first. A critical one offers
+   * "Critical fault: mark down?" to `canMarkDown` sessions (decision 2; never automatic).
+   */
+  faults: z.array(activeFaultCodeSchema).optional(),
+  /**
+   * 1f: the hour meter (machines.engine_hours: the greatest reading any connector reported, Deere
+   * engine hours or Samsara stats; never decreasing). Null = none known.
+   */
+  engineHours: z.number().nullable().optional(),
+  /** 1f: the odometer in miles (machines.odometer_mi, never decreasing). Null = none known. */
+  odometerMi: z.number().nullable().optional(),
+  /** 1f: fuel level, percent 0-100 (machine_state.fuel_pct, time-guarded by stats_at). Null = none known. */
+  fuelPct: z.number().nullable().optional(),
+  /** 1f.2: diesel exhaust fluid, percent 0-100 (machine_state.def_pct, guarded like fuel). Null = none known. */
+  defPct: z.number().nullable().optional(),
+  /** 1f.2: the route reports no fault system (`faultsNotReported`): "faults not reported", not a clean bill. */
+  faultsNotReported: z.boolean().optional(),
+  /** 1f.2: how its vendor gets the data (machines.telematics_via: ford_pro, stellantis, gateway). */
+  via: telematicsViaSchema.nullable().optional(),
+  /** 1f.2: who set `kind` (a kind set on /admin wins over vendor tags). */
+  kindSetBy: z.enum(KIND_SET_BY).optional(),
+  /**
+   * 1f.2: stats this machine's route doesn't report (`statsNotReported(position vendor, via)`):
+   * a null value among them reads "not reported", never 0 or "unknown".
+   */
+  notReported: z.array(z.enum(VEHICLE_STAT_FIELDS)).optional(),
 });
 export type PanelMachine = z.infer<typeof panelMachineSchema>;
 
 const connectorMode = z.enum(CONNECTOR_MODES);
+
+/** One mode per connection (1f.2): `{ deere, samsara, motive, geotab, aemp, cnh, terminal }`. */
+export const panelModesSchema = z.object(
+  Object.fromEntries(CONNECTIONS.map((c) => [c, connectorMode])) as Record<
+    Connection,
+    typeof connectorMode
+  >,
+);
+export type PanelModes = z.infer<typeof panelModesSchema>;
 
 export const fleetPanelDataSchema = z.object({
   builtAt: iso,
   machines: z.array(panelMachineSchema),
   /** The session may mark machines down / up (the server checks again on every POST). */
   canMarkDown: z.boolean(),
-  /** Where the positions come from (the panel says "replay" so nobody mistakes it for live). */
-  modes: z.object({
-    deere: connectorMode,
-    eld: connectorMode,
-    eldVendor: z.enum(['samsara', 'motive']),
-  }),
+  /**
+   * Where the positions come from (the panel says "replay" so nobody mistakes it for live):
+   * one mode per connection since 1f.2.
+   */
+  modes: panelModesSchema,
+  /**
+   * 1f review: each connection's positions feed (when it last synced OK, whether it is failing
+   * now), so the panel says "John Deere: not connected since 9:17" instead of showing working
+   * machines as parked. Absent = unknown (an older server). Ticks refresh it (`FleetTick.feeds`).
+   */
+  feeds: z.array(positionFeedSchema).optional(),
   /** What the browser needs to follow the fleet live. */
   config: z.object({
     appEnv: z.enum(['development', 'test', 'production']),
     realtime: z.enum(['sse', 'supabase']),
     staleAfterSeconds: z.number().int().positive(),
     deereStaleAfterSeconds: z.number().int().positive(),
+    /** 1f.2: FLEET_STALE_SECONDS_LAST_KNOWN (vendor snapshots). */
+    lastKnownStaleAfterSeconds: z.number().int().positive().optional(),
   }),
 });
 export type FleetPanelData = z.infer<typeof fleetPanelDataSchema>;

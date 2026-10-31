@@ -1,6 +1,17 @@
 import { describe, expect, test } from 'vitest';
+import type { ActiveFaultCode } from '../../domain/fault-codes';
 import type { PanelMachine } from './contract';
-import { rowAge, rowDetail, rowHeadline } from './format';
+import {
+  FAULT_DESCRIPTION_CHARS,
+  faultBadgeText,
+  faultDescriptionText,
+  faultListText,
+  lastWorkingText,
+  rowAge,
+  rowDetail,
+  rowHeadline,
+  rowStats,
+} from './format';
 import type { PanelRow } from './model';
 
 const NOW = Date.parse('2026-11-30T15:00:00.000Z');
@@ -27,16 +38,49 @@ const base: PanelMachine = {
   },
   place: null,
 };
-const row = (m: Partial<PanelMachine>, stale = false): PanelRow => ({
+const row = (m: Partial<PanelMachine>, stale = false, lastWorking = false): PanelRow => ({
   machine: { ...base, ...m },
   group: 'moving',
   stale,
+  lastWorking,
 });
 
 describe('fleet panel row text', () => {
   test('moving: activity and speed; age of the fix', () => {
     expect(rowHeadline(row({}))).toBe('On the road · 45 mph');
     expect(rowAge(row({}), NOW)).toBe('Seen 30 s ago');
+  });
+
+  test('1f review: a last-known snapshot says what it is (no invented speed or heading)', () => {
+    const snap = {
+      ...base.position,
+      activity: 'idle',
+      speedMph: 0,
+      positionKind: 'last_known',
+      vendor: 'aemp_kubota',
+    } as PanelMachine['position'];
+    expect(rowHeadline(row({ position: snap }))).toBe('Last known position from Kubota (AEMP)');
+    expect(
+      rowHeadline(row({ position: { ...snap, vendor: null } as PanelMachine['position'] })),
+    ).toBe('Last known position');
+    // A stale snapshot is still "No recent position".
+    expect(rowHeadline(row({ position: snap }, true))).toBe('No recent position');
+  });
+
+  test("1f review: the worst code's meaning, shortened, for the line under the badge", () => {
+    const f = (code: string, severity: ActiveFaultCode['severity'], description: string | null) =>
+      ({ code, severity, description, since: '2026-11-30T14:00:00.000Z' }) as ActiveFaultCode;
+    expect(
+      faultDescriptionText([
+        f('P0087', 'warning', 'Fuel rail pressure low'),
+        f('J1939 SPN 110 FMI 0', 'critical', 'Engine coolant temperature:  above   normal'),
+      ]),
+    ).toBe('Engine coolant temperature: above normal');
+    expect(faultDescriptionText([f('P0087', 'warning', null)])).toBeNull();
+    expect(faultDescriptionText([])).toBeNull();
+    const long = faultDescriptionText([f('X', 'critical', 'y'.repeat(200))]) as string;
+    expect(long).toHaveLength(FAULT_DESCRIPTION_CHARS);
+    expect(long.endsWith('…')).toBe(true);
   });
 
   test('stopped, stale and never seen', () => {
@@ -80,5 +124,54 @@ describe('fleet panel row text', () => {
       ),
     ).toBe('At Kestrel Grain Co. since 9:50 AM');
     expect(rowDetail(row({}))).toBeNull();
+  });
+});
+
+describe('1f: last working position, stats, faults', () => {
+  test('a Deere-only machine that stopped working: "Last working position, N min ago"', () => {
+    const p = { ...base.position, positionSource: 'deere_working', ts: '2026-11-30T14:53:00.000Z' };
+    const r = row({ position: p as PanelMachine['position'] }, false, true);
+    expect(rowHeadline(r, NOW)).toBe('Last working position, 7 min ago');
+    expect(lastWorkingText('2026-11-30T14:59:50.000Z', NOW)).toBe(
+      'Last working position, 1 min ago',
+    );
+    expect(lastWorkingText('2026-11-30T12:00:00.000Z', NOW)).toBe('Last working position, 3 h ago');
+    // Down still says why.
+    expect(rowHeadline({ ...r, machine: { ...r.machine, status: 'down' } }, NOW)).toBe('Down');
+  });
+
+  test('stats: hours, odometer, fuel always; DEF when known; "not reported", never 0', () => {
+    expect(
+      rowStats({ engineHours: 4312.04, odometerMi: 412_300, fuelPct: 61.6, defPct: 54.2 }),
+    ).toBe('4,312 h · 412,300 mi · fuel 62 % · DEF 54 %');
+    expect(rowStats({})).toBe('hours — · odometer — · fuel —');
+    // The Ford pickup through Samsara: hours and odometer not reported.
+    expect(
+      rowStats({
+        engineHours: null,
+        odometerMi: null,
+        fuelPct: 54,
+        notReported: ['engineHours', 'odometerMi', 'defPct', 'engineOn'],
+      }),
+    ).toBe('hours not reported · odometer not reported · fuel 54 %');
+    expect(rowStats({ engineHours: 0, odometerMi: 0, fuelPct: 0 })).toBe('0 h · 0 mi · fuel 0 %');
+  });
+
+  test('the fault badge: the worst code first, the count of the others; every code in the list', () => {
+    const f = (code: string, severity: ActiveFaultCode['severity']): ActiveFaultCode => ({
+      code,
+      severity,
+      description: code === 'P0087' ? 'Fuel rail pressure low' : null,
+      since: '2026-11-30T14:40:00.000Z',
+    });
+    expect(faultBadgeText([])).toBeNull();
+    expect(faultBadgeText([f('P0087', 'warning')])).toBe('Warning: P0087');
+    const list = [f('P0087', 'warning'), f('J1939 SPN 110 FMI 0', 'critical'), f('P0420', 'info')];
+    expect(faultBadgeText(list)).toBe('Critical: J1939 SPN 110 FMI 0 +2');
+    expect(faultListText(list, NOW).split('\n')).toEqual([
+      'CRITICAL J1939 SPN 110 FMI 0 (since 20 min ago)',
+      'WARNING P0087: Fuel rail pressure low (since 20 min ago)',
+      'INFO P0420 (since 20 min ago)',
+    ]);
   });
 });

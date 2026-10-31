@@ -167,9 +167,17 @@ function shopGeo(farm: DemoFarm): ShopGeo {
     gate: along(entrance, awayVec, w0 + 2),
     ring,
     slot(i) {
-      const col = i % 6;
-      const row = Math.floor(i / 6);
-      return along(along(entrance, alongVec, u0 + 20 + col * 18), awayVec, w0 + 30 + row * 32);
+      // M0's 12 slots (two rows of six) stay where they were; the 1f.2 machines park in a back
+      // row and then in a seventh column, all inside the shop yard.
+      if (i < 12) {
+        const col = i % 6;
+        const row = Math.floor(i / 6);
+        return along(along(entrance, alongVec, u0 + 20 + col * 18), awayVec, w0 + 30 + row * 32);
+      }
+      const j = i - 12;
+      if (j < 6) return along(along(entrance, alongVec, u0 + 20 + j * 18), awayVec, w0 + 88);
+      const k = j - 6;
+      return along(along(entrance, alongVec, u0 + 20 + 6 * 18), awayVec, w0 + 30 + (k % 3) * 29);
     },
     parkHeading: away > 0 ? 180 : 0,
   };

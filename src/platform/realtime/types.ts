@@ -28,11 +28,16 @@ export const LOCAL_NOTIFY_CHANNEL = 'app_events';
  */
 export const MAX_PAYLOAD_BYTES = 7_500;
 
-/** Sent instead of an oversized payload, or when a server change can't be expressed as a delta. */
+/**
+ * Sent instead of an oversized payload, or when a server change can't be expressed as a delta.
+ * 'faults' (1f): fleet/invalidate `{ event: 'machine', reason: 'faults' }` when a machine's active
+ * fault codes (or their worst severity) changed: the fleet panel refetches GET /api/machines
+ * (faults never ride on the tick).
+ */
 export interface InvalidatePayload {
   /** The event that would have been sent, if any. */
   event?: string;
-  reason: 'too_large' | 'changed';
+  reason: 'too_large' | 'changed' | 'faults';
 }
 
 /** Job clock state, published on 'admin' whenever app.settings 'clock.paused' changes. */
@@ -110,6 +115,17 @@ export interface LayerUpdatedPayload {
 }
 
 /**
+ * pins/updated (1f): pins were added, changed or resolved (the deere.fields job's Deere flags;
+ * phones in 2c), on these fields (`fieldIds`; pins with no field are not listed, `hasUnfielded`
+ * says so). Maps and popups refetch GET /api/pins. Published in the writer's transaction, at
+ * most once per sync run.
+ */
+export interface PinsUpdatedPayload {
+  fieldIds: string[];
+  hasUnfielded: boolean;
+}
+
+/**
  * Topic catalogue: topic -> event -> payload type. Topic names are lower-case words (the SSE
  * route rejects anything else); per-entity topics would use a colon (e.g. 'field:<uuid>'), but
  * M1 keeps one topic per kind with the id in the payload. Every topic has 'invalidate'.
@@ -119,7 +135,9 @@ export interface LayerUpdatedPayload {
  *  - 'weather': 'updated' (forecast/observations landed; 1b)
  *  - 'spray':   'assessed' (new verdicts; 1b)
  *  - 'layers':  'updated' (a map layer was rebuilt or added; 1d)
- * Add a topic or event through the contracts (docs/contracts-m1.md §6), never ad hoc.
+ *  - 'pins':    'updated' (Deere flags as read-only pins changed; 1f)
+ * Add a topic or event through the contracts (docs/contracts-m1.md §6, docs/contracts-1f.md §6),
+ * never ad hoc.
  */
 export interface TopicEvents {
   fleet: {
@@ -148,6 +166,10 @@ export interface TopicEvents {
     updated: LayerUpdatedPayload;
     invalidate: InvalidatePayload;
   };
+  pins: {
+    updated: PinsUpdatedPayload;
+    invalidate: InvalidatePayload;
+  };
 }
 
 /** Every topic, for subscribers that list them (the SSE `?topics=` parameter, admin pages). */
@@ -158,6 +180,7 @@ export const TOPICS = [
   'weather',
   'spray',
   'layers',
+  'pins',
 ] as const satisfies readonly (keyof TopicEvents)[];
 
 export type Topic = keyof TopicEvents;

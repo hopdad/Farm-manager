@@ -34,6 +34,7 @@ const TENURE = {
   cash_rent: 'Cash rent',
   share: 'Share',
   custom: 'Custom',
+  unknown: 'Not set',
 } as const;
 
 export default async function FieldsAdminPage({

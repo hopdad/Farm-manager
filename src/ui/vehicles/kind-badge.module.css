@@ -1,0 +1,41 @@
+/*
+ * The vehicle kind badge (terminal-pickups): a small pill for the fleet panel row and
+ * /admin/vehicles, in the panel's dark palette. It inherits the row's font size.
+ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.1em 0.55em;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  background: rgb(255 255 255 / 6%);
+  color: #e7efe9;
+  font-size: 0.85em;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 0.65em;
+  height: 0.65em;
+  border-radius: 50%;
+  flex: none;
+}
+
+.hand {
+  padding: 0 0.4em;
+  border-radius: 999px;
+  background: rgb(250 204 21 / 18%);
+  color: #fde68a;
+  font-size: 0.85em;
+}
+
+.route {
+  color: #a7b8ad;
+}
+
+.route::before {
+  content: "· ";
+}

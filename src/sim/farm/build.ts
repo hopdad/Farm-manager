@@ -27,7 +27,7 @@ import {
   type SimParty,
   type SimShop,
 } from '../types';
-import { deereGuid, deereMachineId, eldVehicleId, FLEET } from './fleet';
+import { deereGuid, deereMachineId, FLEET, telematicsId } from './fleet';
 import {
   type Aliquot,
   aliquotCells,
@@ -668,10 +668,15 @@ export function buildDemoFarm(seed: number = DEFAULT_SIM_SEED): DemoFarm {
     make: f.make,
     model: f.model,
     year: f.year,
-    vendorIds: {
-      ...(f.deere ? { deere: deereMachineId(f.key) } : {}),
-      ...(f.eld ? { eld: eldVehicleId(f.key) } : {}),
-    },
+    vendorIds: f.deere ? { deere: deereMachineId(f.key) } : {},
+    ...(f.telematics
+      ? {
+          telematics: {
+            ...f.telematics,
+            id: telematicsId(f.telematics.vendor, f.key, f.telematics.provider),
+          },
+        }
+      : {}),
     ...(f.deere ? { deereOrgId: SIM_DEERE_HOME_ORG } : {}),
     ...(f.implementWidthFt ? { implementWidthFt: f.implementWidthFt } : {}),
   }));

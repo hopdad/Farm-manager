@@ -10,15 +10,28 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { buildDemoFarm } from '../../../sim/farm/build';
 import { simExternalRefs } from '../../../sim/types';
-import { type ReplayFixture, replayFixtureSchema } from '../../replay';
-import { samsaraReplayFixtures } from '../replay';
-import { samsaraLocationsFeedSchema, samsaraStatsFeedSchema } from '../schemas';
-import { buildSamsaraDocDerivedFixtures, LOOP_PAGES, loopCursor, STATS_CURSOR } from './build';
+import { matchExchange, type ReplayFixture, replayFixtureSchema } from '../../replay';
+import { mapSamsaraFaults } from '../mapper';
+import { samsaraDocDerivedFixtures, samsaraReplayFixtures } from '../replay';
+import {
+  samsaraFaultCodesFeedSchema,
+  samsaraFaultCodesReadingSchema,
+  samsaraLocationsFeedSchema,
+  samsaraStatsFeedSchema,
+} from '../schemas';
+import {
+  buildSamsaraDocDerivedFixtures,
+  FAULTS_CURSOR,
+  LOOP_PAGES,
+  loopCursor,
+  STATS_CURSOR,
+} from './build';
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'doc-derived');
 const built = buildSamsaraDocDerivedFixtures();
 const positions = built['positions/01-locations-feed.json'] as ReplayFixture;
 const stats = built['stats/01-stats-feed.json'] as ReplayFixture;
+const faults = built['faults/01-fault-codes-feed.json'] as ReplayFixture;
 
 describe('Samsara doc-derived fixtures', () => {
   test('the committed files are what the builder makes (and replay.ts ships all of them)', () => {
@@ -29,7 +42,8 @@ describe('Samsara doc-derived fixtures', () => {
         `${rel} is out of date: run src/connectors/samsara/fixtures/write.ts`,
       ).toEqual(JSON.parse(JSON.stringify(fixture)));
     }
-    expect(samsaraReplayFixtures).toHaveLength(2);
+    expect(samsaraDocDerivedFixtures).toHaveLength(Object.keys(built).length);
+    expect(samsaraReplayFixtures).toEqual(expect.arrayContaining(samsaraDocDerivedFixtures));
   });
 
   test('layout, metadata and the live schemas', () => {
@@ -45,6 +59,55 @@ describe('Samsara doc-derived fixtures', () => {
     for (const x of stats.exchanges) {
       expect(samsaraStatsFeedSchema.safeParse(x.response.body).success).toBe(true);
     }
+    for (const x of faults.exchanges) {
+      const page = samsaraFaultCodesFeedSchema.parse(x.response.body);
+      for (const v of page.data) {
+        for (const r of v.faultCodes ?? []) {
+          expect(samsaraFaultCodesReadingSchema.safeParse(r).success).toBe(true);
+        }
+      }
+    }
+  });
+
+  test('no two exchanges answer the same request; faultCodes and stats calls never cross', () => {
+    const keys = samsaraReplayFixtures.flatMap((f) =>
+      f.exchanges.map((x) =>
+        JSON.stringify([
+          x.request.method,
+          x.request.path,
+          Object.entries(x.request.query ?? {}).sort(),
+          x.request.body ?? null,
+        ]),
+      ),
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+    const base = 'https://replay.invalid/samsara/fleet/vehicles/stats/feed';
+    const hit = (q: string) =>
+      matchExchange(samsaraReplayFixtures, 'GET', new URL(`${base}?${q}`))?.fixture.stream;
+    expect(hit('types=faultCodes')).toBe('faults');
+    expect(hit(`types=faultCodes&after=${FAULTS_CURSOR}`)).toBe('faults');
+    expect(hit('types=obdEngineSeconds%2CfuelPercents%2CobdOdometerMeters')).toBe('stats');
+    expect(hit(`types=obdEngineSeconds,fuelPercents,obdOdometerMeters&after=${STATS_CURSOR}`)).toBe(
+      'stats',
+    );
+  });
+
+  test('the faults fixture: S3 critical, S2 warning, S1 and S4 clean; then caught up', () => {
+    const first = faults.exchanges.find((x) => !x.request.query?.after);
+    const page = samsaraFaultCodesFeedSchema.parse(first?.response.body);
+    const byName = new Map(
+      page.data.map((v) => [
+        v.name,
+        mapSamsaraFaults({ id: v.id, reading: v.faultCodes?.[0] })[0]?.faultCodes ?? [],
+      ]),
+    );
+    expect([...byName.keys()].sort()).toEqual(['S1', 'S2', 'S3', 'S4']);
+    expect(byName.get('S3')?.map((f) => f.severity)).toEqual(['critical']);
+    expect(byName.get('S2')?.map((f) => f.severity)).toEqual(['warning']);
+    expect(byName.get('S1')).toEqual([]);
+    expect(byName.get('S4')).toEqual([]);
+    const after = faults.exchanges.find((x) => x.request.query?.after === FAULTS_CURSOR);
+    expect(after?.response.body).toMatchObject({ data: [] });
   });
 
   test('a closed loop: every cursor a page hands out leads to exactly one next page', () => {
@@ -73,15 +136,38 @@ describe('Samsara doc-derived fixtures', () => {
     expect((statsAfter?.response.body as { data: unknown[] } | undefined)?.data).toEqual([]);
   });
 
-  test('every vehicle is an ELD vehicle the demo seed maps; all four trucks every page', () => {
-    const refs = simExternalRefs(buildDemoFarm(), 'samsara').filter(
-      (r) => r.ref.source === 'samsara',
-    );
-    const known = new Set(refs.map((r) => r.ref.externalId));
-    expect(known.size).toBe(4);
+  test('every vehicle is one the demo seed maps on Samsara: the four semis and both pickups every page', () => {
+    const farm = buildDemoFarm();
+    const ids = (kind: string) =>
+      new Set(farm.machines.filter((m) => m.kind === kind).map((m) => m.id));
+    const refsOf = (kinds: Set<string>) =>
+      new Set(
+        simExternalRefs(farm)
+          .filter((r) => r.ref.source === 'samsara' && kinds.has(r.entityId))
+          .map((r) => r.ref.externalId),
+      );
+    const semis = refsOf(ids('semi'));
+    const pickups = refsOf(ids('pickup'));
+    expect(semis.size).toBe(4);
+    expect(pickups.size).toBe(2);
+    const known = new Set([...semis, ...pickups]);
     for (const x of positions.exchanges) {
-      const ids = (x.response.body as { data: { id: string }[] }).data.map((v) => v.id);
-      expect(new Set(ids)).toEqual(known);
+      const seen = (x.response.body as { data: { id: string }[] }).data.map((v) => v.id);
+      expect(new Set(seen)).toEqual(known);
+    }
+    // The pickups' carmaker routes report fuel only: never hours or odometer (not even 0).
+    for (const x of stats.exchanges) {
+      for (const v of (x.response.body as { data: Record<string, unknown>[] }).data) {
+        if (!pickups.has(v.id as string)) continue;
+        expect(v.obdEngineSeconds).toBeUndefined();
+        expect(v.obdOdometerMeters).toBeUndefined();
+        expect(v.fuelPercents).toBeDefined();
+      }
+    }
+    for (const x of faults.exchanges) {
+      for (const v of (x.response.body as { data: { id: string }[] }).data) {
+        expect(semis.has(v.id)).toBe(true);
+      }
     }
   });
 });

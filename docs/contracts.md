@@ -4,6 +4,7 @@ Oct 29, 2026 · written by the M0 stage 1 (foundation) build · companion to `do
 
 > **M1:** the parallel M1 build's agreements (owners, ports, migration 0003, new contracts) are in
 > [`contracts-m1.md`](contracts-m1.md); everything here still holds unless that page says otherwise.
+> **Slice 1f** (live connectors, sync health, migration 0007): [`contracts-1f.md`](contracts-1f.md).
 >
 > **Status: integrated (M0 stage 3, Oct 29, 2026).** The four branches are merged into
 > `claude/m0-foundation`; the ownership table and the "rules for shared files" in section 1 were
@@ -203,17 +204,47 @@ With **`APP_ENV=production`**, config refuses `sim`/`replay` connector modes, `S
 | `CLOCK_HOSTS` | `app,pc` | which job `host` values this clock fires |
 | `FLEET_STALE_SECONDS` | `600` | a machine whose latest fix (ELD, cab device, manual) is older is `stale`; `pnpm env:init` writes `60` for the demo |
 | `FLEET_STALE_SECONDS_DEERE` | `600` | the same for Deere working-only fixes (`deere_working`): an idle cart has no new fix for minutes; `env:init` writes `900` (stage 3) |
-| `JOBS_DEMO_CADENCE` | `off` | `on` \| `off` → boolean. tools/clock fires jobs that declare `demoEvery` at that interval (fleet.trucks 5 s, fleet.deere 15 s). Refused in production and when any connector is `sandbox`/`live`; `env:init` writes `on` (stage 3) |
+| `FLEET_STALE_SECONDS_LAST_KNOWN` | `10800` | 1f.2: the same for `last_known` fixes (AEMP hourly snapshots, Terminal's latest location) |
+| `JOBS_DEMO_CADENCE` | `off` | `on` \| `off` → boolean. tools/clock fires jobs that declare `demoEvery` at that interval (fleet.trucks 5 s, fleet.deere 15 s), only while the job's own connector is sim, replay or off. Refused in production; `env:init` writes `on` (stage 3) unless a connector is `sandbox`/`live` |
 | `VENDOR_SIM_URL` | `http://127.0.0.1:4010` | stand-in base; sim clients use `${VENDOR_SIM_URL}/<vendor>` |
 | `CONNECTOR_DEERE` | `sim` | `sim` \| `replay` \| `sandbox` \| `live` \| `off` |
-| `CONNECTOR_ELD` | `sim` | same modes; vendor chosen by `ELD_VENDOR` |
+| `CONNECTOR_SAMSARA` | `sim` (`off` in production) | 1f.2: same modes; one key per telematics connection, all running at once (`docs/contracts-1f.md` part B) |
+| `CONNECTOR_MOTIVE` | `sim` (`off` in production) | " |
+| `CONNECTOR_GEOTAB` | `sim` (`off` in production) | " |
+| `CONNECTOR_AEMP` | `sim` (`off` in production) | " (the generic ISO 15143-3 client; providers in `AEMP_PROVIDERS`) |
+| `CONNECTOR_CNH` | `sim` (`off` in production) | " (CNH FieldOps; no `replay` mode: refused) |
+| `CONNECTOR_TERMINAL` | `sim` (`off` in production) | " (the Terminal aggregator) |
 | `CONNECTOR_WEATHER` | `sim` | same modes (NWS) |
-| `ELD_VENDOR` | `samsara` | `samsara` \| `motive` |
+| `CONNECTOR_ELD` | unset | **deprecated** (1f.2): read only as an alias that sets the key of `ELD_VENDOR`'s vendor (default samsara) unless that key is set; `/admin/connectors` and `pnpm dev` warn |
+| `ELD_VENDOR` | unset | **deprecated** (1f.2): `samsara` \| `motive` \| `geotab` \| `terminal`, only with `CONNECTOR_ELD` |
 | `WRITEBACK_DEERE` | `off` | `on` \| `off` → boolean; Work Plan push gate |
 | `DEERE_CLIENT_ID` | optional | real Deere app (sandbox/live); sim uses `SIM_CREDENTIALS.deere` |
 | `DEERE_CLIENT_SECRET` | optional | " |
+| `DEERE_REDIRECT_URI` | optional (http(s) URL; https in production) | 1f decision 6: the Deere OAuth callback when it isn't `${PUBLIC_URL}/api/oauth/deere` (a public page that forwards `code` and `state` to the PC; `docs/contracts-1f.md`) |
+| `DEERE_DAILY_CALL_BUDGET` | optional (integer ≥ 1) | 1f decision 4: Deere API calls a day; unset = limit unknown (jobs keep their cron); set = `fleet.deere` and `deere.ops` pace themselves so the Deere jobs stay under 80 % of it (sandbox/live calls only) |
+| `DEERE_HOME_ORG_ID` | optional (Deere org id) | 1f decision 8: your own Deere organization (machines are created only from it; farms in other orgs belong to that org's customer). Unset: sim and replay use their simulated home org; sandbox/live use the only org you are a member of, else `/admin/connectors` asks for it |
+| `DEERE_API_BASE` | optional (http(s) URL) | 1f.2: the Deere platform root when it isn't the documented one (sandbox `https://sandboxapi.deere.com/platform`, live `https://api.deere.com/platform`) |
+| `DEERE_EQUIPMENT_API_BASE` | optional (http(s) URL) | 1f.2: Deere's Equipment API root (machines); unset = `https://equipmentapi.deere.com/isg` for sandbox and live |
 | `SAMSARA_API_TOKEN` | optional | real Samsara token; sim uses `SIM_CREDENTIALS.samsara` |
-| `MOTIVE_API_KEY` | optional | real Motive key; sim uses `SIM_CREDENTIALS.motive` |
+| `MOTIVE_API_KEY` | optional | real Motive key (a hauler's: read-only scoped, Group-scoped to our trucks, set to expire); sim uses `SIM_CREDENTIALS.motive` |
+| `MOTIVE_API_BASE` | optional (http(s) URL) | 1f.2: Motive API root; unset = `https://api.gomotive.com` |
+| `GEOTAB_SERVER` | optional (host name) | 1f.2: MyGeotab server; unset = `my.geotab.com` |
+| `GEOTAB_DATABASE` | optional | 1f.2: MyGeotab database (sandbox: the free demo database) |
+| `GEOTAB_USERNAME` | optional | 1f.2: MyGeotab service user |
+| `GEOTAB_PASSWORD` | optional | " |
+| `AEMP_PROVIDERS` | optional (JSON array) | 1f.2: ISO 15143-3 providers `[{ id, label?, baseUrl, auth: none\|bearer\|basic\|oauth2\|deere_oauth\|subscription_key, token?, username?, password?, clientId?, clientSecret?, tokenUrl?, grantType?: client_credentials\|password, scope?, subscriptionKey? (sent with any auth style), subscriptionKeyHeader?, format?: auto\|json\|xml (also the Accept header), idElement?: PIN\|VIN\|SerialNumber\|EquipmentID, faultsPath?, minIntervalSeconds? }]`; unset = the stand-in's `kubota`, `samsara` in sim |
+| `CNH_CLIENT_ID` | optional | 1f.2: CNH FieldOps OAuth client of this environment's app (staging = sandbox, production = live) |
+| `CNH_CLIENT_SECRET` | optional | " |
+| `CNH_SUBSCRIPTION_KEY` | optional | 1f.2: CNH API subscription key (`Ocp-Apim-Subscription-Key` on every call) |
+| `CNH_API_BASE` | optional (http(s) URL) | 1f.2: CNH API root; unset = `https://stg.api-data.cnh.com/v1` (sandbox) / `https://api-data.cnh.com/v1` (live) |
+| `CNH_AUTH_BASE` | optional (http(s) URL) | 1f.2: CNH identity root; unset = `https://stg.identity.cnhind.com` / `https://identity.cnhind.com` |
+| `CNH_AUDIENCE` | optional | 1f.2: the OAuth `audience`; unset = `https://sandbox.api-data.cnh.com/` / `https://api-data.cnh.com/` |
+| `CNH_CONNECTION` | optional | 1f.2: the Auth0 `connection`; unset = `STG-ADFS-CONN` / `PROD-ADFS-CONN` |
+| `CNH_REDIRECT_URI` | optional (http(s) URL; https in production) | 1f.2: the CNH OAuth callback when it isn't `${PUBLIC_URL}/api/oauth/cnh` |
+| `TERMINAL_SECRET_KEY` | optional | 1f.2: Terminal secret key (Bearer; lists every connection) |
+| `TERMINAL_CONNECTION_TOKEN` | optional | 1f.2: an optional pin to one connection (`Connection-Token`); unset = every connection `GET /connections?status=connected` lists |
+| `TERMINAL_API_BASE` | optional (http(s) URL) | 1f.2: unset = sandbox `https://api.sandbox.withterminal.com/tsp/v1`, live `https://api.withterminal.com/tsp/v1` |
+| `VEHICLE_KIND_TAGS` | `semi:Semi,pickup:Pickup,service_truck:Service truck` | 1f.2: which vendor tags set a vehicle's kind (`<kind>:<tag>` pairs); a kind set on /admin always wins |
 | `NWS_USER_AGENT` | `farm-manager (local development)` | NWS requires a User-Agent with contact info |
 | `SIM_SCENARIO` | `harvest-day` | one of the six scenarios |
 | `SIM_SEED` | `1` | world seed |
@@ -263,12 +294,13 @@ SQL source of truth: `db/migrations/0000_m0_extensions_roles.sql`, `0001_m0_tabl
     | `farm.fields` | `deere` | `field` | Deere field id | Deere org id; **one row per org** that has the field (`sharedWith`) |
     | `farm.field_boundaries` | `deere` | `boundary` | Deere boundary id | Deere org id |
     | `farm.machines` (JDLink) | `deere` | `machine` | Deere machine id | Deere org id |
-    | `farm.machines` (ELD vehicle) | `ELD_VENDOR` (`samsara` \| `motive`) | `machine` | vehicle id | `''` |
+    | `farm.machines` (telematics vehicle) | its vendor (`samsara`, `motive`, `geotab`, `cnh`; 1f.2) | `machine` | vehicle id | `''` |
+    | `farm.machines` (AEMP / Terminal, 1f.2) | `aemp` / `terminal` | `machine` | equipment / vehicle id | the AEMP provider / Terminal connection |
     | `farm.parties` (1f, unused in M0) | `deere` | `party` | Deere client id | Deere org id |
 
     `NormalizedPosition` / `NormalizedVehicleStat` carry `sourceOrg` (the Deere org a machine was read
     from, `''` for ELDs) so the lookup key is complete. The simulated farm's exact rows come from
-    `simExternalRefs(farm, ELD_VENDOR)` (section 9). Adding a kind goes through your report.
+    `simExternalRefs(farm)` (section 9; 1f.2: each machine's own vendor). Adding a kind goes through your report.
 - **Roles:** migrations run as `postgres`; the app runs as `farm_app` (USAGE on the four schemas and
   `extensions`; SELECT/INSERT/UPDATE/DELETE on all their tables via default privileges; EXECUTE on `app.*`;
   no CREATE anywhere; search_path `"$user", public, extensions`).
@@ -500,14 +532,14 @@ tick arrives:**
 - **Seed contract:** `scripts/seed.ts demo` writes the SimFarm into `farm.*` with id = SimFarm id,
   `source='demo'`, `source_id=key`, one current boundary per field (id `field.boundaryId`, `source_id`
   `boundary:<key>`), one `farm.geofences` row per elevator (kind `elevator`) and the shop (kind `shop`),
-  plus **exactly** the external refs `simExternalRefs(farm, cfg.ELD_VENDOR)` returns, written with
+  plus **exactly** the external refs `simExternalRefs(farm)` returns, written with
   `upsertExternalRef` (tuples in section 4):
   - Deere farm `('deere', 'farm', unit.deereFarmId, unit.deereOrgId)`;
   - Deere field `('deere', 'field', field.deereFieldId, <owning unit's deereOrgId>)`, plus
     `('deere', 'field', sharedWith.deereFieldId, sharedWith.deereOrgId)` → the same field;
   - Deere boundary `('deere', 'boundary', field.deereBoundaryId, <owning org>)` → `field.boundaryId`;
   - Deere machine `('deere', 'machine', vendorIds.deere, machine.deereOrgId)`;
-  - ELD vehicle `(ELD_VENDOR, 'machine', vendorIds.eld, '')`.
+  - telematics machine `(telematics.vendor, 'machine', telematics.id, telematics.provider ?? '')` (1f.2: the mixed fleet; the RoGator also `('aemp', 'machine', id, 'samsara')`).
 
   The seed also writes one `farm.geofences` row per bin site (kind `bin_site`, from the demo farm's
   `binSites`; stage 3 accepted it as is). Scenario starts (`world.startsAt`): harvest-day and

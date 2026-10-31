@@ -10,6 +10,7 @@
 import { customersLayer, fieldsLayer, fleetLayer } from './builtin';
 import { naipAoiLayer, naipLayer } from './naip';
 import { parcelsLayer } from './parcels';
+import { pinsLayer } from './pins';
 import { soilsLayer } from './soils';
 import { sprayLayer } from './spray';
 import { tileLayer } from './tile';
@@ -20,6 +21,7 @@ export const LAYER_DEFS: readonly LayerDef[] = [
   fleetLayer,
   customersLayer,
   sprayLayer,
+  pinsLayer,
   soilsLayer,
   parcelsLayer,
   tileLayer,

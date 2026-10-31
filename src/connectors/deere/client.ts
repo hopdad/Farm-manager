@@ -7,13 +7,30 @@
  * (`simAutoConnect`), at most once per poll, so `pnpm dev` runs with no clicks; in sandbox/live
  * a missing grant fails the step with "sign in at /api/oauth/deere".
  *
- * Locations: orgs → machines per org → breadcrumbs per machine for (cursor, now]. The cursor is
- * the ISO end of the last window (wall clock). A first run looks back `firstLookbackMs`. The
- * client keeps only breadcrumbs inside the window it asked for (Deere doesn't say whether
- * startDate/endDate are inclusive, and a replayed fixture holds a whole period).
+ * Locations: orgs → machines per org (the Equipment API: `GET {equipmentBase}/equipment?
+ * organizationIds=<org>&categories=Machine&capableOf=Connectivity`, `Accept: application/json`;
+ * the /platform machines API is deprecated) → breadcrumbs per machine's `principalId` (≠ its
+ * organization-equipment `id`) for (cursor, now]. Orgs are isolated (1f decision 5,
+ * docs/contracts-1f.md §5.4): an org whose listing carries a `connections` link (not approved in
+ * Deere Connections) is skipped, an org that answers 403 mid-run stops only that org's work, and
+ * `pollLocationsWithOrgs` reports how each org was seen (fleet.deere writes ingest.connector_orgs
+ * from it). The cursor is the ISO end of the last window
+ * (wall clock). A first run looks back `firstLookbackMs`. The client keeps only breadcrumbs inside
+ * the window it asked for (Deere doesn't say whether startDate/endDate are inclusive, and a
+ * replayed fixture holds a whole period).
+ *
+ * Paging: a first request asks for the largest page (`itemLimit=100` on /platform, whose default
+ * is 10; 5000 on the Equipment API), then follows `nextPage` links (`?pageOffset=&itemLimit=`),
+ * resolved against the page they came from (the Equipment API's links may be relative), at most
+ * MAX_PAGES pages; a collection cut short there is reported through `onTruncated`.
  *
  * Fields, boundaries, field operations (with measurements and coverage) and flags are read by
  * the 1f syncs; in 1a they back the doc-derived replay fixtures and their contract tests.
+ *
+ * 1f seam (docs/contracts-1f.md §5): `apiUrl`, `getOne` and `getPaged` are public, so each 1f
+ * builder adds its own Deere calls (farms, equipment, hours, operations …) in its own files,
+ * with the same bearer token, 401 refresh and paging as the calls below. Their signatures are a
+ * contract: change them only through the integrator.
  *
  * Replay (CONNECTOR_DEERE=replay, contracts-m1 §10): `DeereClient.forReplay()` is this same
  * client with the fixture transport and a fixed token (no OAuth: there is no token endpoint to
@@ -33,31 +50,45 @@ import type { ReplayFixture } from '../replay';
 import type { Mode, PollResult, PositionSource, RawItem } from '../types';
 import { deereBreadcrumbItems, mapDeereBreadcrumb } from './mapper';
 import { type DeereHttpOptions, refreshDeereTokens, simAutoConnect } from './oauth';
+import { type DeereOrgAccess, deereOrgAccess, deniedOrgAccess, isDeereOrgDenied } from './orgs';
 import {
+  DEERE_EQUIPMENT_MEDIA_TYPE,
   DEERE_MEDIA_TYPE,
   type DeereBoundary,
   type DeereBreadcrumb,
   type DeereBreadcrumbRaw,
+  type DeereEquipment,
   type DeereField,
   type DeereFieldOperation,
   type DeereFieldOperationMeasurement,
   type DeereFlag,
   type DeereLink,
-  type DeereMachine,
   type DeereOrganization,
   deereBoundariesSchema,
   deereBoundarySchema,
   deereBreadcrumbsSchema,
+  deereEquipmentListSchema,
   deereFieldOperationMeasurementsSchema,
   deereFieldOperationsSchema,
   deereFieldsSchema,
   deereFlagsSchema,
-  deereMachinesSchema,
   deereOrganizationsSchema,
 } from './schemas';
 
 /** Pages followed per collection before giving up (a runaway `nextPage` loop). */
 const MAX_PAGES = 50;
+/** The largest page /platform serves ("multiples of 10 up to 100"; the default is 10). */
+export const DEERE_PLATFORM_PAGE_LIMIT = 100;
+/** The largest page the Equipment API serves (default 100, max 5000). */
+export const DEERE_EQUIPMENT_PAGE_LIMIT = 5000;
+
+/** Options of one GET (public 1f seam). */
+export interface DeereGetOptions {
+  /** Accept header (default the platform's DEERE_MEDIA_TYPE; the Equipment API takes application/json). */
+  accept?: string;
+  /** getPaged: the first request's `itemLimit` when the URL names none (default 100). */
+  itemLimit?: number;
+}
 
 export interface DeereClientOptions {
   endpoints: DeereEndpoints;
@@ -69,9 +100,22 @@ export interface DeereClientOptions {
   firstLookbackMs?: number;
   /** A cursor older than this resumes from now − this. Default 1 h. */
   maxLookbackMs?: number;
+  /** Told when a collection had more than MAX_PAGES pages (what was read is still returned). */
+  onTruncated?: (url: string, pages: number) => void;
 }
 
 type CollectionOf<T extends ZodType> = z.infer<T> & { links: DeereLink[] };
+
+/** One locations poll with how each org was seen (`pollLocationsWithOrgs`). */
+export interface DeereLocationsPoll extends PollResult<RawItem<DeereBreadcrumbRaw>> {
+  /**
+   * Every org of this run's listing, in listing order: `connected`, or `needs_approval` (a
+   * `connections` link: skipped; or a 403 mid-run: the rest of that org skipped, with the reason).
+   */
+  orgs: DeereOrgAccess[];
+  /** The listing's orgs as Deere sent them (`member`, for deereHomeOrg in sandbox/live). */
+  listing: { id: string; name: string | null; member?: boolean }[];
+}
 
 export class DeereClient {
   readonly endpoints: DeereEndpoints;
@@ -80,6 +124,7 @@ export class DeereClient {
   private readonly autoConnect: boolean;
   private readonly firstLookbackMs: number;
   private readonly maxLookbackMs: number;
+  private readonly onTruncated: (url: string, pages: number) => void;
   private connectedThisPoll = false;
 
   constructor(opts: DeereClientOptions) {
@@ -89,6 +134,10 @@ export class DeereClient {
     this.autoConnect = opts.autoConnect ?? true;
     this.firstLookbackMs = opts.firstLookbackMs ?? 10 * 60_000;
     this.maxLookbackMs = opts.maxLookbackMs ?? 60 * 60_000;
+    this.onTruncated =
+      opts.onTruncated ??
+      ((url, pages) =>
+        console.warn(`[deere] ${pathOfUrl(url)}: more than ${pages} pages; the rest was skipped`));
   }
 
   static forMode(
@@ -142,13 +191,48 @@ export class DeereClient {
     }
   }
 
+  /**
+   * The platform API URL below `apiBase`, each segment URI-encoded:
+   * `apiUrl('organizations', orgId, 'farms')` → `<apiBase>/organizations/<orgId>/farms`.
+   */
+  apiUrl(...segments: string[]): string {
+    return [this.endpoints.apiBase, ...segments.map(encodeURIComponent)].join('/');
+  }
+
+  /** GET one resource (public 1f seam): bearer token, one refresh-and-retry on 401, `schema`. */
+  getOne<S extends ZodType>(
+    schema: S,
+    url: string,
+    opts: DeereGetOptions = {},
+  ): Promise<z.infer<S>> {
+    return this.get(schema, url, opts);
+  }
+
+  /**
+   * GET every item of a Deere collection (public 1f seam): the first request asks for
+   * `opts.itemLimit` (default 100) unless the URL names one, then `nextPage` links are followed
+   * (at most 50 pages); `schema` is a `deereCollectionSchema(item)` and validates every page.
+   */
+  getPaged<S extends ZodType<{ values: unknown[]; links: DeereLink[] }>>(
+    schema: S,
+    url: string,
+    opts: DeereGetOptions = {},
+  ): Promise<z.infer<S>['values']> {
+    return this.all(schema, url, opts);
+  }
+
   /** GET with the bearer token; one refresh-and-retry on 401. */
-  private async get<S extends ZodType>(schema: S, url: string): Promise<z.infer<S>> {
+  private async get<S extends ZodType>(
+    schema: S,
+    url: string,
+    opts: DeereGetOptions = {},
+  ): Promise<z.infer<S>> {
+    const accept = opts.accept ?? DEERE_MEDIA_TYPE;
     const call = (token: string) =>
       vendorJson(
         schema,
         url,
-        { method: 'GET', headers: { authorization: `Bearer ${token}`, accept: DEERE_MEDIA_TYPE } },
+        { method: 'GET', headers: { authorization: `Bearer ${token}`, accept } },
         { ...this.http, vendor: 'deere' },
       );
     const token = await this.token();
@@ -167,15 +251,26 @@ export class DeereClient {
     }
   }
 
-  /** Every item of a collection, following `nextPage` links. */
-  private async all<T, S extends ZodType>(schema: S, firstUrl: string): Promise<T[]> {
+  /** Every item of a collection: the largest first page, then `nextPage` links. */
+  private async all<T, S extends ZodType>(
+    schema: S,
+    firstUrl: string,
+    opts: DeereGetOptions = {},
+  ): Promise<T[]> {
     const out: T[] = [];
-    let url: string | undefined = firstUrl;
-    for (let page = 0; url && page < MAX_PAGES; page++) {
-      const body = (await this.get(schema, url)) as CollectionOf<S> & { values: T[] };
-      out.push(...body.values);
-      url = body.links.find((l) => l.rel === 'nextPage')?.uri;
+    const first = new URL(firstUrl);
+    if (!first.searchParams.has('itemLimit')) {
+      first.searchParams.set('itemLimit', String(opts.itemLimit ?? DEERE_PLATFORM_PAGE_LIMIT));
     }
+    let url: string | undefined = first.toString();
+    let page = 0;
+    for (; url && page < MAX_PAGES; page++) {
+      const body = (await this.get(schema, url, opts)) as CollectionOf<S> & { values: T[] };
+      out.push(...body.values);
+      const next = body.links.find((l) => l.rel === 'nextPage')?.uri;
+      url = next ? new URL(next, url).toString() : undefined;
+    }
+    if (url) this.onTruncated(firstUrl, page);
     return out;
   }
 
@@ -183,16 +278,27 @@ export class DeereClient {
     return this.all(deereOrganizationsSchema, `${this.endpoints.apiBase}/organizations`);
   }
 
-  machines(orgId: string): Promise<DeereMachine[]> {
-    return this.all(
-      deereMachinesSchema,
-      `${this.endpoints.apiBase}/organizations/${encodeURIComponent(orgId)}/machines`,
-    );
+  /**
+   * The org's machines from the Equipment API (one org per call: Deere answers 403 for the whole
+   * request if any listed org is not accessible). `capableOf: 'Connectivity'` = only machines
+   * with a JDLink modem (the ones with breadcrumbs). Items carry `principalId` for the /platform
+   * machine paths.
+   */
+  machines(orgId: string, opts: { capableOf?: 'Connectivity' } = {}): Promise<DeereEquipment[]> {
+    const u = new URL(`${this.endpoints.equipmentBase}/equipment`);
+    u.searchParams.set('organizationIds', orgId);
+    u.searchParams.set('categories', 'Machine');
+    if (opts.capableOf) u.searchParams.set('capableOf', opts.capableOf);
+    return this.all(deereEquipmentListSchema, u.toString(), {
+      accept: DEERE_EQUIPMENT_MEDIA_TYPE,
+      itemLimit: DEERE_EQUIPMENT_PAGE_LIMIT,
+    });
   }
 
-  breadcrumbs(machineId: string, start: Date, end: Date): Promise<DeereBreadcrumb[]> {
+  /** GET /machines/{principalId}/breadcrumbs (working-only positions; Deere's principalId, not the equipment id). */
+  breadcrumbs(principalId: string, start: Date, end: Date): Promise<DeereBreadcrumb[]> {
     const u = new URL(
-      `${this.endpoints.apiBase}/machines/${encodeURIComponent(machineId)}/breadcrumbs`,
+      `${this.endpoints.apiBase}/machines/${encodeURIComponent(principalId)}/breadcrumbs`,
     );
     u.searchParams.set('startDate', start.toISOString());
     u.searchParams.set('endDate', end.toISOString());
@@ -262,8 +368,19 @@ export class DeereClient {
     return this.all(deereFlagsSchema, this.orgUrl(orgId, 'fields', fieldId, 'flags'));
   }
 
-  /** Breadcrumbs of every machine in every org for (cursor, now] (the sync step's `poll`). */
+  /** Breadcrumbs of every machine in every connected org for (cursor, now] (the sync step's `poll`). */
   async pollLocations(cursor: string | null): Promise<PollResult<RawItem<DeereBreadcrumbRaw>>> {
+    const { items, cursor: next, hasMore } = await this.pollLocationsWithOrgs(cursor);
+    return { items, cursor: next, hasMore };
+  }
+
+  /**
+   * `pollLocations` with each org's access as this run saw it (decision 5): needs-approval orgs
+   * are skipped, an org that answers 403 (`isDeereOrgDenied`) stops only its own work (what it
+   * already returned is kept), and any other failure fails the poll as before. A failed org
+   * listing throws (nothing is known about the orgs then).
+   */
+  async pollLocationsWithOrgs(cursor: string | null): Promise<DeereLocationsPoll> {
     this.connectedThisPoll = false;
     const end = this.now();
     const parsed = cursor ? Date.parse(cursor) : Number.NaN;
@@ -276,13 +393,35 @@ export class DeereClient {
       const t = Date.parse(b.eventTimestamp);
       return t > start.getTime() && t <= end.getTime();
     };
-    for (const org of await this.organizations()) {
-      for (const m of await this.machines(org.id)) {
-        const crumbs = (await this.breadcrumbs(m.id, start, end)).filter(inWindow);
-        items.push(...deereBreadcrumbItems(org.id, m.id, crumbs));
+    const listing = await this.organizations();
+    const orgs: DeereOrgAccess[] = [];
+    for (const org of listing) {
+      const access = deereOrgAccess(org);
+      if (access.status === 'needs_approval') {
+        orgs.push(access);
+        continue;
+      }
+      try {
+        for (const m of await this.machines(org.id, { capableOf: 'Connectivity' })) {
+          // The /platform machine paths and the ('deere', 'machine', …) refs use the principalId.
+          const machineId = m.principalId;
+          if (!machineId || m.archived) continue;
+          const crumbs = (await this.breadcrumbs(machineId, start, end)).filter(inWindow);
+          items.push(...deereBreadcrumbItems(org.id, machineId, crumbs));
+        }
+        orgs.push(access);
+      } catch (e) {
+        if (!isDeereOrgDenied(e)) throw e;
+        orgs.push(deniedOrgAccess(org, e));
       }
     }
-    return { items, cursor: end.toISOString(), hasMore: false };
+    return {
+      items,
+      cursor: end.toISOString(),
+      hasMore: false,
+      orgs,
+      listing: listing.map((o) => ({ id: o.id, name: o.name, member: o.member })),
+    };
   }
 
   /** The contract port (contracts §8): normalized positions. */
@@ -293,6 +432,15 @@ export class DeereClient {
         return { ...r, items: r.items.flatMap((i) => mapDeereBreadcrumb(i.payload)) };
       },
     };
+  }
+}
+
+/** Path of a URL for a log line (no query: ids and windows stay out of logs). */
+function pathOfUrl(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return '(bad url)';
   }
 }
 

@@ -5,9 +5,11 @@
  *
  * Source: Samsara's public API reference as published in its official SDK
  * (@samsarahq/samsara 14.11, types VehicleLocationsListResponse, VehicleLocation,
- * PaginationResponse, VehicleStatsListResponse, *ErrorResponseBody), checked Oct 29, 2026.
+ * PaginationResponse, VehicleStatsListResponse, *ErrorResponseBody), checked Oct 29, 2026, and
+ * Samsara's OpenAPI 3.0.1 spec (developers.samsara.com/openapi/samsara-api.json, Oct 30):
  *   GET https://api.samsara.com/fleet/vehicles/locations/feed?after=&vehicleIds=&tagIds=
  *   GET https://api.samsara.com/fleet/vehicles/stats/feed?types=a,b,c&after=   (at most 3 types)
+ *   GET https://api.samsara.com/fleet/vehicles/stats/feed?types=faultCodes&after=   (slice 1f)
  *   Authorization: Bearer <API token>
  * Objects are `loose` so fields we don't use (decorations, address book entries) never fail a
  * real response; we validate what we read.
@@ -32,9 +34,11 @@ export const samsaraLocationSchema = z.looseObject({
   longitude: z.number().min(-180).max(180),
   /** Degrees. */
   heading: z.number().optional(),
-  /** GPS speed in miles per hour (`isEcuSpeed` says whether it came from the ECU). */
+  /**
+   * GPS speed in miles per hour. (`isEcuSpeed` is a field of the stats feed's `gps` object only,
+   * not of VehicleLocation: Samsara's spec; a loose object ignores it if it ever appears.)
+   */
   speed: z.number().optional(),
-  isEcuSpeed: z.boolean().optional(),
   reverseGeo: z.looseObject({ formattedLocation: z.string().optional() }).optional(),
 });
 export type SamsaraLocation = z.infer<typeof samsaraLocationSchema>;
@@ -83,6 +87,120 @@ export const samsaraStatsFeedSchema = z.looseObject({
 });
 export type SamsaraStatsFeed = z.infer<typeof samsaraStatsFeedSchema>;
 
+// ---------------------------------------------------------------------------------------------
+// faultCodes (slice 1f, fleet-faults): GET /fleet/vehicles/stats/feed?types=faultCodes. Its own
+// call (and so its own cursor: a Samsara cursor belongs to its `types` set): the three stat
+// types above already fill the 3-types limit. Shapes from Samsara's OpenAPI
+// (VehicleStatsFaultCodesWithDecoration and its J1939 / OBD-II / OEM children) and the Fault
+// Monitoring guide (developers.samsara.com/docs/fault-monitoring). The spec marks most fields
+// required; we require only what a fault's identity needs (SPN + FMI, a DTC, an OEM code
+// identifier), so a reading with an odd field never fails the page (a reading that can't be
+// read fails its own raw event, which the sync step retries and then dead-letters).
+// ---------------------------------------------------------------------------------------------
+
+/** The stats type the faults stream asks for (alone: one cursor per types set). */
+export const SAMSARA_FAULT_TYPE = 'faultCodes' as const;
+
+/** The reading's J1939 lamps (`checkEngineLights`): they cover the whole reading, not one code. */
+export const samsaraJ1939LampsSchema = z.looseObject({
+  /** Red stop lamp. */
+  stopIsOn: z.boolean().optional(),
+  /** Amber warning lamp. */
+  warningIsOn: z.boolean().optional(),
+  /** Engine protect lamp. */
+  protectIsOn: z.boolean().optional(),
+  /** Emissions (MIL) lamp: "MIL status is nonzero". */
+  emissionsIsOn: z.boolean().optional(),
+});
+
+/** One active J1939 DM1 code. */
+export const samsaraJ1939DtcSchema = z.looseObject({
+  spnId: z.number().int().min(0).max(524_287),
+  fmiId: z.number().int().min(0).max(31),
+  /** The transmitting controller's source address (0 = Engine #1). */
+  txId: z.number().int().optional(),
+  milStatus: z.number().int().optional(),
+  occurrenceCount: z.number().int().min(0).optional(),
+  spnDescription: z.string().optional(),
+  fmiDescription: z.string().optional(),
+  sourceAddressName: z.string().optional(),
+  vendorSpecificFields: z
+    .looseObject({
+      dtcDescription: z.string().optional(),
+      repairInstructionsUrl: z.string().optional(),
+    })
+    .optional(),
+});
+
+/** An OBD-II DTC as Samsara lists it (`dtcShortCode` 'P0087'; `dtcId` the J2012 number, 135). */
+export const samsaraObdDtcSchema = z.looseObject({
+  dtcId: z.number().int().min(0).max(0xffff),
+  dtcShortCode: z.string().optional(),
+  dtcDescription: z.string().optional(),
+});
+
+/** One OBD-II control module's report (`txId`, e.g. 2024 = 0x7E8, the engine controller). */
+export const samsaraObdModuleSchema = z.looseObject({
+  txId: z.number().int(),
+  milStatus: z.boolean().optional(),
+  ignitionType: z.string().optional(),
+  confirmedDtcs: z.array(samsaraObdDtcSchema).optional(),
+  pendingDtcs: z.array(samsaraObdDtcSchema).optional(),
+  permanentDtcs: z.array(samsaraObdDtcSchema).optional(),
+});
+
+/** A proprietary code of an OEM-integrated vehicle (`oem.diagnosticTroubleCodes[]`). */
+export const samsaraOemDtcSchema = z.looseObject({
+  codeIdentifier: z.string().optional(),
+  codeDescription: z.string().optional(),
+  /** Free text, e.g. 'L03' (meaning undocumented: kept verbatim as the vendor's severity). */
+  codeSeverity: z.string().optional(),
+  codeSource: z.string().optional(),
+});
+
+/** One faultCodes reading: the vehicle's active codes at `time`. */
+export const samsaraFaultCodesReadingSchema = z.looseObject({
+  time,
+  canBusType: z.string().optional(),
+  j1939: z
+    .looseObject({
+      checkEngineLights: samsaraJ1939LampsSchema.optional(),
+      /** "Empty if there are no active fault codes." */
+      diagnosticTroubleCodes: z.array(samsaraJ1939DtcSchema).optional(),
+    })
+    .optional(),
+  obdii: z
+    .looseObject({
+      checkEngineLightIsOn: z.boolean().optional(),
+      /** One entry per control module that reported. */
+      diagnosticTroubleCodes: z.array(samsaraObdModuleSchema).optional(),
+    })
+    .optional(),
+  oem: z
+    .looseObject({
+      diagnosticTroubleCodes: z.array(samsaraOemDtcSchema).optional(),
+    })
+    .optional(),
+});
+export type SamsaraFaultCodesReading = z.infer<typeof samsaraFaultCodesReadingSchema>;
+
+/**
+ * GET /fleet/vehicles/stats/feed?types=faultCodes. Each reading is checked only for its time
+ * here (it names the raw item); the mapper validates it in full, so one bad reading fails its
+ * own raw event, never the page.
+ */
+export const samsaraFaultCodesFeedSchema = z.looseObject({
+  data: z.array(
+    z.looseObject({
+      id: z.string().min(1),
+      name: z.string().optional(),
+      faultCodes: z.array(z.looseObject({ time })).optional(),
+    }),
+  ),
+  pagination: samsaraPaginationSchema,
+});
+export type SamsaraFaultCodesFeed = z.infer<typeof samsaraFaultCodesFeedSchema>;
+
 /** Error body of every endpoint (`*ErrorResponseBody`: message + requestId). */
 export const samsaraErrorSchema = z.looseObject({
   message: z.string(),
@@ -111,3 +229,14 @@ export const samsaraStatRawSchema = z.object({
   stat: samsaraStatValueSchema,
 });
 export type SamsaraStatRaw = z.infer<typeof samsaraStatRawSchema>;
+
+/**
+ * stream 'faults': one vehicle + ONE faultCodes reading (the complete active set at its time).
+ * externalId `${id}:faultCodes:${time}`.
+ */
+export const samsaraFaultRawSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().optional(),
+  reading: samsaraFaultCodesReadingSchema,
+});
+export type SamsaraFaultRaw = z.infer<typeof samsaraFaultRawSchema>;

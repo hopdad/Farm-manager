@@ -1,7 +1,7 @@
 /**
  * The board in REPLAY mode, end to end against the real database (plan 1a done-when
  * "CONNECTOR_DEERE=replay runs on the doc-derived fixtures"; contracts-m1 §10): the fleet.trucks
- * and fleet.deere jobs with CONNECTOR_ELD=replay and CONNECTOR_DEERE=replay, no stand-in and no
+ * and fleet.deere jobs with CONNECTOR_SAMSARA=replay and CONNECTOR_DEERE=replay, no stand-in and no
  * network, on the demo farm as the seed writes it. Trucks and combines land in
  * farm.machine_state at "now", each run publishes one fleet tick, the trucks move from run to run,
  * and their hauls into the elevator yards become geofence visits.
@@ -25,9 +25,9 @@ const cfg: FleetConfig = {
   VENDOR_SIM_URL: 'http://127.0.0.1:9', // nothing listens: replay must not need the stand-in
   PUBLIC_URL: 'http://localhost:3104',
   TOKEN_ENC_KEY: 'ab'.repeat(32),
-  CONNECTOR_ELD: 'replay',
+  CONNECTOR_SAMSARA: 'replay',
+  CONNECTOR_MOTIVE: 'off',
   CONNECTOR_DEERE: 'replay',
-  ELD_VENDOR: 'samsara',
   FLEET_STALE_SECONDS: 60,
   FLEET_STALE_SECONDS_DEERE: 900,
 };
@@ -52,7 +52,7 @@ async function lastTick(run: () => Promise<unknown>): Promise<FleetTick> {
 }
 
 beforeAll(async () => {
-  await seedSimFarm(t().adminDb, farm, 'samsara');
+  await seedSimFarm(t().adminDb, farm);
   for (const g of fieldEntranceGeofences(farm)) {
     await t().adminDb.insert(geofences).values({
       id: g.id,
@@ -71,12 +71,16 @@ afterAll(async () => {
 });
 
 describe('replay mode on the board', () => {
-  test('fleet.trucks: the four trucks at the poll time, one tick, stats landed', async () => {
+  test('fleet.trucks: the four trucks and two pickups at the poll time, one tick, stats and fault codes landed', async () => {
     let result: unknown;
     const tick = await lastTick(async () => {
       result = await trucks(ctx('fleet.trucks'));
     });
-    expect(result).toEqual({ items: 4 + 12 }); // 4 positions + 4 vehicles x 3 stat types
+    // 6 positions (4 semis + PU1, PU2) + 4 semis x 3 stat types + 2 pickups x fuel only + 4
+    // fault readings (the doc-derived faults fixture)
+    expect(result).toEqual({ items: 6 + 12 + 2 + 4 });
+    const pickups = tick.machines.filter((m) => m.kind === 'pickup');
+    expect(pickups.map((m) => m.unitNo).sort()).toEqual(['PU1', 'PU2']);
     const semis = tick.machines.filter((m) => m.kind === 'semi');
     expect(semis.map((m) => m.unitNo).sort()).toEqual(['S1', 'S2', 'S3', 'S4']);
     for (const m of semis) {
@@ -88,6 +92,26 @@ describe('replay mode on the board', () => {
       `select count(*)::int as n from farm.machines where kind = 'semi' and engine_hours > 0`,
     );
     expect(hours.rows[0]?.n).toBe(4);
+    // The faults fixture: S3's red stop lamp (critical) and S2's amber code, on the panel's summary.
+    const faults = await t().pool.query<{
+      unit: string;
+      code: string;
+      severity: string;
+      codes: unknown;
+    }>(
+      `select m.unit_no as unit, f.code, f.severity, s.fault_codes as codes
+         from farm.machine_faults f
+         join farm.machines m on m.id = f.machine_id
+         join farm.machine_state s on s.machine_id = f.machine_id
+        where f.cleared_at is null order by m.unit_no`,
+    );
+    expect(faults.rows.map((r) => [r.unit, r.code, r.severity])).toEqual([
+      ['S2', 'J1939 SPN 3216 FMI 2', 'warning'],
+      ['S3', 'J1939 SPN 110 FMI 0', 'critical'],
+    ]);
+    expect(faults.rows[1]?.codes).toMatchObject([
+      { code: 'J1939 SPN 110 FMI 0', severity: 'critical' },
+    ]);
   });
 
   test('fleet.deere: the working machines at their latest breadcrumb, no OAuth grant needed', async () => {
@@ -103,6 +127,24 @@ describe('replay mode on the board', () => {
     }
     const grants = await t().pool.query('select count(*)::int as n from ingest.oauth_tokens');
     expect(grants.rows[0]?.n).toBe(0);
+    // 1f (sync-health): the replayed calls count under mode replay (never against a budget),
+    // and every fixture org is recorded as connected for replay, the replay home org kept.
+    const calls = await t().pool.query<{ mode: string; calls: number }>(
+      `select mode, sum(calls)::int as calls from ingest.api_calls_daily
+        where source = 'deere' and stream = 'locations' group by mode`,
+    );
+    expect(calls.rows).toEqual([{ mode: 'replay', calls: expect.any(Number) }]);
+    expect(calls.rows[0]?.calls).toBeGreaterThan(0);
+    const orgs = await t().pool.query<{ org: string; status: string }>(
+      `select org_external_id as org, status from ingest.connector_orgs
+        where source = 'deere' and mode = 'replay' order by 1`,
+    );
+    expect(orgs.rows.length).toBeGreaterThanOrEqual(2);
+    expect(orgs.rows.every((o) => o.status === 'connected')).toBe(true);
+    const extra = await t().pool.query(
+      `select extra from ingest.sync_state where source = 'deere' and stream = 'locations'`,
+    );
+    expect(extra.rows[0]?.extra?.homeOrg).toMatchObject({ source: 'replay', mode: 'replay' });
   });
 
   test('the trucks move run after run, and their hauls become geofence visits', async () => {

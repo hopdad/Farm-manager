@@ -71,8 +71,16 @@ export interface JobResult {
   note?: string;
 }
 
-/** Config keys of the connector modes a job can depend on. */
-export type JobConnector = 'CONNECTOR_DEERE' | 'CONNECTOR_ELD' | 'CONNECTOR_WEATHER';
+/** Config keys of the connector modes a job can depend on (1f.2: one per telematics connection). */
+export type JobConnector =
+  | 'CONNECTOR_DEERE'
+  | 'CONNECTOR_SAMSARA'
+  | 'CONNECTOR_MOTIVE'
+  | 'CONNECTOR_GEOTAB'
+  | 'CONNECTOR_AEMP'
+  | 'CONNECTOR_CNH'
+  | 'CONNECTOR_TERMINAL'
+  | 'CONNECTOR_WEATHER';
 
 interface JobBase {
   /** Default 'app'. */
@@ -90,6 +98,12 @@ interface JobBase {
    * schedule (call budgets, NWS etiquette), even with JOBS_DEMO_CADENCE=on.
    */
   connector?: JobConnector;
+  /**
+   * The ingest.sync_state streams (of `connector`'s source) this job runs (1f review round 2):
+   * /admin/connectors judges each stream against the schedule of the job that runs it, not the
+   * slowest job of its source.
+   */
+  streams?: readonly string[];
   /** Default DEFAULT_JOB_BUDGET_MS; at most MAX_JOB_BUDGET_MS. */
   budgetMs?: number;
   run(ctx: JobContext): Promise<JobResult>;

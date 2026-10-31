@@ -11,6 +11,7 @@ import {
   type InvalidatePayload,
   type LayerUpdatedPayload,
   type MachineStatusPayload,
+  type PinsUpdatedPayload,
   type RealtimeClient,
   type SprayAssessedPayload,
   type SyncStatusPayload,
@@ -87,7 +88,15 @@ describe('TopicMessage', () => {
 describe('M1 topics', () => {
   test('TOPICS lists every topic of TopicEvents', () => {
     expectTypeOf<Exclude<Topic, (typeof TOPICS)[number]>>().toEqualTypeOf<never>();
-    expect([...TOPICS].sort()).toEqual(['admin', 'fields', 'fleet', 'layers', 'spray', 'weather']);
+    expect([...TOPICS].sort()).toEqual([
+      'admin',
+      'fields',
+      'fleet',
+      'layers',
+      'pins',
+      'spray',
+      'weather',
+    ]);
   });
 
   test('each M1 event narrows to its payload', () => {
@@ -105,6 +114,16 @@ describe('M1 topics', () => {
       if (evt.event === 'updated') expectTypeOf(evt.payload).toEqualTypeOf<LayerUpdatedPayload>();
     };
     for (const f of [onFields, onWeather, onSpray, onLayers]) expectTypeOf(f).toBeFunction();
+  });
+
+  test('the 1f pins event narrows to its payload; invalidate may say faults', () => {
+    const onPins = (evt: TopicMessage<'pins'>) => {
+      if (evt.event === 'updated') expectTypeOf(evt.payload).toEqualTypeOf<PinsUpdatedPayload>();
+      else expectTypeOf(evt.payload).toEqualTypeOf<InvalidatePayload>();
+    };
+    expectTypeOf(onPins).toBeFunction();
+    const faults: InvalidatePayload = { event: 'machine', reason: 'faults' };
+    expect(faults.reason).toBe('faults');
   });
 
   test("topic names pass the SSE route's topic check", async () => {

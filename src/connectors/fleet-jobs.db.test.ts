@@ -10,6 +10,10 @@ import { fleetSnapshot } from '../db/queries/fleet';
 import { type FleetTick, fleetTickSchema } from '../domain/fleet';
 import { createFleetDeereJob, createFleetTrucksJob, type FleetConfig } from '../jobs/fleet';
 import { SIM_DEERE_HOME_ORG } from '../sim/types';
+import {
+  SAMSARA_SIM_FAULTS_CONTROL_PATH,
+  SIM_RED_STOP_FAULT,
+} from '../sim/vendors/samsara/control-types';
 import { startVendorSim, type VendorSim } from '../sim/vendors/server';
 import { buildStubFarm, createStubSimWorld } from '../sim/vendors/stub-world';
 import { setupTestDb } from '../test/db';
@@ -81,13 +85,13 @@ beforeAll(async () => {
     VENDOR_SIM_URL: sim.url,
     PUBLIC_URL: 'http://localhost:3103',
     TOKEN_ENC_KEY: 'ef'.repeat(32),
-    CONNECTOR_ELD: 'sim',
+    CONNECTOR_SAMSARA: 'sim',
+    CONNECTOR_MOTIVE: 'sim',
     CONNECTOR_DEERE: 'sim',
-    ELD_VENDOR: 'samsara',
     FLEET_STALE_SECONDS: 600,
     FLEET_STALE_SECONDS_DEERE: 600,
   };
-  await seedSimFarm(t().adminDb, farm, 'samsara');
+  await seedSimFarm(t().adminDb, farm);
   listener = await listenAppEvents(t().appUrl);
 });
 afterAll(async () => {
@@ -101,7 +105,8 @@ describe('fleet.trucks (Samsara, sim)', () => {
     const ticks = await ticksDuring(async () => {
       result = await trucks()(ctx('fleet.trucks'));
     });
-    expect(result).toEqual({ items: 3 + 9 }); // 3 positions + 9 stats (3 vehicles x 3 types)
+    // 3 positions + 9 stats (3 vehicles x 3 types) + 3 fault readings (one per vehicle, none set)
+    expect(result).toEqual({ items: 3 + 9 + 3 });
     expect(ticks).toHaveLength(1);
     const tick = ticks[0] as FleetTick;
     expect(tick.machines.map((m) => m.unitNo).sort()).toEqual(['GC1', 'S1', 'S2']);
@@ -224,11 +229,117 @@ describe('fleet.trucks (Samsara, sim)', () => {
     );
   });
 
+  test('fault codes: a code set in the stand-in lands within one run; cleared the same way', async () => {
+    const knob = async (codes: unknown[]) => {
+      const res = await fetch(`${sim.url}${SAMSARA_SIM_FAULTS_CONTROL_PATH}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ vehicle: 'S1', codes }),
+      });
+      expect(res.status).toBe(200);
+    };
+    const faultInvalidates = () =>
+      listener.of('fleet', 'invalidate').filter((m) => m.payload.reason === 'faults').length;
+    const openFaults = async () =>
+      (
+        await t().pool.query(
+          `select code, severity, source, system, spn, fmi, cleared_at from farm.machine_faults
+            where machine_id = $1 order by first_seen_at`,
+          [machineId('S1')],
+        )
+      ).rows;
+    const summary = async () =>
+      (
+        await t().pool.query('select fault_codes from farm.machine_state where machine_id = $1', [
+          machineId('S1'),
+        ])
+      ).rows[0]?.fault_codes;
+
+    // Past every cursor the earlier tests left (the 429 test moved this clock back to real time).
+    offset += 10 * 60_000;
+    await trucks()(ctx('fleet.trucks'));
+    await knob([SIM_RED_STOP_FAULT]);
+    offset += 10_000;
+    await listener.settle();
+    let before = faultInvalidates();
+    await trucks()(ctx('fleet.trucks'));
+    await listener.settle();
+    expect(await openFaults()).toMatchObject([
+      {
+        code: 'J1939 SPN 110 FMI 0',
+        severity: 'critical',
+        source: 'samsara',
+        system: 'j1939',
+        spn: 110,
+        fmi: 0,
+        cleared_at: null,
+      },
+    ]);
+    expect(await summary()).toMatchObject([{ code: 'J1939 SPN 110 FMI 0', severity: 'critical' }]);
+    expect(faultInvalidates() - before).toBe(1);
+
+    // Nothing new: nothing published. Then cleared: the row closes, the summary empties.
+    offset += 10_000;
+    before = faultInvalidates();
+    await trucks()(ctx('fleet.trucks'));
+    await knob([]);
+    offset += 10_000;
+    await trucks()(ctx('fleet.trucks'));
+    await listener.settle();
+    expect(faultInvalidates() - before).toBe(1);
+    const rows = await openFaults();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.cleared_at).toBeInstanceOf(Date);
+    expect(await summary()).toEqual([]);
+    // Its own stream, run OK since the outage of the earlier test.
+    const st = await t().pool.query(
+      `select last_ok_at > coalesce(last_error_at, '-infinity') as ok
+         from ingest.sync_state where source = 'samsara' and stream = 'faults'`,
+    );
+    expect(st.rows[0]).toEqual({ ok: true });
+  });
+
+  test('an OBD-II code on a second control module (0x7E9) clears when the stand-in clears it', async () => {
+    const knob = async (codes: unknown[]) => {
+      const res = await fetch(`${sim.url}${SAMSARA_SIM_FAULTS_CONTROL_PATH}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ vehicle: 'S1', codes }),
+      });
+      expect(res.status).toBe(200);
+    };
+    const obd = async () =>
+      (
+        await t().pool.query(
+          `select code, module, cleared_at from farm.machine_faults
+            where machine_id = $1 and system = 'obd2' order by first_seen_at`,
+          [machineId('S1')],
+        )
+      ).rows;
+    offset += 60_000;
+    await trucks()(ctx('fleet.trucks'));
+    await knob([{ system: 'obd2', dtc: 'P0420', txId: 0x7e9 }]);
+    offset += 10_000;
+    await trucks()(ctx('fleet.trucks'));
+    expect(await obd()).toMatchObject([{ code: 'P0420', module: '2025', cleared_at: null }]);
+    // Cleared in the stand-in: the change's reading names module 0x7E9 with empty lists.
+    await knob([]);
+    offset += 10_000;
+    await trucks()(ctx('fleet.trucks'));
+    const rows = await obd();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.cleared_at).toBeInstanceOf(Date);
+  });
+
   test("mode 'off' polls nothing", async () => {
-    const off = createFleetTrucksJob({ config: () => ({ ...cfg, CONNECTOR_ELD: 'off' }), http });
+    const off = createFleetTrucksJob({
+      config: () => ({ ...cfg, CONNECTOR_SAMSARA: 'off' }),
+      http,
+    });
     expect(await off(ctx('fleet.trucks'))).toEqual({ items: 0, note: 'off' });
     await t().pool.query(`select app.ensure_stream('samsara', 'positions', 'sim')`);
     await t().pool.query(`select app.ensure_stream('samsara', 'stats', 'sim')`);
+    await t().pool.query(`select app.ensure_stream('samsara', 'faults', 'sim')`);
   });
 });
 
@@ -257,6 +368,16 @@ describe('fleet.deere (sim)', () => {
     expect(sim.counters.tokenGrants.authorization_code).toBeGreaterThanOrEqual(1);
     // Org scoping: the refs it resolved are the home org's.
     expect(farm.machines.find((m) => m.unitNo === 'C1')?.deereOrgId).toBe(SIM_DEERE_HOME_ORG);
+    // 1f (sync-health): the org listing is kept per mode, and the run's calls counted under sim.
+    const orgs = await t().pool.query(
+      `select org_external_id as org, status from ingest.connector_orgs where source = 'deere' and mode = 'sim'`,
+    );
+    expect(orgs.rows).toEqual([{ org: SIM_DEERE_HOME_ORG, status: 'connected' }]);
+    const calls = await t().pool.query(
+      `select coalesce(sum(calls), 0)::int as n from ingest.api_calls_daily
+        where source = 'deere' and stream = 'locations' and mode = 'sim'`,
+    );
+    expect(calls.rows[0].n).toBeGreaterThanOrEqual(4); // authorize, token, orgs, equipment, crumbs
   });
 
   test('GET /api/fleet snapshot = the same machines, stale recomputed per request', async () => {

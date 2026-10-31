@@ -9,7 +9,7 @@
  *   pnpm db:reset            drop farm, gis, ingest, app, drizzle; migrate; configure; seed demo
  *   pnpm db:nuke             remove the container and its pgdata volume; up + migrate + configure
  *   pnpm db:lint             migrate a brand-new database twice (2nd run must be a no-op), drop it
- *   pnpm db:test-template    make farm_test_template (the DB tests' clone source) current; --force rebuilds
+ *   pnpm db:test-template    make the DB tests' clone source (farm_tpl_<migrations hash>) current; --force rebuilds
  *   pnpm db:pending          apply db/pending/*.sql (parallel agents' SQL) to the dev database
  */
 import { existsSync, readFileSync } from 'node:fs';
@@ -39,7 +39,7 @@ import {
   SETTINGS_DEFAULTS,
   schemaFingerprint,
   setFarmAppLogin,
-  TEST_TEMPLATE_DB,
+  testTemplateDb,
   withAdmin,
   withClient,
   withDatabase,
@@ -338,8 +338,8 @@ export async function testTemplate(args: string[]): Promise<void> {
   if (dropped.length) log(`dropped ${dropped.length} leftover test database(s)`);
   log(
     state === 'rebuilt'
-      ? `${TEST_TEMPLATE_DB} rebuilt: migrated and current`
-      : `${TEST_TEMPLATE_DB} already current (pass --force to rebuild anyway)`,
+      ? `${testTemplateDb()} rebuilt: migrated and current`
+      : `${testTemplateDb()} already current (pass --force to rebuild anyway)`,
   );
 }
 

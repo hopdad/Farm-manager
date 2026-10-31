@@ -6,11 +6,12 @@
  */
 import { describe, expect, test } from 'vitest';
 import { buildDemoFarm } from '../../sim/farm/build';
+import { simTelematicsMachines } from '../../sim/types';
 import type { ConnectorConfig } from '../endpoints';
 import { REPLAY_ORIGIN } from '../replay';
 import { SamsaraClient } from './client';
 import { LOOP_PAGES } from './fixtures/build';
-import { mapSamsaraPosition, mapSamsaraStat } from './mapper';
+import { mapSamsaraFaults, mapSamsaraPosition, mapSamsaraStat } from './mapper';
 
 const cfg: ConnectorConfig = {
   VENDOR_SIM_URL: 'http://127.0.0.1:1',
@@ -18,7 +19,7 @@ const cfg: ConnectorConfig = {
 };
 const farm = buildDemoFarm();
 const trucks = new Map(
-  farm.machines.filter((m) => m.vendorIds.eld).map((m) => [m.vendorIds.eld, m]),
+  simTelematicsMachines(farm, 'samsara', { feed: 'vehicle' }).map((m) => [m.telematics?.id, m]),
 );
 
 /** The demo area (Lenawee + Monroe around Adrian and Blissfield). */
@@ -38,11 +39,14 @@ describe('Samsara in replay mode', () => {
   test('first poll: each truck once, stamped with the poll time, mapped and on the demo map', async () => {
     const now = new Date('2026-11-30T15:04:27.640Z');
     const r = await client(() => now).pollPositions(null);
-    expect(r.items).toHaveLength(4);
+    expect(r.items).toHaveLength(6); // the four semis and the pickups PU1, PU2
     expect(r.hasMore).toBe(false);
     const positions = r.items.flatMap((i) => mapSamsaraPosition(i.payload));
+    expect(
+      positions.filter((p) => trucks.get(p.externalMachineId)?.kind === 'pickup'),
+    ).toHaveLength(2);
     for (const p of positions) {
-      expect(trucks.get(p.externalMachineId)?.kind).toBe('semi');
+      expect(['semi', 'pickup']).toContain(trucks.get(p.externalMachineId)?.kind);
       expect(p.ts).toBe('2026-11-30T15:04:27.000Z'); // the anchor moved to now (1 s steps)
       expect(p.positionSource).toBe('eld');
       expect(inDemoArea(p.lng, p.lat)).toBe(true);
@@ -92,17 +96,43 @@ describe('Samsara in replay mode', () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
-  test('stats: engine hours, fuel and odometer once, then caught up', async () => {
+  test('stats: engine hours, fuel and odometer once (pickups: fuel only), then caught up', async () => {
     const now = new Date('2026-11-30T15:00:00Z');
     const c = client(() => now);
     const first = await c.pollStats(null);
     const stats = first.items.flatMap((i) => mapSamsaraStat(i.payload));
     expect(stats.filter((s) => s.engineHours !== undefined)).toHaveLength(4);
-    expect(stats.filter((s) => s.fuelPct !== undefined)).toHaveLength(4);
+    expect(stats.filter((s) => s.fuelPct !== undefined)).toHaveLength(6);
     expect(stats.filter((s) => s.odometerMi !== undefined)).toHaveLength(4);
     expect(stats.every((s) => s.ts === '2026-11-30T15:00:00.000Z')).toBe(true);
     const next = await c.pollStats(first.cursor);
     expect(next.items).toEqual([]);
     expect(next.cursor).toBe(first.cursor);
+  });
+
+  test('fault codes: one reading per truck once (S3 critical, S2 warning), then caught up', async () => {
+    const now = new Date('2026-11-30T15:00:30Z');
+    const c = client(() => now);
+    const first = await c.pollFaults(null);
+    expect(first.items).toHaveLength(4);
+    const stats = first.items.flatMap((i) => mapSamsaraFaults(i.payload));
+    const byUnit = new Map(
+      stats.map((s) => [trucks.get(s.externalMachineId)?.unitNo, s.faultCodes ?? []]),
+    );
+    expect(byUnit.get('S3')).toMatchObject([
+      { code: 'J1939 SPN 110 FMI 0', severity: 'critical', lamps: { redStop: true } },
+    ]);
+    expect(byUnit.get('S2')).toMatchObject([{ code: 'J1939 SPN 3216 FMI 2', severity: 'warning' }]);
+    expect(byUnit.get('S1')).toEqual([]);
+    expect(byUnit.get('S4')).toEqual([]);
+    // Time-shifted to the poll (60 s steps), like every other replayed instant.
+    expect(stats.every((s) => s.ts === '2026-11-30T15:00:00.000Z')).toBe(true);
+    const next = await c.pollFaults(first.cursor);
+    expect(next.items).toEqual([]);
+    expect(next.cursor).toBe(first.cursor);
+    // The stats call never gets the fault fixture's answer, nor the other way round.
+    const st = await c.pollStats(null);
+    expect(st.items.every((i) => i.payload.type !== undefined)).toBe(true);
+    expect(st.items).toHaveLength(4 * 3 + 2); // the pickups send fuel only
   });
 });

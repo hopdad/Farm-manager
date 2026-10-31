@@ -1,0 +1,61 @@
+<!doctype html>
+<!--
+  Deere OAuth callback forwarder (slice 1f decision 6, docs/contracts-1f.md §5.6).
+
+  Deere sends the browser back to the Redirect URI registered in the app profile. When that
+  can't be the PC's own `http://localhost:3000/api/oauth/deere` (Deere wants a public https
+  page), host THIS file on a public https address you control, register its URL with Deere,
+  and set DEERE_REDIRECT_URI to the same URL in the PC's .env.local. The page forwards `code`,
+  `state` (and `error`, `error_description`) to the PC's callback on localhost, in the same
+  browser, so the sign-in state cookie (host-only, localhost) still matches.
+
+  Only works when the sign-in was started on the PC itself (the browser that opens this page must
+  reach localhost:3000). No scripts or styles from other hosts; nothing is stored or sent
+  anywhere else. Change TARGET below if the app runs on another port.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Back to Farm Ops</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #0f1a12; color: #e7f0e9; }
+  main { max-width: 520px; margin: 48px auto; }
+  a { color: #86efac; }
+  code { word-break: break-all; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Back to Farm Ops</h1>
+  <p id="status">Sending you back to the app on this computer…</p>
+  <p><a id="manual" href="http://localhost:3000/api/oauth/deere">Continue</a></p>
+</main>
+<script>
+  (() => {
+    const TARGET = 'http://localhost:3000/api/oauth/deere';
+    const KEEP = ['code', 'state', 'error', 'error_description'];
+    const from = new URLSearchParams(window.location.search);
+    const out = new URLSearchParams();
+    for (const key of KEEP) {
+      const v = from.get(key);
+      if (v !== null) out.set(key, v);
+    }
+    const qs = out.toString();
+    const next = qs ? `${TARGET}?${qs}` : TARGET;
+    const link = document.getElementById('manual');
+    if (link) link.setAttribute('href', next);
+    const status = document.getElementById('status');
+    if (!out.has('code') && !out.has('error')) {
+      if (status) {
+        status.textContent =
+          'No Deere sign-in answer in this address. Start the sign-in again from the app.';
+      }
+      return;
+    }
+    window.location.replace(next);
+  })();
+</script>
+</body>
+</html>

@@ -2,7 +2,7 @@
  * PostGIS geometry columns for Drizzle (EPSG:4326, GeoJSON in and out).
  *
  * Drizzle's built-in `geometry` type covers points only, so every geometry column uses
- * `geometryColumn(name, 'MultiPolygon' | 'Polygon' | 'Point' | 'LineString')`:
+ * `geometryColumn(name, 'MultiPolygon' | 'Polygon' | 'Point' | 'LineString' | 'Geometry')`:
  *  - writes: the GeoJSON value is sent as text and wrapped in
  *    `extensions.ST_SetSRID(extensions.ST_GeomFromGeoJSON($1), 4326)` (see `geomFromGeoJson`);
  *    Polygon -> MultiPolygon is promoted with ST_Multi for MultiPolygon columns.
@@ -30,7 +30,14 @@ import type {
 
 export const SRID = 4326;
 
-export type GeometryKind = 'Point' | 'LineString' | 'Polygon' | 'MultiPolygon' | 'MultiLineString';
+/** `Geometry` (1f, farm.pins): any type, constrained by the table's CHECK instead. */
+export type GeometryKind =
+  | 'Point'
+  | 'LineString'
+  | 'Polygon'
+  | 'MultiPolygon'
+  | 'MultiLineString'
+  | 'Geometry';
 type GeometryOf<K extends GeometryKind> = K extends 'Point'
   ? Point
   : K extends 'LineString'
@@ -39,7 +46,9 @@ type GeometryOf<K extends GeometryKind> = K extends 'Point'
       ? Polygon
       : K extends 'MultiPolygon'
         ? MultiPolygon
-        : MultiLineString;
+        : K extends 'MultiLineString'
+          ? MultiLineString
+          : Geometry;
 
 /** SQL that builds an EPSG:4326 geometry from a GeoJSON value (object or JSON text). */
 export function geomFromGeoJson(value: Geometry | string): SQL {

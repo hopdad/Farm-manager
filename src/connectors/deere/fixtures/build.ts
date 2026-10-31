@@ -13,6 +13,17 @@
  * they drift (after a change to the sim farm, say). Regenerate with
  *   pnpm exec tsx src/connectors/deere/fixtures/write.ts   then   pnpm lint:fix
  *
+ * 1f (deere-data, docs/contracts-1f.md §8): `buildDeereFieldsFixtures()` makes the numbers 20-29
+ * (./doc-derived/<stream>/2x-*.json, listed by ../fields/replay.ts): the fields listing with
+ * farms and clients embedded plus the org boundary, farm and client listings (with the one
+ * Deere-only field of the stand-in: the creation path), flags with their category (archived ones
+ * too) and each machine's latest engine hours, from the same pure functions as the stand-in's
+ * `fields` module (src/sim/vendors/deere/fields-world.ts, src/sim/farm/flags.ts), so replay and
+ * sim show the same data. Their requests name the query the deere.fields client sends
+ * (`recordFilter`, `embed`, `lastKnown`), so they shadow the 1a exchanges only for that client.
+ * They shift by whole days (`shiftStepSeconds` 86 400): a re-run within the day replays the same
+ * bytes, so the sync writes nothing the second time.
+ *
  * MOVING MACHINES. A breadcrumb fixture holds one 30-minute period of working breadcrumbs
  * (`shiftStepSeconds` = the period, `anchor` = its start). Replayed, the whole period moves to the
  * current one; the client keeps only breadcrumbs in the window it asked for (cursor, now], so the
@@ -21,14 +32,30 @@
 import type { MultiPolygon, Polygon, Position } from 'geojson';
 import { deterministicId } from '../../../domain/ids';
 import { buildDemoFarm } from '../../../sim/farm/build';
+import { simFlags } from '../../../sim/farm/flags';
 import { cropFor, yieldFor } from '../../../sim/seasons';
 import type { LngLat, SimField, SimMachine } from '../../../sim/types';
+import {
+  deereBoundaryJson,
+  deereClientJson,
+  deereEngineHoursJson,
+  deereFarmJson,
+  deereFieldJson,
+  deereFlagJson,
+  simDeereFieldRecords,
+  simOrgClients,
+  simOrgFarms,
+} from '../../../sim/vendors/deere/fields-world';
 import { simDeereOrgs } from '../../../sim/vendors/deere/routes';
 import { createDemoWorld, type DemoWorld } from '../../../sim/world';
 import type { ReplayExchange, ReplayFixture } from '../../replay';
 
-/** The real API root the fixtures' links name (the transport never contacts it). */
+/** The real API roots the fixtures' links name (the transport never contacts them). */
 const API = 'https://sandboxapi.deere.com/platform';
+/** Deere's Equipment API (machines; one host for sandbox and production apps). */
+const EQUIPMENT_API = 'https://equipmentapi.deere.com';
+/** Request path of the Equipment API's listing (below the client's equipmentBase's origin path). */
+const EQUIPMENT_PATH = '/isg/equipment';
 const SEED = 1;
 
 /** Breadcrumb period: 13:00-13:30 UTC (09:00 EDT) on the harvest-day scenario's first day. */
@@ -44,7 +71,7 @@ const MACHINES_PAGE_SIZE = 4;
 
 const REF = {
   locations:
-    'https://developer.deere.com/dev-docs/machine-locations (GET /machines/{principalId}/breadcrumbs, Breadcrumb, MeasurementAsDouble/Integer, nextPage paging); https://developer.deere.com/dev-docs/organizations; org `machines` link as recorded in RealmFive/my_john_deere_api test/support/vcr/get_organizations.yml',
+    'https://developer.deere.com/dev-docs/machine-locations (GET /machines/{principalId}/breadcrumbs, Breadcrumb, MeasurementAsDouble/Integer, nextPage paging with pageOffset/itemLimit); https://developer.deere.com/dev-docs/equipment (GET https://equipmentapi.deere.com/isg/equipment?organizationIds=, equipmentForList: id, principalId, isgType, type, make, model, modelYear as a string); https://developer.deere.com/dev-docs/organizations (self and manage_connections links)',
   fields:
     'https://developer.deere.com/dev-docs/fields (GET /organizations/{orgId}/fields, Field and its links); recorded shape: RealmFive/my_john_deere_api test/support/vcr/get_field.yml',
   boundaries:
@@ -64,16 +91,27 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
 const link = (rel: string, path: string) => ({ '@type': 'Link', rel, uri: `${API}${path}` });
 const enc = encodeURIComponent;
 
-function collection(selfPath: string, values: unknown[], total = values.length, next?: string) {
+function collection(
+  selfPath: string,
+  values: unknown[],
+  total = values.length,
+  next?: string,
+  root = API,
+) {
   return {
     links: [
-      { rel: 'self', uri: `${API}${selfPath}` },
-      ...(next ? [{ rel: 'nextPage', uri: `${API}${next}` }] : []),
+      { rel: 'self', uri: `${root}${selfPath}` },
+      ...(next ? [{ rel: 'nextPage', uri: `${root}${next}` }] : []),
     ],
     total,
     values,
   };
 }
+
+const withQuery = (path: string, query: Record<string, string>) => {
+  const q = new URLSearchParams(query).toString();
+  return q ? `${path}?${q}` : path;
+};
 
 function get(path: string, body: unknown, query?: Record<string, string>): ReplayExchange {
   return {
@@ -82,16 +120,35 @@ function get(path: string, body: unknown, query?: Record<string, string>): Repla
   };
 }
 
-/** Deere-style collection paging: `<path>;start=<n>;count=<size>` nextPage links. */
-function paged<T>(path: string, all: T[], size: number): ReplayExchange[] {
+/**
+ * Deere collection paging (since 2024): `nextPage` links carry `?pageOffset=<n>&itemLimit=<size>`
+ * (the old matrix form `;start=<n>;count=<size>` fails since June 1, 2024). A later page's
+ * exchange names `pageOffset` in its query and is listed BEFORE the first page's, which names
+ * only `query` (the first request carries no offset; first match wins).
+ */
+function paged<T>(
+  path: string,
+  all: T[],
+  size: number,
+  query: Record<string, string> = {},
+  root = API,
+): ReplayExchange[] {
   const out: ReplayExchange[] = [];
   for (let start = 0; start < Math.max(all.length, 1); start += size) {
-    const self = start === 0 ? path : `${path};start=${start};count=${size}`;
+    const own = start === 0 ? query : { ...query, pageOffset: String(start) };
+    const self = withQuery(
+      path,
+      start === 0 ? query : { ...query, pageOffset: String(start), itemLimit: String(size) },
+    );
     const nextStart = start + size;
-    const next = nextStart < all.length ? `${path};start=${nextStart};count=${size}` : undefined;
-    out.push(get(self, collection(self, all.slice(start, start + size), all.length, next)));
+    const next =
+      nextStart < all.length
+        ? withQuery(path, { ...query, pageOffset: String(nextStart), itemLimit: String(size) })
+        : undefined;
+    const body = collection(self, all.slice(start, start + size), all.length, next, root);
+    out.push(get(path, body, Object.keys(own).length ? own : undefined));
   }
-  return out;
+  return out.reverse();
 }
 
 function fixture(
@@ -144,7 +201,12 @@ function organizationsFixture(c: Ctx): ReplayFixture {
     id: o.id,
     links: [
       link('self', `/organizations/${enc(o.id)}`),
-      link('machines', `/organizations/${enc(o.id)}/machines`),
+      // Every fixture org is connected (decision 5): `manage_connections`, never `connections`.
+      {
+        '@type': 'Link',
+        rel: 'manage_connections',
+        uri: 'https://connections.deere.com/connections',
+      },
       link('fields', `/organizations/${enc(o.id)}/fields`),
       link('boundaries', `/organizations/${enc(o.id)}/boundaries`),
       link('flags', `/organizations/${enc(o.id)}/flags`),
@@ -187,24 +249,46 @@ function breadcrumbsFor(c: Ctx, m: SimMachine): unknown[] {
   return crumbs;
 }
 
+/** Deere's ISG type name of a demo machine (JDLink sits in the tractor of a cart or planter). */
+const ISG_TYPE: Partial<Record<SimMachine['kind'], string>> = {
+  combine: 'Combine',
+  sprayer: 'Sprayer',
+};
+
 function locationsFixture(c: Ctx): ReplayFixture {
   const exchanges: ReplayExchange[] = [];
   for (const org of simDeereOrgs(c.farm)) {
+    // The Equipment API (machines; the /platform machines API is deprecated): `id` is the
+    // organization-equipment id, `principalId` the machine id the /platform paths take.
     const machines = deereMachines(c.farm)
       .filter((m) => m.deereOrgId === org.id)
-      .map((m) => ({
-        '@type': 'Machine',
-        id: m.vendorIds.deere,
-        name: m.unitNo,
-        vin: `SIM-${m.unitNo}-${m.year}`,
-        modelYear: m.year,
-        links: [
-          link('self', `/machines/${enc(m.vendorIds.deere as string)}`),
-          link('breadcrumbs', `/machines/${enc(m.vendorIds.deere as string)}/breadcrumbs`),
-        ],
-      }));
+      .map((m) => {
+        const isgType = { id: `isg-${m.kind}`, name: ISG_TYPE[m.kind] ?? 'Tractor' };
+        return {
+          '@type': 'Machine',
+          id: deterministicId('replay-deere-equipment', m.key),
+          principalId: Number(m.vendorIds.deere),
+          name: m.unitNo,
+          serialNumber: `SIM${m.unitNo}${m.year}`,
+          modelYear: String(m.year),
+          make: { id: 'make-john-deere', name: 'JOHN DEERE' },
+          type: isgType,
+          isgType,
+          model: { id: `model-${m.key}`, name: m.model },
+          organization: [{ '@type': 'Resource', id: org.id }],
+          organizationRole: { type: 'Controlling', inPossession: true },
+          telematicsCapable: true,
+          archived: false,
+        };
+      });
     exchanges.push(
-      ...paged(`/organizations/${enc(org.id)}/machines`, machines, MACHINES_PAGE_SIZE),
+      ...paged(
+        EQUIPMENT_PATH,
+        machines,
+        MACHINES_PAGE_SIZE,
+        { organizationIds: org.id },
+        EQUIPMENT_API,
+      ),
     );
   }
   for (const m of deereMachines(c.farm)) {
@@ -685,6 +769,110 @@ function flagsFixture(c: Ctx): ReplayFixture {
   const fPath = `${fieldPath(c.orgOfField.get(d0.field.id) as string, d0.field.deereFieldId)}/flags`;
   exchanges.push(get(fPath, collection(fPath, [all[0]])));
   return fixture('flags', REF.flags, SETUP_ANCHOR, exchanges);
+}
+
+// ---------------------------------------------------------------------------------------------
+// 1f (deere-data): fields with farms and clients, boundaries, flags with categories, engine hours
+// ---------------------------------------------------------------------------------------------
+
+const DAY_SECONDS = 86_400;
+
+const REF_1F = {
+  fields:
+    'https://developer.deere.com/dev-docs/fields (GET /organizations/{orgId}/fields?recordFilter=ALL&embed=farms,clients: FieldResponse with farms.farms and clients.clients); https://developer.deere.com/dev-docs/boundaries (GET /organizations/{orgId}/boundaries?recordFilter=active); https://developer.deere.com/dev-docs/farms (GET /organizations/{orgId}/farms, clientUri); https://developer.deere.com/dev-docs/clients (GET /organizations/{orgId}/clients)',
+  flags:
+    'https://developer.deere.com/dev-docs/flags (GET /organizations/{orgId}/flags?recordFilter=all&embed=flagCategory: archived flags only when asked, geometry as a GeoJSON string; FlagCategory.categoryTitle)',
+  hours:
+    'https://developer.deere.com/dev-docs/machine-engine-hours (GET /machines/{principalId}/engineHours?lastKnown=true: reading { valueAsDouble, unit: Hours }, reportTime, source)',
+};
+
+/** The deere.fields fields listing, org boundaries, farms and clients of every org. */
+function fieldsWithRefsFixture(c: Ctx): ReplayFixture {
+  const records = simDeereFieldRecords(c.farm);
+  const exchanges: ReplayExchange[] = [];
+  for (const org of simDeereOrgs(c.farm)) {
+    const mine = records.filter((r) => r.orgId === org.id);
+    const base = `/organizations/${enc(org.id)}`;
+    exchanges.push(
+      ...paged(
+        `${base}/fields`,
+        mine.map((r) => deereFieldJson(API, r, true)),
+        FIELDS_PAGE_SIZE,
+        { recordFilter: 'ALL', embed: 'farms,clients' },
+      ),
+    );
+    exchanges.push(
+      get(
+        `${base}/boundaries`,
+        collection(
+          withQuery(`${base}/boundaries`, { recordFilter: 'active' }),
+          mine.map((r) => deereBoundaryJson(API, r)),
+        ),
+        { recordFilter: 'active' },
+      ),
+    );
+    exchanges.push(
+      get(
+        `${base}/farms`,
+        collection(
+          withQuery(`${base}/farms`, { recordFilter: 'all' }),
+          simOrgFarms(records, org.id).map((x) => deereFarmJson(API, org.id, x)),
+        ),
+        { recordFilter: 'all' },
+      ),
+    );
+    exchanges.push(
+      get(
+        `${base}/clients`,
+        collection(
+          withQuery(`${base}/clients`, { recordFilter: 'ALL' }),
+          simOrgClients(records, org.id).map((x) => deereClientJson(API, org.id, x)),
+        ),
+        { recordFilter: 'ALL' },
+      ),
+    );
+  }
+  return fixture('fields', REF_1F.fields, SETUP_ANCHOR, exchanges, DAY_SECONDS);
+}
+
+/** Every org's flags (archived ones too), each with its category. */
+function flagsWithCategoryFixture(c: Ctx): ReplayFixture {
+  const flags = simFlags(c.farm, SEED);
+  const query = { recordFilter: 'all', embed: 'flagCategory' };
+  const exchanges = simDeereOrgs(c.farm).map((org) => {
+    const path = `/organizations/${enc(org.id)}/flags`;
+    const values = flags.filter((f) => f.orgId === org.id).map((f) => deereFlagJson(API, f, true));
+    return get(path, collection(withQuery(path, query), values), query);
+  });
+  return fixture('flags', REF_1F.flags, SETUP_ANCHOR, exchanges, DAY_SECONDS);
+}
+
+/** Each Deere machine's latest engine-hours report: the last 15-minute report before the anchor. */
+function engineHoursFixture(c: Ctx): ReplayFixture {
+  const at = new Date(Date.parse(SETUP_ANCHOR) - 15 * 60_000);
+  const exchanges = deereMachines(c.farm).map((m) => {
+    const id = m.vendorIds.deere as string;
+    const path = `/machines/${enc(id)}/engineHours`;
+    const hours = c.world.machineAt(m.id, at)?.engineHours ?? 0;
+    return get(
+      path,
+      collection(withQuery(path, { lastKnown: 'true' }), [
+        deereEngineHoursJson(API, id, hours, at.toISOString()),
+      ]),
+      { lastKnown: 'true' },
+    );
+  });
+  return fixture('hours', REF_1F.hours, SETUP_ANCHOR, exchanges, DAY_SECONDS);
+}
+
+/** deere-data's 1f fixtures (numbers 20-29), by their path under ./doc-derived/. */
+export function buildDeereFieldsFixtures(): Record<string, ReplayFixture> {
+  const c = context();
+  return {
+    'fields/20-fields.json': fieldsWithRefsFixture(c),
+    'flags/20-flags.json': flagsWithCategoryFixture(c),
+    'hours/20-engine-hours.json': engineHoursFixture(c),
+  };
 }
 
 /** Every Deere doc-derived fixture, by its path under ./doc-derived/. */

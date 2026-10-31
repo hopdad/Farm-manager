@@ -1,0 +1,77 @@
+{
+  "format": 1,
+  "source": "geotab",
+  "stream": "vehicles",
+  "kind": "doc-derived",
+  "reference": "https://my.geotab.com/api.json (Get Device: name, serialNumber, deviceType, vehicleIdentificationNumber, groups; Get Group). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/apiv1",
+        "body": {
+          "method": "Get",
+          "params": {
+            "typeName": "Device"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "result": [
+            {
+              "id": "bE5D",
+              "name": "H2",
+              "serialNumber": "G9SIMBE5D",
+              "deviceType": "GO9",
+              "vehicleIdentificationNumber": "",
+              "licensePlate": "",
+              "groups": [
+                {
+                  "id": "GroupCompanyId"
+                },
+                {
+                  "id": "b27C1"
+                }
+              ],
+              "activeFrom": "2025-01-01T00:00:00.000Z",
+              "activeTo": "2050-01-01T00:00:00.000Z",
+              "timeZoneId": "America/Detroit"
+            }
+          ],
+          "jsonrpc": "2.0"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/apiv1",
+        "body": {
+          "method": "Get",
+          "params": {
+            "typeName": "Group"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "result": [
+            {
+              "id": "GroupCompanyId",
+              "name": "Company Group"
+            },
+            {
+              "id": "b27C1",
+              "name": "Semi"
+            }
+          ],
+          "jsonrpc": "2.0"
+        }
+      }
+    }
+  ]
+}

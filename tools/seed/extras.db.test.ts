@@ -17,7 +17,7 @@ const opts = () => ({ secret: SECRET, projectDir: process.cwd(), soilsCache: fal
 describe('seedDemoExtras', () => {
   test('first run: people, synthetic soils and parcels, the NAIP row', async () => {
     const { pool } = t();
-    await seedDemo(pool, { seed: 1, eldVendor: 'samsara' });
+    await seedDemo(pool, { seed: 1 });
     const r = await seedDemoExtras(pool, opts());
     expect(r.people.inserted).toBe(8);
     expect(r.soils.action).toBe('fixture');

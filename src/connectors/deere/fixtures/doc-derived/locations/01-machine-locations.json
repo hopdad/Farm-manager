@@ -3,7 +3,7 @@
   "source": "deere",
   "stream": "locations",
   "kind": "doc-derived",
-  "reference": "https://developer.deere.com/dev-docs/machine-locations (GET /machines/{principalId}/breadcrumbs, Breadcrumb, MeasurementAsDouble/Integer, nextPage paging); https://developer.deere.com/dev-docs/organizations; org `machines` link as recorded in RealmFive/my_john_deere_api test/support/vcr/get_organizations.yml. Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "reference": "https://developer.deere.com/dev-docs/machine-locations (GET /machines/{principalId}/breadcrumbs, Breadcrumb, MeasurementAsDouble/Integer, nextPage paging with pageOffset/itemLimit); https://developer.deere.com/dev-docs/equipment (GET https://equipmentapi.deere.com/isg/equipment?organizationIds=, equipmentForList: id, principalId, isgType, type, make, model, modelYear as a string); https://developer.deere.com/dev-docs/organizations (self and manage_connections links). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
   "anchor": "2026-10-15T13:00:00.000Z",
   "shiftStepSeconds": 1800,
   "basePath": "/platform",
@@ -11,7 +11,10 @@
     {
       "request": {
         "method": "GET",
-        "path": "/organizations/org-customer-1/machines"
+        "path": "/isg/equipment",
+        "query": {
+          "organizationIds": "org-customer-1"
+        }
       },
       "response": {
         "status": 200,
@@ -19,7 +22,7 @@
           "links": [
             {
               "rel": "self",
-              "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/machines"
+              "uri": "https://equipmentapi.deere.com/isg/equipment?organizationIds=org-customer-1"
             }
           ],
           "total": 0,
@@ -30,7 +33,10 @@
     {
       "request": {
         "method": "GET",
-        "path": "/organizations/org-customer-2/machines"
+        "path": "/isg/equipment",
+        "query": {
+          "organizationIds": "org-customer-2"
+        }
       },
       "response": {
         "status": 200,
@@ -38,7 +44,7 @@
           "links": [
             {
               "rel": "self",
-              "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/machines"
+              "uri": "https://equipmentapi.deere.com/isg/equipment?organizationIds=org-customer-2"
             }
           ],
           "total": 0,
@@ -49,7 +55,11 @@
     {
       "request": {
         "method": "GET",
-        "path": "/organizations/org-home/machines"
+        "path": "/isg/equipment",
+        "query": {
+          "organizationIds": "org-home",
+          "pageOffset": "4"
+        }
       },
       "response": {
         "status": 200,
@@ -57,90 +67,82 @@
           "links": [
             {
               "rel": "self",
-              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/machines"
-            },
-            {
-              "rel": "nextPage",
-              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/machines;start=4;count=4"
+              "uri": "https://equipmentapi.deere.com/isg/equipment?organizationIds=org-home&pageOffset=4&itemLimit=4"
             }
           ],
           "total": 6,
           "values": [
             {
               "@type": "Machine",
-              "id": "8348986",
-              "name": "C1",
-              "vin": "SIM-C1-2024",
-              "modelYear": 2024,
-              "links": [
+              "id": "a0f88a39-dfa3-50a7-a51e-c33d30916779",
+              "principalId": 3877899,
+              "name": "SP1",
+              "serialNumber": "SIMSP12022",
+              "modelYear": "2022",
+              "make": {
+                "id": "make-john-deere",
+                "name": "JOHN DEERE"
+              },
+              "type": {
+                "id": "isg-sprayer",
+                "name": "Sprayer"
+              },
+              "isgType": {
+                "id": "isg-sprayer",
+                "name": "Sprayer"
+              },
+              "model": {
+                "id": "model-sprayer-1",
+                "name": "R4045"
+              },
+              "organization": [
                 {
-                  "@type": "Link",
-                  "rel": "self",
-                  "uri": "https://sandboxapi.deere.com/platform/machines/8348986"
-                },
-                {
-                  "@type": "Link",
-                  "rel": "breadcrumbs",
-                  "uri": "https://sandboxapi.deere.com/platform/machines/8348986/breadcrumbs"
+                  "@type": "Resource",
+                  "id": "org-home"
                 }
-              ]
+              ],
+              "organizationRole": {
+                "type": "Controlling",
+                "inPossession": true
+              },
+              "telematicsCapable": true,
+              "archived": false
             },
             {
               "@type": "Machine",
-              "id": "4034635",
-              "name": "C2",
-              "vin": "SIM-C2-2021",
-              "modelYear": 2021,
-              "links": [
+              "id": "dba790a3-c429-553c-88c3-57d5a2dd3756",
+              "principalId": 6272546,
+              "name": "P1",
+              "serialNumber": "SIMP12020",
+              "modelYear": "2020",
+              "make": {
+                "id": "make-john-deere",
+                "name": "JOHN DEERE"
+              },
+              "type": {
+                "id": "isg-planter",
+                "name": "Tractor"
+              },
+              "isgType": {
+                "id": "isg-planter",
+                "name": "Tractor"
+              },
+              "model": {
+                "id": "model-planter-1",
+                "name": "DB60 planter on JD 8R 370"
+              },
+              "organization": [
                 {
-                  "@type": "Link",
-                  "rel": "self",
-                  "uri": "https://sandboxapi.deere.com/platform/machines/4034635"
-                },
-                {
-                  "@type": "Link",
-                  "rel": "breadcrumbs",
-                  "uri": "https://sandboxapi.deere.com/platform/machines/4034635/breadcrumbs"
+                  "@type": "Resource",
+                  "id": "org-home"
                 }
-              ]
-            },
-            {
-              "@type": "Machine",
-              "id": "3207950",
-              "name": "GC1",
-              "vin": "SIM-GC1-2022",
-              "modelYear": 2022,
-              "links": [
-                {
-                  "@type": "Link",
-                  "rel": "self",
-                  "uri": "https://sandboxapi.deere.com/platform/machines/3207950"
-                },
-                {
-                  "@type": "Link",
-                  "rel": "breadcrumbs",
-                  "uri": "https://sandboxapi.deere.com/platform/machines/3207950/breadcrumbs"
-                }
-              ]
-            },
-            {
-              "@type": "Machine",
-              "id": "1140487",
-              "name": "GC2",
-              "vin": "SIM-GC2-2019",
-              "modelYear": 2019,
-              "links": [
-                {
-                  "@type": "Link",
-                  "rel": "self",
-                  "uri": "https://sandboxapi.deere.com/platform/machines/1140487"
-                },
-                {
-                  "@type": "Link",
-                  "rel": "breadcrumbs",
-                  "uri": "https://sandboxapi.deere.com/platform/machines/1140487/breadcrumbs"
-                }
-              ]
+              ],
+              "organizationRole": {
+                "type": "Controlling",
+                "inPossession": true
+              },
+              "telematicsCapable": true,
+              "archived": false
             }
           ]
         }
@@ -149,7 +151,10 @@
     {
       "request": {
         "method": "GET",
-        "path": "/organizations/org-home/machines;start=4;count=4"
+        "path": "/isg/equipment",
+        "query": {
+          "organizationIds": "org-home"
+        }
       },
       "response": {
         "status": 200,
@@ -157,48 +162,158 @@
           "links": [
             {
               "rel": "self",
-              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/machines;start=4;count=4"
+              "uri": "https://equipmentapi.deere.com/isg/equipment?organizationIds=org-home"
+            },
+            {
+              "rel": "nextPage",
+              "uri": "https://equipmentapi.deere.com/isg/equipment?organizationIds=org-home&pageOffset=4&itemLimit=4"
             }
           ],
           "total": 6,
           "values": [
             {
               "@type": "Machine",
-              "id": "3877899",
-              "name": "SP1",
-              "vin": "SIM-SP1-2022",
-              "modelYear": 2022,
-              "links": [
+              "id": "c462a119-b655-5231-be65-cd8e76bd43b3",
+              "principalId": 8348986,
+              "name": "C1",
+              "serialNumber": "SIMC12024",
+              "modelYear": "2024",
+              "make": {
+                "id": "make-john-deere",
+                "name": "JOHN DEERE"
+              },
+              "type": {
+                "id": "isg-combine",
+                "name": "Combine"
+              },
+              "isgType": {
+                "id": "isg-combine",
+                "name": "Combine"
+              },
+              "model": {
+                "id": "model-combine-1",
+                "name": "X9 1100"
+              },
+              "organization": [
                 {
-                  "@type": "Link",
-                  "rel": "self",
-                  "uri": "https://sandboxapi.deere.com/platform/machines/3877899"
-                },
-                {
-                  "@type": "Link",
-                  "rel": "breadcrumbs",
-                  "uri": "https://sandboxapi.deere.com/platform/machines/3877899/breadcrumbs"
+                  "@type": "Resource",
+                  "id": "org-home"
                 }
-              ]
+              ],
+              "organizationRole": {
+                "type": "Controlling",
+                "inPossession": true
+              },
+              "telematicsCapable": true,
+              "archived": false
             },
             {
               "@type": "Machine",
-              "id": "6272546",
-              "name": "P1",
-              "vin": "SIM-P1-2020",
-              "modelYear": 2020,
-              "links": [
+              "id": "79792de4-b1d4-55e8-81c2-46e8c8f0325e",
+              "principalId": 4034635,
+              "name": "C2",
+              "serialNumber": "SIMC22021",
+              "modelYear": "2021",
+              "make": {
+                "id": "make-john-deere",
+                "name": "JOHN DEERE"
+              },
+              "type": {
+                "id": "isg-combine",
+                "name": "Combine"
+              },
+              "isgType": {
+                "id": "isg-combine",
+                "name": "Combine"
+              },
+              "model": {
+                "id": "model-combine-2",
+                "name": "S790"
+              },
+              "organization": [
                 {
-                  "@type": "Link",
-                  "rel": "self",
-                  "uri": "https://sandboxapi.deere.com/platform/machines/6272546"
-                },
-                {
-                  "@type": "Link",
-                  "rel": "breadcrumbs",
-                  "uri": "https://sandboxapi.deere.com/platform/machines/6272546/breadcrumbs"
+                  "@type": "Resource",
+                  "id": "org-home"
                 }
-              ]
+              ],
+              "organizationRole": {
+                "type": "Controlling",
+                "inPossession": true
+              },
+              "telematicsCapable": true,
+              "archived": false
+            },
+            {
+              "@type": "Machine",
+              "id": "f3647b25-2271-5ab5-a5d8-ec17823e9ee8",
+              "principalId": 3207950,
+              "name": "GC1",
+              "serialNumber": "SIMGC12022",
+              "modelYear": "2022",
+              "make": {
+                "id": "make-john-deere",
+                "name": "JOHN DEERE"
+              },
+              "type": {
+                "id": "isg-grain_cart",
+                "name": "Tractor"
+              },
+              "isgType": {
+                "id": "isg-grain_cart",
+                "name": "Tractor"
+              },
+              "model": {
+                "id": "model-cart-1",
+                "name": "1300 grain cart on JD 8R 410"
+              },
+              "organization": [
+                {
+                  "@type": "Resource",
+                  "id": "org-home"
+                }
+              ],
+              "organizationRole": {
+                "type": "Controlling",
+                "inPossession": true
+              },
+              "telematicsCapable": true,
+              "archived": false
+            },
+            {
+              "@type": "Machine",
+              "id": "a81b61fb-525c-55f3-8504-411f3ff50476",
+              "principalId": 1140487,
+              "name": "GC2",
+              "serialNumber": "SIMGC22019",
+              "modelYear": "2019",
+              "make": {
+                "id": "make-john-deere",
+                "name": "JOHN DEERE"
+              },
+              "type": {
+                "id": "isg-grain_cart",
+                "name": "Tractor"
+              },
+              "isgType": {
+                "id": "isg-grain_cart",
+                "name": "Tractor"
+              },
+              "model": {
+                "id": "model-cart-2",
+                "name": "1196 grain cart on JD 8R 370"
+              },
+              "organization": [
+                {
+                  "@type": "Resource",
+                  "id": "org-home"
+                }
+              ],
+              "organizationRole": {
+                "type": "Controlling",
+                "inPossession": true
+              },
+              "telematicsCapable": true,
+              "archived": false
             }
           ]
         }

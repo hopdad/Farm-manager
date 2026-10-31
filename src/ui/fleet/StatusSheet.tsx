@@ -3,6 +3,9 @@
  * The "mark down" / "back up" sheet: a modal over the board (phone and wall alike). Going down
  * needs a reason: a one-tap reason or a few words typed in. The server checks the role again
  * (ROLE_FOR.markMachineDown) and answers in plain words when it refuses.
+ *
+ * 1f: "Critical fault: mark down?" opens it with the reason filled in from the code
+ * (`initialReason`, within MAX_DOWN_REASON_CHARS); the person still decides and taps.
  */
 import { useEffect, useId, useRef, useState } from 'react';
 import { postMachineStatus } from './actions';
@@ -19,13 +22,17 @@ export const reasonSlug = (r: string) => r.toLowerCase().replace(/[^a-z0-9]+/g, 
 export function StatusSheet(props: {
   machine: PanelMachine;
   variant: 'wall' | 'phone';
+  /** The reason the text box starts with (a critical fault's code and description). */
+  initialReason?: string;
   onDone(result: MachineStatusResult): void;
   onCancel(): void;
 }) {
   const { machine } = props;
   const goingDown = machine.status !== 'down';
   const [quick, setQuick] = useState<string | null>(null);
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() =>
+    (props.initialReason ?? '').slice(0, MAX_DOWN_REASON_CHARS),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const titleId = useId();

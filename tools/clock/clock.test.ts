@@ -116,7 +116,7 @@ describe('selectJobs (the shared schedule validator)', () => {
       'fleet.trucks': {
         every: '30 seconds',
         demoEvery: '5 seconds',
-        connector: 'CONNECTOR_ELD',
+        connector: 'CONNECTOR_SAMSARA',
         run,
       },
       'weather.nws': {
@@ -128,7 +128,7 @@ describe('selectJobs (the shared schedule validator)', () => {
     };
     const jobs = selectJobs(reg, ['app'], {
       demo: true,
-      modes: { CONNECTOR_ELD: 'sim', CONNECTOR_WEATHER: 'live' },
+      modes: { CONNECTOR_SAMSARA: 'sim', CONNECTOR_WEATHER: 'live' },
     });
     expect(jobs.map((j) => [j.name, describeSchedule(j)])).toEqual([
       ['fleet.trucks', 'every 5 s'],

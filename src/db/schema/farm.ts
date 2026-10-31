@@ -39,7 +39,32 @@ import {
   TILE_LINE_KINDS,
   TILE_LINE_ORIGINS,
 } from '../../domain/farm';
-import { ACTIVITIES, MACHINE_KINDS, MACHINE_STATUSES, POSITION_SOURCES } from '../../domain/fleet';
+import {
+  type ActiveFaultCode,
+  FAULT_CLOSED_BY,
+  FAULT_SEVERITIES,
+  FAULT_SYSTEMS,
+  type FaultLamps,
+  OBD_DTC_STATES,
+  OEM_FAULT_CLASSES,
+} from '../../domain/fault-codes';
+import {
+  ACTIVITIES,
+  MACHINE_KINDS,
+  MACHINE_STATUSES,
+  POSITION_KINDS,
+  POSITION_SOURCES,
+  POSITION_VENDOR_SQL_PATTERN,
+} from '../../domain/fleet';
+import {
+  OPERATION_KINDS,
+  OPERATION_STATUSES,
+  type OperationMeasurements,
+  type OperationProduct,
+  type OperationWeather,
+} from '../../domain/operations';
+import { PIN_KINDS, type PinGeometry } from '../../domain/pins';
+import { KIND_SET_BY } from '../../domain/vehicles';
 import type { SprayReason, WeatherStation } from '../../domain/weather';
 import { SPRAY_VERDICTS } from '../../domain/weather';
 import { geometryColumn } from '../geo';
@@ -219,6 +244,13 @@ export const machines = farm.table(
     odometerMi: numeric('odometer_mi', { precision: 10, scale: 1, mode: 'number' }),
     source: text('source').notNull().default('app'),
     sourceId: text('source_id'),
+    /**
+     * How the telematics vendor gets the data (1f.2, migration 0007): ford_pro, stellantis
+     * (carmaker clouds), gateway, obd_device; any id of the vendor-id format. Null = not said.
+     */
+    telematicsVia: text('telematics_via'),
+    /** Who set `kind` last (1f.2): default, vendor (a vendor tag) or admin (wins over tags). */
+    kindSetBy: text('kind_set_by', { enum: KIND_SET_BY }).notNull().default('default'),
     createdAt: tstz('created_at').notNull().defaultNow(),
     updatedAt: tstz('updated_at').notNull().defaultNow(),
   },
@@ -226,6 +258,11 @@ export const machines = farm.table(
     unique('machines_source_source_id_key').on(t.source, t.sourceId),
     check('machines_kind_check', sql`${t.kind} in (${inList(MACHINE_KINDS)})`),
     check('machines_status_check', sql`${t.status} in (${inList(MACHINE_STATUSES)})`),
+    check(
+      'machines_telematics_via_check',
+      sql`${t.telematicsVia} is null or ${t.telematicsVia} ~ '${sql.raw(POSITION_VENDOR_SQL_PATTERN)}'`,
+    ),
+    check('machines_kind_set_by_check', sql`${t.kindSetBy} in (${inList(KIND_SET_BY)})`),
   ],
 );
 
@@ -246,6 +283,31 @@ export const machineState = farm.table(
     fuelPct: doublePrecision('fuel_pct'),
     engineOn: boolean('engine_on'),
     positionSource: text('position_source', { enum: POSITION_SOURCES }).notNull(),
+    /**
+     * Vendor id of the latest fix (1f, migration 0007): the per-machine vendor badge
+     * ("Samsara · sim"). Since 1f.2 any id of the POSITION_VENDOR_PATTERN format (samsara,
+     * geotab, cnh, aemp_kubota, …), labelled by src/connectors/vendors.ts. Null for manual fixes
+     * and rows older than 0007.
+     */
+    positionVendor: text('position_vendor'),
+    /** 1f.2: live (a trail point) or last_known (a vendor snapshot; machine_state only). */
+    positionKind: text('position_kind', { enum: POSITION_KINDS }).notNull().default('live'),
+    /**
+     * Active fault codes (1f), worst first: the summary of the machine's open farm.machine_faults
+     * rows. '[]' = none. Refreshed by every fault report that changes rows (a snapshot older than
+     * its source's guard, farm.machine_fault_snapshots, changes none) and by the age-out and
+     * mode-change closes; the first position insert seeds it from the open machine_faults rows.
+     */
+    faultCodes: jsonb('fault_codes').$type<ActiveFaultCode[]>().notNull().default(sql`'[]'::jsonb`),
+    /**
+     * Vendor time of the newest fault report applied (any source). Informational since the 1f
+     * review round 2: the snapshot guard is per source (farm.machine_fault_snapshots).
+     */
+    faultsAt: tstz('faults_at'),
+    /** Vendor time of the stat `fuelPct` (and `defPct`) came from (time guard, contracts.md open item). */
+    statsAt: tstz('stats_at'),
+    /** 1f.2: diesel exhaust fluid level 0-100, guarded by `statsAt` like `fuelPct`. */
+    defPct: doublePrecision('def_pct'),
     updatedAt: tstz('updated_at').notNull().defaultNow(),
   },
   (t) => [
@@ -254,6 +316,15 @@ export const machineState = farm.table(
     check(
       'machine_state_position_source_check',
       sql`${t.positionSource} in (${inList(POSITION_SOURCES)})`,
+    ),
+    check(
+      'machine_state_position_vendor_check',
+      sql`${t.positionVendor} is null or ${t.positionVendor} ~ '${sql.raw(POSITION_VENDOR_SQL_PATTERN)}'`,
+    ),
+    check('machine_state_fault_codes_check', sql`jsonb_typeof(${t.faultCodes}) = 'array'`),
+    check(
+      'machine_state_position_kind_check',
+      sql`${t.positionKind} in (${inList(POSITION_KINDS)})`,
     ),
   ],
 );
@@ -685,4 +756,258 @@ export const tileLines = farm.table(
     check('tile_lines_size_in_check', sql`${t.sizeIn} is null or ${t.sizeIn} > 0`),
     check('tile_lines_depth_ft_check', sql`${t.depthFt} is null or ${t.depthFt} > 0`),
   ],
+);
+
+// =============================================================================================
+// 1f live connectors (db/migrations/0007_m1f_live_connectors.sql; docs/contracts-1f.md §3)
+// =============================================================================================
+
+/**
+ * What a machine did on a field (plan §4): Deere field operations (seeding, application,
+ * harvest, tillage) with products, measured totals and a simplified coverage MultiPolygon.
+ * Synced rows: id = deterministicId('deere', <Deere operation id>), source 'deere', source_id =
+ * the Deere operation id, source_org = the Deere org it was read from. `field_id` is null when
+ * the operation's field isn't mapped (a dq check lists those).
+ */
+export const operations = farm.table(
+  'operations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind', { enum: OPERATION_KINDS }).notNull(),
+    fieldId: uuid('field_id').references(() => fields.id, { onDelete: 'set null' }),
+    cropYear: integer('crop_year').notNull(),
+    /** Normalized crop (src/domain/crops.ts), or null. */
+    crop: text('crop'),
+    startedAt: tstz('started_at').notNull(),
+    endedAt: tstz('ended_at'),
+    /** Area the vendor reported, and the part inside the field's boundary. */
+    areaReportedAc: numeric('area_reported_ac', { precision: 12, scale: 4, mode: 'number' }),
+    areaClippedAc: numeric('area_clipped_ac', { precision: 12, scale: 4, mode: 'number' }),
+    products: jsonb('products').$type<OperationProduct[]>().notNull().default(sql`'[]'::jsonb`),
+    measurements: jsonb('measurements')
+      .$type<OperationMeasurements>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    machineIds: uuid('machine_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    operatorPartyId: uuid('operator_party_id').references(() => parties.id, {
+      onDelete: 'set null',
+    }),
+    /** The operator as the vendor names them; operator_party_id stays null until a matching rule exists. */
+    operatorName: text('operator_name'),
+    /** Observed weather during the operation, with its source (2b). */
+    weather: jsonb('weather').$type<OperationWeather>(),
+    status: text('status', { enum: OPERATION_STATUSES }).notNull().default('provisional'),
+    /** Coverage, simplified (ST_SimplifyPreserveTopology), EPSG:4326. */
+    geom: geometryColumn('geom', 'MultiPolygon'),
+    source: text('source').notNull(),
+    sourceId: text('source_id'),
+    /** The vendor org the row was read from (Deere org id). */
+    sourceOrg: text('source_org'),
+    /** The vendor's modifiedTime: an unchanged operation is not re-read. */
+    sourceModifiedAt: tstz('source_modified_at'),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('operations_source_source_id_key').on(t.source, t.sourceId),
+    index('operations_field_id_crop_year_started_at_idx').on(
+      t.fieldId,
+      t.cropYear,
+      t.startedAt.desc(),
+    ),
+    index('operations_geom_gist').using('gist', t.geom),
+    check('operations_kind_check', sql`${t.kind} in (${inList(OPERATION_KINDS)})`),
+    check('operations_status_check', sql`${t.status} in (${inList(OPERATION_STATUSES)})`),
+    check('operations_crop_year_check', sql`${t.cropYear} between 1950 and 2100`),
+    check('operations_ended_at_check', sql`${t.endedAt} is null or ${t.endedAt} >= ${t.startedAt}`),
+    check(
+      'operations_area_check',
+      sql`(${t.areaReportedAc} is null or ${t.areaReportedAc} >= 0) and (${t.areaClippedAc} is null or ${t.areaClippedAc} >= 0)`,
+    ),
+  ],
+);
+
+/**
+ * Pins on the map (plan §4): 1f brings Deere flags in read-only (source 'deere_flag',
+ * read_only true, id = deterministicId('deere_flag', <Deere flag id>)); 2c adds pins drawn on a
+ * phone (source 'app', photo_keys, client_id for offline dedupe). Geometry: Point, LineString or
+ * Polygon (CHECK).
+ */
+export const pins = farm.table(
+  'pins',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind', { enum: PIN_KINDS }).notNull().default('note'),
+    fieldId: uuid('field_id').references(() => fields.id, { onDelete: 'set null' }),
+    geom: geometryColumn('geom', 'Geometry').$type<PinGeometry>().notNull(),
+    note: text('note'),
+    /** The vendor's category or label (a Deere flag category), shown in the popup. */
+    category: text('category'),
+    photoKeys: text('photo_keys').array().notNull().default(sql`'{}'::text[]`),
+    createdBy: uuid('created_by').references((): AnyPgColumn => appUsers.id, {
+      onDelete: 'set null',
+    }),
+    resolvedAt: tstz('resolved_at'),
+    /** Offline dedupe key from the phone that drew it (2c). */
+    clientId: uuid('client_id'),
+    readOnly: boolean('read_only').notNull().default(false),
+    source: text('source').notNull().default('app'),
+    sourceId: text('source_id'),
+    sourceOrg: text('source_org'),
+    sourceModifiedAt: tstz('source_modified_at'),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('pins_source_source_id_key').on(t.source, t.sourceId),
+    uniqueIndex('pins_client_id_key').on(t.clientId).where(sql`${t.clientId} is not null`),
+    index('pins_field_id_idx').on(t.fieldId),
+    index('pins_geom_gist').using('gist', t.geom),
+    check('pins_kind_check', sql`${t.kind} in (${inList(PIN_KINDS)})`),
+    check(
+      'pins_geom_type_check',
+      sql`extensions.ST_GeometryType(${t.geom}) in ('ST_Point', 'ST_LineString', 'ST_Polygon')`,
+    ),
+  ],
+);
+
+/**
+ * Engine hours and odometer readings over time (plan §4; Deere machine hours in 1f, ELD stats
+ * later). The latest also lands on farm.machines.engine_hours (never decreasing).
+ */
+export const machineHours = farm.table(
+  'machine_hours',
+  {
+    machineId: uuid('machine_id')
+      .notNull()
+      .references(() => machines.id, { onDelete: 'cascade' }),
+    /** Vendor time of the reading. */
+    ts: tstz('ts').notNull(),
+    engineHours: numeric('engine_hours', { precision: 10, scale: 1, mode: 'number' }),
+    odometerMi: numeric('odometer_mi', { precision: 10, scale: 1, mode: 'number' }),
+    /** Connector source ('deere', 'samsara', …). */
+    source: text('source').notNull(),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: 'machine_hours_pkey', columns: [t.machineId, t.source, t.ts] }),
+    index('machine_hours_machine_id_ts_idx').on(t.machineId, t.ts.desc()),
+    check(
+      'machine_hours_reading_check',
+      sql`${t.engineHours} is not null or ${t.odometerMi} is not null`,
+    ),
+    check(
+      'machine_hours_values_check',
+      sql`(${t.engineHours} is null or ${t.engineHours} >= 0) and (${t.odometerMi} is null or ${t.odometerMi} >= 0)`,
+    ),
+  ],
+);
+
+/**
+ * Fault code history (plan §4; one model for J1939, OBD-II and OEM codes since 1f.2,
+ * src/domain/fault-codes.ts). One OPEN row (cleared_at null) per machine, source and code; a code
+ * seen again after it cleared opens a new row.
+ */
+export const machineFaults = farm.table(
+  'machine_faults',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    machineId: uuid('machine_id')
+      .notNull()
+      .references(() => machines.id, { onDelete: 'cascade' }),
+    source: text('source').notNull(),
+    /** `faultCodeKey()`: 'J1939 SPN 110 FMI 0', 'P0217', 'OEM caution 1234'. */
+    code: text('code').notNull(),
+    system: text('system', { enum: FAULT_SYSTEMS }).notNull(),
+    /** j1939 only (19-bit SPN, 5-bit FMI). */
+    spn: integer('spn'),
+    fmi: integer('fmi'),
+    /** j1939: the controller's source address, when sent. */
+    sourceAddress: integer('source_address'),
+    occurrenceCount: integer('occurrence_count'),
+    /** obd2 only. */
+    dtcState: text('dtc_state', { enum: OBD_DTC_STATES }),
+    /** oem only. */
+    oemClass: text('oem_class', { enum: OEM_FAULT_CLASSES }),
+    /** obd2 only: the control module that reported it (Samsara's OBD-II txId), when known. */
+    module: text('module'),
+    /**
+     * Seconds the open code may go unseen before it closes by itself (decision 1f-12), set by
+     * the report that last saw it; null = it closes only when its vendor says so.
+     */
+    ageOutSeconds: integer('age_out_seconds'),
+    /** Lamp states as reported (null = not reported). */
+    lamps: jsonb('lamps').$type<FaultLamps>(),
+    severity: text('severity', { enum: FAULT_SEVERITIES }).notNull(),
+    /** The vendor's own severity or priority label, verbatim. */
+    vendorSeverity: text('vendor_severity'),
+    description: text('description'),
+    firstSeenAt: tstz('first_seen_at').notNull(),
+    lastSeenAt: tstz('last_seen_at').notNull(),
+    clearedAt: tstz('cleared_at'),
+    /**
+     * Set when a faults-stream mode change closed the row (1f review round 2): 'off' = the
+     * stream was turned off (the same mode coming back reopens it); 'mode' = the stream moved
+     * to another account (never reopens). Null = open, or closed by its vendor or the age-out.
+     */
+    closedBy: text('closed_by', { enum: FAULT_CLOSED_BY }),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('machine_faults_open_key')
+      .on(t.machineId, t.source, t.code)
+      .where(sql`${t.clearedAt} is null`),
+    index('machine_faults_machine_id_first_seen_at_idx').on(t.machineId, t.firstSeenAt.desc()),
+    check('machine_faults_severity_check', sql`${t.severity} in (${inList(FAULT_SEVERITIES)})`),
+    check('machine_faults_seen_check', sql`${t.lastSeenAt} >= ${t.firstSeenAt}`),
+    check(
+      'machine_faults_cleared_check',
+      sql`${t.clearedAt} is null or ${t.clearedAt} >= ${t.firstSeenAt}`,
+    ),
+    check(
+      'machine_faults_age_out_check',
+      sql`${t.ageOutSeconds} is null or ${t.ageOutSeconds} > 0`,
+    ),
+    check(
+      'machine_faults_closed_by_check',
+      sql`${t.closedBy} is null or (${t.closedBy} in (${inList(FAULT_CLOSED_BY)}) and ${t.clearedAt} is not null)`,
+    ),
+    check(
+      'machine_faults_system_check',
+      sql`${t.system} in (${inList(FAULT_SYSTEMS)})
+  and (${t.system} = 'j1939') = (${t.spn} is not null and ${t.fmi} is not null)
+  and (${t.spn} is null or ${t.spn} between 0 and 524287)
+  and (${t.fmi} is null or ${t.fmi} between 0 and 31)
+  and (${t.sourceAddress} is null or (${t.system} = 'j1939' and ${t.sourceAddress} between 0 and 255))
+  and (${t.occurrenceCount} is null or ${t.occurrenceCount} >= 0)
+  and (${t.dtcState} is null or (${t.system} = 'obd2' and ${t.dtcState} in (${inList(OBD_DTC_STATES)})))
+  and (${t.oemClass} is null or (${t.system} = 'oem' and ${t.oemClass} in (${inList(OEM_FAULT_CLASSES)})))
+  and (${t.module} is null or (${t.system} = 'obd2' and length(${t.module}) between 1 and 64))
+  and (${t.lamps} is null or jsonb_typeof(${t.lamps}) = 'object')`,
+    ),
+  ],
+);
+
+/**
+ * The snapshot time guard (1f review round 2), per machine AND source: the vendor time of the
+ * newest snapshot fault report (Samsara's faultCodes) each source applied for a machine. A
+ * snapshot not newer than its own source's guard only extends the codes it names (an older page
+ * never brings a cleared code back); another source's reports never block it, and a faults-stream
+ * mode change to another account deletes the source's rows, so the stand-in's readings never
+ * block the live account's. Delta reports carry their own times and don't use it.
+ */
+export const machineFaultSnapshots = farm.table(
+  'machine_fault_snapshots',
+  {
+    machineId: uuid('machine_id')
+      .notNull()
+      .references(() => machines.id, { onDelete: 'cascade' }),
+    /** Connector source ('samsara', …). */
+    source: text('source').notNull(),
+    /** Vendor time of the newest snapshot applied. */
+    reportedAt: tstz('reported_at').notNull(),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ name: 'machine_fault_snapshots_pkey', columns: [t.machineId, t.source] })],
 );

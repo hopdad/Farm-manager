@@ -5,6 +5,9 @@
  *
  *   /samsara/...  ./samsara/routes.ts      /deere/...   ./deere/routes.ts
  *   /motive/...   ./motive/routes.ts       /nws/...     ./nws/routes.ts (1b)
+ *   /geotab/...   ./geotab/routes.ts       /aemp/<provider>/...  ./aemp/routes.ts
+ *   /cnh/...      ./cnh/routes.ts          /terminal/...         ./terminal/routes.ts
+ *                 (1f.2: created empty, 404 "not simulated", until their builders fill them)
  *   /qbo          404 until its slice (M3)
  *   /_control/status | clock | scenario | faults | reset | stats
  *
@@ -36,6 +39,7 @@ import {
   type SimVendor,
   type SimWorld,
 } from '../types';
+import { aempModule } from './aemp/routes';
 import {
   applyClockRequest,
   ClockRequestError,
@@ -44,8 +48,10 @@ import {
   simAt,
   startTimeline,
 } from './clock';
+import { cnhModule } from './cnh/routes';
 import {
   DEFAULT_TUNING,
+  simDayReportsOf,
   type VendorContext,
   type VendorControlContext,
   type VendorModule,
@@ -67,6 +73,7 @@ import {
   matchFaults,
   scenarioFaultRules,
 } from './faults';
+import { geotabModule } from './geotab/routes';
 import { json, type SimRequest, type SimResponse } from './http';
 import { motiveModule } from './motive/routes';
 import { nwsModule } from './nws/routes';
@@ -80,6 +87,7 @@ import {
   VENDOR_SIM_STATE_VERSION,
   type VendorSimState,
 } from './state';
+import { terminalModule } from './terminal/routes';
 
 export const DEFAULT_VENDOR_SIM_PORT = 4010;
 const MAX_BODY_BYTES = 1_048_576;
@@ -90,6 +98,10 @@ const MODULES: Partial<Record<SimVendor, VendorModule>> = {
   deere: deereModule,
   motive: motiveModule,
   nws: nwsModule,
+  geotab: geotabModule,
+  aemp: aempModule,
+  cnh: cnhModule,
+  terminal: terminalModule,
 };
 
 export interface VendorSimOptions {
@@ -422,6 +434,7 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
     const ctx: VendorControlContext = {
       vendor: mod.vendor,
       world,
+      days: simDayReportsOf(world),
       now,
       simAt: (wall) => simAt(state.clock, wall),
       state,
@@ -489,6 +502,7 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
     const ctx: VendorContext = {
       vendor,
       world,
+      days: simDayReportsOf(world),
       tuning,
       now,
       simAt: (wall) => simAt(state.clock, wall),
@@ -620,7 +634,11 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
       }
     });
   });
-  server.keepAliveTimeout = 5_000;
+  // Longer than any client keeps an idle socket (undici: the server's hint minus its threshold),
+  // so the client always closes first. At 5 s, a test that blocked its process (the in-process
+  // stand-in included) past 5 s let this server close a socket just as the next request reused
+  // it: ECONNRESET (CI run 68).
+  server.keepAliveTimeout = 65_000;
 
   let port = opts.port ?? DEFAULT_VENDOR_SIM_PORT;
   await new Promise<void>((resolve, reject) => {

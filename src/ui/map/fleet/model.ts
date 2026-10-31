@@ -13,8 +13,18 @@
  *    gap (an idle Deere cart starting again) doesn't stretch the glide past the next fix; jumps
  *    longer than `teleportMeters` snap. After a gap longer than `maxIntervalMs` (outage, idle
  *    machine) the machine's last regular interval is used, else the arrival estimate.
+ *  - 1f review: the positions feeds the snapshot and each tick carry (`feeds`): the Deere feed's
+ *    last OK poll decides "Last working position" (`isLastWorking`), and a failing feed is kept
+ *    for the status strip.
  */
-import { isMachineStale, type MachineView, type StaleThresholds } from '../../../domain/fleet';
+import {
+  deereFeedOf,
+  isLastWorking,
+  isMachineStale,
+  type MachineView,
+  type PositionFeed,
+  type StaleThresholds,
+} from '../../../domain/fleet';
 import {
   distanceMeters,
   type Fix,
@@ -32,6 +42,11 @@ export interface FleetModelOptions {
   staleAfterSeconds: number;
   /** FLEET_STALE_SECONDS_DEERE: Deere working-only fixes (default: staleAfterSeconds). */
   deereStaleAfterSeconds?: number;
+  /**
+   * FLEET_STALE_SECONDS_LAST_KNOWN (1f.2): vendor snapshots (AEMP, Terminal's latest location).
+   * Default: DEFAULT_LAST_KNOWN_STALE_AFTER_SECONDS, never below the other two (staleAfterFor).
+   */
+  lastKnownStaleAfterSeconds?: number;
   /** Glide length when a machine has no regular fix interval yet and two ticks haven't been seen. */
   defaultIntervalMs?: number;
   minIntervalMs?: number;
@@ -46,6 +61,8 @@ interface Entry {
   view: MachineView;
   glide: Glide;
   stale: boolean;
+  /** A Deere working-only machine that stopped working (isLastWorking): never stale. */
+  lastWorking: boolean;
   /** Last gap between this machine's fixes that was within [0, maxIntervalMs], clamped; null until seen. */
   fixIntervalMs: number | null;
 }
@@ -58,6 +75,8 @@ export interface FleetFrame {
   activity: MachineView['activity'];
   status: MachineView['status'];
   positionSource: MachineView['positionSource'];
+  /** 1f.2: present for a `last_known` fix only (a vendor snapshot: drawn as such, no glide trail). */
+  positionKind?: MachineView['positionKind'];
   speedMph: number;
   ts: string;
   /** Interpolated position (WGS84) and heading for this frame. */
@@ -66,6 +85,11 @@ export interface FleetFrame {
   heading: number;
   /** Re-evaluated against the browser clock (see refreshStaleness). */
   stale: boolean;
+  /**
+   * 1f: a Deere working-only machine whose last breadcrumb is older than 3 min (isLastWorking):
+   * drawn at its last working position, never stale. Present when true only.
+   */
+  lastWorking?: true;
 }
 
 export interface FleetCounts {
@@ -76,10 +100,15 @@ export interface FleetCounts {
 
 export class FleetModel {
   private readonly machines = new Map<string, Entry>();
-  private readonly opts: Required<Omit<FleetModelOptions, 'wallNow'>> & {
+  private readonly opts: Required<
+    Omit<FleetModelOptions, 'wallNow' | 'lastKnownStaleAfterSeconds'>
+  > & {
     wallNow: () => Date;
+    lastKnownStaleAfterSeconds?: number;
   };
   private intervalMs: number;
+  /** 1f review: the latest positions feeds (snapshot, then ticks); null = not said yet. */
+  private feedList: PositionFeed[] | null = null;
   private lastTickAt: number | null = null;
   /** Bumped on every change that affects counts or the list (not on animation). */
   version = 0;
@@ -106,8 +135,23 @@ export class FleetModel {
     return this.machines.size;
   }
 
+  /** The positions feeds last heard of (null until a snapshot or tick said). */
+  get feeds(): PositionFeed[] | null {
+    return this.feedList;
+  }
+
+  /** Replace the feeds (a snapshot's or tick's `feeds`); undefined leaves them as they are. */
+  private takeFeeds(feeds: readonly PositionFeed[] | undefined): void {
+    if (feeds) this.feedList = [...feeds];
+  }
+
   /** Replace the fleet with a snapshot (GET /api/fleet). */
-  applySnapshot(machines: readonly MachineView[], now: number): void {
+  applySnapshot(
+    machines: readonly MachineView[],
+    now: number,
+    feeds?: readonly PositionFeed[],
+  ): void {
+    this.takeFeeds(feeds);
     const ids = new Set(machines.map((m) => m.id));
     for (const id of [...this.machines.keys()]) if (!ids.has(id)) this.machines.delete(id);
     for (const m of machines) this.upsert(m, now);
@@ -115,7 +159,8 @@ export class FleetModel {
   }
 
   /** Apply a realtime tick: upsert every machine it carries. */
-  applyTick(machines: readonly MachineView[], now: number): void {
+  applyTick(machines: readonly MachineView[], now: number, feeds?: readonly PositionFeed[]): void {
+    this.takeFeeds(feeds);
     if (this.lastTickAt !== null) {
       this.intervalMs = nextIntervalEstimate(
         this.intervalMs,
@@ -133,15 +178,30 @@ export class FleetModel {
     return {
       staleAfterSeconds: this.opts.staleAfterSeconds,
       deereStaleAfterSeconds: this.opts.deereStaleAfterSeconds,
+      ...(this.opts.lastKnownStaleAfterSeconds
+        ? { lastKnownStaleAfterSeconds: this.opts.lastKnownStaleAfterSeconds }
+        : {}),
     };
+  }
+
+  /** Stale or stopped working at wall-clock `wall` (a stopped Deere machine is never stale). */
+  private stateOf(m: MachineView, wall: Date): { stale: boolean; lastWorking: boolean } {
+    const lastWorking = isLastWorking(m, wall, this.thresholds, deereFeedOf(this.feedList));
+    return { lastWorking, stale: !lastWorking && isMachineStale(m, wall, this.thresholds) };
   }
 
   private upsert(m: MachineView, now: number): void {
     const to: Fix = { lng: m.lng, lat: m.lat, heading: m.heading };
-    const stale = isMachineStale(m, this.opts.wallNow(), this.thresholds);
+    const { stale, lastWorking } = this.stateOf(m, this.opts.wallNow());
     const prev = this.machines.get(m.id);
     if (!prev) {
-      this.machines.set(m.id, { view: m, glide: stationary(to, now), stale, fixIntervalMs: null });
+      this.machines.set(m.id, {
+        view: m,
+        glide: stationary(to, now),
+        stale,
+        lastWorking,
+        fixIntervalMs: null,
+      });
       return;
     }
     const ts = Date.parse(m.ts);
@@ -149,7 +209,7 @@ export class FleetModel {
     if (ts < prevTs) return; // older fix: keep the newer one
     if (ts === prevTs) {
       // The same fix again (the other job's tick, a snapshot): keep gliding; status may change.
-      this.machines.set(m.id, { ...prev, view: m, stale });
+      this.machines.set(m.id, { ...prev, view: m, stale, lastWorking });
       return;
     }
     const { minIntervalMs: min, maxIntervalMs: max } = this.opts;
@@ -166,7 +226,7 @@ export class FleetModel {
       !moved || distanceMeters(from, to) > this.opts.teleportMeters
         ? stationary(to, now)
         : { from, to, start: now, duration };
-    this.machines.set(m.id, { view: m, glide, stale, fixIntervalMs });
+    this.machines.set(m.id, { view: m, glide, stale, lastWorking, fixIntervalMs });
   }
 
   /** Re-evaluate staleness against the wall clock. Returns true if any machine changed. */
@@ -174,9 +234,10 @@ export class FleetModel {
     const wall = this.opts.wallNow();
     let changed = false;
     for (const e of this.machines.values()) {
-      const s = isMachineStale(e.view, wall, this.thresholds);
-      if (s !== e.stale) {
-        e.stale = s;
+      const s = this.stateOf(e.view, wall);
+      if (s.stale !== e.stale || s.lastWorking !== e.lastWorking) {
+        e.stale = s.stale;
+        e.lastWorking = s.lastWorking;
         changed = true;
       }
     }
@@ -224,12 +285,14 @@ export class FleetModel {
         activity: v.activity,
         status: v.status,
         positionSource: v.positionSource,
+        ...(v.positionKind ? { positionKind: v.positionKind } : {}),
         speedMph: v.speedMph,
         ts: v.ts,
         lng: p.lng,
         lat: p.lat,
         heading: p.heading,
         stale: e.stale,
+        ...(e.lastWorking ? { lastWorking: true as const } : {}),
       });
     }
     return out.sort((a, b) => a.unitNo.localeCompare(b.unitNo, 'en', { numeric: true }));

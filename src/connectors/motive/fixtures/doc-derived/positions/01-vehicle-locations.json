@@ -1,0 +1,88 @@
+{
+  "format": 1,
+  "source": "motive",
+  "stream": "positions",
+  "kind": "doc-derived",
+  "reference": "https://developer-docs.gomotive.com/reference/fetch-a-list-of-all-the-vehicles-and-their-locations-v2 (GET /v2/vehicle_locations: speed in mph, true_engine_hours, true_odometer, fuel_primary_remaining_percentage; pagination) and https://developer-docs.gomotive.com/reference/fetch-a-list-of-all-the-vehicles-and-their-locations-v3 (GET /v3/vehicle_locations, Vehicle Gateway units only: kph, vehicle_state). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "shiftStepSeconds": 1,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v3/vehicle_locations"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "vehicles": [
+            {
+              "vehicle": {
+                "id": 939680,
+                "number": "H1",
+                "year": "2020",
+                "make": "Kenworth",
+                "model": "T880 + hopper trailer (hired)",
+                "vin": null,
+                "current_location": {
+                  "lat": 41.860259,
+                  "lon": -83.81497,
+                  "bearing": 181.5,
+                  "located_at": "2026-10-15T13:00:00.000Z",
+                  "kph": 0,
+                  "vehicle_state": "off"
+                }
+              }
+            }
+          ],
+          "pagination": {
+            "per_page": 100,
+            "page_no": 1,
+            "total": 1
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v2/vehicle_locations"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "vehicles": [
+            {
+              "vehicle": {
+                "id": 939680,
+                "number": "H1",
+                "year": "2020",
+                "make": "Kenworth",
+                "model": "T880 + hopper trailer (hired)",
+                "vin": null,
+                "current_location": {
+                  "lat": 41.860259,
+                  "lon": -83.81497,
+                  "bearing": 182,
+                  "located_at": "2026-10-15T13:00:00.000Z",
+                  "description": "Adrian, MI",
+                  "speed": 0,
+                  "true_engine_hours": 14432.8,
+                  "engine_hours": 14420.3,
+                  "true_odometer": 518098,
+                  "odometer": 516577.7,
+                  "fuel_primary_remaining_percentage": 64.5
+                }
+              }
+            }
+          ],
+          "pagination": {
+            "per_page": 100,
+            "page_no": 1,
+            "total": 1
+          }
+        }
+      }
+    }
+  ]
+}

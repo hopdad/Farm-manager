@@ -28,13 +28,18 @@ export const TENURE_COLORS = {
   cash_rent: '#eab308',
   share: '#38bdf8',
   custom: '#f97316',
+  /** A field the Deere sync created, tenure not set by hand yet (1f). */
+  unknown: '#9ca3af',
 } as const;
 export const TENURE_LABELS = {
   owned: 'Owned',
   cash_rent: 'Cash rent',
   share: 'Share',
   custom: 'Custom work',
+  unknown: 'Tenure not set',
 } as const;
+/** Tenures the map legends list (a field whose tenure isn't set yet draws grey, unlisted). */
+export const LEGEND_TENURES = ['owned', 'cash_rent', 'share', 'custom'] as const;
 
 const PLAIN_BACKGROUND = { dark: '#18211d', light: '#e9ece4' } as const;
 const PROTOMAPS_ATTRIBUTION =
@@ -63,6 +68,8 @@ const tenureMatch = (fallback: string) =>
     TENURE_COLORS.share,
     'custom',
     TENURE_COLORS.custom,
+    'unknown',
+    TENURE_COLORS.unknown,
     fallback,
   ] as unknown as string;
 

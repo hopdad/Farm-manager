@@ -11,7 +11,6 @@ import { farms, fieldBoundaries, fields, geofences, machines, parties } from '..
 import type { JobContext, JobLogger } from '../jobs/types';
 import type { NotifyMessage } from '../platform/realtime/types';
 import { type SimFarm, simExternalRefs } from '../sim/types';
-import type { EldVendor } from './types';
 
 export interface LogLine {
   level: 'debug' | 'info' | 'warn' | 'error';
@@ -65,7 +64,7 @@ export async function listenAppEvents(url: string): Promise<{
 }
 
 /** Write the farm's machines, fields (+ current boundary), elevators and external refs. */
-export async function seedSimFarm(db: Db, farm: SimFarm, eldVendor: EldVendor): Promise<void> {
+export async function seedSimFarm(db: Db, farm: SimFarm): Promise<void> {
   for (const p of farm.parties) {
     await db
       .insert(parties)
@@ -128,6 +127,7 @@ export async function seedSimFarm(db: Db, farm: SimFarm, eldVendor: EldVendor): 
         make: m.make,
         model: m.model,
         year: m.year,
+        telematicsVia: m.telematics?.via ?? null,
         source: 'demo',
         sourceId: m.key,
       })
@@ -147,7 +147,7 @@ export async function seedSimFarm(db: Db, farm: SimFarm, eldVendor: EldVendor): 
       })
       .onConflictDoNothing();
   }
-  for (const r of simExternalRefs(farm, eldVendor)) {
+  for (const r of simExternalRefs(farm)) {
     await upsertExternalRef(db, r.ref, r.entityId);
   }
 }

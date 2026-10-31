@@ -1,35 +1,50 @@
 /**
- * John Deere stand-in (mounted at /deere): Operations Center sign-in and machine locations,
- * computed from the simulated world. Every path below is doc-derived (see
- * src/connectors/deere/schemas.ts for what is confirmed):
+ * John Deere stand-in (mounted at /deere): Operations Center sign-in, the Equipment API and
+ * machine locations, computed from the simulated world, in the shapes of Deere's official docs
+ * (checked Oct 30, 2026; src/connectors/deere/schemas.ts):
  *
  *   GET/POST /oauth2/<authServerId>/v1/authorize   "Sign in to Deere (simulated)" consent page;
  *                                                  `sim_auto_consent=1` skips it (sim only, so
  *                                                  `pnpm dev` connects with no clicks)
  *   POST     /oauth2/<authServerId>/v1/token       authorization_code + refresh_token grants;
  *                                                  short-lived access tokens, ROTATING refresh
- *                                                  tokens (a used one is invalid_grant)
- *   GET      /platform/organizations               orgs the token can see
- *   GET      /platform/organizations/{org}/machines
- *   GET      /platform/machines/{id}/breadcrumbs?startDate=&endDate=&pageOffset=&itemLimit=
+ *                                                  tokens (a used one is invalid_grant: stricter
+ *                                                  than Deere's long-lived refresh token)
+ *   GET      /platform/organizations               orgs the token can see (`self` and
+ *                                                  `manage_connections` links)
+ *   GET      /isg/equipment?organizationIds=&categories=&capableOf=&pageOffset=&itemLimit=
+ *                                                  the Equipment API (equipmentapi.deere.com/isg,
+ *                                                  Accept: application/json): each org's machines
+ *                                                  with `principalId` (≠ `id`), `isgType`, `type`,
+ *                                                  `make`, `model`, `modelYear` (a string)
+ *   GET      /platform/organizations/{org}/fields  the org's demo fields (1f minimal listing,
+ *                                                  ./platform.ts simDeereFields; the fields
+ *                                                  module shadows it with the full shape)
+ *   GET      /platform/machines/{principalId}/breadcrumbs?startDate=&endDate=&pageOffset=&itemLimit=
  *                                                  positions only while WORKING (plan §5)
+ * The deprecated /platform/organizations/{org}/machines is not served (404 "not simulated").
  *
  * Each org's data is served under that org id (contracts §9), so the org a sync reads from is
  * the external_refs source_org it looks up.
+ *
+ * 1f: every other platform path goes to the route modules (./modules.ts: connections, fields,
+ * ops; one per builder, docs/contracts-1f.md §7), which run before the core routes; their knobs
+ * are served at /_control/vendor/deere/<key>/....
  */
 import { timingSafeEqual } from 'node:crypto';
 import {
   DEERE_AUTH_SERVER_ID,
   DEERE_MEDIA_TYPE,
   type DeereBreadcrumb,
-  type DeereLink,
-  type DeereMachine,
+  type DeereField,
   type DeereOrganization,
   type DeereTokenResponse,
 } from '../../../connectors/deere/schemas';
+import type { MachineKind } from '../../../domain/fleet';
+import { deereGuid } from '../../farm/fleet';
 import { SIM_CREDENTIALS, SIM_DEERE_HOME_ORG, type SimFarm } from '../../types';
 import { currentClock } from '../clock';
-import type { VendorContext, VendorModule } from '../context';
+import type { VendorContext, VendorControlContext, VendorModule } from '../context';
 import { firstOfKind } from '../faults';
 import { round, seededShuffle } from '../feed';
 import {
@@ -43,14 +58,31 @@ import {
   type SimResponse,
 } from '../http';
 import type { IssuedGrant } from '../state';
+import { deereConnectionsRoutes } from './connections-routes';
+import { deereFieldsRoutes } from './fields-routes';
+import type { DeerePlatformRequest, DeereRouteModule } from './modules';
+import { deereOpsRoutes } from './ops-routes';
+import {
+  apiError,
+  collection,
+  paging,
+  platformBase,
+  simDeereFields,
+  simDeereOrgs,
+} from './platform';
+
+export { simDeereFields, simDeereOrgs } from './platform';
+
+/** The 1f route modules, in dispatch order (./modules.ts). */
+export const DEERE_ROUTE_MODULES: readonly DeereRouteModule[] = [
+  deereConnectionsRoutes,
+  deereFieldsRoutes,
+  deereOpsRoutes,
+];
 
 const OAUTH = `/oauth2/${DEERE_AUTH_SERVER_ID}/v1`;
 /** Query flag of the sim-only unattended consent (never sent to the real Deere). */
 export const SIM_AUTO_CONSENT_PARAM = 'sim_auto_consent';
-
-function apiError(status: number, message: string, headers: Record<string, string> = {}) {
-  return json(status, { errors: [{ message, guid: `sim-${status}` }] }, headers);
-}
 
 function oauthError(status: number, error: string, description: string): SimResponse {
   return json(
@@ -69,25 +101,31 @@ function safeEqual(a: string, b: string): boolean {
 const plusSeconds = (d: Date, s: number) => new Date(d.getTime() + s * 1000).toISOString();
 
 // ---------------------------------------------------------------------------------------------
-// Orgs and machines of the simulated farm
+// Machines of the simulated farm (orgs: ./platform.ts simDeereOrgs)
 // ---------------------------------------------------------------------------------------------
-
-export function simDeereOrgs(farm: SimFarm): { id: string; name: string }[] {
-  const names = new Map<string, string>();
-  const add = (id: string | undefined, name: string) => {
-    if (id && !names.has(id)) names.set(id, name);
-  };
-  for (const u of farm.farms) add(u.deereOrgId, u.name);
-  for (const m of farm.machines) add(m.deereOrgId, `Simulated org ${m.deereOrgId}`);
-  for (const f of farm.fields)
-    add(f.sharedWith?.deereOrgId, `Simulated org ${f.sharedWith?.deereOrgId}`);
-  add(SIM_DEERE_HOME_ORG, 'Home operation (simulated)');
-  return [...names].map(([id, name]) => ({ id, name })).sort((a, b) => a.id.localeCompare(b.id));
-}
 
 function deereMachines(farm: SimFarm) {
   return farm.machines.filter((m) => m.vendorIds.deere);
 }
+
+/**
+ * Deere's ISG type name for a simulated machine (JDLink sits in the tractor that pulls a grain
+ * cart or a planter). The docs show only "Combine", "Tractor" and "Scraper"; the full list is
+ * `GET /equipmentISGTypes` on a real account. // doc-derived, confirm (ISG type names)
+ */
+const DEERE_EQUIPMENT_TYPE: Record<MachineKind, string> = {
+  combine: 'Combine',
+  tractor: 'Tractor',
+  sprayer: 'Sprayer',
+  planter: 'Tractor',
+  grain_cart: 'Tractor',
+  semi: 'Truck',
+  trailer: 'Trailer',
+  drone: 'Other',
+  pickup: 'Truck',
+  service_truck: 'Truck',
+  loader: 'Loader',
+};
 
 // ---------------------------------------------------------------------------------------------
 // OAuth
@@ -303,13 +341,16 @@ function checkAccess(req: SimRequest, ctx: VendorContext): SimResponse | null {
     return apiError(401, 'Access token expired', UNAUTHORIZED);
   }
   const accept = header(req.headers, 'accept');
+  // The Equipment API takes application/json; the platform its axiom media type.
+  const equipment = req.path.startsWith('/isg/');
+  const wants = equipment ? 'application/json' : DEERE_MEDIA_TYPE;
   if (
     accept &&
-    !accept.includes(DEERE_MEDIA_TYPE) &&
-    !accept.includes('application/json') &&
-    !accept.includes('*/*')
+    !accept.includes(wants) &&
+    !accept.includes('*/*') &&
+    !(!equipment && accept.includes('application/json'))
   ) {
-    return apiError(406, `Not acceptable: use Accept: ${DEERE_MEDIA_TYPE}`);
+    return apiError(406, `Not acceptable: use Accept: ${wants}`);
   }
   return null;
 }
@@ -318,68 +359,125 @@ function checkAccess(req: SimRequest, ctx: VendorContext): SimResponse | null {
 // Platform API
 // ---------------------------------------------------------------------------------------------
 
-function paging(url: URL, defaultLimit: number): { offset: number; limit: number } | SimResponse {
-  const offset = Number(url.searchParams.get('pageOffset') ?? 0);
-  const limit = Number(url.searchParams.get('itemLimit') ?? defaultLimit);
-  if (!Number.isInteger(offset) || offset < 0) return apiError(400, 'pageOffset must be >= 0');
-  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
-    return apiError(400, 'itemLimit must be 1-100');
-  }
-  return { offset, limit };
-}
-
-function collection<T>(url: URL, all: T[], offset: number, limit: number) {
-  const self = new URL(url);
-  const links: DeereLink[] = [{ rel: 'self', uri: self.toString() }];
-  if (offset + limit < all.length) {
-    const next = new URL(url);
-    next.searchParams.set('pageOffset', String(offset + limit));
-    next.searchParams.set('itemLimit', String(limit));
-    links.push({ rel: 'nextPage', uri: next.toString() });
-  }
-  return { links, total: all.length, values: all.slice(offset, offset + limit) };
-}
-
-function platformBase(req: SimRequest): string {
-  return `${req.url.origin}/deere/platform`;
-}
-
-function organizations(req: SimRequest, ctx: VendorContext): SimResponse {
+function organizations(r: DeerePlatformRequest, mods: readonly DeereRouteModule[]): SimResponse {
+  const { req, ctx, base } = r;
   const pg = paging(req.url, 10);
   if ('kind' in pg) return pg;
-  const base = platformBase(req);
-  const orgs: DeereOrganization[] = simDeereOrgs(ctx.world.farm).map((o) => ({
-    '@type': 'Organization',
-    id: o.id,
-    name: o.name,
-    type: 'customer',
-    member: true,
-    links: [{ rel: 'machines', uri: `${base}/organizations/${encodeURIComponent(o.id)}/machines` }],
-  }));
+  const orgs: DeereOrganization[] = simDeereOrgs(ctx.world.farm).map((o) => {
+    const self = `${base}/organizations/${encodeURIComponent(o.id)}`;
+    const extra = mods.flatMap((m) => m.orgLinks?.(o, r) ?? []);
+    // A connected org carries `manage_connections`; one that needs approval `connections`.
+    const connected = !extra.some((l) => l.rel === 'connections');
+    return {
+      '@type': 'Organization',
+      id: o.id,
+      name: o.name,
+      type: 'customer',
+      member: true,
+      links: [
+        { '@type': 'Link', rel: 'self', uri: self },
+        ...(connected
+          ? [
+              {
+                '@type': 'Link',
+                rel: 'manage_connections',
+                uri: 'https://connections.deere.com/connections',
+              },
+            ]
+          : []),
+        ...extra,
+      ],
+    };
+  });
   return json(200, collection(req.url, orgs, pg.offset, pg.limit));
 }
 
-function machines(req: SimRequest, ctx: VendorContext, orgId: string): SimResponse {
+/** The Equipment API's error body: a bare array (unlike the platform's `{ errors }`). */
+function equipmentError(status: number, message: string): SimResponse {
+  return json(status, [{ code: String(status), message }]);
+}
+
+/**
+ * GET /isg/equipment (the Equipment API): one org's machines (`organizationIds` is required;
+ * Deere answers 400 without a filter, and 403 for the whole call if any listed org isn't
+ * accessible), `categories=Machine`, `capableOf=Connectivity` (JDLink machines), paged by
+ * `pageOffset` / `itemLimit` (default 100, max 5000).
+ */
+function equipment(req: SimRequest, ctx: VendorContext): SimResponse {
+  const orgIds = (req.url.searchParams.get('organizationIds') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!orgIds.length) return equipmentError(400, 'No query parameters provided');
+  const known = new Set(simDeereOrgs(ctx.world.farm).map((o) => o.id));
+  const denied = orgIds.find((id) => !known.has(id));
+  if (denied) return equipmentError(403, `No access to organization ${denied}`);
+  const category = req.url.searchParams.get('categories');
+  if (category && !/^machine$/i.test(category)) {
+    return json(200, collection(req.url, [], 0, 100)); // the stand-in serves machines only
+  }
+  const pg = paging(req.url, 100, 5000);
+  if ('kind' in pg) return pg;
+  const list = deereMachines(ctx.world.farm)
+    .filter((m) => orgIds.includes(m.deereOrgId ?? SIM_DEERE_HOME_ORG))
+    .map((m) => {
+      const type = { id: `isg-${m.kind}`, name: DEERE_EQUIPMENT_TYPE[m.kind] };
+      return {
+        '@type': 'Machine',
+        // The organization-equipment id; the machine's own id is its principalId.
+        id: deereGuid('equipment', m.key),
+        // An integer in Deere's example (a string in its schema): numeric ids as numbers.
+        principalId: /^\d+$/.test(m.vendorIds.deere ?? '')
+          ? Number(m.vendorIds.deere)
+          : (m.vendorIds.deere as string),
+        name: m.unitNo,
+        serialNumber: `SIM${m.unitNo}${m.year}`,
+        modelYear: String(m.year),
+        make: { id: `make-${m.make.toLowerCase().replace(/\W+/g, '-')}`, name: m.make },
+        type,
+        isgType: type,
+        model: { id: `model-${m.key}`, name: m.model },
+        organization: [{ '@type': 'Resource', id: m.deereOrgId ?? SIM_DEERE_HOME_ORG }],
+        organizationRole: { type: 'Controlling', inPossession: true },
+        telematicsCapable: true,
+        archived: false,
+      };
+    });
+  return json(200, collection(req.url, list, pg.offset, pg.limit));
+}
+
+/**
+ * The org's demo fields, minimal (1f): enough for deere.ops and the backfill to list fields in
+ * sim before the fields module (deere-data) lands; that module answers this path first once it
+ * does. Ids and orgs from ./platform.ts simDeereFields (the seed's external refs).
+ */
+function fields(req: SimRequest, ctx: VendorContext, orgId: string): SimResponse {
   if (!simDeereOrgs(ctx.world.farm).some((o) => o.id === orgId)) {
     return apiError(403, `No access to organization ${orgId}`);
   }
   const pg = paging(req.url, 10);
   if ('kind' in pg) return pg;
   const base = platformBase(req);
-  const list: DeereMachine[] = deereMachines(ctx.world.farm)
-    .filter((m) => (m.deereOrgId ?? SIM_DEERE_HOME_ORG) === orgId)
-    .map((m) => ({
-      '@type': 'Machine',
-      id: m.vendorIds.deere as string,
-      name: m.unitNo,
-      modelYear: m.year,
-      links: [
-        {
-          rel: 'breadcrumbs',
-          uri: `${base}/machines/${encodeURIComponent(m.vendorIds.deere as string)}/breadcrumbs`,
-        },
-      ],
-    }));
+  const list: DeereField[] = simDeereFields(ctx.world.farm)
+    .filter((f) => f.orgId === orgId)
+    .map((f) => {
+      const self = `${base}/organizations/${encodeURIComponent(orgId)}/fields/${encodeURIComponent(f.deereFieldId)}`;
+      return {
+        '@type': 'Field',
+        id: f.deereFieldId,
+        name: f.field.name,
+        archived: false,
+        links: [
+          { '@type': 'Link', rel: 'self', uri: self },
+          {
+            '@type': 'Link',
+            rel: 'owningOrganization',
+            uri: `${base}/organizations/${encodeURIComponent(orgId)}`,
+          },
+          { '@type': 'Link', rel: 'fieldOperation', uri: `${self}/fieldOperations` },
+        ],
+      };
+    });
   return json(200, collection(req.url, list, pg.offset, pg.limit));
 }
 
@@ -449,24 +547,76 @@ function breadcrumbs(req: SimRequest, ctx: VendorContext, deereId: string): SimR
   return json(200, body);
 }
 
-export const deereModule: VendorModule = {
-  vendor: 'deere',
-  error: apiError,
-  handle(req, ctx) {
-    if (req.path === `${OAUTH}/authorize`) return authorize(req, ctx);
-    if (req.path === `${OAUTH}/token`) return token(req, ctx);
-    if (!req.path.startsWith('/platform/')) return apiError(404, `Not found: ${req.path}`);
-    if (req.method !== 'GET') return apiError(405, 'Method not allowed');
-    const denied = checkAccess(req, ctx);
-    if (denied) return denied;
-    const parts = req.path.split('/').filter(Boolean).map(decodeURIComponent); // ['platform', …]
-    if (parts.length === 2 && parts[1] === 'organizations') return organizations(req, ctx);
-    if (parts.length === 4 && parts[1] === 'organizations' && parts[3] === 'machines') {
-      return machines(req, ctx, parts[2] as string);
-    }
-    if (parts.length === 4 && parts[1] === 'machines' && parts[3] === 'breadcrumbs') {
-      return breadcrumbs(req, ctx, parts[2] as string);
-    }
-    return apiError(404, `Not found: ${req.path} (not simulated)`);
-  },
-};
+/** The core platform routes (OAuth aside); null when the path isn't one of them. */
+function coreRoute(r: DeerePlatformRequest, mods: readonly DeereRouteModule[]): SimResponse | null {
+  const { req, ctx, parts } = r;
+  if (r.api === 'equipment') {
+    return parts.length === 1 && parts[0] === 'equipment' ? equipment(req, ctx) : null;
+  }
+  if (parts.length === 1 && parts[0] === 'organizations') return organizations(r, mods);
+  if (parts.length === 3 && parts[0] === 'organizations' && parts[2] === 'fields') {
+    return fields(req, ctx, parts[1] as string);
+  }
+  if (parts.length === 3 && parts[0] === 'machines' && parts[2] === 'breadcrumbs') {
+    return breadcrumbs(req, ctx, parts[1] as string);
+  }
+  return null;
+}
+
+async function platform(
+  req: SimRequest,
+  ctx: VendorContext,
+  mods: readonly DeereRouteModule[],
+): Promise<SimResponse> {
+  if (req.method !== 'GET') return apiError(405, 'Method not allowed');
+  const denied = checkAccess(req, ctx);
+  if (denied) return denied;
+  // ['platform' | 'isg', …] → the segments after it
+  const segments = req.path.split('/').filter(Boolean).map(decodeURIComponent);
+  const api = segments[0] === 'isg' ? 'equipment' : 'platform';
+  const parts = segments.slice(1);
+  const orgIds =
+    api === 'equipment'
+      ? (req.url.searchParams.get('organizationIds') ?? '').split(',').filter(Boolean)
+      : parts[0] === 'organizations' && parts[1]
+        ? [parts[1]]
+        : [];
+  const r: DeerePlatformRequest = { req, ctx, api, parts, orgIds, base: platformBase(req) };
+  for (const m of mods) {
+    const hit = await m.route?.(r);
+    if (hit) return hit;
+  }
+  return coreRoute(r, mods) ?? apiError(404, `Not found: ${req.path} (not simulated)`);
+}
+
+/** /_control/vendor/deere/<key>/... → that module's control(), with req.path after `/<key>`. */
+async function control(
+  req: SimRequest,
+  ctx: VendorControlContext,
+  mods: readonly DeereRouteModule[],
+): Promise<SimResponse> {
+  const [, key = '', ...rest] = req.path.split('/');
+  const mod = mods.find((m) => m.key === key);
+  const sub = { ...req, path: `/${rest.join('/')}` };
+  const hit = mod?.control ? await mod.control(sub, ctx) : null;
+  return hit ?? json(404, { error: `no Deere control at ${req.path}` });
+}
+
+/** The Deere stand-in with these route modules (tests pass their own; the server uses all). */
+export function deereModuleWith(mods: readonly DeereRouteModule[]): VendorModule {
+  return {
+    vendor: 'deere',
+    error: apiError,
+    handle(req, ctx) {
+      if (req.path === `${OAUTH}/authorize`) return authorize(req, ctx);
+      if (req.path === `${OAUTH}/token`) return token(req, ctx);
+      if (!req.path.startsWith('/platform/') && !req.path.startsWith('/isg/')) {
+        return apiError(404, `Not found: ${req.path}`);
+      }
+      return platform(req, ctx, mods);
+    },
+    control: (req, ctx) => control(req, ctx, mods),
+  };
+}
+
+export const deereModule: VendorModule = deereModuleWith(DEERE_ROUTE_MODULES);

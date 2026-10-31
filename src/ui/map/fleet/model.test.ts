@@ -66,6 +66,52 @@ describe('interpolation helpers', () => {
 });
 
 describe('FleetModel', () => {
+  test('a last-known fix goes stale on FLEET_STALE_SECONDS_LAST_KNOWN, as on the panel (1f.2)', () => {
+    const wall = { now: T0 + 2 * 3_600_000 };
+    const at = (lastKnownStaleAfterSeconds?: number) => {
+      const m = new FleetModel({
+        staleAfterSeconds: 90,
+        ...(lastKnownStaleAfterSeconds ? { lastKnownStaleAfterSeconds } : {}),
+        wallNow: () => new Date(wall.now),
+      });
+      m.applySnapshot([machine({ kind: 'loader', positionKind: 'last_known' })], wall.now);
+      return m.frame(wall.now)[0];
+    };
+    // Two hours old: fresh under the 3 h default, stale under a 1 h setting.
+    expect(at()).toMatchObject({ stale: false, positionKind: 'last_known' });
+    expect(at(3_600)?.stale).toBe(true);
+  });
+
+  test('1f review: "Last working position" follows the Deere feed the snapshot and ticks carry', () => {
+    const wall = { now: T0 + 240_000 };
+    const m = new FleetModel({
+      staleAfterSeconds: 90,
+      deereStaleAfterSeconds: 900,
+      wallNow: () => new Date(wall.now),
+    });
+    const combine = machine({
+      kind: 'combine',
+      positionSource: 'deere_working',
+      activity: 'working',
+    });
+    const feed = (okMs: number, failing = false) => [
+      { connection: 'deere', lastOkAt: new Date(T0 + okMs).toISOString(), failing },
+    ];
+    // Breadcrumb 4 min old, but the last poll was 90 s after it: still working on the map.
+    m.applySnapshot([combine], wall.now, feed(90_000));
+    expect(m.frame(wall.now)[0]?.lastWorking).toBeUndefined();
+    expect(m.feeds).toEqual(feed(90_000));
+    // A later poll found nothing newer: stopped working (drawn faint, never stale).
+    m.applyTick([combine], wall.now, feed(230_000));
+    expect(m.frame(wall.now)[0]).toMatchObject({ lastWorking: true, stale: false });
+    // The feed fails: not "parked" any more; stale once past the Deere limit.
+    m.applyTick([combine], wall.now, feed(230_000, true));
+    expect(m.frame(wall.now)[0]?.lastWorking).toBeUndefined();
+    wall.now = T0 + 901_000;
+    m.refreshStaleness();
+    expect(m.frame(wall.now)[0]).toMatchObject({ stale: true });
+  });
+
   test('a snapshot places machines without gliding', () => {
     const m = model();
     m.applySnapshot([machine()], 0);
@@ -228,8 +274,8 @@ describe('FleetModel', () => {
     expect(m.counts().stale).toBe(0);
   });
 
-  test('Deere working-only fixes use their own, longer threshold', () => {
-    const wall = { now: T0 + 5 * 60_000 };
+  test('Deere working-only fixes: never stale; past 3 min without a breadcrumb, the last working position (1f)', () => {
+    const wall = { now: T0 + 2 * 60_000 };
     const m = new FleetModel({
       staleAfterSeconds: 60,
       deereStaleAfterSeconds: 900,
@@ -247,13 +293,20 @@ describe('FleetModel', () => {
       ],
       0,
     );
-    expect(m.frame(0).map((f) => [f.unitNo, f.stale])).toEqual([
-      ['GC1', false],
-      ['S1', true],
+    expect(m.frame(0).map((f) => [f.unitNo, f.stale, f.lastWorking ?? false])).toEqual([
+      ['GC1', false, false],
+      ['S1', true, false],
     ]);
-    wall.now = T0 + 16 * 60_000;
-    m.refreshStaleness();
-    expect(m.counts().stale).toBe(2);
+    // Stopped working (as the panel says), not a stale alarm, even past the Deere threshold.
+    for (const minutes of [5, 16]) {
+      wall.now = T0 + minutes * 60_000;
+      m.refreshStaleness();
+      expect(m.frame(0).map((f) => [f.unitNo, f.stale, f.lastWorking ?? false])).toEqual([
+        ['GC1', false, true],
+        ['S1', true, false],
+      ]);
+      expect(m.counts().stale).toBe(1);
+    }
   });
 
   test('the server stale flag does not override the browser clock', () => {

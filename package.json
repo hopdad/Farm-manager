@@ -27,6 +27,7 @@
     "test:watch": "vitest --project unit",
     "test:db": "vitest run --project db",
     "test:e2e": "playwright test",
+    "test:live": "vitest run --project live --passWithNoTests",
     "db:up": "tsx scripts/db.ts up",
     "db:down": "tsx scripts/db.ts down",
     "db:migrate": "tsx scripts/db.ts migrate",
@@ -50,6 +51,8 @@
     "import:tile": "tsx tools/import/tile.ts",
     "data:export": "tsx scripts/data-export.ts",
     "data:import": "tsx scripts/data-import.ts",
+    "deere:backfill": "tsx scripts/deere-backfill.ts",
+    "connectors:record": "tsx scripts/connectors-record.ts",
     "auth:reset-owner": "tsx src/platform/auth/cli.ts reset-owner",
     "auth:links": "tsx src/platform/auth/cli.ts links",
     "auth:demo-people": "tsx src/platform/auth/cli.ts demo-people"

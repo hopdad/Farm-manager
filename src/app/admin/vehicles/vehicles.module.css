@@ -1,0 +1,21 @@
+/* /admin/vehicles: the kind form sits in its table cell (select and button on one line). */
+
+.kindForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notReported {
+  color: #fcd34d;
+}

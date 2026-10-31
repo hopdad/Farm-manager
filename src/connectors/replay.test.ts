@@ -130,6 +130,55 @@ describe('the transport', () => {
     ).not.toBeNull();
   });
 
+  test('a JSON-RPC call is told apart by its body (MyGeotab posts every call to /apiv1)', async () => {
+    const rpc = (method: string, typeName?: string) =>
+      JSON.stringify({ method, params: { ...(typeName ? { typeName } : {}), fromVersion: '7' } });
+    const geotab: ReplayFixture = {
+      ...fixture,
+      source: 'geotab',
+      stream: 'positions',
+      exchanges: [
+        {
+          request: { method: 'POST', path: '/apiv1', body: { method: 'Authenticate' } },
+          response: { status: 200, body: { result: { credentials: { sessionId: 's' } } } },
+        },
+        {
+          request: {
+            method: 'POST',
+            path: '/apiv1',
+            body: { method: 'GetFeed', params: { typeName: 'LogRecord' } },
+          },
+          response: { status: 200, body: { result: { data: ['log'], toVersion: '8' } } },
+        },
+        {
+          request: {
+            method: 'POST',
+            path: '/apiv1',
+            body: { method: 'GetFeed', params: { typeName: 'StatusData' } },
+          },
+          response: { status: 200, body: { result: { data: ['status'], toVersion: '9' } } },
+        },
+      ],
+    };
+    expect(replayFixtureSchema.safeParse(geotab).success).toBe(true);
+    const f = createReplayFetch([geotab]);
+    const url = `${replayBaseUrl('geotab')}/apiv1`;
+    const post = async (body: string) =>
+      (
+        await f(url, { method: 'POST', body, headers: { 'content-type': 'application/json' } })
+      ).json() as Promise<{ result?: { data?: string[] } }>;
+    expect((await post(rpc('GetFeed', 'StatusData'))).result?.data).toEqual(['status']);
+    expect((await post(rpc('GetFeed', 'LogRecord'))).result?.data).toEqual(['log']);
+    expect((await post(rpc('Authenticate'))).result).toHaveProperty('credentials');
+    // A Request object works too; an unknown method or a non-JSON body finds nothing.
+    const req = new Request(url, { method: 'POST', body: rpc('GetFeed', 'LogRecord') });
+    expect(((await (await f(req)).json()) as { result: { data: string[] } }).result.data).toEqual([
+      'log',
+    ]);
+    expect((await f(url, { method: 'POST', body: rpc('GetFeed', 'FaultData') })).status).toBe(404);
+    expect((await f(url, { method: 'POST', body: 'not json' })).status).toBe(404);
+  });
+
   test('the fixture schema accepts a well-formed file and refuses a bad one', () => {
     expect(replayFixtureSchema.safeParse(fixture).success).toBe(true);
     expect(replayFixtureSchema.safeParse({ ...fixture, anchor: '2026-11-30' }).success).toBe(false);

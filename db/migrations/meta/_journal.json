@@ -50,6 +50,13 @@
       "when": 1793363275075,
       "tag": "0006_m1_forecast_checked",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793389341135,
+      "tag": "0007_m1f_live_connectors",
+      "breakpoints": true
     }
   ]
 }

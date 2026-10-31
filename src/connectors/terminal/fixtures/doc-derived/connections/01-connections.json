@@ -1,0 +1,52 @@
+{
+  "format": 1,
+  "source": "terminal",
+  "stream": "connections",
+  "kind": "doc-derived",
+  "reference": "https://api.withterminal.com/tsp/openapi (GET /connections?status=connected: FullConnection with its token; https://docs.withterminal.com/api-reference/connections/list-connections). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "basePath": "/tsp/v1",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/connections",
+        "query": {
+          "status": "connected"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "results": [
+            {
+              "id": "conn_01JSIMHAULER0000000000001",
+              "company": {
+                "name": "Sim Hauling LLC",
+                "dotNumbers": []
+              },
+              "account": {
+                "name": "Sim Hauling LLC",
+                "dotNumbers": []
+              },
+              "provider": {
+                "code": "omnitracs-xrs",
+                "name": "Omnitracs XRS"
+              },
+              "syncMode": "automatic",
+              "token": "con_tkn_replaySimHauler0000000000001",
+              "tags": [],
+              "status": "connected",
+              "options": {
+                "ingestHistoryFromSourceSystem": true
+              },
+              "linkUrl": "https://link.withterminal.com/connection/conn_01JSIMHAULER0000000000001?key=pk_sandbox_replay",
+              "createdAt": "2026-09-01T12:00:00.000Z",
+              "updatedAt": "2026-09-01T12:00:00.000Z"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

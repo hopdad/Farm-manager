@@ -4,6 +4,7 @@
  * Server only: /_control/* answers 403 to anything but loopback, so the browser goes through
  * the admin page's server actions, which run on the PC.
  */
+
 import type {
   ClockControlRequest,
   FaultRule,
@@ -16,6 +17,16 @@ import type {
   SimStatus,
   SimVendor,
 } from '../../../sim/types';
+import {
+  DEERE_SIM_CONNECTIONS_CONTROL_PATH,
+  type DeereSimConnectionsRequest,
+  type DeereSimConnectionsStatus,
+} from '../../../sim/vendors/deere/connections-control-types';
+import {
+  SAMSARA_SIM_FAULTS_CONTROL_PATH,
+  type SamsaraSimFaultsRequest,
+  type SamsaraSimFaultsStatus,
+} from '../../../sim/vendors/samsara/control-types';
 
 export class SimControlError extends Error {
   readonly status: number | null;
@@ -87,6 +98,32 @@ export const simFaults = (base: string, req: FaultsControlRequest, o: SimControl
 export const simReset = (base: string, req: ResetControlRequest, o: SimControlOptions = {}) =>
   call<SimStatus>(base, 'POST', '/_control/reset', req, o);
 
+/** The Deere stand-in's org-approval knob (1f decision 5; connections-control-types.ts). */
+export const getSimDeereConnections = (base: string, o: SimControlOptions = {}) =>
+  call<DeereSimConnectionsStatus>(base, 'GET', DEERE_SIM_CONNECTIONS_CONTROL_PATH, undefined, {
+    timeoutMs: 1_500,
+    ...o,
+  });
+
+export const simDeereConnections = (
+  base: string,
+  req: DeereSimConnectionsRequest,
+  o: SimControlOptions = {},
+) => call<DeereSimConnectionsStatus>(base, 'POST', DEERE_SIM_CONNECTIONS_CONTROL_PATH, req, o);
+
+/** The Samsara stand-in's fault-code knob (fleet-faults; samsara/control-types.ts). */
+export const getSimSamsaraFaults = (base: string, o: SimControlOptions = {}) =>
+  call<SamsaraSimFaultsStatus>(base, 'GET', SAMSARA_SIM_FAULTS_CONTROL_PATH, undefined, {
+    timeoutMs: 1_500,
+    ...o,
+  });
+
+export const simSamsaraFaults = (
+  base: string,
+  req: SamsaraSimFaultsRequest,
+  o: SimControlOptions = {},
+) => call<SamsaraSimFaultsStatus>(base, 'POST', SAMSARA_SIM_FAULTS_CONTROL_PATH, req, o);
+
 // ---------------------------------------------------------------------------------------------
 // Fault toggles on /admin/connectors. Each preset is added with a stable id (`admin-<key>`), so
 // the toggle can tell whether it is on and remove exactly that rule.
@@ -100,8 +137,14 @@ export interface FaultPreset {
   rule: Omit<FaultRule, 'id'>;
 }
 
-/** The presets for the configured ELD vendor ("trucks API down" is the M0 demo). */
-export function faultPresets(eldVendor: Extract<SimVendor, 'samsara' | 'motive'>): FaultPreset[] {
+/**
+ * The presets ("trucks API down" is the M0 demo). The truck presets hit the farm's own trucks'
+ * vendor: Samsara by default (D3; 1f.2: every vendor runs at once, so the hired haulers on Motive
+ * and Geotab keep reporting while Samsara is down).
+ */
+export function faultPresets(
+  eldVendor: Extract<SimVendor, 'samsara' | 'motive' | 'geotab'> = 'samsara',
+): FaultPreset[] {
   const p = (
     key: string,
     title: string,

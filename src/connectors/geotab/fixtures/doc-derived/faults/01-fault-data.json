@@ -1,0 +1,108 @@
+{
+  "format": 1,
+  "source": "geotab",
+  "stream": "faults",
+  "kind": "doc-derived",
+  "reference": "https://my.geotab.com/api.json (GetFeed FaultData: diagnostic, failureMode, controller, faultState, lamps, severity, sourceAddress, count) and https://support.geotab.com/mygeotab/doc/obd-fault-data. Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/apiv1",
+        "body": {
+          "method": "GetFeed",
+          "params": {
+            "typeName": "FaultData",
+            "fromVersion": "0000000000000002"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "result": {
+            "data": [],
+            "toVersion": "0000000000000002"
+          },
+          "jsonrpc": "2.0"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/apiv1",
+        "body": {
+          "method": "GetFeed",
+          "params": {
+            "typeName": "FaultData"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "result": {
+            "data": [
+              {
+                "id": "aF1",
+                "dateTime": "2026-10-15T12:52:00.000Z",
+                "device": {
+                  "id": "bE5D"
+                },
+                "diagnostic": {
+                  "id": "aSimSpn110"
+                },
+                "failureMode": {
+                  "id": "aSimFmi0"
+                },
+                "controller": {
+                  "id": "ControllerJ1939EngineNo1Id"
+                },
+                "count": 1,
+                "faultState": "Active",
+                "faultLampState": "Stop",
+                "redStopLamp": true,
+                "amberWarningLamp": false,
+                "protectWarningLamp": false,
+                "malfunctionLamp": false,
+                "severity": "CheckImmediately",
+                "sourceAddress": 0,
+                "dismissDateTime": null
+              },
+              {
+                "id": "aF2",
+                "dateTime": "2026-10-15T12:40:00.000Z",
+                "device": {
+                  "id": "bE5D"
+                },
+                "diagnostic": {
+                  "id": "aSimObd309"
+                },
+                "failureMode": {
+                  "id": "NoFailureModeId"
+                },
+                "controller": {
+                  "id": "ControllerObdPowertrainId"
+                },
+                "count": 1,
+                "faultState": "Inactive",
+                "faultLampState": "None",
+                "redStopLamp": false,
+                "amberWarningLamp": false,
+                "protectWarningLamp": false,
+                "malfunctionLamp": false,
+                "severity": "CheckAtNextHalt",
+                "sourceAddress": null,
+                "dismissDateTime": null
+              }
+            ],
+            "toVersion": "0000000000000002"
+          },
+          "jsonrpc": "2.0"
+        }
+      }
+    }
+  ]
+}

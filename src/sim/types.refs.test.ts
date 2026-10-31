@@ -1,7 +1,7 @@
 import type { MultiPolygon, Polygon } from 'geojson';
 import { describe, expect, test } from 'vitest';
 import { EXTERNAL_REF_KINDS, externalRef, externalRefKey } from '../connectors/types';
-import { SIM_DEERE_HOME_ORG, type SimFarm, simExternalRefs } from './types';
+import { SIM_DEERE_HOME_ORG, type SimFarm, simExternalRefs, simTelematicsMachines } from './types';
 
 const square: MultiPolygon = { type: 'MultiPolygon', coordinates: [] };
 const yard: Polygon = { type: 'Polygon', coordinates: [] };
@@ -82,7 +82,41 @@ const farm: SimFarm = {
       make: 'Peterbilt',
       model: '579',
       year: 2021,
-      vendorIds: { eld: 'veh-281474976710656' },
+      vendorIds: {},
+      telematics: { vendor: 'samsara', id: 'veh-281474976710656', feed: 'vehicle' },
+    },
+    {
+      id: 'm-loader',
+      key: 'l1',
+      kind: 'loader',
+      unitNo: 'L1',
+      make: 'Kubota',
+      model: 'SVL97-2',
+      year: 2020,
+      vendorIds: {},
+      telematics: { vendor: 'aemp', id: 'KUB1234567', provider: 'kubota' },
+    },
+    {
+      id: 'm-sprayer',
+      key: 'sp2',
+      kind: 'sprayer',
+      unitNo: 'SP2',
+      make: 'RoGator',
+      model: 'RG1100C',
+      year: 2021,
+      vendorIds: {},
+      telematics: { vendor: 'samsara', id: '281474976710999', feed: 'equipment', via: 'gateway' },
+    },
+    {
+      id: 'm-hauler',
+      key: 'h1',
+      kind: 'semi',
+      unitNo: 'H1',
+      make: 'Kenworth',
+      model: 'T880',
+      year: 2020,
+      vendorIds: {},
+      telematics: { vendor: 'motive', id: '123456' },
     },
   ],
   elevators: [],
@@ -109,7 +143,7 @@ describe('external ref vocabulary', () => {
   });
 
   test('simExternalRefs returns exactly the documented tuples', () => {
-    const rows = simExternalRefs(farm, 'samsara').map((r) => [
+    const rows = simExternalRefs(farm).map((r) => [
       externalRefKey(r.ref.source, r.ref.kind, r.ref.externalId, r.ref.sourceOrg),
       r.entityId,
       r.entity,
@@ -124,8 +158,22 @@ describe('external ref vocabulary', () => {
       ['deere|boundary|org-customer-1|bnd-b', 'boundary-b', 'field_boundary'],
       ['deere|machine|org-home|jd-c1', 'm-combine', 'machine'],
       ['samsara|machine||veh-281474976710656', 'm-semi', 'machine'],
+      ['aemp|machine|kubota|KUB1234567', 'm-loader', 'machine'],
+      ['samsara|machine||281474976710999', 'm-sprayer', 'machine'],
+      ['aemp|machine|samsara|281474976710999', 'm-sprayer', 'machine'],
+      ['motive|machine||123456', 'm-hauler', 'machine'],
     ]);
-    expect(simExternalRefs(farm, 'motive').at(-1)?.ref.source).toBe('motive');
+  });
+
+  test('simTelematicsMachines: each stand-in lists exactly its own machines', () => {
+    const keys = (ms: { key: string }[]) => ms.map((m) => m.key);
+    expect(keys(simTelematicsMachines(farm, 'samsara'))).toEqual(['s1', 'sp2']);
+    expect(keys(simTelematicsMachines(farm, 'samsara', { feed: 'vehicle' }))).toEqual(['s1']);
+    expect(keys(simTelematicsMachines(farm, 'samsara', { feed: 'equipment' }))).toEqual(['sp2']);
+    expect(keys(simTelematicsMachines(farm, 'aemp', { provider: 'kubota' }))).toEqual(['l1']);
+    expect(keys(simTelematicsMachines(farm, 'aemp', { provider: 'samsara' }))).toEqual(['sp2']);
+    expect(keys(simTelematicsMachines(farm, 'motive'))).toEqual(['h1']);
+    expect(simTelematicsMachines(farm, 'geotab')).toEqual([]);
   });
 
   test('a Deere machine without deereOrgId is a contract error', () => {
@@ -133,6 +181,6 @@ describe('external ref vocabulary', () => {
       ...farm,
       machines: [{ ...(farm.machines[0] as SimFarm['machines'][number]), deereOrgId: undefined }],
     };
-    expect(() => simExternalRefs(bad, 'samsara')).toThrow(/org/);
+    expect(() => simExternalRefs(bad)).toThrow(/org/);
   });
 });
