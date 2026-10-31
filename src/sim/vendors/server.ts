@@ -634,7 +634,11 @@ export async function startVendorSim(opts: VendorSimOptions): Promise<VendorSim>
       }
     });
   });
-  server.keepAliveTimeout = 5_000;
+  // Longer than any client keeps an idle socket (undici: the server's hint minus its threshold),
+  // so the client always closes first. At 5 s, a test that blocked its process (the in-process
+  // stand-in included) past 5 s let this server close a socket just as the next request reused
+  // it: ECONNRESET (CI run 68).
+  server.keepAliveTimeout = 65_000;
 
   let port = opts.port ?? DEFAULT_VENDOR_SIM_PORT;
   await new Promise<void>((resolve, reject) => {

@@ -39,7 +39,8 @@ const control = (path: string, body: unknown) =>
   });
 
 describe('AEMP stand-in (sim)', () => {
-  // The first sim test warms the stand-in's demo world: ~3 s here, over 5 s on a CI runner.
+  // sim.world.machineAt replays the scenario from its start after each reset: ~2.5 s here, over
+  // 5 s on a CI runner (CI run 63).
   test('each provider lists exactly its machines; XML and JSON map to last-known fixes and stats', async () => {
     const c = AempClient.forMode('sim', cfg, { http });
     const r = await c.pollFleet(null);

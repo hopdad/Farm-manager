@@ -56,7 +56,8 @@ describe('Samsara equipment feeds (sim)', () => {
     expect(next.items).toHaveLength(12);
   });
 
-  // The first sim test warms the stand-in's demo world: ~3 s here, over 5 s on a CI runner.
+  // sim.world.machineAt replays the scenario from its start after each reset: ~2.5 s here, over
+  // 5 s on a CI runner (CI run 63).
   test('two stats calls of at most 4 types, each with its own cursor; obd hours preferred', async () => {
     const c = SamsaraEquipmentClient.forMode('sim', cfg, { http });
     const r = await c.pollStats(null);
