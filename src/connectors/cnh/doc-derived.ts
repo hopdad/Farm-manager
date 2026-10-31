@@ -6,7 +6,8 @@
  * (audience and connection per environment), client_secret_post, the Ocp-Apim-Subscription-Key
  * header, the EULA 403 text, the ISO-style Fleet and series paths and roots. Still doc-derived:
  * what cnh.md §7.2 lists as unconfirmed. Appended to the admin list by
- * src/connectors/doc-derived.ts; the builder adds its entries.
+ * src/connectors/doc-derived.ts. The machines builder's client (./client.ts, ./oauth.ts,
+ * ./sync.ts) added the entries after the first four.
  */
 import type { DocDerivedItem } from '../doc-derived';
 
@@ -41,6 +42,30 @@ export const CNH_DOC_DERIVED: readonly DocDerivedItem[] = [
     confirm:
       'how a deletion shows in a farm-setup delta; whether a webhook POST is an array or one object and its eventType names (Field vs FarmField) — webhooks need a public endpoint (MD)',
     file: 'src/connectors/cnh',
+    basis: 'doc',
+  },
+  {
+    source: 'cnh',
+    what: "a 401 without APIM's AzureApiManagementKey header is an expired or invalid access token",
+    confirm:
+      'whether CNH tells an expired token from a key mismatch (the client refreshes the token once for any other 401, and reports a subscription-key 401 as configuration); the 401 body and WWW-Authenticate of an expired token',
+    file: 'src/connectors/cnh/client.ts',
+    basis: 'doc',
+  },
+  {
+    source: 'cnh',
+    what: 'GET /Fleet/Equipment/{vin} answers a Fleet with one Equipment; a 403 EULA on /Fleet/{page} falls back to it per VIN',
+    confirm:
+      "the single-machine snapshot's root element; whether /Fleet/{page} leaves non-EULA VINs out (the stand-in's assumption) or fails the page",
+    file: 'src/connectors/cnh/client.ts (fleetEquipment), src/connectors/cnh/sync.ts (pollCnhFleet)',
+    basis: 'doc',
+  },
+  {
+    source: 'cnh',
+    what: 'series windows: Locations at most 24 h back, CautionCodes and Faults at most 7 days; CautionCodes with verbose=true',
+    confirm:
+      'CNH documents no maximum window for the ISO series (Metrics: "keep the date range to just one day"); whether CautionCodes without verbose=true still carry Severity and Active',
+    file: 'src/connectors/cnh/sync.ts, src/connectors/cnh/client.ts',
     basis: 'doc',
   },
 ];
