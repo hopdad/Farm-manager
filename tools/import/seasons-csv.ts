@@ -11,6 +11,7 @@
  * (src/db/queries/seasons.ts). Pure.
  */
 import type { SeasonInput } from '../../src/db/queries/seasons';
+import { normalizeCrop } from '../../src/domain/crops';
 import { isUuid } from '../../src/domain/ids';
 import { readCsv } from './csv';
 import { parseDate } from './dates';
@@ -45,25 +46,8 @@ export interface SeasonCsvResult {
   warnings: RowProblem[];
 }
 
-/** Common spellings -> the names the app (and the demo seed) uses. */
-const CROP_NAMES: Record<string, string> = {
-  corn: 'corn',
-  'field corn': 'corn',
-  'yellow corn': 'corn',
-  soybeans: 'soybeans',
-  soybean: 'soybeans',
-  soy: 'soybeans',
-  beans: 'soybeans',
-  wheat: 'wheat',
-  'winter wheat': 'wheat',
-  'soft red winter wheat': 'wheat',
-  srw: 'wheat',
-};
-
-export function normalizeCrop(raw: string): string {
-  const k = raw.trim().toLowerCase().replace(/\s+/g, ' ');
-  return CROP_NAMES[k] ?? raw.trim();
-}
+/** Crop names: one normalization for every writer (src/domain/crops.ts, slice 1f). */
+export { normalizeCrop } from '../../src/domain/crops';
 
 const MAX_TEXT = 80;
 

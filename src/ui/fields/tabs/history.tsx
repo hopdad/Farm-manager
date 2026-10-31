@@ -9,6 +9,10 @@
  * Renders `detail.seasons` (the newest five) at once, then loads the full history; reloads
  * when the panel's detail changes (realtime fields/updated from another screen). After a save
  * it calls onChanged(['seasons']) so the panel refetches too.
+ *
+ * Slice 1f (deere-ops): above the seasons, this crop year's field operations from Operations
+ * Center (../operations-section.tsx: its own fetch of GET /api/fields/<id>/operations, kept
+ * current by `fields`/`updated` with part 'operations').
  */
 import { type CSSProperties, useCallback, useEffect, useState, useTransition } from 'react';
 import {
@@ -20,6 +24,7 @@ import {
 import type { FieldHistory } from '../../../db/queries/seasons';
 import type { SeasonRow } from '../../../domain/fields';
 import { ROLE_FOR, roleAtLeast } from '../../../platform/auth/types';
+import { OperationsSection } from '../operations-section';
 import { type FieldPanelTab, type FieldPanelTabProps, TAB_ORDER } from '../tabs';
 
 // Sizes relative to the panel's type (22 px on the wall, 16 px on phones): the History tab reads
@@ -264,6 +269,7 @@ export function HistoryTab({ fieldId, detail, variant, role, onChanged }: FieldP
         </p>
       )}
       {loadError && <p style={S.error}>{loadError}</p>}
+      <OperationsSection fieldId={fieldId} variant={variant} />
       {canEdit && !form && (
         <p>
           <button
