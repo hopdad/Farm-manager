@@ -25,6 +25,7 @@ import { type Crop, CURRENT_CROP_YEAR, yieldFor } from '../../seasons';
 import { currentClock } from '../clock';
 import type { VendorControlContext } from '../context';
 import { bearerToken, json, type SimRequest, type SimResponse } from '../http';
+import { simDeereOnlyField } from './fields-world';
 import { type DeerePlatformRequest, type DeereRouteModule, deereModuleState } from './modules';
 import {
   type DeereOpsKnobStatus,
@@ -330,6 +331,10 @@ function listing(r: DeerePlatformRequest, orgId: string, fieldId: string): SimRe
     return apiError(403, `No access to organization ${orgId}`);
   }
   if (!simDeereFields(farm).some((f) => f.orgId === orgId && f.deereFieldId === fieldId)) {
+    // deere-data's Deere-only field (fields module): a real field with no operations yet, so an
+    // empty collection as Deere answers, never a 404.
+    const only = simDeereOnlyField(farm);
+    if (only && only.orgId === orgId && only.deereFieldId === fieldId) return pagedReply(r.req, []);
     return apiError(404, `Field ${fieldId} not found`);
   }
   const season = r.req.url.searchParams.get('cropSeason');

@@ -13,6 +13,7 @@ import { deterministicId } from '../../../domain/ids';
 import { createDeereOpsJob, type DeereOpsConfig } from '../../../jobs/deere-ops';
 import { createSimWorld } from '../../../sim/index';
 import { SIM_CREDENTIALS } from '../../../sim/types';
+import { simDeereOnlyField } from '../../../sim/vendors/deere/fields-world';
 import { SIM_OPS_REFUSED_EVERY } from '../../../sim/vendors/deere/ops-world';
 import { simDeereFields } from '../../../sim/vendors/deere/platform';
 import { startVendorSim, type VendorSim } from '../../../sim/vendors/server';
@@ -107,8 +108,11 @@ describe('deere.ops (sim)', () => {
     );
     expect(extra.rows[0]).toMatchObject({
       mode: 'sim',
-      // Every field every org lists (a sharing org's copies too: they list no operations).
-      extra: { fieldsPerRun: simDeereFields(world.farm).length },
+      // Every field every org lists (a sharing org's copies too, and deere-data's Deere-only
+      // field: they list no operations).
+      extra: {
+        fieldsPerRun: simDeereFields(world.farm).length + (simDeereOnlyField(world.farm) ? 1 : 0),
+      },
     });
   }, 120_000);
 
@@ -207,12 +211,12 @@ describe('deere.ops under a call budget (sandbox mode against the stand-in)', ()
     );
     await t().admin.query(
       `insert into ingest.sync_state (source, stream, mode, extra)
-       values ('deere', 'locations', 'sandbox', '{"callsPerRun": 1}')
+       values ('deere', 'locations', 'sandbox', '{"callsPerRun": 1, "callsPerRunMode": "sandbox"}')
        on conflict (source, stream) do update set extra = excluded.extra`,
     );
     await t().admin.query(
       `update ingest.sync_state
-          set extra = extra || '{"callsPerRun": 10, "fieldsPerRun": 40}', cursor = null,
+          set extra = extra || '{"callsPerRun": 10, "callsPerRunMode": "sandbox", "callsRecent": [10], "fieldsPerRun": 40}', cursor = null,
               next_run_at = null
         where source = 'deere' and stream = 'operations'`,
     );

@@ -366,15 +366,21 @@ describe('sync_state.extra and the budget readings', () => {
   test('fieldsPerRun is merged into extra; the budget reads the last full UTC day in its mode', async () => {
     await t().admin.query(
       `insert into ingest.sync_state (source, stream, mode, extra)
-       values ('deere', 'operations', 'sandbox', '{"callsPerRun": 120, "other": 1}'),
-              ('deere', 'locations', 'sandbox', '{"callsPerRun": 7}')
+       values ('deere', 'operations', 'sandbox',
+               '{"callsPerRun": 120, "callsPerRunMode": "sandbox", "other": 1}'),
+              ('deere', 'locations', 'sandbox', '{"callsPerRun": 7, "callsPerRunMode": "sandbox"}')
        on conflict (source, stream) do update set extra = excluded.extra`,
     );
     await recordFieldsPerRun(t().pool, 'deere', 'operations', 40);
     const extra = await t().pool.query(
       `select extra from ingest.sync_state where source = 'deere' and stream = 'operations'`,
     );
-    expect(extra.rows[0].extra).toEqual({ callsPerRun: 120, other: 1, fieldsPerRun: 40 });
+    expect(extra.rows[0].extra).toEqual({
+      callsPerRun: 120,
+      callsPerRunMode: 'sandbox',
+      other: 1,
+      fieldsPerRun: 40,
+    });
     await t().admin.query(
       `insert into ingest.api_calls_daily (source, stream, mode, day, calls) values
          ('deere', 'locations', 'sandbox', '2026-10-30', 2000),
@@ -389,6 +395,12 @@ describe('sync_state.extra and the budget readings', () => {
       callsPerRun: 120,
       fieldsPerRun: 40,
     });
+    // A measurement made in another mode (sim) never sizes this budget.
+    await t().admin.query(
+      `update ingest.sync_state set extra = extra || '{"callsPerRunMode": "sim"}'
+        where source = 'deere' and stream = 'locations'`,
+    );
+    expect((await readOpsBudget(t().pool, 'sandbox', NOW)).locationsCallsPerRun).toBeNull();
   });
 });
 

@@ -588,10 +588,24 @@ function overlayUpdateSql(o: OverlaySpec, cols: string[]): string {
  * Boundary versions: a synced (demo/sim/deere) version of the same field overlapping the one
  * being imported is closed where the imported one starts, as the original edit did. Anything
  * else overlapping is a real conflict (reported by the EXCLUDE constraint).
+ *
+ * Decision 7 (docs/contracts-1f.md §3.2): when the field's Deere version (re-synced after the
+ * reset, so it starts at the sync time) starts after the imported one, the imported version is
+ * kept as history: it is inserted closed at the Deere version's start. Returns the row to insert.
  */
-async function makeRoomForBoundary(c: pg.PoolClient, row: Row): Promise<void> {
+async function makeRoomForBoundary(c: pg.PoolClient, row: Row): Promise<Row> {
   const valid = row.valid as { from: string | null; to: string | null } | undefined;
-  if (!valid?.from) return;
+  if (!valid?.from) return row;
+  const deere = await c.query<{ start: Date }>(
+    `select lower(b.valid) as start from farm.field_boundaries b
+      where b.field_id = $1 and b.id <> $2 and b.source = 'deere'
+        and lower(b.valid) > $3::timestamptz
+        and b.valid && tstzrange($3::timestamptz, $4::timestamptz, '[)')
+      order by lower(b.valid) limit 1`,
+    [row.field_id, row.id, valid.from, valid.to],
+  );
+  const deereStart = deere.rows[0]?.start;
+  const to = deereStart ? new Date(deereStart).toISOString() : valid.to;
   await c.query(
     `update farm.field_boundaries b
         set valid = tstzrange(lower(b.valid), $3::timestamptz, '[)')
@@ -599,8 +613,9 @@ async function makeRoomForBoundary(c: pg.PoolClient, row: Row): Promise<void> {
         and b.source not in ('import', 'drawn')
         and lower(b.valid) < $3::timestamptz
         and b.valid && tstzrange($3::timestamptz, $4::timestamptz, '[)')`,
-    [row.field_id, row.id, valid.from, valid.to],
+    [row.field_id, row.id, valid.from, to],
   );
+  return deereStart ? { ...row, valid: { from: valid.from, to } } : row;
 }
 
 /**
@@ -681,7 +696,7 @@ export async function importData(
         let row = original;
         try {
           row = await withKnownActors(c, s.table, s.actors, original, report.warnings);
-          if (s.table === 'farm.field_boundaries') await makeRoomForBoundary(c, row);
+          if (s.table === 'farm.field_boundaries') row = await makeRoomForBoundary(c, row);
           if (s.table === 'farm.field_seasons') await makeRoomForSeason(c, row);
           const r = await c.query<{ inserted: boolean }>(upsertSql(s, row), [JSON.stringify(row)]);
           const x = r.rows[0];

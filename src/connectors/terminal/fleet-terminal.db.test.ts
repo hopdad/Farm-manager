@@ -87,10 +87,10 @@ afterAll(async () => {
 
 describe('fleet.terminal (sim)', () => {
   test('a run lands H3: live history fix with its vendor id, metric stats, providers, ONE fresh tick', async () => {
-    // sync-health's counter keeps its own keys in the same extra object.
+    // Another writer's key in the same extra object survives (writers merge their own keys).
     await t().pool.query(
       `insert into ingest.sync_state (source, stream, mode, extra)
-       values ('terminal', 'providers', 'sim', '{"callsPerRun": 2}')`,
+       values ('terminal', 'providers', 'sim', '{"otherWriter": 2}')`,
     );
     const ticksBefore = listener.of('fleet', 'tick').length;
     const r = await terminal()(ctx());
@@ -128,7 +128,9 @@ describe('fleet.terminal (sim)', () => {
       ['faults', 'positions', 'providers', 'stats', 'vehicles'].map((n) => [n, 'sim', true]),
     );
     const providers = streams.rows.find((x) => x.stream === 'providers');
-    expect(providers.extra.callsPerRun).toBe(2);
+    expect(providers.extra.otherWriter).toBe(2);
+    // sync-health's measured cost of the run, merged next to it.
+    expect(providers.extra.callsPerRunMode).toBe('sim');
     expect(await readTerminalProviders(t().pool)).toEqual([
       expect.objectContaining({
         code: 'omnitracs-xrs',

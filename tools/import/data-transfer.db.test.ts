@@ -200,6 +200,71 @@ describe('data:export / data:import', () => {
     expect(again.overlays['farm.fields']).toMatchObject({ updated: 0, unchanged: 1 });
   });
 
+  test('decision 7: a hand-imported boundary comes back as history under the re-synced Deere one', async () => {
+    const { pool, admin } = t();
+    await seedDemo(pool, { seed: 1 });
+    const field = (
+      await pool.query<{ id: string }>(
+        `select id from farm.fields where source = 'demo' order by name limit 1`,
+      )
+    ).rows[0]?.id as string;
+    // A boundary imported by hand a month ago, current when exported.
+    const importedAt = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    const importedId = '00000000-0000-4000-8000-00000000b0b0';
+    await admin.query(
+      `update farm.field_boundaries set valid = tstzrange(lower(valid), $2::timestamptz, '[)')
+        where field_id = $1 and upper_inf(valid)`,
+      [field, importedAt],
+    );
+    await admin.query(
+      `insert into farm.field_boundaries (id, field_id, geom, valid, source, source_ref)
+       select $2::uuid, field_id, geom, tstzrange($3::timestamptz, null, '[)'), 'import', 'redrawn.zip'
+         from farm.field_boundaries where field_id = $1 order by lower(valid) desc limit 1`,
+      [field, importedId, importedAt],
+    );
+    const doc = JSON.parse(JSON.stringify(await exportData(pool)));
+    const exported = (doc.tables['farm.field_boundaries'] as Record<string, unknown>[]).find(
+      (b) => b.id === importedId,
+    ) as { valid: { from: string; to: string | null } } | undefined;
+    expect(Date.parse(exported?.valid.from ?? '')).toBe(Date.parse(importedAt));
+    expect(exported?.valid.to).toBeNull();
+
+    // db:reset, the demo seed, then deere.fields: the owning org's Deere boundary is current
+    // from the sync time and the seeded version is history (the §5.7 writer).
+    await resetAndResync(admin, pool);
+    const syncedAt = new Date().toISOString();
+    await admin.query(
+      `update farm.field_boundaries set valid = tstzrange(lower(valid), $2::timestamptz, '[)')
+        where field_id = $1 and upper_inf(valid)`,
+      [field, syncedAt],
+    );
+    await admin.query(
+      `insert into farm.field_boundaries (field_id, geom, valid, source, source_id, source_ref)
+       select field_id, geom, tstzrange($2::timestamptz, null, '[)'), 'deere', 'b-1@0123abcd', 'Deere'
+         from farm.field_boundaries where field_id = $1 order by lower(valid) desc limit 1`,
+      [field, syncedAt],
+    );
+
+    const report = await importData(pool, doc);
+    expect(report.errors).toEqual([]);
+    const versions = await pool.query<{ source: string; from: Date; to: Date | null }>(
+      `select source, lower(valid) as from, upper(valid) as to from farm.field_boundaries
+        where field_id = $1 order by lower(valid)`,
+      [field],
+    );
+    expect(
+      versions.rows.map((v) => [v.source, v.from.toISOString(), v.to?.toISOString() ?? null]),
+    ).toEqual([
+      ['demo', expect.any(String), importedAt],
+      ['import', importedAt, syncedAt],
+      ['deere', syncedAt, null],
+    ]);
+    // Importing again changes nothing (the stored row already ends at the Deere start).
+    const again = await importData(pool, doc);
+    expect(again.errors).toEqual([]);
+    expect(again.tables['farm.field_boundaries']).toMatchObject({ inserted: 0, failed: 0 });
+  });
+
   test('switched-off demo sign-ins stay off through export, reset and import', async () => {
     const { pool, admin } = t();
     await seedDemo(pool, { seed: 1 });
