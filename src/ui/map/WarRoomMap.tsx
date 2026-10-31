@@ -67,11 +67,17 @@ export interface WarRoomMapProps {
   /**
    * 1f seam (./tap.ts): MapLibre layer ids, or prefixes ending in `*` (deere-data's pins:
    * `layer:pins:*`), whose features a tap may hit. Precedence: machine > a feature of these
-   * layers (`onFeatureTap`, and onFieldTap is not called) > field. Default none.
+   * layers (`onFeatureTap`, and onFieldTap is not called) > field > empty map. Default none.
    */
   tapLayers?: readonly string[];
   /** A tap that hit no machine but a feature of `tapLayers` (the topmost one). */
   onFeatureTap?(hit: FeatureTap): void;
+  /**
+   * A tap or click on empty map: no machine, no tap-layer feature and no field under it (or no
+   * field layer drawn), with its point (soil map: the map unit sheet when soils are on). Called
+   * after onFieldTap(null).
+   */
+  onEmptyTap?(lngLat: { lng: number; lat: number }): void;
 }
 
 const NO_TAP_LAYERS: readonly string[] = [];
@@ -101,6 +107,8 @@ export default function WarRoomMap(props: WarRoomMapProps) {
   tapLayersRef.current = props.tapLayers ?? NO_TAP_LAYERS;
   const onFeatureTapRef = useRef(props.onFeatureTap);
   onFeatureTapRef.current = props.onFeatureTap;
+  const onEmptyTapRef = useRef(props.onEmptyTap);
+  onEmptyTapRef.current = props.onEmptyTap;
 
   const origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
   const mapStyle = useMemo(
@@ -267,10 +275,12 @@ export default function WarRoomMap(props: WarRoomMapProps) {
         : null;
       const picked = info?.object as FleetFrame | undefined;
       onSelect(picked ? picked.id : null);
-      // Machine > a feature of the tap layers (1f pins) > the field under the finger (./tap.ts).
+      // Machine > a feature of the tap layers (1f pins) > the field under the finger (./tap.ts)
+      // > empty map (the soil map unit sheet).
       const map = mapRef.current?.getMap();
       const onFeatureTap = onFeatureTapRef.current;
       const onFieldTap = onFieldTapRef.current;
+      const onEmptyTap = onEmptyTapRef.current;
       let features: FeatureTap[] = [];
       if (!picked && map && onFeatureTap) {
         const ids = tapLayerIds(
@@ -290,7 +300,7 @@ export default function WarRoomMap(props: WarRoomMapProps) {
         }
       }
       const target = resolveTap(picked?.id ?? null, features, () => {
-        if (!onFieldTap) return null;
+        if (!onFieldTap && !onEmptyTap) return null;
         const hit = map?.getLayer(FIELD_LAYER_IDS.fill)
           ? map.queryRenderedFeatures([e.point.x, e.point.y], { layers: [FIELD_LAYER_IDS.fill] })
           : [];
@@ -298,8 +308,12 @@ export default function WarRoomMap(props: WarRoomMapProps) {
         return typeof id === 'string' ? id : null;
       });
       if (target.kind === 'feature') onFeatureTap?.(target.feature);
-      // A tap that hit no machine and no tap-layer feature may be a field tap (the field panel, 1a).
-      else if (target.kind === 'field') onFieldTap?.(target.fieldId);
+      // A tap that hit no machine and no tap-layer feature may be a field tap (the field panel,
+      // 1a), else an empty-map tap.
+      else if (target.kind === 'field') {
+        onFieldTap?.(target.fieldId);
+        if (target.fieldId === null) onEmptyTap?.({ lng: e.lngLat.lng, lat: e.lngLat.lat });
+      }
     },
     [overlay, onSelect, pickRadius, sizes],
   );

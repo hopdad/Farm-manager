@@ -1,0 +1,311 @@
+/*
+ * The soil map unit sheet. Wall: a side panel where the field panel goes (over the map's right
+ * side, clear of the 72 px map controls, above the weather strip), 72 px targets, large type.
+ * Phone: a bottom sheet. Stacking: one above the field panel (5 on the wall, 20 on phones), so a
+ * map unit opened from the field Soils tab shows over it, and closing returns to the field.
+ */
+
+.sheet {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #0d1512;
+  color: #e7efe9;
+  border: 1px solid rgb(255 255 255 / 14%);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 50%);
+  font-size: var(--font);
+  line-height: 1.35;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+.wall {
+  --target: 72px;
+  --font: 22px;
+  --title: 32px;
+  --pad: 24px;
+  position: absolute;
+  z-index: 6;
+  /* The fleet panel's box (top gap to the weather strip's band), so it covers it whole. */
+  top: var(--dock-gap, 12px);
+  right: var(--dock-right, 96px);
+  bottom: var(--dock-bottom, 12px);
+  width: min(620px, calc(100% - 140px));
+  border-radius: 20px;
+}
+
+.phone {
+  --target: 48px;
+  --font: 16px;
+  --title: 20px;
+  --pad: 16px;
+  position: fixed;
+  z-index: 21;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 60vh;
+  border-radius: 18px 18px 0 0;
+  border-bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.header {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: var(--pad) var(--pad) 12px;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+
+.kicker {
+  font-size: calc(var(--font) * 0.7);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(231 239 233 / 60%);
+}
+
+.title {
+  margin: 4px 0 0;
+  font-size: var(--title);
+  font-weight: 800;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.symbol {
+  color: #fde047;
+}
+
+.meta {
+  margin-top: 6px;
+  font-size: calc(var(--font) * 0.85);
+  color: rgb(231 239 233 / 75%);
+}
+
+.close {
+  min-width: var(--target);
+  height: var(--target);
+  border-radius: 14px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  background: rgb(255 255 255 / 6%);
+  color: inherit;
+  font-size: calc(var(--target) * 0.5);
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.close:active,
+.button:active,
+.link:active {
+  background: rgb(34 197 94 / 35%);
+}
+
+.close:focus-visible,
+.button:focus-visible,
+.link:focus-visible {
+  outline: 3px solid #86efac;
+  outline-offset: 2px;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px var(--pad) var(--pad);
+}
+
+.warn {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-left: 4px solid #fbbf24;
+  border-radius: 8px;
+  background: rgb(251 191 36 / 8%);
+  font-size: calc(var(--font) * 0.8);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin: 0 0 18px;
+}
+
+.phone .facts {
+  gap: 10px 14px;
+}
+
+.fact {
+  display: grid;
+  gap: 2px;
+}
+
+.factLabel {
+  font-size: calc(var(--font) * 0.68);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(231 239 233 / 60%);
+}
+
+.factValue {
+  margin: 0;
+  font-weight: 700;
+}
+
+.factDetail {
+  margin: 0;
+  font-size: calc(var(--font) * 0.78);
+  color: rgb(231 239 233 / 70%);
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  border-radius: 3px;
+  margin-right: 8px;
+  vertical-align: -0.1em;
+}
+
+.section {
+  margin: 0 0 18px;
+}
+
+.sectionTitle {
+  margin: 0 0 8px;
+  font-size: calc(var(--font) * 0.72);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(231 239 233 / 65%);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(var(--font) * 0.82);
+}
+
+.table th {
+  text-align: left;
+  padding: 6px 8px;
+  font-weight: 600;
+  color: rgb(231 239 233 / 65%);
+  border-bottom: 1px solid rgb(255 255 255 / 14%);
+}
+
+.table td {
+  padding: 8px;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.item .num {
+  float: right;
+}
+
+.item {
+  display: grid;
+  gap: 2px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+
+.badge {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgb(134 239 172 / 16%);
+  color: #bbf7d0;
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: 0.1em;
+}
+
+.muted {
+  color: rgb(231 239 233 / 70%);
+}
+
+.skeleton {
+  height: 1.2em;
+  margin: 0 0 10px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 8%);
+}
+
+.links {
+  display: grid;
+  gap: 8px;
+}
+
+.link,
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgb(125 211 252 / 45%);
+  background: rgb(56 189 248 / 10%);
+  color: #bae6fd;
+  font: inherit;
+  font-size: calc(var(--font) * 0.85);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.foot {
+  margin: 0;
+  font-size: calc(var(--font) * 0.7);
+  color: rgb(231 239 233 / 60%);
+}
+
+/* Wall: each series' description as a QR code to scan with a phone (no link on the kiosk). */
+.qrs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.qr {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin: 0;
+}
+
+.qrCode {
+  width: 200px;
+  height: 200px;
+  background: #fff;
+  border-radius: 12px;
+}
+
+.qrCaption {
+  display: grid;
+  gap: 2px;
+  font-size: calc(var(--font) * 0.8);
+}
+
+.qrUrl {
+  font-size: 0.8em;
+  color: rgb(231 239 233 / 65%);
+  overflow-wrap: anywhere;
+}

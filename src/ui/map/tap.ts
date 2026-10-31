@@ -1,8 +1,11 @@
 /**
  * What a tap on the war-room map opens (1f seam, docs/contracts-1f.md §5.2): a machine wins,
  * then a feature of one of the `tapLayers` (deere-data's pins: `layer:pins:*`), then the field
- * under the finger (the field panel), else nothing. Pure, so the order is unit-tested;
- * WarRoomMap (./WarRoomMap.tsx) does the picking and calls the matching handler only.
+ * under the finger (the field panel), else the empty map (`fieldId: null`: WarRoomMap calls
+ * onFieldTap(null), then onEmptyTap, the soil map unit sheet). Pure, so the order is
+ * unit-tested; WarRoomMap (./WarRoomMap.tsx) does the picking and calls the matching handler
+ * only. The board switches handlers off by mode: while the tile-line tool draws, no pin, field
+ * or empty-map tap; while it is open at all, no pin popup or soil sheet (its taps are its own).
  *
  * `tapLayers` patterns are MapLibre layer ids, or a prefix ending in `*` (`layer:pins:*` matches
  * every layer of the pins def, src/ui/map/layers/types.ts `layerIdPrefix`). A pattern that
