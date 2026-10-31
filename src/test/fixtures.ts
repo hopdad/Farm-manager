@@ -1,6 +1,8 @@
 /**
  * Small geometry and row fixtures for DB tests (no simulator dependency).
  */
+
+import { sql } from 'drizzle-orm';
 import type { MultiPolygon } from 'geojson';
 import type { Db } from '../db/client';
 import { farms, fieldBoundaries, fields } from '../db/schema';
@@ -75,7 +77,14 @@ export async function insertField(
   if (opts.geom) {
     const [b] = await db
       .insert(fieldBoundaries)
-      .values({ fieldId: field.id, geom: opts.geom, source: 'import' })
+      .values({
+        fieldId: field.id,
+        geom: opts.geom,
+        source: 'import',
+        // Postgres keeps microseconds and a JS Date milliseconds: a version starting at plain
+        // now() can start after a `new Date()` taken right after it in the same millisecond.
+        valid: sql`tstzrange(date_trunc('milliseconds', now()), null, '[)')`,
+      })
       .returning({ id: fieldBoundaries.id });
     boundaryId = b?.id ?? null;
   }
