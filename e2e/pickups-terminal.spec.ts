@@ -20,6 +20,7 @@ import { simTelematicsMachines } from '../src/sim/types';
 import { TERMINAL_SIM_FAULT_CODES_PATH } from '../src/sim/vendors/terminal/control-types';
 import { fleetPanelDataSchema } from '../src/ui/fleet/contract';
 import { signInAs } from './support/auth';
+import { waitForFaultsClosed } from './support/faults';
 import { WEBGL_ARGS, waitForMap } from './support/map';
 
 test.use({ launchOptions: { args: WEBGL_ARGS } });
@@ -155,6 +156,13 @@ test('a fault raised in the Terminal stand-in lands through fleet.terminal as a 
       )
       .toEqual(['P0217']);
   } finally {
-    await knob({ action: 'clear' });
+    // Close it (Terminal's `closed` event) and wait until fleet.terminal applied it, THEN wipe
+    // the stand-in (a wipe alone sends no closed event: the code would stay open).
+    await knob({ action: 'close', code: 'P0217' });
+    try {
+      await waitForFaultsClosed(db, ['terminal'], since);
+    } finally {
+      await knob({ action: 'clear' });
+    }
   }
 });

@@ -6,9 +6,11 @@
  *  - a Motive `delta` fault (H1, open from /v1/fault_codes);
  *  - a Geotab FaultData (H2, J1939 decoded through the Diagnostic and FailureMode lookups, red
  *    stop lamp: critical);
- *  - an AEMP fault-series occurrence (L1 through Kubota's feed) that ages out after 24 h without
- *    another sighting (decision 1f-12);
- *  - a CNH caution code (C3), open until CNH says it cleared.
+ *  - an AEMP fault-series occurrence (L1 through Kubota's feed) that ages out 24 h after it was
+ *    last seen, with no later report at all: the sweep after a faults run that checked L1
+ *    (decision 1f-12);
+ *  - a CNH caution code (C3), open until CNH says it cleared, while a CNH Faults occurrence on
+ *    the same machine ages out (each row keeps its own window).
  * The panel also reads "not reported" for the pickups' carmaker route and "faults not reported"
  * for a route that reports no fault system. The demo seed stands in for the mapped machines.
  */
@@ -16,6 +18,7 @@ import { beforeAll, describe, expect, test } from 'vitest';
 import { seedDemo } from '../../tools/seed/demo';
 import { resolveExternalRefs } from '../db/external-refs';
 import { fleetPanelMachines, upsertPosition, upsertVehicleStat } from '../db/queries/fleet';
+import { ageOutFaults } from '../db/queries/machine-faults';
 import { DELTA_FAULT_AGE_OUT_SECONDS } from '../domain/fault-codes';
 import { buildSimFarm } from '../sim/index';
 import {
@@ -166,7 +169,7 @@ describe('every part B vendor through the one fault writer', () => {
     ]);
   });
 
-  test('an AEMP fault-series occurrence (Kubota): open, aged out after 24 h unseen', async () => {
+  test('an AEMP fault-series occurrence (Kubota): open, aged out 24 h after its last sighting', async () => {
     const occurrence = (min: number, code: string) =>
       mapAempFault({
         provider: 'kubota',
@@ -178,15 +181,24 @@ describe('every part B vendor through the one fault writer', () => {
       { source: 'aemp', code: 'J1939 SPN 3251 FMI 0', system: 'j1939' },
     ]);
     expect((await panelRow(l1.id)).faults).toMatchObject([{ code: 'J1939 SPN 3251 FMI 0' }]);
-    // A day and a minute later, another occurrence (a different code): the first one aged out.
-    const later = 4 + DELTA_FAULT_AGE_OUT_SECONDS / 60 + 1;
-    await land(l1.id, occurrence(later, 'OIL-7'));
-    expect((await openFaults(l1.id)).map((f) => f.code)).toEqual(['OEM fault OIL-7']);
+    // The fault is fixed: no occurrence ever again. Each faults run checks L1's series (Kubota's
+    // machine id, the kubota provider) and finds nothing; the sweep after it is all that runs.
+    const checked = (min: number) =>
+      ageOutFaults(t().pool, 'aemp', [
+        { sourceOrg: 'kubota', externalId: l1.externalId, through: new Date(T0 + min * 60_000) },
+      ]);
+    await checked(4 + 23 * 60);
+    expect(await openFaults(l1.id)).toHaveLength(1);
+    await checked(4 + DELTA_FAULT_AGE_OUT_SECONDS / 60 + 1);
+    expect(await openFaults(l1.id)).toEqual([]);
+    expect((await panelRow(l1.id)).faults ?? []).toEqual([]);
     const aged = await t().pool.query(
       `select cleared_at from farm.machine_faults where machine_id = $1 and code = $2`,
       [l1.id, 'J1939 SPN 3251 FMI 0'],
     );
-    expect(aged.rows[0]?.cleared_at).not.toBeNull();
+    expect((aged.rows[0] as { cleared_at: Date }).cleared_at.toISOString()).toBe(
+      iso(4 + DELTA_FAULT_AGE_OUT_SECONDS / 60),
+    );
   });
 
   test('a CNH caution code: open on the panel until CNH says it cleared', async () => {
@@ -210,7 +222,26 @@ describe('every part B vendor through the one fault writer', () => {
     expect((await panelRow(c3.id)).faults).toMatchObject([
       { code: 'OEM caution 5021', severity: 'warning' },
     ]);
-    // No age-out for CNH's caution codes: still open a day later, closed when CNH says so.
+    // A Faults occurrence on the same machine (no state: the 24 h age-out).
+    await land(
+      c3.id,
+      mapCnhFault({
+        vin: c3.externalId,
+        companyId: c3.org,
+        kind: 'fault',
+        fault: { datetime: iso(7), CodeIdentifier: 'SPN 100 FMI 1' },
+      }),
+    );
+    expect((await openFaults(c3.id)).map((f) => f.code)).toEqual([
+      'J1939 SPN 100 FMI 1',
+      'OEM caution 5021',
+    ]);
+    // A day and more later, with CNH's faults checked for the VIN: the occurrence ages out, the
+    // caution code (CNH says when it clears) stays open.
+    await ageOutFaults(t().pool, 'cnh', [
+      { externalId: c3.externalId, through: new Date(T0 + (7 + 25 * 60) * 60_000) },
+    ]);
+    expect((await openFaults(c3.id)).map((f) => f.code)).toEqual(['OEM caution 5021']);
     await land(c3.id, caution(6 + 25 * 60, true));
     expect(await openFaults(c3.id)).toHaveLength(1);
     await land(c3.id, caution(6 + 26 * 60, false));

@@ -136,6 +136,18 @@ interface MarkCursor {
   v: 1;
   marks: Record<string, string>;
   latest: string | null;
+  /**
+   * 'faults' only (1f review): per connection id, the wall time its fault events were last read
+   * in full, for the age-out sweep (a connection Terminal refused keeps its older time).
+   */
+  checked?: Record<string, string>;
+}
+
+function stringMap(v: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for (const [k, val] of Object.entries(v)) if (typeof val === 'string') out[k] = val;
+  return out;
 }
 
 export function parseMarkCursor(cursor: string | null): MarkCursor {
@@ -144,12 +156,21 @@ export function parseMarkCursor(cursor: string | null): MarkCursor {
     if (p?.v !== 1 || !p.marks || typeof p.marks !== 'object' || Array.isArray(p.marks)) {
       return { v: 1, marks: {}, latest: null };
     }
-    const marks: Record<string, string> = {};
-    for (const [k, val] of Object.entries(p.marks)) if (typeof val === 'string') marks[k] = val;
-    return { v: 1, marks, latest: typeof p.latest === 'string' ? p.latest : null };
+    const checked = stringMap(p.checked);
+    return {
+      v: 1,
+      marks: stringMap(p.marks),
+      latest: typeof p.latest === 'string' ? p.latest : null,
+      ...(Object.keys(checked).length ? { checked } : {}),
+    };
   } catch {
     return { v: 1, marks: {}, latest: null };
   }
+}
+
+/** The faults cursor's per-connection read times (connection id → ISO), for the age-out sweep. */
+export function terminalFaultsChecked(cursor: string | null): Record<string, string> {
+  return parseMarkCursor(cursor).checked ?? {};
 }
 
 type LatestStatRaw = Extract<TerminalStatRaw, { kind: 'latest' }>;
@@ -547,10 +568,15 @@ export class TerminalClient {
    */
   async pollFaults(cursor: string | null): Promise<PollResult<RawItem<TerminalFaultRaw>>> {
     const c = parseMarkCursor(cursor);
+    const polledAt = new Date(this.now()).toISOString();
     const first = new Date(this.now() - DELTA_FAULT_AGE_OUT_SECONDS * 1000).toISOString();
+    const checked = { ...(c.checked ?? {}) };
     const items = await this.perConnection(async (conn) => {
       const ids = await this.vehicleIds(conn);
-      if (!ids.length) return [];
+      if (!ids.length) {
+        checked[conn.id] = polledAt;
+        return [];
+      }
       const mark = c.marks[conn.id] ?? first;
       const events = await this.faultEvents(conn, ids, mark);
       let newest = mark;
@@ -565,11 +591,17 @@ export class TerminalClient {
         });
       }
       c.marks[conn.id] = newest;
+      checked[conn.id] = polledAt;
       return out;
     });
     return {
       items,
-      cursor: JSON.stringify({ v: 1, marks: c.marks, latest: null } satisfies MarkCursor),
+      cursor: JSON.stringify({
+        v: 1,
+        marks: c.marks,
+        latest: null,
+        checked,
+      } satisfies MarkCursor),
       hasMore: false,
     };
   }

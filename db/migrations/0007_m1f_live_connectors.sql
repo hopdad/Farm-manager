@@ -258,6 +258,20 @@ alter table farm.machine_faults add column if not exists vendor_severity text;
 -- module's open codes alone (fleet-faults, §5.3: OBD-II codes cleared per module).
 alter table farm.machine_faults add column if not exists module text;
 --> statement-breakpoint
+-- age_out_seconds: how long an open code may go unseen before it closes by itself (decision
+-- 1f-12), set by the report that last saw it: 86400 for feeds with no cleared state (ISO 15143-3
+-- and CNH fault occurrences, Terminal), the 7-day backstop for delta feeds that do send a clear
+-- (Motive, Geotab, CNH caution codes), 86400 for a Samsara OBD-II code whose module a newer
+-- reading left out; null = it closes only when its vendor says so (a snapshot code). The fault
+-- writer's sweep checks it after each successful faults run, against the time that run checked
+-- the machine through (src/db/queries/machine-faults.ts `ageOutFaults`).
+alter table farm.machine_faults add column if not exists age_out_seconds integer;
+--> statement-breakpoint
+alter table farm.machine_faults drop constraint if exists machine_faults_age_out_check;
+--> statement-breakpoint
+alter table farm.machine_faults add constraint machine_faults_age_out_check
+  check (age_out_seconds is null or age_out_seconds > 0);
+--> statement-breakpoint
 -- A database that ran fleet-faults' db/pending side table converges: its modules move into the
 -- column and the table goes.
 do $$

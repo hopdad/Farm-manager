@@ -926,6 +926,11 @@ export const machineFaults = farm.table(
     oemClass: text('oem_class', { enum: OEM_FAULT_CLASSES }),
     /** obd2 only: the control module that reported it (Samsara's OBD-II txId), when known. */
     module: text('module'),
+    /**
+     * Seconds the open code may go unseen before it closes by itself (decision 1f-12), set by
+     * the report that last saw it; null = it closes only when its vendor says so.
+     */
+    ageOutSeconds: integer('age_out_seconds'),
     /** Lamp states as reported (null = not reported). */
     lamps: jsonb('lamps').$type<FaultLamps>(),
     severity: text('severity', { enum: FAULT_SEVERITIES }).notNull(),
@@ -948,6 +953,10 @@ export const machineFaults = farm.table(
     check(
       'machine_faults_cleared_check',
       sql`${t.clearedAt} is null or ${t.clearedAt} >= ${t.firstSeenAt}`,
+    ),
+    check(
+      'machine_faults_age_out_check',
+      sql`${t.ageOutSeconds} is null or ${t.ageOutSeconds} > 0`,
     ),
     check(
       'machine_faults_system_check',

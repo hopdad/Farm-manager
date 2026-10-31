@@ -21,6 +21,7 @@ import { GEOTAB_SIM_FAULTS_PATH } from '../src/sim/vendors/geotab/control-types'
 import { MOTIVE_SIM_FAULT_CODES_PATH } from '../src/sim/vendors/motive/control-types';
 import { fleetPanelDataSchema } from '../src/ui/fleet/contract';
 import { signInAs } from './support/auth';
+import { waitForFaultsClosed } from './support/faults';
 import { WEBGL_ARGS, waitForMap } from './support/map';
 
 test.use({ launchOptions: { args: WEBGL_ARGS } });
@@ -159,7 +160,18 @@ test('a fault from each stand-in knob lands through its job (Motive delta, Geota
       )
       .toEqual(['geotab SPN 110 FMI 0', 'motive P0217 open']);
   } finally {
-    await control(MOTIVE_SIM_FAULT_CODES_PATH, { action: 'clear' });
-    await control(GEOTAB_SIM_FAULTS_PATH, { action: 'reset' });
+    // Close what was raised (Motive's `closed` status, Geotab's Inactive record) and wait until
+    // the jobs applied it, THEN wipe the stand-ins: a wipe alone sends no closed record, and the
+    // codes would stay open in the database the specs ran against.
+    const motiveId = motive.faults.at(-1)?.id;
+    const geotabId = geotab.faults.at(-1)?.id;
+    if (motiveId) await control(MOTIVE_SIM_FAULT_CODES_PATH, { action: 'close', id: motiveId });
+    if (geotabId) await control(GEOTAB_SIM_FAULTS_PATH, { action: 'clear', id: geotabId });
+    try {
+      await waitForFaultsClosed(db, ['motive', 'geotab'], since);
+    } finally {
+      await control(MOTIVE_SIM_FAULT_CODES_PATH, { action: 'clear' });
+      await control(GEOTAB_SIM_FAULTS_PATH, { action: 'reset' });
+    }
   }
 });

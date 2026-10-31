@@ -2,14 +2,17 @@
  * The fault writer against the real database (slice 1f, docs/contracts-1f.md §5.3): snapshot
  * reports (stored with every system's columns, cleared, out of order for both tables, reopened
  * as a new row), the first fix seeding the summary, the invalidate published only on a change,
- * delta reports (open, refresh, close, an older item that changes nothing, the age-out), and
- * Samsara's per-module OBD-II clearing.
+ * delta reports (open, refresh, close, an older item that changes nothing), the age-out sweep
+ * against the time a run checked the machine through (no later sighting needed; occurrences in
+ * any order; the backstop for vendors that send `closed`), Samsara's per-module OBD-II clearing
+ * (a module left out ages out), and a mode change closing the source's codes.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { listenAppEvents } from '../../connectors/testkit';
 import type { NormalizedPosition, NormalizedVehicleStat } from '../../connectors/types';
 import {
   DELTA_FAULT_AGE_OUT_SECONDS,
+  DELTA_FAULT_BACKSTOP_SECONDS,
   type NormalizedFault,
   normalizedFault,
 } from '../../domain/fault-codes';
@@ -18,7 +21,9 @@ import { machines } from '../schema';
 import { upsertPosition, upsertVehicleStat } from './fleet';
 import {
   activeFaultSummary,
+  ageOutFaults,
   applyFaultReport,
+  closeSourceFaults,
   faultSetChanged,
   type ModuleFault,
   parseStoredFaults,
@@ -117,6 +122,7 @@ interface FaultRow {
   first_seen_at: Date;
   last_seen_at: Date;
   cleared_at: Date | null;
+  age_out_seconds: number | null;
 }
 
 async function rows(id: string): Promise<FaultRow[]> {
@@ -124,7 +130,7 @@ async function rows(id: string): Promise<FaultRow[]> {
     await t().pool.query<FaultRow>(
       `select code, source, system, spn, fmi, source_address, occurrence_count, dtc_state,
               oem_class, module, lamps, severity, vendor_severity, description, first_seen_at,
-              last_seen_at, cleared_at
+              last_seen_at, cleared_at, age_out_seconds
          from farm.machine_faults where machine_id = $1 order by first_seen_at, code`,
       [id],
     )
@@ -363,9 +369,12 @@ describe('snapshot reports (Samsara)', () => {
       id,
       scoped(1, [obd('P0087', '2024'), obd('U0100', '2025')], ['2024', '2025']),
     );
-    // Module 2025 alone, U0100 gone: P0087 (module 2024, not named) stays open.
+    // Module 2025 alone, U0100 gone: P0087 (module 2024, not named) stays open...
     await upsertVehicleStat(t().pool, id, scoped(2, [], ['2025']));
-    expect((await open(id)).map((r) => r.code)).toEqual(['P0087']);
+    expect((await open(id)).map((r) => [r.code, r.age_out_seconds])).toEqual([
+      // ...with its age-out started (a module that dropped out can't keep it open for ever).
+      ['P0087', DELTA_FAULT_AGE_OUT_SECONDS],
+    ]);
     // No module named (a J1939-only reading): OBD-II codes untouched.
     await upsertVehicleStat(t().pool, id, scoped(3, [], []));
     expect((await open(id)).map((r) => r.code)).toEqual(['P0087']);
@@ -386,6 +395,50 @@ describe('snapshot reports (Samsara)', () => {
     await upsertVehicleStat(t().pool, id, scoped(5, [obd('P0087', '2024')], ['2024']));
     await upsertVehicleStat(t().pool, id, snapshot(6, []));
     expect(await open(id)).toEqual([]);
+  });
+
+  test('OBD-II per module: a code whose module the readings stop naming ages out after a day', async () => {
+    const id = await machine('PU9');
+    await upsertPosition(t().pool, id, fix(0));
+    const obd = (dtc: string, module: string): ModuleFault => ({
+      ...normalizedFault({ system: 'obd2', dtc, dtcState: 'confirmed' }),
+      module,
+    });
+    const scoped = (min: number, codes: ModuleFault[], modules: string[]) =>
+      snapshot(min, codes, { faultScope: { obdModules: modules } });
+    // A code on module 2025 (0x7E9), then a reading naming only the engine module (2024): the
+    // stand-in's shape before it named cleared modules, and Samsara's if it just omits one.
+    await upsertVehicleStat(t().pool, id, scoped(1, [obd('P0420', '2025')], ['2024', '2025']));
+    await upsertVehicleStat(t().pool, id, scoped(2, [], ['2024']));
+    expect((await open(id)).map((r) => r.code)).toEqual(['P0420']);
+    // Nothing else arrives (Samsara reports a reading only on a change). 23 h on: still open.
+    expect((await ageOutFaults(t().pool, 'samsara', [{ through: at(1 + 23 * 60) }])).cleared).toBe(
+      0,
+    );
+    // A day after it was last named: closed by the sweep, at the end of its window, and the
+    // panel's summary follows.
+    expect(
+      await invalidatesDuring(() =>
+        ageOutFaults(t().pool, 'samsara', [{ through: at(1 + 24 * 60 + 1) }]),
+      ),
+    ).toBe(1);
+    expect(await open(id)).toEqual([]);
+    expect((await rows(id))[0]?.cleared_at?.toISOString()).toBe(iso(1 + 24 * 60));
+    expect(parseStoredFaults((await state(id))?.fault_codes)).toEqual([]);
+
+    // A reading that names the code again stops the clock.
+    await upsertVehicleStat(t().pool, id, scoped(3000, [obd('P0171', '2025')], ['2025']));
+    await upsertVehicleStat(t().pool, id, scoped(3001, [], ['2024']));
+    await upsertVehicleStat(t().pool, id, scoped(3002, [obd('P0171', '2025')], ['2025']));
+    expect((await open(id)).map((r) => [r.code, r.age_out_seconds])).toEqual([['P0171', null]]);
+    await ageOutFaults(t().pool, 'samsara', [{ through: at(3002 + 3 * 24 * 60) }]);
+    expect((await open(id)).map((r) => r.code)).toEqual(['P0171']);
+    // A J1939 code (a full snapshot each reading) never ages out, however long it stays.
+    const s9 = await machine('S9');
+    await upsertPosition(t().pool, s9, fix(0));
+    await upsertVehicleStat(t().pool, s9, snapshot(1, [j1939(110, 0)]));
+    await ageOutFaults(t().pool, 'samsara', [{ through: at(30 * 24 * 60) }]);
+    expect((await open(s9)).map((r) => r.code)).toEqual(['J1939 SPN 110 FMI 0']);
   });
 
   test('a bad fault fails the event with a readable reason (it is retried, then dead-lettered)', async () => {
@@ -465,7 +518,7 @@ describe('delta reports (Motive, Geotab, AEMP, CNH, Terminal)', () => {
     ]);
   });
 
-  test('the age-out (decision 1f-12): open rows not seen for 24 h close at the report time', async () => {
+  test('the age-out (decision 1f-12): judged against the time a run checked the machine, not the next report', async () => {
     const id = await machine('L1');
     await upsertPosition(t().pool, id, { ...fix(0), source: 'aemp', sourceOrg: 'kubota' });
     const aemp = (min: number, faults: NormalizedFault[]) => ({
@@ -476,18 +529,100 @@ describe('delta reports (Motive, Geotab, AEMP, CNH, Terminal)', () => {
     });
     const occ = (code: string, min: number) =>
       normalizedFault({ system: 'oem', oemCode: code, state: 'open', lastSeenAt: iso(min) });
+    const sweep = (min: number) => ageOutFaults(t().pool, 'aemp', [{ through: at(min) }]);
+    // One occurrence each of A1 and B2; then nothing ever reports again (the fault was fixed).
     await upsertVehicleStat(t().pool, id, aemp(0, [occ('A1', 0), occ('B2', 0)]));
-    // 23 h later only A1 is seen again: nothing ages out yet.
+    expect((await open(id)).map((r) => r.age_out_seconds)).toEqual([
+      DELTA_FAULT_AGE_OUT_SECONDS,
+      DELTA_FAULT_AGE_OUT_SECONDS,
+    ]);
+    // 23 h later A1 recurs; a sweep then closes nothing.
     await upsertVehicleStat(t().pool, id, aemp(23 * 60, [occ('A1', 23 * 60)]));
+    expect((await sweep(23 * 60)).cleared).toBe(0);
     expect((await open(id)).map((r) => r.code).sort()).toEqual(['OEM A1', 'OEM B2']);
-    // 25 h after B2 was last seen: it closes at the report's time; A1 stays.
-    await upsertVehicleStat(t().pool, id, aemp(25 * 60, []));
+    // The hourly polls find nothing new. 25 h on, the sweep alone closes B2, at the end of its
+    // window (no later report needed); A1 stays.
+    expect(await invalidatesDuring(() => sweep(25 * 60))).toBe(1);
     expect((await open(id)).map((r) => r.code)).toEqual(['OEM A1']);
     expect((await rows(id)).find((r) => r.code === 'OEM B2')?.cleared_at?.toISOString()).toBe(
-      iso(25 * 60),
+      iso(24 * 60),
     );
-    // Without faultAgeOutSeconds (a vendor that sends `closed`), nothing ages out.
-    await upsertVehicleStat(t().pool, id, { ...aemp(60 * 60, []), faultAgeOutSeconds: undefined });
-    expect((await open(id)).map((r) => r.code)).toEqual(['OEM A1']);
+    expect(parseStoredFaults((await state(id))?.fault_codes).map((f) => f.code)).toEqual([
+      'OEM A1',
+    ]);
+    // A later occurrence of B2 opens a new row (after its window ran out).
+    await upsertVehicleStat(t().pool, id, aemp(26 * 60, [occ('B2', 26 * 60)]));
+    expect((await open(id)).map((r) => r.code).sort()).toEqual(['OEM A1', 'OEM B2']);
+    // A sweep covering another machine (or another provider's machine) leaves these alone.
+    const other = await ageOutFaults(t().pool, 'aemp', [
+      { sourceOrg: 'kubota', externalId: 'not-this-one', through: at(90 * 24 * 60) },
+    ]);
+    expect(other.cleared).toBe(0);
+    // A day after A1's last occurrence, two days after: both close.
+    await sweep(26 * 60 + 24 * 60 + 1);
+    expect(await open(id)).toEqual([]);
+  });
+
+  test('the age-out does not depend on the order occurrences are applied in', async () => {
+    const id = await machine('L2');
+    await upsertPosition(t().pool, id, { ...fix(0), source: 'aemp', sourceOrg: 'kubota' });
+    const aemp = (min: number, code: string) => ({
+      ...delta(min, [
+        normalizedFault({ system: 'oem', oemCode: code, state: 'open', lastSeenAt: iso(min) }),
+      ]),
+      source: 'aemp' as const,
+      sourceOrg: 'kubota',
+      faultAgeOutSeconds: DELTA_FAULT_AGE_OUT_SECONDS,
+    });
+    // Two occurrences 25 h apart, the newer applied first (a page out of order).
+    await upsertVehicleStat(t().pool, id, aemp(25 * 60, 'NEW'));
+    await upsertVehicleStat(t().pool, id, aemp(0, 'OLD'));
+    expect((await open(id)).map((r) => r.code).sort()).toEqual(['OEM NEW', 'OEM OLD']);
+    await ageOutFaults(t().pool, 'aemp', [{ through: at(25 * 60 + 1) }]);
+    expect((await open(id)).map((r) => r.code)).toEqual(['OEM NEW']);
+  });
+
+  test('vendors that send closed get the 7-day backstop; a mode change closes the source', async () => {
+    const id = await machine('H3');
+    await upsertPosition(t().pool, id, { ...fix(0), source: 'motive', sourceOrg: 'co-1' });
+    const f = (spn: number, min: number) =>
+      normalizedFault({ system: 'j1939', spn, fmi: 0, lamps: AMBER, lastSeenAt: iso(min) });
+    await upsertVehicleStat(t().pool, id, delta(0, [f(110, 0)]));
+    expect((await open(id)).map((r) => r.age_out_seconds)).toEqual([DELTA_FAULT_BACKSTOP_SECONDS]);
+    const sweep = (min: number) => ageOutFaults(t().pool, 'motive', [{ through: at(min) }]);
+    // A day or six without Motive saying it cleared: still open (Motive sends `closed`).
+    expect((await sweep(6 * 24 * 60)).cleared).toBe(0);
+    // A week unseen (the record lost, the feed gone): closed by the backstop.
+    expect((await sweep(7 * 24 * 60 + 1)).cleared).toBe(1);
+    expect(await open(id)).toEqual([]);
+
+    // Mode change (e.g. a replay run's codes, then back to sim): every open row of the source
+    // closes at its last sighting, the summary follows; other sources are untouched.
+    await upsertVehicleStat(t().pool, id, delta(8 * 24 * 60, [f(100, 8 * 24 * 60)]));
+    await upsertVehicleStat(t().pool, id, {
+      ...delta(8 * 24 * 60 + 1, [f(111, 8 * 24 * 60 + 1)]),
+      source: 'geotab',
+    });
+    // (H1 of the test above has an open Motive code too: one invalidate per machine changed.)
+    let closedBy = { cleared: 0, changed: 0 };
+    const published = await invalidatesDuring(async () => {
+      closedBy = await closeSourceFaults(t().pool, 'motive');
+    });
+    expect(closedBy.changed).toBeGreaterThanOrEqual(1);
+    expect(published).toBe(closedBy.changed);
+    expect((await open(id)).map((r) => [r.source, r.code])).toEqual([
+      ['geotab', 'J1939 SPN 111 FMI 0'],
+    ]);
+    const closed = (await rows(id)).find((r) => r.spn === 100);
+    expect(closed?.cleared_at?.toISOString()).toBe(iso(8 * 24 * 60));
+    expect(parseStoredFaults((await state(id))?.fault_codes).map((x) => x.code)).toEqual([
+      'J1939 SPN 111 FMI 0',
+    ]);
+    // The new mode's own report of that code (newer than the close) opens a fresh row.
+    await upsertVehicleStat(t().pool, id, delta(8 * 24 * 60 + 5, [f(100, 8 * 24 * 60 + 5)]));
+    expect((await open(id)).map((r) => r.code).sort()).toEqual([
+      'J1939 SPN 100 FMI 0',
+      'J1939 SPN 111 FMI 0',
+    ]);
   });
 });

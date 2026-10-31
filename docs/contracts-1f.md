@@ -473,17 +473,36 @@ vendors produce it):
   `occurrence_count`, `dtc_state`, `oem_class`, `lamps`, `vendor_severity`);
   `machine_state.fault_codes` items carry `system`, `spn`/`fmi`, `dtcState`, `oemClass`, `lamps`
   when known (all optional in `ActiveFaultCode`).
-- **Oct 31, the delta age-out (decision 1f-12):** a `delta` report with `faultAgeOutSeconds` set
-  (ISO 15143-3 FaultCode items and CNH's Faults series are bare occurrences with no state; some
-  Terminal providers never send `closed`) also closes the open rows of that machine and source
-  whose `last_seen_at` is older than `ts − faultAgeOutSeconds` (`cleared_at` = `ts`). Mappers
-  pass `DELTA_FAULT_AGE_OUT_SECONDS` (24 h, `src/domain/fault-codes.ts`) unless their vendor's
-  docs give a better window; sources that send `closed` leave it unset.
+- **Oct 31, the delta age-out (decision 1f-12; reworked by the 1f review):** every row a `delta`
+  item opens or refreshes keeps its window in `machine_faults.age_out_seconds` (migration 0007):
+  `faultAgeOutSeconds` where the mapper sets it (ISO 15143-3 FaultCode items and CNH's Faults
+  series are bare occurrences with no state; some Terminal providers never send `closed`:
+  `DELTA_FAULT_AGE_OUT_SECONDS`, 24 h), else the backstop `DELTA_FAULT_BACKSTOP_SECONDS` (7 days:
+  Motive, Geotab, CNH caution codes, which send `closed`). The window is judged by a SWEEP, not by
+  the next report (a fault that stops recurring has no next report, and occurrences can arrive in
+  any order): after each successful faults run that caught up and left no raw event pending, the
+  job calls `ageOutFaults(ex, source, coverage)` with what the run covered and the time it checked
+  it through (`withFaultLifecycle`, src/jobs/fleet-shared.ts: the whole source through the run's
+  first poll for Samsara, Motive and Geotab; each Terminal connection through the time it was
+  read; each AEMP provider's machine and each CNH VIN through the end of its last window, from the
+  stream's cursor). A row whose `last_seen_at + age_out_seconds` is before that time closes with
+  `cleared_at` = `last_seen_at + age_out_seconds`; `machine_state.fault_codes` follows (never
+  `faults_at`) and `fleet`/`invalidate` `faults` is published when the set changed. A snapshot
+  code has no window (its vendor lists it while active), except the OBD-II case below.
+- **1f review, mode changes:** a faults stream whose stored mode differs from the configured one
+  (sim → live, a replay run back to sim, anything → off; AEMP with no provider serving a fault
+  series counts as off) closes every open row of its source before the stream switches
+  (`SyncStepSpec.onModeChange` → `closeSourceFaults`, `cleared_at` = the row's `last_seen_at`),
+  so the codes a stand-in or a fixture raised never outlive the mode that raised them.
 - **Oct 31, Samsara's OBD-II codes are per module:** a `faultCodes` reading lists OBD-II codes per
   module (`txId`), and Samsara doesn't say a reading carries every module. fleet-faults' mapper
   turns a module missing from a reading into "no change" for that module's codes (J1939 stays a
   full snapshot: Samsara's `diagnosticTroubleCodes` is "empty if there are no active fault
-  codes"); its doc-derived list keeps the question.
+  codes"); its doc-derived list keeps the question. **1f review:** a code left alone that way
+  starts its age-out (`OBD_UNNAMED_MODULE_AGE_OUT_SECONDS`, 24 h, swept like a delta code; a
+  reading that names it again stops the clock), and a reading whose `obdii.diagnosticTroubleCodes`
+  is an explicit `[]` carries no scope (every OBD-II code clears). The stand-in's reading of a
+  change names the modules whose codes just cleared, with empty lists.
 
 - The panel contract gains **optional** fields (1a code keeps compiling): `faults?:
   ActiveFaultCode[]` per machine (from `machine_state.fault_codes`), `position.vendor?: string |

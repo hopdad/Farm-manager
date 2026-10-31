@@ -53,6 +53,7 @@ import {
   positionsUpsert,
   publishSyncStatus,
   tickAfterRun,
+  withFaultLifecycle,
 } from './fleet-shared';
 import type { JobContext, JobResult } from './types';
 
@@ -124,7 +125,9 @@ export function createFleetTrucksJob(opts: FleetJobOptions = {}) {
       upsert: statsUpsert(resolve),
       afterRun: publishSyncStatus,
     };
-    const faultsSpec: SyncStepSpec<SamsaraFaultRaw, NormalizedVehicleStat> = {
+    // The feed covers every vehicle: the sweep ages out the OBD-II codes whose module the
+    // readings stopped naming (decision 1f-12); a mode change closes the source's codes.
+    const faultsSpec = withFaultLifecycle<SamsaraFaultRaw>({
       source: 'samsara',
       stream: FAULTS_STREAM,
       mode,
@@ -133,7 +136,7 @@ export function createFleetTrucksJob(opts: FleetJobOptions = {}) {
       map: (raw) => mapSamsaraFaults(raw),
       upsert: statsUpsert(resolve),
       afterRun: publishSyncStatus,
-    };
+    });
     // Positions first (they feed the tick); stats, then fault codes, only while budget remains.
     const budgetLeft = () => ctx.now().getTime() < ctx.deadline.getTime() && !ctx.signal.aborted;
     if (budgetLeft()) others.push(await runSyncStep(statsSpec, ctx));

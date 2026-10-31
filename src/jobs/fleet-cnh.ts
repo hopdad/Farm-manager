@@ -29,8 +29,10 @@ import {
 } from '../connectors/cnh/mapper';
 import { cnhGrantOrg } from '../connectors/cnh/oauth';
 import {
+  type CnhFaultsCursor,
   type CnhNeedsEula,
   type CnhPollResult,
+  parseCnhCursor,
   pollCnhFaults,
   pollCnhFleet,
   pollCnhPositions,
@@ -42,12 +44,12 @@ import { runSyncStep } from '../connectors/sync-step';
 import type {
   Mode,
   NormalizedPosition,
-  NormalizedVehicleStat,
   SyncContext,
   SyncStepResult,
   SyncStepSpec,
 } from '../connectors/types';
 import { staleThresholdsOf } from '../db/queries/fleet';
+import type { FaultCoverage } from '../db/queries/machine-faults';
 import { combineStepResults, statsUpsert } from './fleet';
 import { mergeStreamExtra } from './fleet-aemp';
 import {
@@ -57,6 +59,7 @@ import {
   positionsUpsert,
   publishSyncStatus,
   tickAfterRun,
+  withFaultLifecycle,
 } from './fleet-shared';
 import type { JobContext, JobResult } from './types';
 
@@ -75,6 +78,16 @@ function needsEulaOf(cursor: string | null): { vin: string; reason: string; at: 
   } catch {
     return [];
   }
+}
+
+/** What a faults run covered: each VIN through the end of its last window. */
+export function cnhFaultCoverage(cursor: string | null): FaultCoverage[] {
+  const out: FaultCoverage[] = [];
+  for (const [vin, until] of Object.entries(parseCnhCursor<CnhFaultsCursor>(cursor).until ?? {})) {
+    const t = Date.parse(until);
+    if (Number.isFinite(t)) out.push({ externalId: vin, through: new Date(t) });
+  }
+  return out;
 }
 
 export function createFleetCnhJob(opts: FleetJobOptions = {}) {
@@ -165,17 +178,23 @@ export function createFleetCnhJob(opts: FleetJobOptions = {}) {
       others.push(await runSyncStep(fleetSpec, ctx));
     }
     if (more()) {
-      const faultsSpec: SyncStepSpec<CnhFaultRaw, NormalizedVehicleStat> = {
-        source: 'cnh',
-        stream: CNH_FAULTS_STREAM,
-        mode,
-        leaseSeconds: CNH_LEASE_SECONDS,
-        poll: async (cursor) =>
-          report(CNH_FAULTS_STREAM, await pollCnhFaults(cnh(), cursor, pollOpts)),
-        map: (raw) => mapCnhFault(raw),
-        upsert: stats,
-        afterRun: withEula(CNH_FAULTS_STREAM, publishSyncStatus),
-      };
+      // Each VIN through the end of its last window (a VIN skipped for its EULA keeps its older
+      // time): Faults occurrences age out after 24 h, caution codes after the backstop
+      // (decision 1f-12); a mode change closes the source's codes.
+      const faultsSpec = withFaultLifecycle<CnhFaultRaw>(
+        {
+          source: 'cnh',
+          stream: CNH_FAULTS_STREAM,
+          mode,
+          leaseSeconds: CNH_LEASE_SECONDS,
+          poll: async (cursor) =>
+            report(CNH_FAULTS_STREAM, await pollCnhFaults(cnh(), cursor, pollOpts)),
+          map: (raw) => mapCnhFault(raw),
+          upsert: stats,
+          afterRun: withEula(CNH_FAULTS_STREAM, publishSyncStatus),
+        },
+        (result) => cnhFaultCoverage(result.cursor),
+      );
       others.push(await runSyncStep(faultsSpec, ctx));
     }
     return combineStepResults(first, others);

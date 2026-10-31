@@ -1680,6 +1680,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "age_out_seconds": {
+          "name": "age_out_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "lamps": {
           "name": "lamps",
           "type": "jsonb",
@@ -1819,6 +1825,10 @@
         "machine_faults_cleared_check": {
           "name": "machine_faults_cleared_check",
           "value": "\"farm\".\"machine_faults\".\"cleared_at\" is null or \"farm\".\"machine_faults\".\"cleared_at\" >= \"farm\".\"machine_faults\".\"first_seen_at\""
+        },
+        "machine_faults_age_out_check": {
+          "name": "machine_faults_age_out_check",
+          "value": "\"farm\".\"machine_faults\".\"age_out_seconds\" is null or \"farm\".\"machine_faults\".\"age_out_seconds\" > 0"
         },
         "machine_faults_system_check": {
           "name": "machine_faults_system_check",

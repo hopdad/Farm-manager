@@ -62,6 +62,7 @@ import {
   positionsUpsert,
   publishSyncStatus,
   tickAfterRun,
+  withFaultLifecycle,
 } from './fleet-shared';
 import type { JobContext, JobResult } from './types';
 
@@ -154,14 +155,16 @@ export function createFleetGeotabJob(opts: FleetGeotabJobOptions = {}) {
         await publishSyncStatus(result, sctx);
       },
     };
-    const faultsSpec: SyncStepSpec<GeotabFaultRaw, NormalizedVehicleStat> = {
+    // The FaultData feed covers every device: the sweep covers the whole source once caught up
+    // (the 7-day backstop, decision 1f-12); a mode change closes the source's codes.
+    const faultsSpec = withFaultLifecycle<GeotabFaultRaw>({
       ...step,
       stream: GEOTAB_FAULTS_STREAM,
       poll: async (cursor) => (await geotab()).pollFaults(cursor),
       map: (raw) => mapGeotabFault(raw),
       upsert: statsUpsert(resolve),
       afterRun: publishSyncStatus,
-    };
+    });
     const vehicles = vehicleListUpsert(resolve, publishSyncStatus);
     const vehiclesSpec: SyncStepSpec<GeotabVehicleRaw, NormalizedVehicle> = {
       ...step,

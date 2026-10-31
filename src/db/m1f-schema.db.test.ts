@@ -264,6 +264,13 @@ describe('farm.machine_hours and farm.machine_faults', () => {
           .values({ ...fault, code: 'x', severity: 'fatal' as 'info' }),
       ),
     ).toBe('23514');
+    // The age-out window (1f review): null (closes when its vendor says so) or positive.
+    await t()
+      .db.insert(machineFaults)
+      .values({ ...fault, code: 'y', ageOutSeconds: 86_400 });
+    expect(
+      await pgCode(t().db.insert(machineFaults).values({ ...fault, code: 'z', ageOutSeconds: 0 })),
+    ).toBe('23514');
   });
 
   test('machine_state gains the fault summary (default none), its time guard and the vendor', async () => {

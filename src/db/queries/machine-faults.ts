@@ -19,9 +19,19 @@
  *    `closedAt` (closed), else `ts`: an open item newer than its open row refreshes it, with no
  *    open row it opens one (`first_seen_at` = its `firstSeenAt` when sent) unless the code was
  *    closed at or after that time; a closed item at or after its open row's last_seen_at clears
- *    it (`cleared_at` = that time); anything older changes nothing. With `faultAgeOutSeconds`
- *    (decision 1f-12) the open rows of this machine and source not seen since
- *    `ts − faultAgeOutSeconds` close at `ts`. Then machine_state is refreshed.
+ *    it (`cleared_at` = that time); anything older changes nothing. Then machine_state is
+ *    refreshed. Every row a delta item opens or refreshes keeps its age-out window
+ *    (`machine_faults.age_out_seconds`, decision 1f-12): `faultAgeOutSeconds` for feeds with no
+ *    cleared state (24 h), else the 7-day backstop (DELTA_FAULT_BACKSTOP_SECONDS).
+ *
+ * The age-out (decision 1f-12) is NOT judged against the next report: a fault that stops
+ * recurring (the normal "it was fixed" case) has no next report. After each successful faults
+ * run the job calls `ageOutFaults` with what the run covered (every machine of the source, a
+ * provider or connection, or one machine) and the time it checked them through; an open row
+ * whose `last_seen_at + age_out_seconds` is before that time closes (`cleared_at` = the moment
+ * its window ran out, so a later sighting opens a new row). `closeSourceFaults` closes every open
+ * row of a source when its faults stream changes mode (sim → live, replay → sim, → off): a
+ * stand-in's or a fixture's codes never outlive the mode that raised them.
  *
  * Refreshing machine_state: `fault_codes` = the machine's open rows (every source, one entry per
  * code: the worst severity, the earliest `since`), sorted by `sortFaultCodes`; `faults_at` = the
@@ -35,9 +45,13 @@
  * OBD-II fault its `module` (`NormalizedFault.module`). Then an open OBD-II code of a module the report
  * doesn't name is left alone (Samsara lists OBD-II codes per `txId` and doesn't promise every
  * module in each reading); an open OBD-II code with no recorded module counts as covered by any
- * report that names at least one module. The module of each OBD-II code is kept in
- * `farm.machine_faults.module` (migration 0007). Reports without a scope (every
- * other vendor) are plain snapshots.
+ * report that names at least one module. Such a code left alone by a newer reading starts its
+ * age-out (OBD_UNNAMED_MODULE_AGE_OUT_SECONDS, swept like a delta code): a module that simply
+ * drops out of the readings once its codes clear can't keep them open for ever, while a reading
+ * that names the code again stops the clock. The mapper sends no scope for a reading whose
+ * `obdii.diagnosticTroubleCodes` is an explicit empty list (no module has a code: every OBD-II
+ * code clears). The module of each OBD-II code is kept in `farm.machine_faults.module`
+ * (migration 0007). Reports without a scope (every other vendor) are plain snapshots.
  *
  * The machine's farm.machines row is locked FOR UPDATE first: a position insert holds a key-share
  * lock on it (the foreign keys of farm.positions / machine_state), so a first fix and a fault
@@ -47,11 +61,13 @@ import type { FaultModuleScope, NormalizedVehicleStat } from '../../connectors/t
 import {
   type ActiveFaultCode,
   activeFaultCodeSchema,
+  DELTA_FAULT_BACKSTOP_SECONDS,
   type FaultLamps,
   type FaultSeverity,
   type FaultSystem,
   type NormalizedFault,
   normalizedFaultSchema,
+  OBD_UNNAMED_MODULE_AGE_OUT_SECONDS,
   type ObdDtcState,
   type OemFaultClass,
   severityRank,
@@ -163,6 +179,7 @@ async function upsertOpen(
   source: string,
   f: ModuleFault,
   seenAt: Date,
+  ageOutSeconds: number | null,
 ): Promise<{ id: string; inserted: boolean }> {
   const c = systemColumns(f);
   const vendorFirst = f.firstSeenAt ? new Date(f.firstSeenAt) : null;
@@ -172,9 +189,9 @@ async function upsertOpen(
     `insert into farm.machine_faults as mf
        (machine_id, source, code, system, spn, fmi, source_address, occurrence_count, dtc_state,
         oem_class, lamps, severity, vendor_severity, description, first_seen_at, last_seen_at,
-        module)
+        module, age_out_seconds)
      values ($1::uuid, $2, $3, $4, $5::int, $6::int, $7::int, $8::int, $9, $10, $11::jsonb, $12,
-             $13, $14, $15::timestamptz, $16::timestamptz, $18)
+             $13, $14, $15::timestamptz, $16::timestamptz, $18, $19::int)
      on conflict (machine_id, source, code) where cleared_at is null do update
        set first_seen_at = case when $17::boolean then least(mf.first_seen_at, excluded.first_seen_at)
                                 else mf.first_seen_at end,
@@ -197,6 +214,9 @@ async function upsertOpen(
                                   then excluded.vendor_severity else mf.vendor_severity end,
            description = case when excluded.last_seen_at >= mf.last_seen_at
                               then coalesce(excluded.description, mf.description) else mf.description end,
+           -- The age-out window of the newest sighting (a snapshot that names the code: none).
+           age_out_seconds = case when excluded.last_seen_at >= mf.last_seen_at
+                                  then excluded.age_out_seconds else mf.age_out_seconds end,
            updated_at = now()
      returning mf.id::text as id, (xmax = 0) as inserted`,
     [
@@ -218,6 +238,7 @@ async function upsertOpen(
       seenAt.toISOString(),
       vendorFirst !== null,
       f.system === 'obd2' && f.module ? f.module : null,
+      ageOutSeconds,
     ],
   );
   return r.rows[0] as { id: string; inserted: boolean };
@@ -269,17 +290,29 @@ async function applySnapshot(
   out.applied = 'newer';
   const open = await openRows(ex, machineId, s.source);
   for (const f of faults) {
-    const r = await upsertOpen(ex, machineId, s.source, f, ts);
+    const r = await upsertOpen(ex, machineId, s.source, f, ts, null);
     if (r.inserted) out.opened++;
     else out.refreshed++;
   }
   const named = new Set(faults.map((f) => f.code));
-  const gone = open.filter((row) => !named.has(row.code) && inScope(row, s.faultScope));
+  const notNamed = open.filter((row) => !named.has(row.code));
+  const gone = notNamed.filter((row) => inScope(row, s.faultScope));
   out.cleared += await clearRows(
     ex,
     gone.map((row) => row.id),
     ts,
   );
+  // OBD-II codes of modules this newer reading left out: kept open, their age-out starts (a
+  // reading that names them again resets it through upsertOpen).
+  const unnamed = notNamed.filter((row) => !inScope(row, s.faultScope)).map((row) => row.id);
+  if (unnamed.length) {
+    await exec(
+      ex,
+      `update farm.machine_faults set age_out_seconds = $2::int, updated_at = now()
+        where id = any($1::uuid[]) and cleared_at is null and age_out_seconds is null`,
+      [unnamed, OBD_UNNAMED_MODULE_AGE_OUT_SECONDS],
+    );
+  }
   return true;
 }
 
@@ -298,6 +331,10 @@ async function applyDelta(
 ): Promise<void> {
   const ts = new Date(s.ts);
   out.applied = 'delta';
+  const ageOut =
+    s.faultAgeOutSeconds !== undefined && s.faultAgeOutSeconds > 0
+      ? Math.round(s.faultAgeOutSeconds)
+      : DELTA_FAULT_BACKSTOP_SECONDS;
   const open = new Map((await openRows(ex, machineId, s.source)).map((r) => [r.code, r]));
   for (const f of faults) {
     const at = deltaTime(f, ts);
@@ -311,7 +348,7 @@ async function applyDelta(
     }
     if (row) {
       if (at.getTime() > ms(row.last_seen_at)) {
-        await upsertOpen(ex, machineId, s.source, f, at);
+        await upsertOpen(ex, machineId, s.source, f, at, ageOut);
         out.refreshed++;
       }
       continue;
@@ -325,19 +362,8 @@ async function applyDelta(
     );
     const closedAt = toDate(closed.rows[0]?.t ?? null);
     if (closedAt && at.getTime() <= closedAt.getTime()) continue;
-    const r = await upsertOpen(ex, machineId, s.source, f, at);
+    const r = await upsertOpen(ex, machineId, s.source, f, at, ageOut);
     if (r.inserted) out.opened++;
-  }
-  if (s.faultAgeOutSeconds !== undefined && s.faultAgeOutSeconds > 0) {
-    const r = await exec(
-      ex,
-      `update farm.machine_faults
-          set cleared_at = greatest($3::timestamptz, first_seen_at), updated_at = now()
-        where machine_id = $1::uuid and source = $2 and cleared_at is null
-          and last_seen_at < $3::timestamptz - make_interval(secs => $4::float8)`,
-      [machineId, s.source, ts.toISOString(), s.faultAgeOutSeconds],
-    );
-    out.cleared += r.rowCount;
   }
 }
 
@@ -474,4 +500,167 @@ export async function seedFaultSummary(ex: Executor, machineId: string): Promise
       where machine_id = $1::uuid`,
     [machineId, JSON.stringify(active), guard.toISOString()],
   );
+}
+
+// ---- closing codes no report will close: the age-out sweep and a mode change ----------------
+
+/**
+ * What one successful faults run covered, for `ageOutFaults`: the machines of the source it
+ * checked and the time it checked them through. An entry with neither `sourceOrg` nor
+ * `externalId` covers every machine of the source (one call lists the whole fleet: Samsara's
+ * feed, Motive's list, Geotab's feed); `sourceOrg` alone covers the machines whose
+ * ingest.external_refs row has that source_org (a Terminal connection); `externalId` (with
+ * `sourceOrg` when ids repeat across orgs) one machine (an AEMP provider's machine, a CNH VIN).
+ */
+export interface FaultCoverage {
+  sourceOrg?: string;
+  externalId?: string;
+  through: Date;
+}
+
+export interface FaultCloseResult {
+  /** Rows closed. */
+  cleared: number;
+  /** Machines whose active set changed (each published one `fleet`/`invalidate`). */
+  changed: number;
+}
+
+/**
+ * Lock one machine (the order every fault writer uses: farm.machines, then machine_state), run
+ * `close` for it, then refresh `machine_state.fault_codes` when something closed. `faults_at`
+ * is NOT moved: it is the vendor time of the newest report, and a wall-clock close must not make
+ * the next real report look older than it is.
+ */
+async function closeForMachine(
+  ex: Executor,
+  machineId: string,
+  close: () => Promise<number>,
+  out: FaultCloseResult,
+): Promise<void> {
+  await exec(ex, 'select 1 from farm.machines where id = $1::uuid for update', [machineId]);
+  const st = (
+    await exec<{ fault_codes: unknown }>(
+      ex,
+      'select fault_codes from farm.machine_state where machine_id = $1::uuid for update',
+      [machineId],
+    )
+  ).rows[0];
+  const n = await close();
+  out.cleared += n;
+  if (!n || !st) return;
+  const active = await activeFaultSummary(ex, machineId);
+  await exec(
+    ex,
+    `update farm.machine_state set fault_codes = $2::jsonb, updated_at = now()
+      where machine_id = $1::uuid`,
+    [machineId, JSON.stringify(active)],
+  );
+  if (faultSetChanged(parseStoredFaults(st.fault_codes), active)) {
+    out.changed++;
+    await publish('fleet', 'invalidate', { event: 'machine', reason: 'faults' }, ex);
+  }
+}
+
+/**
+ * The age-out sweep (decision 1f-12): close every open row of `source` on the covered machines
+ * whose window (`age_out_seconds`) ran out before the time its machine was checked through.
+ * `cleared_at` = the moment the window ran out (`last_seen_at + age_out_seconds`), so a sighting
+ * after it opens a new row and one before it changes nothing. Rows with no window (snapshot
+ * codes their vendor still lists) are never touched. Run it in one transaction; machines are
+ * locked in id order.
+ */
+export async function ageOutFaults(
+  ex: Executor,
+  source: string,
+  coverage: readonly FaultCoverage[],
+): Promise<FaultCloseResult> {
+  const out: FaultCloseResult = { cleared: 0, changed: 0 };
+  if (!coverage.length) return out;
+  const cov = coverage.map((c) => ({
+    org: c.sourceOrg ?? null,
+    ext: c.externalId ?? null,
+    through: c.through.toISOString(),
+  }));
+  const due = await exec<{ machine_id: string; through: Date | string }>(
+    ex,
+    `with cov as (
+       select * from jsonb_to_recordset($2::jsonb) as c(org text, ext text, through timestamptz)
+     ), checked as (
+       select f.machine_id, max(c.through) as through
+         from (select distinct machine_id from farm.machine_faults
+                where source = $1 and cleared_at is null and age_out_seconds is not null) f
+         join cov c
+           on (c.org is null and c.ext is null)
+           or exists (select 1 from ingest.external_refs r
+                       where r.source = $1 and r.kind = 'machine' and r.entity_id = f.machine_id
+                         and (c.org is null or r.source_org = c.org)
+                         and (c.ext is null or r.external_id = c.ext))
+        group by f.machine_id
+     )
+     select k.machine_id::text as machine_id, k.through
+       from checked k
+      where exists (select 1 from farm.machine_faults f
+                     where f.machine_id = k.machine_id and f.source = $1 and f.cleared_at is null
+                       and f.age_out_seconds is not null
+                       and f.last_seen_at + make_interval(secs => f.age_out_seconds) < k.through)
+      order by k.machine_id`,
+    [source, JSON.stringify(cov)],
+  );
+  for (const row of due.rows) {
+    const through = toDate(row.through) as Date;
+    await closeForMachine(
+      ex,
+      row.machine_id,
+      async () =>
+        (
+          await exec(
+            ex,
+            `update farm.machine_faults
+                set cleared_at = greatest(last_seen_at + make_interval(secs => age_out_seconds),
+                                          first_seen_at),
+                    updated_at = now()
+              where machine_id = $1::uuid and source = $2 and cleared_at is null
+                and age_out_seconds is not null
+                and last_seen_at + make_interval(secs => age_out_seconds) < $3::timestamptz`,
+            [row.machine_id, source, through.toISOString()],
+          )
+        ).rowCount,
+      out,
+    );
+  }
+  return out;
+}
+
+/**
+ * Close every open row of `source` (its faults stream changed mode: the codes a stand-in or a
+ * replay fixture raised, or the previous account's, must not outlive that mode). `cleared_at` =
+ * the row's `last_seen_at`, the last moment that mode vouched for it, so the new mode's own
+ * reports of the same code (newer than that) open a fresh row.
+ */
+export async function closeSourceFaults(ex: Executor, source: string): Promise<FaultCloseResult> {
+  const out: FaultCloseResult = { cleared: 0, changed: 0 };
+  const due = await exec<{ machine_id: string }>(
+    ex,
+    `select distinct machine_id::text as machine_id from farm.machine_faults
+      where source = $1 and cleared_at is null order by 1`,
+    [source],
+  );
+  for (const { machine_id } of due.rows) {
+    await closeForMachine(
+      ex,
+      machine_id,
+      async () =>
+        (
+          await exec(
+            ex,
+            `update farm.machine_faults
+                set cleared_at = greatest(last_seen_at, first_seen_at), updated_at = now()
+              where machine_id = $1::uuid and source = $2 and cleared_at is null`,
+            [machine_id, source],
+          )
+        ).rowCount,
+      out,
+    );
+  }
+  return out;
 }

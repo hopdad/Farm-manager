@@ -20,7 +20,7 @@
  */
 import type pg from 'pg';
 import { getConfig } from '../config';
-import { AempClient, parseAempFleetCursor } from '../connectors/aemp/client';
+import { AempClient, parseAempFaultsCursor, parseAempFleetCursor } from '../connectors/aemp/client';
 import {
   type AempFaultRaw,
   type AempFleetItem,
@@ -38,15 +38,10 @@ import {
 import { tokenKey } from '../connectors/oauth/crypto';
 import { OAuthTokenStore, userGrantOrg } from '../connectors/oauth/token-store';
 import { runSyncStep } from '../connectors/sync-step';
-import type {
-  Mode,
-  NormalizedVehicleStat,
-  SyncContext,
-  SyncStepResult,
-  SyncStepSpec,
-} from '../connectors/types';
+import type { Mode, SyncContext, SyncStepResult, SyncStepSpec } from '../connectors/types';
 import { exec } from '../db/exec';
 import { staleThresholdsOf } from '../db/queries/fleet';
+import type { FaultCoverage } from '../db/queries/machine-faults';
 import { combineStepResults, statsUpsert } from './fleet';
 import {
   type FleetConfig,
@@ -56,6 +51,7 @@ import {
   positionsUpsert,
   publishSyncStatus,
   tickAfterRun,
+  withFaultLifecycle,
 } from './fleet-shared';
 import type { JobContext, JobResult } from './types';
 
@@ -96,6 +92,18 @@ async function mappedAempMachines(pool: pg.Pool): Promise<Record<string, string[
     const list = out[row.source_org] ?? [];
     list.push(row.external_id);
     out[row.source_org] = list;
+  }
+  return out;
+}
+
+/** What a faults run covered: each provider's machine through the end of its last window. */
+export function aempFaultCoverage(cursor: string | null): FaultCoverage[] {
+  const out: FaultCoverage[] = [];
+  for (const [provider, p] of Object.entries(parseAempFaultsCursor(cursor).providers ?? {})) {
+    for (const [externalId, done] of Object.entries(p?.machines ?? {})) {
+      const t = Date.parse(done);
+      if (Number.isFinite(t)) out.push({ sourceOrg: provider, externalId, through: new Date(t) });
+    }
   }
   return out;
 }
@@ -190,21 +198,29 @@ export function createFleetAempJob(opts: FleetJobOptions = {}) {
 
     const others: SyncStepResult[] = [];
     const hasSeries = mode !== 'off' && !!endpointsOrNull(mode, cfg)?.some((e) => e.faultsPath);
-    if (hasSeries && ctx.now().getTime() < ctx.deadline.getTime() && !ctx.signal.aborted) {
-      const faultsSpec: SyncStepSpec<AempFaultRaw, NormalizedVehicleStat> = {
-        source: 'aemp',
-        stream: AEMP_FAULTS_STREAM,
-        mode,
-        leaseSeconds: AEMP_LEASE_SECONDS,
-        poll: async (cursor, sctx) => {
-          const r = await aemp().pollFaults(cursor, await mappedAempMachines(sctx.job.pool));
-          logFailed(r.failed);
-          return r;
+    if (ctx.now().getTime() < ctx.deadline.getTime() && !ctx.signal.aborted) {
+      // No provider with a fault series in this mode = the faults stream is off: its mode change
+      // closes the codes an earlier mode's series raised (nothing could close them later).
+      const faultsSpec = withFaultLifecycle<AempFaultRaw>(
+        {
+          source: 'aemp',
+          stream: AEMP_FAULTS_STREAM,
+          mode: hasSeries ? mode : 'off',
+          leaseSeconds: AEMP_LEASE_SECONDS,
+          poll: async (cursor, sctx) => {
+            const r = await aemp().pollFaults(cursor, await mappedAempMachines(sctx.job.pool));
+            logFailed(r.failed);
+            return r;
+          },
+          map: (raw) => mapAempFault(raw),
+          upsert: stats,
+          afterRun: publishSyncStatus,
         },
-        map: (raw) => mapAempFault(raw),
-        upsert: stats,
-        afterRun: publishSyncStatus,
-      };
+        // Each machine through the end of the window its series was last read to (a provider
+        // that failed or wasn't due keeps its older time): occurrences carry no state, so a
+        // fault that stops recurring ages out 24 h after its last one (decision 1f-12).
+        (result) => aempFaultCoverage(result.cursor),
+      );
       others.push(await runSyncStep(faultsSpec, ctx));
     }
     return combineStepResults(fleet, others);

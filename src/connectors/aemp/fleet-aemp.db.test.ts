@@ -7,8 +7,9 @@
  *    AEMP snapshot never replaces a fresh equipment-feed fix, and takes over once the gateway has
  *    been quiet longer than the live threshold (decision 1f-11);
  *  - each AEMP provider at most every minIntervalSeconds; the kubota fault series lands its
- *    occurrences (the writer of NormalizedFaults is fleet-faults', part A: here, raw events and
- *    their processing only).
+ *    occurrences; a fault that stops recurring closes a day after its last occurrence through
+ *    the hourly polls alone (the age-out sweep, decision 1f-12), and a mode change closes the
+ *    source's open codes.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { fleetSnapshot } from '../../db/queries/fleet';
@@ -198,5 +199,68 @@ describe('fleet.equipment then fleet.aemp (sim)', () => {
         fault: { CodeIdentifier: 'SPN 110 FMI 0', CodeSeverity: 'High' },
       },
     });
+  });
+
+  test('a fault that stops recurring closes a day after its last occurrence (hourly polls alone)', async () => {
+    const openL1 = async () =>
+      (
+        await t().pool.query<{ code: string; last_seen_at: Date; cleared_at: Date | null }>(
+          `select code, last_seen_at, cleared_at from farm.machine_faults
+            where machine_id = $1 order by first_seen_at`,
+          [unit('L1')],
+        )
+      ).rows;
+    const [raised] = await openL1();
+    expect(raised).toMatchObject({ code: 'J1939 SPN 110 FMI 0', cleared_at: null });
+    const lastSeen = (raised as { last_seen_at: Date }).last_seen_at.getTime();
+    // The fault is repaired: the series reports no further occurrence. The job runs hourly.
+    for (let h = 1; h <= 23; h++) {
+      wall = lastSeen + h * 3_600_000;
+      await aemp()(ctx('fleet.aemp'));
+    }
+    expect((await openL1())[0]?.cleared_at).toBeNull();
+    const fleetPanel = async () =>
+      (
+        await t().pool.query('select fault_codes from farm.machine_state where machine_id = $1', [
+          unit('L1'),
+        ])
+      ).rows[0]?.fault_codes;
+    expect(await fleetPanel()).toMatchObject([{ code: 'J1939 SPN 110 FMI 0' }]);
+    for (let h = 24; h <= 25; h++) {
+      wall = lastSeen + h * 3_600_000;
+      await aemp()(ctx('fleet.aemp'));
+    }
+    const [closed] = await openL1();
+    expect(closed?.cleared_at?.toISOString()).toBe(new Date(lastSeen + 86_400_000).toISOString());
+    expect(await fleetPanel()).toEqual([]);
+  });
+
+  test('a mode change closes the source codes an earlier mode raised', async () => {
+    expect(
+      (await knob('/aemp/faults', { action: 'add', machine: 'L1', code: 'SPN 100 FMI 1' })).status,
+    ).toBe(200);
+    wall += 16 * 60_000;
+    await aemp()(ctx('fleet.aemp'));
+    const open = async () =>
+      Number(
+        (
+          await t().pool.query(
+            `select count(*) from farm.machine_faults
+              where source = 'aemp' and cleared_at is null`,
+          )
+        ).rows[0].count,
+      );
+    expect(await open()).toBe(1);
+    // AEMP turned off (or switched to live, or from a replay run back to sim): closed.
+    cfg = { ...cfg, CONNECTOR_AEMP: 'off' };
+    wall += 60_000;
+    await aemp()(ctx('fleet.aemp'));
+    expect(await open()).toBe(0);
+    const st = await t().pool.query(
+      `select mode from ingest.sync_state where source = 'aemp' and stream = $1`,
+      [AEMP_FAULTS_STREAM],
+    );
+    expect(st.rows[0]?.mode).toBe('off');
+    cfg = { ...cfg, CONNECTOR_AEMP: 'sim' };
   });
 });

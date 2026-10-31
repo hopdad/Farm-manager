@@ -340,8 +340,9 @@ export interface NormalizedVehicleStat {
    * 1f.2, `delta` only: for a vendor whose faults carry no cleared state (ISO 15143-3 FaultCode
    * items and CNH's Faults series are occurrences; some Terminal providers never send `closed`),
    * an open fault of this machine and source not seen for this many seconds is closed by the
-   * writer (docs/contracts-1f.md §5.3; default DELTA_FAULT_AGE_OUT_SECONDS). Unset: faults close
-   * only when the vendor says so.
+   * writer's age-out sweep after a faults run that checked the machine (docs/contracts-1f.md
+   * §5.3; mappers pass DELTA_FAULT_AGE_OUT_SECONDS). Unset: the vendor says when a fault closes,
+   * and the 7-day backstop (DELTA_FAULT_BACKSTOP_SECONDS) covers a lost "closed" record.
    */
   faultAgeOutSeconds?: number;
 }
@@ -616,6 +617,14 @@ export interface SyncStepSpec<TRaw = unknown, TNorm = unknown> {
    * Not called when nothing was claimed (skipped).
    */
   afterRun?(result: SyncStepResult, ctx: SyncContext): Promise<void>;
+  /**
+   * Optional hook (1f review): the stream's stored mode differs from `mode` (sim → live, replay
+   * → sim, anything → off). Called by runSyncStep BEFORE ensureStream switches the row (so a
+   * failure here is retried by the next run), also when the new mode is 'off'. A faults stream
+   * closes its source's open codes here (`closeSourceFaults`): codes raised by a stand-in or a
+   * fixture must not outlive the mode that raised them.
+   */
+  onModeChange?(change: { from: Mode; to: Mode }, ctx: SyncContext): Promise<void>;
 }
 
 export interface SyncStepResult {

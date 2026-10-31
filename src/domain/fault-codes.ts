@@ -60,9 +60,29 @@ export const J1939_MAX_FMI = 31;
  * FaultCode items and CNH's Faults series are bare occurrences; some Terminal providers never
  * send `closed`) is closed by the writer when it hasn't been seen for this long
  * (`NormalizedVehicleStat.faultAgeOutSeconds`; docs/contracts-1f.md §5.3). A day covers one
- * hourly AEMP snapshot missed many times over.
+ * hourly AEMP snapshot missed many times over. Measured against the time a successful faults
+ * run checked the machine through (the writer's sweep, `ageOutFaults`), never against the next
+ * occurrence: a fault that stops recurring has no next occurrence.
  */
 export const DELTA_FAULT_AGE_OUT_SECONDS = 86_400;
+
+/**
+ * The backstop for `delta` sources that DO send a cleared state (Motive, Geotab, CNH's caution
+ * codes, Terminal providers that send `closed`): a code none of their reports has named for a
+ * week closes by itself, so a lost "closed" record or a feed that went away can't leave a code
+ * open for ever. A week is Motive's own /v1/fault_codes window: an open fault older than that is
+ * no longer listed, so nothing could close it later. Applied by the writer to a delta fault with
+ * no `faultAgeOutSeconds`.
+ */
+export const DELTA_FAULT_BACKSTOP_SECONDS = 7 * 86_400;
+
+/**
+ * Samsara's OBD-II codes are listed per control module, and a reading may leave a module out
+ * (docs/contracts-1f.md §5.3). An open OBD-II code whose module a NEWER reading left out closes
+ * once no reading has named it for this long (the same day as the delta age-out); a reading that
+ * names it again keeps it open.
+ */
+export const OBD_UNNAMED_MODULE_AGE_OUT_SECONDS = DELTA_FAULT_AGE_OUT_SECONDS;
 
 /**
  * An ISO 15143-3 `CodeIdentifier` (whose structure "can differ among OEMs") as J1939 when it

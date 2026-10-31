@@ -49,6 +49,7 @@ import {
   positionsUpsert,
   publishSyncStatus,
   tickAfterRun,
+  withFaultLifecycle,
 } from './fleet-shared';
 import type { JobContext, JobResult } from './types';
 
@@ -97,14 +98,16 @@ export function createFleetMotiveJob(opts: FleetJobOptions = {}) {
       upsert: statsUpsert(resolve),
       afterRun: publishSyncStatus,
     };
-    const faultsSpec: SyncStepSpec<MotiveFaultRaw, NormalizedVehicleStat> = {
+    // One list of every vehicle's fault records: the sweep covers the whole source (the 7-day
+    // backstop, decision 1f-12); a mode change closes the source's codes.
+    const faultsSpec = withFaultLifecycle<MotiveFaultRaw>({
       ...step,
       stream: MOTIVE_FAULTS_STREAM,
       poll: async (cursor) => (await motive()).pollFaults(cursor),
       map: (raw) => mapMotiveFault(raw),
       upsert: statsUpsert(resolve),
       afterRun: publishSyncStatus,
-    };
+    });
     const vehicles = vehicleListUpsert(resolve, publishSyncStatus);
     const vehiclesSpec: SyncStepSpec<MotiveVehicleRaw, NormalizedVehicle> = {
       ...step,

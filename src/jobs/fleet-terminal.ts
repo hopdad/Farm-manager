@@ -23,7 +23,7 @@
  */
 import { getConfig } from '../config';
 import { runSyncStep } from '../connectors/sync-step';
-import { TerminalClient } from '../connectors/terminal/client';
+import { TerminalClient, terminalFaultsChecked } from '../connectors/terminal/client';
 import {
   mapTerminalFault,
   mapTerminalPosition,
@@ -57,6 +57,7 @@ import {
   positionsUpsert,
   publishSyncStatus,
   tickAfterRun,
+  withFaultLifecycle,
 } from './fleet-shared';
 import type { JobContext, JobResult } from './types';
 
@@ -135,14 +136,23 @@ export function createFleetTerminalJob(opts: FleetJobOptions = {}) {
       upsert: statsUpsert(resolve),
       afterRun: publishSyncStatus,
     };
-    const faultsSpec: SyncStepSpec<TerminalFaultRaw, NormalizedVehicleStat> = {
-      ...step,
-      stream: TERMINAL_FAULTS_STREAM,
-      poll: async (cursor) => (await terminal()).pollFaults(cursor),
-      map: (raw) => mapTerminalFault(raw),
-      upsert: statsUpsert(resolve),
-      afterRun: publishSyncStatus,
-    };
+    // Per connection (a hauler): the sweep covers the connections this run read, through the
+    // time it read each (a refused connection keeps its codes; decision 1f-12).
+    const faultsSpec = withFaultLifecycle<TerminalFaultRaw>(
+      {
+        ...step,
+        stream: TERMINAL_FAULTS_STREAM,
+        poll: async (cursor) => (await terminal()).pollFaults(cursor),
+        map: (raw) => mapTerminalFault(raw),
+        upsert: statsUpsert(resolve),
+        afterRun: publishSyncStatus,
+      },
+      (result) =>
+        Object.entries(terminalFaultsChecked(result.cursor)).map(([sourceOrg, at]) => ({
+          sourceOrg,
+          through: new Date(at),
+        })),
+    );
     const vehicles = vehicleListUpsert(resolve, publishSyncStatus);
     const vehiclesSpec: SyncStepSpec<TerminalVehicleRaw, NormalizedVehicle> = {
       ...step,

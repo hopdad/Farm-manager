@@ -2,6 +2,7 @@
  * runSyncStep: the one sync step every source uses (plan §5 "Common shape", contracts §8).
  *
  *   0. ensureStream(pool, source, stream, mode); mode 'off' → { claimed: false, skipped: 'off' }
+ *      (1f review: with `onModeChange`, a stored mode that differs calls it first, also for 'off')
  *   1. claimDue(pool, source, stream, leaseSeconds ?? 90); null → skipped 'lease held elsewhere'
  *   2-3. poll(cursor) → ONE transaction lands the raw items in ingest.raw_events (sha256 dedupe)
  *      and advanceCursor(tx, lease, cursor) (false → roll back: 'lease lost'). While the vendor
@@ -37,6 +38,7 @@ import { isCountedMode, recordRunCalls, upsertApiCalls } from '../db/queries/api
 import type { JobContext } from '../jobs/types';
 import { CallTally, withCallTally } from './http';
 import {
+  type Mode,
   type RawItem,
   type RunSyncStep,
   retryAfterFrom,
@@ -194,6 +196,16 @@ async function processPending<TRaw, TNorm>(
 export const runSyncStep: RunSyncStep = async (spec, ctx) => {
   const sctx: SyncContext = { job: ctx, source: spec.source, stream: spec.stream, mode: spec.mode };
   // 0-1: database errors here throw (nothing is held yet).
+  if (spec.onModeChange) {
+    // Before ensureStream flips the row, so a failed hook runs again on the next run.
+    const prev = await exec<{ mode: Mode }>(
+      ctx.pool,
+      'select mode from ingest.sync_state where source = $1 and stream = $2',
+      [spec.source, spec.stream],
+    );
+    const from = prev.rows[0]?.mode;
+    if (from && from !== spec.mode) await spec.onModeChange({ from, to: spec.mode }, sctx);
+  }
   await ensureStream(ctx.pool, spec.source, spec.stream, spec.mode);
   if (spec.mode === 'off') {
     return {

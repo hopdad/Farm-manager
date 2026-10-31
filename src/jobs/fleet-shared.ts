@@ -13,12 +13,15 @@ import {
   type ConnectorSource,
   externalRefKey,
   type NormalizedPosition,
+  type NormalizedVehicleStat,
   type SyncContext,
   type SyncStepResult,
+  type SyncStepSpec,
 } from '../connectors/types';
 import { type Executor, exec, toDate } from '../db/exec';
 import { resolveExternalRefs } from '../db/external-refs';
 import { fleetSnapshot, upsertPosition } from '../db/queries/fleet';
+import { ageOutFaults, closeSourceFaults, type FaultCoverage } from '../db/queries/machine-faults';
 import type { StaleThresholds } from '../domain/fleet';
 import { publish } from '../platform/realtime/publish';
 import { detectGeofenceVisits } from './geofences';
@@ -146,5 +149,72 @@ export function positionsUpsert(
     if (!id) return;
     const stored = await upsertPosition(tx, id, p, stale);
     if (stored.inserted) await detectGeofenceVisits(tx, id, p.ts);
+  };
+}
+
+/**
+ * What a faults run checked, for the age-out sweep: the run's first poll time, and whether its
+ * last poll said the vendor had nothing more (a feed with a backlog left isn't caught up).
+ */
+export interface FaultsRunTrack {
+  startedAt: Date | null;
+  caughtUp: boolean;
+}
+
+/**
+ * A faults stream with the fault lifecycle around it (decision 1f-12, docs/contracts-1f.md §5.3):
+ *  - a mode change (sim → live, replay → sim, → off) closes the source's open codes
+ *    (`closeSourceFaults`);
+ *  - after a successful run that caught up and left no raw event pending, the age-out sweep
+ *    (`ageOutFaults`) closes the codes whose window ran out before the time the run checked their
+ *    machine through. `coverage` says what the run covered (default: every machine of the source,
+ *    through the run's first poll); return [] when it covered nothing.
+ * Every faults spec goes through this, so no source can leave a code open for ever.
+ */
+export function withFaultLifecycle<TRaw>(
+  spec: SyncStepSpec<TRaw, NormalizedVehicleStat>,
+  coverage?: (result: SyncStepResult, track: FaultsRunTrack) => FaultCoverage[],
+): SyncStepSpec<TRaw, NormalizedVehicleStat> {
+  const track: FaultsRunTrack = { startedAt: null, caughtUp: false };
+  return {
+    ...spec,
+    poll: async (cursor, sctx) => {
+      track.startedAt ??= sctx.job.now();
+      track.caughtUp = false;
+      const r = await spec.poll(cursor, sctx);
+      track.caughtUp = !r.hasMore;
+      return r;
+    },
+    onModeChange: async (change, sctx) => {
+      const r = await sctx.job.db.transaction((tx) => closeSourceFaults(tx, spec.source));
+      sctx.job.log.info('faults: mode changed; the open codes of the source were closed', {
+        source: spec.source,
+        from: change.from,
+        to: change.to,
+        cleared: r.cleared,
+      });
+    },
+    afterRun: async (result, sctx) => {
+      if (spec.afterRun) await spec.afterRun(result, sctx);
+      if (!result.ok || !track.caughtUp || !track.startedAt) return;
+      const pending = await exec(
+        sctx.job.pool,
+        `select 1 from ingest.raw_events
+          where source = $1 and stream = $2 and status = 'pending' limit 1`,
+        [spec.source, spec.stream],
+      );
+      if (pending.rowCount) return; // the next run sweeps once they are applied
+      const cov = coverage
+        ? coverage(result, track)
+        : [{ through: track.startedAt } satisfies FaultCoverage];
+      if (!cov.length) return;
+      const r = await sctx.job.db.transaction((tx) => ageOutFaults(tx, spec.source, cov));
+      if (r.cleared) {
+        sctx.job.log.info('faults: aged out (not seen within their window)', {
+          source: spec.source,
+          cleared: r.cleared,
+        });
+      }
+    },
   };
 }
