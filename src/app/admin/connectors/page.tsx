@@ -33,12 +33,7 @@ import {
   simResetAction,
   simScenarioAction,
 } from './actions';
-import {
-  type ConnectorsSnapshot,
-  type JobRow,
-  loadConnectorsSnapshot,
-  type StreamRow,
-} from './data';
+import { type ConnectorsSnapshot, type JobRow, loadConnectorsSnapshot } from './data';
 import { loadSyncHealth, type SyncHealthSnapshot } from './health';
 import {
   Badge,
@@ -56,22 +51,10 @@ import {
   getSimStatus,
   SPEED_PRESETS,
 } from './sim-control';
+import { sourceCadences, streamHealth } from './stream-health';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Connectors · Farm Ops' };
-
-function streamHealth(
-  s: StreamRow,
-  now: Date,
-): { kind: 'ok' | 'bad' | 'warn' | 'idle'; text: string } {
-  if (s.mode === 'off') return { kind: 'idle', text: 'off' };
-  const okAt = s.lastOkAt?.getTime() ?? 0;
-  const errAt = s.lastErrorAt?.getTime() ?? 0;
-  if (errAt > okAt) return { kind: 'bad', text: 'failing' };
-  if (!okAt) return { kind: 'idle', text: 'not run yet' };
-  if (now.getTime() - okAt > 10 * 60_000) return { kind: 'warn', text: 'stale' };
-  return { kind: 'ok', text: 'ok' };
-}
 
 function jobHealth(j: JobRow): { kind: 'ok' | 'bad' | 'warn' | 'idle'; text: string } {
   if (!j.registered) return { kind: 'idle', text: 'not registered' };
@@ -283,6 +266,7 @@ function SimCard({
 }
 
 function StreamsCard({ snap, now }: { snap: ConnectorsSnapshot; now: Date }) {
+  const cadences = sourceCadences(registry, now);
   return (
     <section className={css.card}>
       <h2>Connector streams</h2>
@@ -304,7 +288,7 @@ function StreamsCard({ snap, now }: { snap: ConnectorsSnapshot; now: Date }) {
             </thead>
             <tbody>
               {snap.streams.map((s) => {
-                const h = streamHealth(s, now);
+                const h = streamHealth(s, now, cadences[s.source] ?? null);
                 const leased = s.leaseUntil && s.leaseUntil > now;
                 return (
                   <tr key={`${s.source}|${s.stream}`}>
