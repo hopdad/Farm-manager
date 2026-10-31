@@ -174,10 +174,9 @@ export async function recordSource(opts: RecordOptions): Promise<RecordReport> {
       if (notSimulated(e)) {
         recorded.splice(from); // the stand-in's 404 is not a vendor shape
         report.skipped.push({ stream: s.stream, name: s.name, path: e.path });
-        log(`skipped ${s.stream}/${s.name}: ${e.path} is not simulated`);
       } else {
         report.failed.push({ stream: s.stream, name: s.name, error: (e as Error).message });
-        log(`failed ${s.stream}/${s.name}: ${(e as Error).message}`);
+        log(`${s.stream}/${s.name} failed: ${(e as Error).message}`);
       }
       return null;
     } finally {
