@@ -13,6 +13,17 @@
  * they drift (after a change to the sim farm, say). Regenerate with
  *   pnpm exec tsx src/connectors/deere/fixtures/write.ts   then   pnpm lint:fix
  *
+ * 1f (deere-data, docs/contracts-1f.md §8): `buildDeereFieldsFixtures()` makes the numbers 20-29
+ * (./doc-derived/<stream>/2x-*.json, listed by ../fields/replay.ts): the fields listing with
+ * farms and clients embedded plus the org boundary, farm and client listings (with the one
+ * Deere-only field of the stand-in: the creation path), flags with their category (archived ones
+ * too) and each machine's latest engine hours, from the same pure functions as the stand-in's
+ * `fields` module (src/sim/vendors/deere/fields-world.ts, src/sim/farm/flags.ts), so replay and
+ * sim show the same data. Their requests name the query the deere.fields client sends
+ * (`recordFilter`, `embed`, `lastKnown`), so they shadow the 1a exchanges only for that client.
+ * They shift by whole days (`shiftStepSeconds` 86 400): a re-run within the day replays the same
+ * bytes, so the sync writes nothing the second time.
+ *
  * MOVING MACHINES. A breadcrumb fixture holds one 30-minute period of working breadcrumbs
  * (`shiftStepSeconds` = the period, `anchor` = its start). Replayed, the whole period moves to the
  * current one; the client keeps only breadcrumbs in the window it asked for (cursor, now], so the
@@ -21,8 +32,20 @@
 import type { MultiPolygon, Polygon, Position } from 'geojson';
 import { deterministicId } from '../../../domain/ids';
 import { buildDemoFarm } from '../../../sim/farm/build';
+import { simFlags } from '../../../sim/farm/flags';
 import { cropFor, yieldFor } from '../../../sim/seasons';
 import type { LngLat, SimField, SimMachine } from '../../../sim/types';
+import {
+  deereBoundaryJson,
+  deereClientJson,
+  deereEngineHoursJson,
+  deereFarmJson,
+  deereFieldJson,
+  deereFlagJson,
+  simDeereFieldRecords,
+  simOrgClients,
+  simOrgFarms,
+} from '../../../sim/vendors/deere/fields-world';
 import { simDeereOrgs } from '../../../sim/vendors/deere/routes';
 import { createDemoWorld, type DemoWorld } from '../../../sim/world';
 import type { ReplayExchange, ReplayFixture } from '../../replay';
@@ -746,6 +769,110 @@ function flagsFixture(c: Ctx): ReplayFixture {
   const fPath = `${fieldPath(c.orgOfField.get(d0.field.id) as string, d0.field.deereFieldId)}/flags`;
   exchanges.push(get(fPath, collection(fPath, [all[0]])));
   return fixture('flags', REF.flags, SETUP_ANCHOR, exchanges);
+}
+
+// ---------------------------------------------------------------------------------------------
+// 1f (deere-data): fields with farms and clients, boundaries, flags with categories, engine hours
+// ---------------------------------------------------------------------------------------------
+
+const DAY_SECONDS = 86_400;
+
+const REF_1F = {
+  fields:
+    'https://developer.deere.com/dev-docs/fields (GET /organizations/{orgId}/fields?recordFilter=ALL&embed=farms,clients: FieldResponse with farms.farms and clients.clients); https://developer.deere.com/dev-docs/boundaries (GET /organizations/{orgId}/boundaries?recordFilter=active); https://developer.deere.com/dev-docs/farms (GET /organizations/{orgId}/farms, clientUri); https://developer.deere.com/dev-docs/clients (GET /organizations/{orgId}/clients)',
+  flags:
+    'https://developer.deere.com/dev-docs/flags (GET /organizations/{orgId}/flags?recordFilter=all&embed=flagCategory: archived flags only when asked, geometry as a GeoJSON string; FlagCategory.categoryTitle)',
+  hours:
+    'https://developer.deere.com/dev-docs/machine-engine-hours (GET /machines/{principalId}/engineHours?lastKnown=true: reading { valueAsDouble, unit: Hours }, reportTime, source)',
+};
+
+/** The deere.fields fields listing, org boundaries, farms and clients of every org. */
+function fieldsWithRefsFixture(c: Ctx): ReplayFixture {
+  const records = simDeereFieldRecords(c.farm);
+  const exchanges: ReplayExchange[] = [];
+  for (const org of simDeereOrgs(c.farm)) {
+    const mine = records.filter((r) => r.orgId === org.id);
+    const base = `/organizations/${enc(org.id)}`;
+    exchanges.push(
+      ...paged(
+        `${base}/fields`,
+        mine.map((r) => deereFieldJson(API, r, true)),
+        FIELDS_PAGE_SIZE,
+        { recordFilter: 'ALL', embed: 'farms,clients' },
+      ),
+    );
+    exchanges.push(
+      get(
+        `${base}/boundaries`,
+        collection(
+          withQuery(`${base}/boundaries`, { recordFilter: 'active' }),
+          mine.map((r) => deereBoundaryJson(API, r)),
+        ),
+        { recordFilter: 'active' },
+      ),
+    );
+    exchanges.push(
+      get(
+        `${base}/farms`,
+        collection(
+          withQuery(`${base}/farms`, { recordFilter: 'all' }),
+          simOrgFarms(records, org.id).map((x) => deereFarmJson(API, org.id, x)),
+        ),
+        { recordFilter: 'all' },
+      ),
+    );
+    exchanges.push(
+      get(
+        `${base}/clients`,
+        collection(
+          withQuery(`${base}/clients`, { recordFilter: 'ALL' }),
+          simOrgClients(records, org.id).map((x) => deereClientJson(API, org.id, x)),
+        ),
+        { recordFilter: 'ALL' },
+      ),
+    );
+  }
+  return fixture('fields', REF_1F.fields, SETUP_ANCHOR, exchanges, DAY_SECONDS);
+}
+
+/** Every org's flags (archived ones too), each with its category. */
+function flagsWithCategoryFixture(c: Ctx): ReplayFixture {
+  const flags = simFlags(c.farm, SEED);
+  const query = { recordFilter: 'all', embed: 'flagCategory' };
+  const exchanges = simDeereOrgs(c.farm).map((org) => {
+    const path = `/organizations/${enc(org.id)}/flags`;
+    const values = flags.filter((f) => f.orgId === org.id).map((f) => deereFlagJson(API, f, true));
+    return get(path, collection(withQuery(path, query), values), query);
+  });
+  return fixture('flags', REF_1F.flags, SETUP_ANCHOR, exchanges, DAY_SECONDS);
+}
+
+/** Each Deere machine's latest engine-hours report: the last 15-minute report before the anchor. */
+function engineHoursFixture(c: Ctx): ReplayFixture {
+  const at = new Date(Date.parse(SETUP_ANCHOR) - 15 * 60_000);
+  const exchanges = deereMachines(c.farm).map((m) => {
+    const id = m.vendorIds.deere as string;
+    const path = `/machines/${enc(id)}/engineHours`;
+    const hours = c.world.machineAt(m.id, at)?.engineHours ?? 0;
+    return get(
+      path,
+      collection(withQuery(path, { lastKnown: 'true' }), [
+        deereEngineHoursJson(API, id, hours, at.toISOString()),
+      ]),
+      { lastKnown: 'true' },
+    );
+  });
+  return fixture('hours', REF_1F.hours, SETUP_ANCHOR, exchanges, DAY_SECONDS);
+}
+
+/** deere-data's 1f fixtures (numbers 20-29), by their path under ./doc-derived/. */
+export function buildDeereFieldsFixtures(): Record<string, ReplayFixture> {
+  const c = context();
+  return {
+    'fields/20-fields.json': fieldsWithRefsFixture(c),
+    'flags/20-flags.json': flagsWithCategoryFixture(c),
+    'hours/20-engine-hours.json': engineHoursFixture(c),
+  };
 }
 
 /** Every Deere doc-derived fixture, by its path under ./doc-derived/. */

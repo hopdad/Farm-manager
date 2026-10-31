@@ -1,0 +1,1526 @@
+{
+  "format": 1,
+  "source": "deere",
+  "stream": "flags",
+  "kind": "doc-derived",
+  "reference": "https://developer.deere.com/dev-docs/flags (GET /organizations/{orgId}/flags?recordFilter=all&embed=flagCategory: archived flags only when asked, geometry as a GeoJSON string; FlagCategory.categoryTitle). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "shiftStepSeconds": 86400,
+  "basePath": "/platform",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-customer-1/flags",
+        "query": {
+          "recordFilter": "all",
+          "embed": "flagCategory"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/flags?recordFilter=all&embed=flagCategory"
+            }
+          ],
+          "total": 7,
+          "values": [
+            {
+              "@type": "Flag",
+              "id": "83d29cf0-4470-577c-93ae-7a145521f389",
+              "geometry": "{\"type\":\"LineString\",\"coordinates\":[[-83.733693,41.84654],[-83.732743,41.847247]]}",
+              "notes": "Gully forming on the slope",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-04-04T17:31:00.000Z",
+              "lastModifiedTime": "2026-04-04T18:57:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "087db80a-431c-59f0-9175-20f9f5bbfeae",
+                "categoryTitle": "Washout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/flagCategories/087db80a-431c-59f0-9175-20f9f5bbfeae?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/658ef263-f082-5c18-ba62-b7201b69aebc"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "a0e190a8-433e-50fa-b941-af09a7359a57",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.730386,41.846405]}",
+              "notes": "Rock pile at the headland",
+              "archived": false,
+              "proximityAlertEnabled": true,
+              "createdTime": "2026-04-01T14:14:00.000Z",
+              "lastModifiedTime": "2026-04-01T16:12:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "faeb7409-51e6-5c6b-8e5a-d060d1ed2726",
+                "categoryTitle": "Rocks",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/flagCategories/faeb7409-51e6-5c6b-8e5a-d060d1ed2726?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/658ef263-f082-5c18-ba62-b7201b69aebc"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "b2048d7f-43cc-544a-9583-113e335b7604",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.745341,41.926627]}",
+              "notes": "Tile blowout, fix after harvest",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-05-05T12:14:00.000Z",
+              "lastModifiedTime": "2026-05-05T13:24:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "f68b7fca-e89c-53b3-864a-9fcd91740111",
+                "categoryTitle": "Tile Blowout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/flagCategories/f68b7fca-e89c-53b3-864a-9fcd91740111?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/1ad4195f-5136-5223-9354-1629af21ae94"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "29c72c2a-85f9-595b-9e76-5ce90c4d5cf4",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.73667,41.925695]}",
+              "notes": "Old well cap",
+              "archived": false,
+              "proximityAlertEnabled": true,
+              "createdTime": "2026-08-09T20:45:00.000Z",
+              "lastModifiedTime": "2026-08-09T22:30:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "348df01f-590d-54d4-b996-f9f896921584",
+                "categoryTitle": "Hazard",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/flagCategories/348df01f-590d-54d4-b996-f9f896921584?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/48f84647-1387-5b1a-872d-c1415c47567f"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "5ae71427-220c-5858-9525-dcd072213e2d",
+              "geometry": "{\"type\":\"LineString\",\"coordinates\":[[-83.768769,41.914075],[-83.766876,41.914782]]}",
+              "notes": "Gully forming on the slope",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-07-12T17:40:00.000Z",
+              "lastModifiedTime": "2026-07-12T19:07:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "087db80a-431c-59f0-9175-20f9f5bbfeae",
+                "categoryTitle": "Washout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/flagCategories/087db80a-431c-59f0-9175-20f9f5bbfeae?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/903599de-1cac-5557-9c39-07ca36e13b91"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "24095ced-362d-5480-a25c-e7dd939e2862",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.769903,41.911677]}",
+              "notes": "Broken tile main",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-04-27T17:32:00.000Z",
+              "lastModifiedTime": "2026-04-27T18:25:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "f68b7fca-e89c-53b3-864a-9fcd91740111",
+                "categoryTitle": "Tile Blowout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/flagCategories/f68b7fca-e89c-53b3-864a-9fcd91740111?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/903599de-1cac-5557-9c39-07ca36e13b91"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "f0a382b6-298b-5639-b6ab-b5ce230766b4",
+              "geometry": "{\"type\":\"LineString\",\"coordinates\":[[-83.701012,41.876176],[-83.699118,41.876883]]}",
+              "notes": "Washout along the waterway",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-04-14T20:32:00.000Z",
+              "lastModifiedTime": "2026-04-14T22:27:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "087db80a-431c-59f0-9175-20f9f5bbfeae",
+                "categoryTitle": "Washout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/flagCategories/087db80a-431c-59f0-9175-20f9f5bbfeae?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-1/fields/0966130f-e67d-5fcc-bcd2-78e178c55ccd"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-customer-2/flags",
+        "query": {
+          "recordFilter": "all",
+          "embed": "flagCategory"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-customer-2/flags?recordFilter=all&embed=flagCategory"
+            }
+          ],
+          "total": 0,
+          "values": []
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/organizations/org-home/flags",
+        "query": {
+          "recordFilter": "all",
+          "embed": "flagCategory"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "links": [
+            {
+              "rel": "self",
+              "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flags?recordFilter=all&embed=flagCategory"
+            }
+          ],
+          "total": 30,
+          "values": [
+            {
+              "@type": "Flag",
+              "id": "dba35785-8e3f-5480-990f-f1ff05963c30",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-84.079505,41.861084]}",
+              "notes": "Broken tile main",
+              "archived": true,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-07-10T15:10:00.000Z",
+              "lastModifiedTime": "2026-07-10T16:12:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "f68b7fca-e89c-53b3-864a-9fcd91740111",
+                "categoryTitle": "Tile Blowout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/f68b7fca-e89c-53b3-864a-9fcd91740111?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/3df37e9a-b738-5550-81a1-0a06bc27ef2a"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "b420181b-516e-5b48-b045-b3d6deae479d",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-84.058038,41.854494]}",
+              "notes": "Old well cap",
+              "archived": false,
+              "proximityAlertEnabled": true,
+              "createdTime": "2026-07-25T16:44:00.000Z",
+              "lastModifiedTime": "2026-07-25T16:53:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "348df01f-590d-54d4-b996-f9f896921584",
+                "categoryTitle": "Hazard",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/348df01f-590d-54d4-b996-f9f896921584?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/fc44cfae-ebce-589c-b08c-635d9bf603bd"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "601087de-ca85-5981-9411-cffca0cf6216",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-84.056418,41.854537]}",
+              "notes": "Stone, mark before tillage",
+              "archived": false,
+              "proximityAlertEnabled": true,
+              "createdTime": "2026-06-09T13:56:00.000Z",
+              "lastModifiedTime": "2026-06-09T14:04:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "faeb7409-51e6-5c6b-8e5a-d060d1ed2726",
+                "categoryTitle": "Rocks",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/faeb7409-51e6-5c6b-8e5a-d060d1ed2726?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/fc44cfae-ebce-589c-b08c-635d9bf603bd"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "f603be31-acbc-5d9a-b419-637f4c936aac",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-84.017418,41.849328]}",
+              "notes": "Tile blowout, fix after harvest",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-05-19T12:21:00.000Z",
+              "lastModifiedTime": "2026-05-19T14:01:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "f68b7fca-e89c-53b3-864a-9fcd91740111",
+                "categoryTitle": "Tile Blowout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/f68b7fca-e89c-53b3-864a-9fcd91740111?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/50c1c8b6-401d-5b72-bbaf-9dfeaba691a7"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "5f9ab69d-cb9d-544b-8f13-d35c5fde8f96",
+              "geometry": "{\"type\":\"Polygon\",\"coordinates\":[[[-83.97321,41.893507],[-83.972452,41.893507],[-83.972452,41.893791],[-83.97321,41.893791],[-83.97321,41.893507]]]}",
+              "notes": "Waterhemp patch",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-06-09T21:37:00.000Z",
+              "lastModifiedTime": "2026-06-09T22:25:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "229397ca-dfb5-59c2-9acb-b396525a503c",
+                "categoryTitle": "Weeds",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/229397ca-dfb5-59c2-9acb-b396525a503c?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c5690a91-79a8-59d6-b960-cb2ae2ef09c1"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "708934a8-c3cc-574b-b7e2-e08cfd7d0bba",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.975225,41.894246]}",
+              "notes": "Big rock, lift the header",
+              "archived": false,
+              "proximityAlertEnabled": true,
+              "createdTime": "2026-08-20T13:53:00.000Z",
+              "lastModifiedTime": "2026-08-20T14:52:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "faeb7409-51e6-5c6b-8e5a-d060d1ed2726",
+                "categoryTitle": "Rocks",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/faeb7409-51e6-5c6b-8e5a-d060d1ed2726?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/c5690a91-79a8-59d6-b960-cb2ae2ef09c1"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "ea4a9afc-930b-5aff-aee6-cd53a3f6d8e1",
+              "geometry": "{\"type\":\"Polygon\",\"coordinates\":[[[-84.090902,41.90456],[-84.090532,41.90456],[-84.090532,41.905126],[-84.090902,41.905126],[-84.090902,41.90456]]]}",
+              "notes": "Waterhemp patch",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-08-08T16:28:00.000Z",
+              "lastModifiedTime": "2026-08-08T18:19:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "229397ca-dfb5-59c2-9acb-b396525a503c",
+                "categoryTitle": "Weeds",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/229397ca-dfb5-59c2-9acb-b396525a503c?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/53873dc3-eb23-54d2-89f8-185c9a6d2362"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "7d908505-014d-58d0-98c9-6fc94ba786f3",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.970141,41.921134]}",
+              "notes": "Rock pile at the headland",
+              "archived": false,
+              "proximityAlertEnabled": true,
+              "createdTime": "2026-05-10T18:12:00.000Z",
+              "lastModifiedTime": "2026-05-10T19:55:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "faeb7409-51e6-5c6b-8e5a-d060d1ed2726",
+                "categoryTitle": "Rocks",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/faeb7409-51e6-5c6b-8e5a-d060d1ed2726?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b7dae8a8-95a4-5792-a1e1-4aca66eb9993"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "c68b2ee6-2679-59e1-a2da-c94cc2c6449d",
+              "geometry": "{\"type\":\"Polygon\",\"coordinates\":[[[-84.018064,41.944536],[-84.017695,41.944536],[-84.017695,41.945102],[-84.018064,41.945102],[-84.018064,41.944536]]]}",
+              "notes": "Waterhemp patch",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-07-14T21:03:00.000Z",
+              "lastModifiedTime": "2026-07-14T22:47:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "229397ca-dfb5-59c2-9acb-b396525a503c",
+                "categoryTitle": "Weeds",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/229397ca-dfb5-59c2-9acb-b396525a503c?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/a09641b6-c3f0-55db-af84-b33b64f1ff85"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "b4e843a9-9b95-5db6-a207-5cebae8b7aa7",
+              "geometry": "{\"type\":\"Polygon\",\"coordinates\":[[[-83.902694,41.787701],[-83.901936,41.787701],[-83.901936,41.787977],[-83.902694,41.787977],[-83.902694,41.787701]]]}",
+              "notes": "Soft ground, got stuck",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-04-14T17:49:00.000Z",
+              "lastModifiedTime": "2026-04-14T18:51:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "dcbbb8ed-ed4b-5de6-bdec-3227d100f7f4",
+                "categoryTitle": "Wet Spot",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/dcbbb8ed-ed4b-5de6-bdec-3227d100f7f4?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/1128d48b-b257-597b-8db3-458b1c571b51"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "2a14c36b-240b-5f07-84d3-80656140d711",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.901227,41.787858]}",
+              "notes": "Big rock, lift the header",
+              "archived": false,
+              "proximityAlertEnabled": true,
+              "createdTime": "2026-07-02T18:25:00.000Z",
+              "lastModifiedTime": "2026-07-02T18:27:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "faeb7409-51e6-5c6b-8e5a-d060d1ed2726",
+                "categoryTitle": "Rocks",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/faeb7409-51e6-5c6b-8e5a-d060d1ed2726?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/1128d48b-b257-597b-8db3-458b1c571b51"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "ad7fcc17-c4ec-502e-bedc-27ae311671fd",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.93446,41.828575]}",
+              "notes": "Stone, mark before tillage",
+              "archived": false,
+              "proximityAlertEnabled": true,
+              "createdTime": "2026-05-21T13:40:00.000Z",
+              "lastModifiedTime": "2026-05-21T15:35:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "faeb7409-51e6-5c6b-8e5a-d060d1ed2726",
+                "categoryTitle": "Rocks",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/faeb7409-51e6-5c6b-8e5a-d060d1ed2726?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9f158e5e-88f2-5e83-8def-90e705851293"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "14c77833-a04d-5f1a-840a-ad9d9a09f646",
+              "geometry": "{\"type\":\"Polygon\",\"coordinates\":[[[-83.934066,41.831428],[-83.933309,41.831428],[-83.933309,41.831994],[-83.934066,41.831994],[-83.934066,41.831428]]]}",
+              "notes": "Soft ground, got stuck",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-05-28T19:03:00.000Z",
+              "lastModifiedTime": "2026-05-28T19:36:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "dcbbb8ed-ed4b-5de6-bdec-3227d100f7f4",
+                "categoryTitle": "Wet Spot",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/dcbbb8ed-ed4b-5de6-bdec-3227d100f7f4?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/479c7862-1877-52ed-9157-a2cdcfeab7b4"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "49a878e8-0277-524a-9dce-9dfb3fa95ef3",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.935193,41.83441]}",
+              "notes": "Tile hole opening up",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-08-24T13:30:00.000Z",
+              "lastModifiedTime": "2026-08-24T14:24:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "f68b7fca-e89c-53b3-864a-9fcd91740111",
+                "categoryTitle": "Tile Blowout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/f68b7fca-e89c-53b3-864a-9fcd91740111?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/479c7862-1877-52ed-9157-a2cdcfeab7b4"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "a8b0c296-0fd6-5c0a-b9f2-d2e29013a7ac",
+              "geometry": "{\"type\":\"Polygon\",\"coordinates\":[[[-83.818804,41.911463],[-83.818047,41.911463],[-83.818047,41.911747],[-83.818804,41.911747],[-83.818804,41.911463]]]}",
+              "notes": "Marestail escape",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-07-06T19:02:00.000Z",
+              "lastModifiedTime": "2026-07-06T19:25:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "229397ca-dfb5-59c2-9acb-b396525a503c",
+                "categoryTitle": "Weeds",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/229397ca-dfb5-59c2-9acb-b396525a503c?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/86a8630d-19f7-5665-95fe-f1ff098b3f62"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "487d928a-975d-56f9-92c2-d28a3d97893e",
+              "geometry": "{\"type\":\"LineString\",\"coordinates\":[[-83.775858,41.933641],[-83.773965,41.933987]]}",
+              "notes": "Gully forming on the slope",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-06-12T20:52:00.000Z",
+              "lastModifiedTime": "2026-06-12T22:26:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "087db80a-431c-59f0-9175-20f9f5bbfeae",
+                "categoryTitle": "Washout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/087db80a-431c-59f0-9175-20f9f5bbfeae?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/012a06b2-fcb9-5382-89de-e4c7440ae5c1"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "47122ea8-01fc-5b7c-87cc-66756b321ce4",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.778777,41.932928]}",
+              "notes": "Drop-off at the ditch bank",
+              "archived": false,
+              "proximityAlertEnabled": true,
+              "createdTime": "2026-05-20T18:58:00.000Z",
+              "lastModifiedTime": "2026-05-20T19:01:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "348df01f-590d-54d4-b996-f9f896921584",
+                "categoryTitle": "Hazard",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/348df01f-590d-54d4-b996-f9f896921584?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/012a06b2-fcb9-5382-89de-e4c7440ae5c1"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "6ac91369-1944-5ed6-b245-92aa122542dd",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.853651,41.900333]}",
+              "notes": "Tile blowout, fix after harvest",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-04-06T19:33:00.000Z",
+              "lastModifiedTime": "2026-04-06T19:50:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "f68b7fca-e89c-53b3-864a-9fcd91740111",
+                "categoryTitle": "Tile Blowout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/f68b7fca-e89c-53b3-864a-9fcd91740111?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/f90b28ac-ba51-5c1a-931d-2c6aa1098f62"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "1de48699-6632-5365-bbbe-9b50c16a6ccd",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.75766,41.929792]}",
+              "notes": "Tile hole opening up",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-05-12T15:28:00.000Z",
+              "lastModifiedTime": "2026-05-12T15:55:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "f68b7fca-e89c-53b3-864a-9fcd91740111",
+                "categoryTitle": "Tile Blowout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/f68b7fca-e89c-53b3-864a-9fcd91740111?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/cd1fa4cb-de29-5513-9134-6725acb3a1bf"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "293d4cae-6915-5296-b762-16563607183d",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.732843,41.915336]}",
+              "notes": "Rock pile at the headland",
+              "archived": false,
+              "proximityAlertEnabled": true,
+              "createdTime": "2026-04-19T19:53:00.000Z",
+              "lastModifiedTime": "2026-04-19T20:39:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "faeb7409-51e6-5c6b-8e5a-d060d1ed2726",
+                "categoryTitle": "Rocks",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/faeb7409-51e6-5c6b-8e5a-d060d1ed2726?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/9acdf590-7691-59db-b5e9-ef242911134a"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "f285ca06-1b6b-5f05-a26a-d3ce7889be44",
+              "geometry": "{\"type\":\"LineString\",\"coordinates\":[[-83.707681,41.884004],[-83.706758,41.884711]]}",
+              "notes": "Washout along the waterway",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-06-21T21:53:00.000Z",
+              "lastModifiedTime": "2026-06-21T22:58:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "087db80a-431c-59f0-9175-20f9f5bbfeae",
+                "categoryTitle": "Washout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/087db80a-431c-59f0-9175-20f9f5bbfeae?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/b0948e12-8ee9-5ef3-8b14-40e019a71437"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "00d30490-8802-5f74-8476-92fe38537396",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.76146,41.885949]}",
+              "notes": "Rock pile at the headland",
+              "archived": false,
+              "proximityAlertEnabled": true,
+              "createdTime": "2026-05-14T17:13:00.000Z",
+              "lastModifiedTime": "2026-05-14T17:37:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "faeb7409-51e6-5c6b-8e5a-d060d1ed2726",
+                "categoryTitle": "Rocks",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/faeb7409-51e6-5c6b-8e5a-d060d1ed2726?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/deb48f24-a500-54ef-95ec-5dd9f82deeb8"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "382d05e7-6d6f-5e09-bb65-4e95b8652feb",
+              "geometry": "{\"type\":\"LineString\",\"coordinates\":[[-83.752691,41.870637],[-83.750797,41.871344]]}",
+              "notes": "Gully forming on the slope",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-04-15T18:05:00.000Z",
+              "lastModifiedTime": "2026-04-15T18:29:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "087db80a-431c-59f0-9175-20f9f5bbfeae",
+                "categoryTitle": "Washout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/087db80a-431c-59f0-9175-20f9f5bbfeae?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/596ae9b6-fb81-5dea-93e4-04d60aa8dbb4"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "98b1b472-2050-5cc6-9964-3df0957a7a88",
+              "geometry": "{\"type\":\"Polygon\",\"coordinates\":[[[-83.748718,41.871884],[-83.74796,41.871884],[-83.74796,41.87245],[-83.748718,41.87245],[-83.748718,41.871884]]]}",
+              "notes": "Waterhemp patch",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-08-06T19:16:00.000Z",
+              "lastModifiedTime": "2026-08-06T20:15:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "229397ca-dfb5-59c2-9acb-b396525a503c",
+                "categoryTitle": "Weeds",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/229397ca-dfb5-59c2-9acb-b396525a503c?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/596ae9b6-fb81-5dea-93e4-04d60aa8dbb4"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "679d30f7-d636-5c9b-b1e0-0d3606664af5",
+              "geometry": "{\"type\":\"LineString\",\"coordinates\":[[-83.73747,41.856276],[-83.735577,41.856622]]}",
+              "notes": "Gully forming on the slope",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-06-02T17:40:00.000Z",
+              "lastModifiedTime": "2026-06-02T19:37:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "087db80a-431c-59f0-9175-20f9f5bbfeae",
+                "categoryTitle": "Washout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/087db80a-431c-59f0-9175-20f9f5bbfeae?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/ff4181b5-d93e-5b92-80c6-c97437779584"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "9f466b6a-4e01-51a8-8c73-6cc454ab0f68",
+              "geometry": "{\"type\":\"Polygon\",\"coordinates\":[[[-83.631731,41.977482],[-83.631362,41.977482],[-83.631362,41.978047],[-83.631731,41.978047],[-83.631731,41.977482]]]}",
+              "notes": "Stays wet after a rain",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-05-27T12:17:00.000Z",
+              "lastModifiedTime": "2026-05-27T13:37:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "dcbbb8ed-ed4b-5de6-bdec-3227d100f7f4",
+                "categoryTitle": "Wet Spot",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/dcbbb8ed-ed4b-5de6-bdec-3227d100f7f4?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/5abd5098-830b-5518-9880-2005d14eb520"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "5a60ca46-957a-5b14-93ac-f97b8fd9eb93",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.689547,41.934179]}",
+              "notes": "Tile hole opening up",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-08-15T17:03:00.000Z",
+              "lastModifiedTime": "2026-08-15T18:26:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "f68b7fca-e89c-53b3-864a-9fcd91740111",
+                "categoryTitle": "Tile Blowout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/f68b7fca-e89c-53b3-864a-9fcd91740111?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/468ee580-a8a0-5ab4-b7c5-e92a5b1942b4"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "ad9fdc19-1733-5706-86b3-3907f13b8b35",
+              "geometry": "{\"type\":\"Polygon\",\"coordinates\":[[[-83.692837,41.935478],[-83.69208,41.935478],[-83.69208,41.936044],[-83.692837,41.936044],[-83.692837,41.935478]]]}",
+              "notes": "Wet spot: go around in spring",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-06-30T18:56:00.000Z",
+              "lastModifiedTime": "2026-06-30T19:13:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "dcbbb8ed-ed4b-5de6-bdec-3227d100f7f4",
+                "categoryTitle": "Wet Spot",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/dcbbb8ed-ed4b-5de6-bdec-3227d100f7f4?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/468ee580-a8a0-5ab4-b7c5-e92a5b1942b4"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "0eb52e57-0f85-55c3-bb77-71253bdef586",
+              "geometry": "{\"type\":\"LineString\",\"coordinates\":[[-83.722691,41.973536],[-83.720797,41.974244]]}",
+              "notes": "Gully forming on the slope",
+              "archived": false,
+              "proximityAlertEnabled": false,
+              "createdTime": "2026-07-30T16:46:00.000Z",
+              "lastModifiedTime": "2026-07-30T18:27:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "087db80a-431c-59f0-9175-20f9f5bbfeae",
+                "categoryTitle": "Washout",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/087db80a-431c-59f0-9175-20f9f5bbfeae?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/d779de22-b3e1-559c-ac0d-47a08ec3aec7"
+                }
+              ]
+            },
+            {
+              "@type": "Flag",
+              "id": "8fe8cb07-43b7-5809-86e9-9832663c688e",
+              "geometry": "{\"type\":\"Point\",\"coordinates\":[-83.63195,41.943583]}",
+              "notes": "Big rock, lift the header",
+              "archived": false,
+              "proximityAlertEnabled": true,
+              "createdTime": "2026-07-21T21:45:00.000Z",
+              "lastModifiedTime": "2026-07-21T23:17:00.000Z",
+              "flagCategory": {
+                "@type": "FlagCategory",
+                "id": "faeb7409-51e6-5c6b-8e5a-d060d1ed2726",
+                "categoryTitle": "Rocks",
+                "preferred": true,
+                "archived": false
+              },
+              "links": [
+                {
+                  "@type": "Link",
+                  "rel": "owningOrganization",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "flagCategoryWithPrefrences",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/flagCategories/faeb7409-51e6-5c6b-8e5a-d060d1ed2726?embed=preferences"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "createdBy",
+                  "uri": "https://sandboxapi.deere.com/platform/users/simulated-operator"
+                },
+                {
+                  "@type": "Link",
+                  "rel": "field",
+                  "uri": "https://sandboxapi.deere.com/platform/organizations/org-home/fields/65bc89d8-1cf4-5b30-8723-869028055093"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

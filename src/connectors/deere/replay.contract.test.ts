@@ -3,16 +3,22 @@
  * runs on the doc-derived fixtures"): the live Deere client (`DeereClient.forReplay`, no OAuth)
  * reads organizations, machines (paged), breadcrumbs, fields (paged), boundaries, field
  * operations with their measurements and coverage, and flags; everything validated by the same
- * schemas as live responses and time-shifted to the moment of the call.
+ * schemas as live responses and time-shifted to the moment of the call. 1f (deere-data): the
+ * deere.fields calls on the 20-29 fixtures (fields with farms and clients, org boundaries, farms,
+ * clients, flags with categories and archived ones, engine hours), shifted by whole days.
  */
 import { describe, expect, test } from 'vitest';
 import { buildDemoFarm } from '../../sim/farm/build';
+import { simFlags } from '../../sim/farm/flags';
 import { simExternalRefs } from '../../sim/types';
+import { simDeereOnlyField } from '../../sim/vendors/deere/fields-world';
 import { simDeereOrgs } from '../../sim/vendors/deere/routes';
 import type { ConnectorConfig } from '../endpoints';
 import { VendorHttpError } from '../http';
 import { REPLAY_ORIGIN } from '../replay';
 import { DeereClient } from './client';
+import { DeereFieldsApi } from './fields/client';
+import { activeBoundaryOf, engineHoursOf, mapDeereFlag, pinKindOfCategory } from './fields/mapper';
 import { LOCATIONS_ANCHOR, LOCATIONS_PERIOD_SECONDS, OPERATIONS_ANCHOR } from './fixtures/build';
 import {
   areaAcres,
@@ -203,5 +209,82 @@ describe('Deere in replay mode: fields, boundaries, operations, flags', () => {
   test('a request no fixture answers is a 404 from the transport, as a vendor error', async () => {
     await expect(c.fields('org-nobody')).rejects.toBeInstanceOf(VendorHttpError);
     await expect(c.fields('org-nobody')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('Deere in replay mode: the deere.fields calls (1f, fixtures 20-29)', () => {
+  const now = new Date('2026-11-30T15:00:00.000Z');
+  const api = new DeereFieldsApi(client(() => now));
+  const only = simDeereOnlyField(farm);
+  const DAY = 86_400_000;
+
+  test('fields with their farm and client embedded; the Deere-only field once, in the home org', async () => {
+    for (const org of simDeereOrgs(farm)) {
+      for (const f of await api.fields(org.id)) {
+        expect(f.farms?.farms).toHaveLength(1);
+        if (f.id === only?.deereFieldId) continue;
+        expect(mapped('field', org.id, f.id)).not.toBeNull();
+      }
+    }
+    const home = await api.fields('org-home');
+    expect(home.filter((f) => f.id === only?.deereFieldId)).toHaveLength(1);
+    expect(home.length).toBeGreaterThan(25); // two pages, nextPage followed with its query
+    // Shifted by whole days: last edited a whole number of days after the fixture's date.
+    const shift =
+      Date.parse(home[0]?.lastModifiedTime as string) - Date.parse('2026-03-02T15:41:15.205Z');
+    expect(shift % DAY).toBe(0);
+    expect(shift).toBeGreaterThan(0);
+  });
+
+  test('the org boundary listing gives every field its active boundary', async () => {
+    for (const org of simDeereOrgs(farm)) {
+      const boundaries = await api.boundaries(org.id);
+      for (const f of await api.fields(org.id)) {
+        expect(activeBoundaryOf(f.id, boundaries), `${org.id} ${f.name}`).not.toBeNull();
+      }
+    }
+  });
+
+  test('farms and clients', async () => {
+    const farms = await api.farms('org-home');
+    expect(farms.map((f) => f.id).sort()).toEqual(
+      farm.farms
+        .filter((u) => u.deereOrgId === 'org-home')
+        .map((u) => u.deereFarmId)
+        .sort(),
+    );
+    expect((await api.clients('org-home')).map((c) => c.name)).toEqual(['Juniper Hill Farms LLC']);
+  });
+
+  test('flags with their category, the archived one included', async () => {
+    const expected = simFlags(farm, 1);
+    let n = 0;
+    for (const org of simDeereOrgs(farm)) {
+      for (const f of await api.flags(org.id)) {
+        n++;
+        const flag = mapDeereFlag(org.id, f);
+        expect(flag?.category).toBeTruthy();
+        expect(pinKindOfCategory(flag?.category)).toBeTruthy();
+      }
+    }
+    expect(n).toBe(expected.length);
+    const archived = expected.find((f) => f.archived);
+    const listed = await api.flags(archived?.orgId as string);
+    expect(listed.find((f) => f.id === archived?.id)?.archived).toBe(true);
+  });
+
+  test("each machine's latest engine hours, before now", async () => {
+    for (const m of await api.machines('org-home')) {
+      const report = await api.lastEngineHours(m.principalId as string);
+      expect(engineHoursOf(report?.reading ?? { valueAsDouble: -1 })).toBeGreaterThan(100);
+      expect(Date.parse(report?.reportTime as string)).toBeLessThanOrEqual(now.getTime());
+      expect(Date.parse(report?.reportTime as string)).toBeGreaterThan(
+        now.getTime() - DAY - 3_600_000,
+      );
+    }
+  });
+
+  test('the 1a exchanges still answer the 1a calls (plain listings)', async () => {
+    expect(await client(() => now).flags('org-home')).toHaveLength(4);
   });
 });
