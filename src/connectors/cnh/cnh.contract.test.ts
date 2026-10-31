@@ -16,7 +16,14 @@ import { VendorHttpError } from '../http';
 import { MemoryTokenStore } from '../oauth/memory-store';
 import { CnhClient, CnhEulaError, CnhNotConnectedError, CnhSubscriptionKeyError } from './client';
 import { cnhBoundaryGeometry, mapCnhFault, mapCnhFleet, mapCnhPosition } from './mapper';
-import { cnhAuthorizeUrl, cnhSimAutoConnect, exchangeCnhCode, newCnhState } from './oauth';
+import {
+  cnhAuthorizeUrl,
+  cnhSimAutoConnect,
+  exchangeCnhCode,
+  newCnhState,
+  refreshCnhTokens,
+  revokeCnhToken,
+} from './oauth';
 import {
   type CnhPositionsCursor,
   parseCnhCursor,
@@ -119,6 +126,16 @@ describe('CNH OAuth (sim)', () => {
     expect(((await noRedirect.json()) as { error_description: string }).error_description).toMatch(
       /redirect_uri/,
     );
+  });
+
+  test('revoke (JSON body): the refresh token stops working', async () => {
+    const store = new MemoryTokenStore('cnh');
+    await cnhSimAutoConnect(ep(), store, http);
+    const rt = store.tokens?.refreshToken as string;
+    await revokeCnhToken(ep(), rt, http);
+    await expect(refreshCnhTokens(ep(), rt, http)).rejects.toMatchObject({
+      oauthError: 'invalid_grant',
+    });
   });
 
   test('sim connects unattended; sandbox/live without a grant ask a person to sign in', async () => {

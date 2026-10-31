@@ -20,7 +20,7 @@
  */
 import type pg from 'pg';
 import { getConfig } from '../config';
-import { AempClient } from '../connectors/aemp/client';
+import { AempClient, parseAempFleetCursor } from '../connectors/aemp/client';
 import {
   type AempFaultRaw,
   type AempFleetItem,
@@ -29,7 +29,12 @@ import {
   mapAempFleet,
 } from '../connectors/aemp/mapper';
 import { refreshDeereTokens } from '../connectors/deere/oauth';
-import { type AempEndpoint, aempEndpoints, deereEndpoints } from '../connectors/endpoints';
+import {
+  type AempEndpoint,
+  aempEndpoints,
+  deereEndpoints,
+  replayFetch,
+} from '../connectors/endpoints';
 import { tokenKey } from '../connectors/oauth/crypto';
 import { OAuthTokenStore, userGrantOrg } from '../connectors/oauth/token-store';
 import { runSyncStep } from '../connectors/sync-step';
@@ -136,7 +141,8 @@ export function createFleetAempJob(opts: FleetJobOptions = {}) {
         : null;
       client = new AempClient({
         endpoints,
-        http,
+        // Replay: the same client on the fixture transport (AempClient.forMode does the same).
+        http: mode === 'replay' ? { ...http, fetch: replayFetch('aemp', { now: http.now }) } : http,
         deere: deereEp
           ? {
               store: new OAuthTokenStore({
@@ -181,10 +187,7 @@ export function createFleetAempJob(opts: FleetJobOptions = {}) {
       afterRun: async (result: SyncStepResult, sctx: SyncContext) => {
         await tick(result, sctx);
         if (!result.cursor) return;
-        const providers = JSON.parse(result.cursor).providers as Record<
-          string,
-          { polledAt?: string; error?: string; note?: string }
-        >;
+        const providers = parseAempFleetCursor(result.cursor).providers;
         const summary = Object.fromEntries(
           Object.entries(providers).map(([id, p]) => [
             id,
