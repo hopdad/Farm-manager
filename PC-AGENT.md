@@ -15,10 +15,11 @@ The plan is `docs/build-plan.md`, and the code-level rules are `docs/contracts.m
 
 **This round starts at "Round 2" just below.** Sections 1-4 are the standing reference.
 
-## Round 2 (Oct 30, 2026): start here
+## Round 2 (updated Oct 31, 2026): start here
 
-`main` now has your section 2 results plus the cloud's follow-up to them. Read
-`docs/status.md`, "Oct 30, 2026: cloud follow-up to the PC checks", for what changed. Work on a
+Round 2 hasn't been started yet. `main` now has your section 2 results, the cloud's follow-up to
+them, and (since Oct 31) the soil type map. Read `docs/status.md`, "Oct 30, 2026: cloud
+follow-up to the PC checks" and "Oct 31, 2026: soil type map", for what changed. Work on a
 branch `pc/round2` made from `main` (slice 1e gets its own branch, step D). Record each step's
 result in one new dated entry under `## PC findings` in `docs/status.md`.
 
@@ -33,7 +34,7 @@ pnpm run bootstrap
 ```
 
 Pass when bootstrap ends with "Ready." and its migrations line says `7 of 7 applied`. The new
-one is `0006_m1_forecast_checked`. Then `pnpm db:check` says "all PASS". Leave Node as it is (24.13 works: the code no longer depends on
+one is `0006_m1_forecast_checked`; the soil map added none. Then `pnpm db:check` says "all PASS". Leave Node as it is (24.13 works: the code no longer depends on
 its Windows-1252 decoder); updating Node is Derrick's call.
 
 ### B. Re-check live weather (section 2, check 2)
@@ -64,22 +65,45 @@ more than 2 hours, every view says "Forecast not checked with NWS for N h".
 
 ### B2. Soil map walk-through and fleet inventory (with Derrick)
 
-Derrick asked for a "soil type map". One exists, but only as drainage colours. The cloud is
-planning to turn it into a proper soil-type map (soil names as labels, colour by productivity,
-texture or slope, tap for details), so get his reaction first:
+The soil type map is on `main` now (merged Oct 31; it needs no extra setup). With **Soils** on in
+the layer rail, a picker under the toggle colours the soils by:
 
-1. On the board, open the layer rail and turn on **Soils**. Then tap a field and open its
-   **Soils** tab. Show him both.
+- **Soil type:** outlines and map unit symbols, no fill. Soil names join the symbols when zoomed
+  in close (zoom 16).
+- **Drainage** (the default), **Hydrologic group**, **Farmland class**, and **Productivity**
+  (NCCPI, the national crop productivity index).
+
+Labels start at zoom 13. Below the legend, "In this view" lists the map units on screen (from
+zoom 12). With soils on, a tap outside any field opens a **map unit sheet**: drainage,
+hydrologic group, farmland class and productivity, the components with their percent, and the
+official series description (a QR code on the wall, a link on phones). In a field's **Soils**
+tab, each map unit symbol opens the same sheet.
+
+1. Walk Derrick through it on the board and on his phone (`/m`):
+   - try each colour mode;
+   - zoom in until the names show;
+   - tap a map unit outside a field;
+   - scan the wall's QR code with his phone;
+   - open a field's Soils tab and tap a symbol.
 2. Ask him, and write his answers in the status entry:
-   - What does he want to read off a soil map: soil names, productivity, drainage, texture,
-     slope, organic matter, pH?
-   - Should it be on by default anywhere (the wall, phones)?
-   - Anything about the current colours or legend that's hard to read on the wall?
+   - Which modes would he actually use, and which should be the default on the wall and on
+     phones?
+   - On the wall, are the labels readable or cluttered? Are the colours and legends readable
+     from across the room?
+   - What's missing? Phase B (on this PC after 1e, section 3 item 1) adds texture, slope, tile
+     drainage ratings, organic matter, pH and CEC. Which of those matter most to him?
 
-Then take a **fleet inventory**: the cloud is adding connectors for the most popular truck
-ELDs and machine brands, plus Ford and Ram pickups. Ask Derrick for each truck and machine:
-make, model, model year, and what telematics or app it already has (for example JDLink,
-Case IH AFS Connect, FordPass or Ford Pro, Uconnect, an ELD brand in each semi, or none).
+Then take a **fleet inventory**. The cloud is building connectors for:
+
+- **trucks:** Samsara, Motive, Geotab, and Terminal (one connection that covers many other ELD
+  brands, for hired haulers);
+- **machines:** Deere, CNH (Case IH and New Holland), the ISO 15143-3 "AEMP" standard (Kubota
+  and other brands), and Samsara gateways on machines;
+- **pickups:** Ford and Ram, through the truck telematics vendor's Ford Pro or Stellantis link.
+
+Ask Derrick for each truck and machine: make, model, model year, and what telematics or app it
+already has (for example JDLink, Case IH AFS Connect, FordPass or Ford Pro, Uconnect, an ELD
+brand in each semi, or none). For hired haulers, ask which ELD each one runs, if he knows.
 
 - **Status entry:** counts only, by brand and telematics, e.g. "3 Deere with JDLink, 1 Case IH
   combine with AFS Connect, 2 Ford F-250 (FordPass), 4 semis on <ELD>".
@@ -94,12 +118,16 @@ Case IH AFS Connect, FordPass or Ford Pro, Uconnect, an ELD brand in each semi, 
 | C2 | What `db:up` asks Docker after a failed start | `docker compose config --images` | It prints `supabase/postgres:17.11.0.008`. Don't stop or break Docker to test the failure messages unless Derrick wants to |
 | C3 | Check 5's new command | Ctrl+C in `pnpm dev`, then `Get-CimInstance Win32_Process -Filter "Name='node.exe'" \| Where-Object CommandLine -like '*farm-manager*'` | It lists nothing |
 | C4 | e2e on the PC | `pnpm test:e2e e2e/weather.spec.ts e2e/m1-demo.spec.ts --project=wall` with weather on `sim` | All pass |
+| C5 | Soil map e2e on Windows | `pnpm test:e2e e2e/soils-map.spec.ts --project=wall` | All pass |
+| C6 | Soil labels on the real soils | Under `pnpm pilot` (`pnpm dev` compiles each route on its first request, so it can't be timed), signed in on `/board`: turn Soils on, zoom to about 14 over the farm, pan a few times, then zoom to 16. Time the `/api/soils/labels` requests in the browser's Network tab, or with a short Playwright script | Record the first and the later times in the status entry. The cloud could only time synthetic soils. The first request on the real soils should take under about 1 s and repeats much less, because label points are remembered. Report anything over about 2 s |
 
 If something fails, fix it on `pc/round2` when the fix is clear and small. Otherwise describe
 it, with the output, in the status entry. Push `pc/round2` when A-C (and B2) are done.
 
-Don't pull or test `claude/m1-1f`: it's the cloud's work in progress on slice 1f. It changes the
-database (migration `0007`), and Derrick will say when it's ready.
+Don't pull or test `claude/m1-1f`: it's the cloud's work in progress on slices 1f and 1f.2 (live
+Deere, fault codes, sync health, and the other truck, machine and pickup connectors). It changes
+the database (migration `0007`), and Derrick will say when it's on `main`. After that pull, run
+`pnpm db:seed demo` once, as the merge notes will also say.
 
 ### D. Then slice 1e (lidar and crop history) on the PC
 
@@ -122,7 +150,8 @@ Do section 3, item 1, on a branch `pc/slice-1e`, with these specifics:
   schema; EPSG:4326 with GiST). Then `pnpm db:pending` applies them to your database, and the
   tests apply them on their own. Describe the Drizzle mirror you'd want in the status entry.
   The cloud agent turns the file into the next free migration number and writes the mirror
-  when it merges. (Slice 1f, being built in the cloud on `claude/m1-1f`, takes `0007`.)
+  when it merges. (Slice 1f, being built in the cloud on `claude/m1-1f`, takes `0007`, so 1e's tables become
+  `0008` or later.)
 - **Data:**
   - Raw downloads go under `data/raw/` (gitignored), and work files in the `gis_work` volume.
   - Cache every CropScape download: it has had outages and certificate problems.
@@ -150,6 +179,8 @@ git push origin --delete pc/section2-checks
 git push origin --delete claude/fix-e2e-flakes
 git push origin --delete claude/m0-win-debug
 git push origin --delete claude/pc-followups
+git push origin --delete claude/soil-map
+git push origin --delete claude/pc-agent-docs
 ```
 
 The cloud's proxy can't delete branches, so this has to happen on the PC (or on GitHub's

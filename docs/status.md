@@ -1,12 +1,15 @@
 # Build status
 
-Oct 30, 2026. Update this file at the end of each build session.
+Oct 31, 2026. Update this file at the end of each build session.
 
 ## Branches
 
 | Branch | State |
 |---|---|
-| `main` | M0 + M1 (slices 1a-1d), the e2e flake fixes and the follow-up to the PC checks (`claude/pc-followups`, below). Work from here; the PC agent follows `PC-AGENT.md`. |
+| `main` | M0 + M1 (slices 1a-1d), the e2e flake fixes, the follow-up to the PC checks (`claude/pc-followups`, below) and the soil type map (`claude/soil-map`, merged Oct 31, below). Work from here; the PC agent follows `PC-AGENT.md`. |
+| `claude/m1-1f` | Slices 1f and 1f.2 in progress: the foundation (migration `0007`, `docs/contracts-1f.md`) is done, CI fully green at `dfbfd4c`; seven builders work in their own worktrees, then integration, two review rounds and CI. Not for the PC until it's on `main`. |
+| `claude/soil-map` | Soil type map Phase A. Two reviews (12 findings, all fixed); CI fully green at `44d7779`; merged into `main` on Oct 31. Safe to delete. |
+| `claude/pc-agent-docs` | PC-AGENT.md round 2 docs, already in `main`. Safe to delete. |
 | `claude/pc-followups` | Derrick's `pc/section2-checks` plus the cloud follow-up to its findings (below). CI fully green at `3f5976e`; merged into `main` on Oct 30. Safe to delete. |
 | `pc/section2-checks` | The PC agent's section 2 results and its Windows-1252 CSV fix. Merged through `claude/pc-followups`; safe to delete. |
 | `claude/m0-foundation` | M0 done. CI green on Linux, Windows and e2e at `7f492dc`. |
@@ -29,17 +32,36 @@ Lint, typecheck, unit (also in a clean clone with no env files), DB tests, build
 
 Its proxy blocks the real Protomaps basemap, live NWS weather, real SSURGO soils and NAIP close-ups. All four passed on Derrick's PC on Oct 29 (PC findings below). Live weather needs one re-check after the staleness change (Next).
 
+## Oct 31, 2026: soil type map (Phase A, `claude/soil-map`)
+
+With Soils on, the layer rail's picker colours the soils by soil type (outlines and map unit
+symbols; names from zoom 16), drainage (default), hydrologic group, farmland class or
+productivity (NCCPI on fixed breaks); switching only repaints. Labels come from
+`GET /api/soils/labels` (one point per polygon, the largest inscribed circle's centre, cached per
+soils version) from zoom 13. "In this view" lists the map units on screen from zoom 12. A tap
+outside any field opens the map unit sheet (`GET /api/soils/mapunits/<mukey>`): key values,
+components, the series description as a QR code on the wall kiosk (a link on phones, with a
+"no internet" note when the WAN is down). Both routes need a viewer session. No migration.
+Phase B (texture, slope, interpretations, OM/pH/CEC) is the PC's, after 1e.
+
 ## Next
 
-- On the PC: `PC-AGENT.md` "Round 2", in this order:
+- On the PC: `PC-AGENT.md` "Round 2" (not started yet), in this order:
   - A: update and bootstrap (migration `0006`);
   - B: re-check live weather;
-  - C: Windows re-checks;
-  - D: slice 1e on `pc/slice-1e`, pushed in pieces for the cloud to review and fold into migration `0007`;
+  - B2: soil map walk-through and fleet inventory with Derrick;
+  - C: Windows re-checks, now including the soil map (C5, C6);
+  - D: slice 1e on `pc/slice-1e`, pushed in pieces for the cloud to review and fold into the next
+    free migration (`0008` or later: 1f takes `0007`);
   - E: branch cleanup, if Derrick agrees.
 - Then Derrick's own data (PC-AGENT.md section 3, item 2).
-- Open decisions with their current defaults: `docs/decisions.md` (D3 Samsara or Motive by Nov 15, D4 spray thresholds, D8 testers and devices; the new "Forecast stale" defaults).
-- Then M1 slices 1f (live connectors, sync health) and 1g (replay, hardening), per `docs/build-plan.md` §6.
+- In the cloud, per `docs/build-plan.md` §6 and D22: finish 1f + 1f.2 on `claude/m1-1f`
+  (integrate, review, CI, merge), then the war board (M2 2a job board, 2b morning meeting, Work
+  Plans and go/no-go v1), then the rest of 1g, then 2c, then MD. The Deere season backfill is
+  deferred to after MD.
+- Open decisions with their current defaults: `docs/decisions.md` (D4 spray thresholds, D8
+  testers and devices). D3 (which truck telematics) is replaced on `claude/m1-1f`:
+  Samsara, Motive, Geotab, and Terminal for the long tail.
 
 ## PC findings
 
