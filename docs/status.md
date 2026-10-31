@@ -139,7 +139,13 @@ keeps idle sockets 65 s: at 5 s, a test that blocked the process past 5 s let th
 socket just as the next request reused it (ECONNRESET in CI run 68; reproduced locally, 3 resets in
 12 before, none after). CI fully green at `3b951d4` (run 70: Linux, e2e with the replay step,
 Windows). Its e2e had one test that failed and then passed on the retry: `field-panel.spec.ts:261`
-on the wall (tap to panel within 200 ms; the first try hit the 60 s test timeout). Watch for it.
+on the wall (tap to panel within 200 ms; the first try hit the 60 s test timeout). The follow-up's
+first CI run (72) failed it on every try, and `map-fleet.spec.ts:79` once: both were test timing on
+the slower runner, fixed on `claude/1f-followups`. The tap test moves the map six times, about 8 s
+a move and tap on CI's software WebGL since 1f put the mixed fleet and pins on the board, so it
+now gets 120 s (its budget is the timing measured in the page, unchanged). The marker test stamped
+its tick "now", and a glide lasts the gap between two fixes: the board's 15.6 s load made a 15.6 s
+glide that outlasted the wait. Its tick is now 5 s after the snapshot fix.
 
 **After the merge:** bootstrap's sim connector step now replaces a stored simulated Deere grant that
 lacks a scope the app asks for. A PC connected before 1f has one without `ag2`, so `deere.ops`

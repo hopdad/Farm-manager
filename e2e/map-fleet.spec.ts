@@ -98,11 +98,19 @@ test('markers appear from the snapshot, glide on a tick, and show staleness', as
   await expect(page.getByTestId('badge-stale')).toHaveText('1 stale');
   await expect(page.getByTestId('fleet-summary')).toHaveText('3 machines');
 
-  // A realtime tick moves S1 east by 0.01° (~830 m) and refreshes S2.
+  // A realtime tick moves S1 east by 0.01° (~830 m) and refreshes S2. S1's fix is 5 s after its
+  // snapshot fix: a glide lasts the gap between two fixes (up to 30 s), so a "now" here made it as
+  // long as the board took to load (15.6 s on a busy CI runner in run 72, which outlasted the
+  // arrival wait below).
   const s1Before = initial.find((f) => f.unitNo === 'S1');
   const moved = tick.machines.map((m) =>
     m.unitNo === 'S1'
-      ? { ...m, lng: m.lng + 0.01, heading: 80, ts: new Date().toISOString() }
+      ? {
+          ...m,
+          lng: m.lng + 0.01,
+          heading: 80,
+          ts: new Date(Date.parse(m.ts) + 5_000).toISOString(),
+        }
       : m.unitNo === 'S2'
         ? { ...m, ts: new Date().toISOString() }
         : m,

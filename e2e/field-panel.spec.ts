@@ -262,6 +262,10 @@ test.describe('tap → panel budget', () => {
     context,
     page,
   }) => {
+    // Six taps, each after moving the map to its field: on CI's software WebGL a move and a tap
+    // take about 8 s together since 1f's mixed fleet and pins (CI run 72: 6 x 8 s, past the 60 s
+    // default). The budget is the in-page timing below, not this.
+    test.setTimeout(120_000);
     await signInAs(context, 'viewer');
     await installFakeRealtime(page);
     // Warm-up: the first request of a fresh page loads the route; the budget is for every tap after.
