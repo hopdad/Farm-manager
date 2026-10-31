@@ -34,21 +34,59 @@
  * replace the stubs and leave this file alone.
  *
  * `connector` names the mode each job talks through: the demo cadence only applies while that
- * connector is sim, replay or off (src/jobs/schedule.ts `demoCadenceApplies`).
+ * connector is sim, replay or off (src/jobs/schedule.ts `demoCadenceApplies`). `streams` names
+ * the sync_state streams of that connector's source the job runs (/admin/connectors judges each
+ * against its own job's schedule).
  */
+import { DEERE_FIELDS_STREAMS } from '../connectors/deere/fields/sync';
 import { runDeereFields } from './deere-fields';
-import { runDeereOps } from './deere-ops';
-import { runFleetTrucks, TRUCKS_BUDGET_MS } from './fleet';
-import { runFleetAemp } from './fleet-aemp';
-import { runFleetCnh } from './fleet-cnh';
-import { runFleetDeere } from './fleet-deere';
-import { runFleetEquipment } from './fleet-equipment';
-import { runFleetGeotab } from './fleet-geotab';
-import { MOTIVE_BUDGET_MS, runFleetMotive } from './fleet-motive';
-import { runFleetTerminal } from './fleet-terminal';
-import { runFleetVehicles } from './fleet-vehicles';
+import { DEERE_OPS_STREAM, runDeereOps } from './deere-ops';
+import {
+  FAULTS_STREAM,
+  runFleetTrucks,
+  STATS_STREAM,
+  TRUCKS_BUDGET_MS,
+  TRUCKS_STREAM,
+} from './fleet';
+import { AEMP_FAULTS_STREAM, AEMP_FLEET_STREAM, runFleetAemp } from './fleet-aemp';
+import {
+  CNH_FAULTS_STREAM,
+  CNH_FLEET_STREAM,
+  CNH_POSITIONS_STREAM,
+  runFleetCnh,
+} from './fleet-cnh';
+import { DEERE_STREAM, runFleetDeere } from './fleet-deere';
+import {
+  EQUIPMENT_POSITIONS_STREAM,
+  EQUIPMENT_STATS_STREAM,
+  runFleetEquipment,
+} from './fleet-equipment';
+import {
+  GEOTAB_FAULTS_STREAM,
+  GEOTAB_POSITIONS_STREAM,
+  GEOTAB_STATS_STREAM,
+  GEOTAB_VEHICLES_STREAM,
+  runFleetGeotab,
+} from './fleet-geotab';
+import {
+  MOTIVE_BUDGET_MS,
+  MOTIVE_FAULTS_STREAM,
+  MOTIVE_POSITIONS_STREAM,
+  MOTIVE_STATS_STREAM,
+  MOTIVE_VEHICLES_STREAM,
+  runFleetMotive,
+} from './fleet-motive';
+import {
+  runFleetTerminal,
+  TERMINAL_FAULTS_STREAM,
+  TERMINAL_POSITIONS_STREAM,
+  TERMINAL_PROVIDERS_STREAM,
+  TERMINAL_STATS_STREAM,
+  TERMINAL_VEHICLES_STREAM,
+} from './fleet-terminal';
+import { runFleetVehicles, VEHICLES_STREAM } from './fleet-vehicles';
 import type { JobRegistry } from './types';
-import { runWeatherNws } from './weather';
+import { FORECAST_STREAM, OBSERVATIONS_STREAM, runWeatherNws } from './weather';
 
 export const jobs = {
   'fleet.trucks': {
@@ -56,30 +94,35 @@ export const jobs = {
     demoEvery: '5 seconds',
     budgetMs: TRUCKS_BUDGET_MS,
     connector: 'CONNECTOR_SAMSARA',
+    streams: [TRUCKS_STREAM, STATS_STREAM, FAULTS_STREAM],
     run: runFleetTrucks,
   },
   'fleet.deere': {
     cron: '*/2 * * * *',
     demoEvery: '15 seconds',
     connector: 'CONNECTOR_DEERE',
+    streams: [DEERE_STREAM],
     run: runFleetDeere,
   },
   'weather.nws': {
     cron: '*/30 * * * *',
     demoEvery: '30 seconds',
     connector: 'CONNECTOR_WEATHER',
+    streams: [FORECAST_STREAM, OBSERVATIONS_STREAM],
     run: runWeatherNws,
   },
   'deere.fields': {
     cron: '17 * * * *',
     demoEvery: '45 seconds',
     connector: 'CONNECTOR_DEERE',
+    streams: Object.values(DEERE_FIELDS_STREAMS),
     run: runDeereFields,
   },
   'deere.ops': {
     cron: '*/15 * * * *',
     demoEvery: '20 seconds',
     connector: 'CONNECTOR_DEERE',
+    streams: [DEERE_OPS_STREAM],
     run: runDeereOps,
   },
   'fleet.motive': {
@@ -87,6 +130,12 @@ export const jobs = {
     demoEvery: '5 seconds',
     budgetMs: MOTIVE_BUDGET_MS,
     connector: 'CONNECTOR_MOTIVE',
+    streams: [
+      MOTIVE_POSITIONS_STREAM,
+      MOTIVE_STATS_STREAM,
+      MOTIVE_FAULTS_STREAM,
+      MOTIVE_VEHICLES_STREAM,
+    ],
     run: runFleetMotive,
   },
   'fleet.geotab': {
@@ -94,36 +143,53 @@ export const jobs = {
     demoEvery: '10 seconds',
     budgetMs: 25_000,
     connector: 'CONNECTOR_GEOTAB',
+    streams: [
+      GEOTAB_POSITIONS_STREAM,
+      GEOTAB_STATS_STREAM,
+      GEOTAB_FAULTS_STREAM,
+      GEOTAB_VEHICLES_STREAM,
+    ],
     run: runFleetGeotab,
   },
   'fleet.equipment': {
     cron: '* * * * *',
     demoEvery: '10 seconds',
     connector: 'CONNECTOR_SAMSARA',
+    streams: [EQUIPMENT_POSITIONS_STREAM, EQUIPMENT_STATS_STREAM],
     run: runFleetEquipment,
   },
   'fleet.aemp': {
     cron: '*/15 * * * *',
     demoEvery: '30 seconds',
     connector: 'CONNECTOR_AEMP',
+    streams: [AEMP_FLEET_STREAM, AEMP_FAULTS_STREAM],
     run: runFleetAemp,
   },
   'fleet.cnh': {
     cron: '*/5 * * * *',
     demoEvery: '30 seconds',
     connector: 'CONNECTOR_CNH',
+    streams: [CNH_POSITIONS_STREAM, CNH_FLEET_STREAM, CNH_FAULTS_STREAM],
     run: runFleetCnh,
   },
   'fleet.terminal': {
     cron: '* * * * *',
     demoEvery: '15 seconds',
     connector: 'CONNECTOR_TERMINAL',
+    streams: [
+      TERMINAL_POSITIONS_STREAM,
+      TERMINAL_STATS_STREAM,
+      TERMINAL_FAULTS_STREAM,
+      TERMINAL_VEHICLES_STREAM,
+      TERMINAL_PROVIDERS_STREAM,
+    ],
     run: runFleetTerminal,
   },
   'fleet.vehicles': {
     cron: '41 * * * *',
     demoEvery: '59 seconds',
     connector: 'CONNECTOR_SAMSARA',
+    streams: [VEHICLES_STREAM],
     run: runFleetVehicles,
   },
 } satisfies JobRegistry;

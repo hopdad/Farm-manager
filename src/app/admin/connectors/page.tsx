@@ -51,7 +51,7 @@ import {
   getSimStatus,
   SPEED_PRESETS,
 } from './sim-control';
-import { sourceCadences, streamHealth } from './stream-health';
+import { streamCadences, streamHealth } from './stream-health';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Connectors · Farm Ops' };
@@ -266,7 +266,7 @@ function SimCard({
 }
 
 function StreamsCard({ snap, now }: { snap: ConnectorsSnapshot; now: Date }) {
-  const cadences = sourceCadences(registry, now);
+  const cadenceOf = streamCadences(registry, now);
   return (
     <section className={css.card}>
       <h2>Connector streams</h2>
@@ -288,7 +288,7 @@ function StreamsCard({ snap, now }: { snap: ConnectorsSnapshot; now: Date }) {
             </thead>
             <tbody>
               {snap.streams.map((s) => {
-                const h = streamHealth(s, now, cadences[s.source] ?? null);
+                const h = streamHealth(s, now, cadenceOf(s.source, s.stream));
                 const leased = s.leaseUntil && s.leaseUntil > now;
                 return (
                   <tr key={`${s.source}|${s.stream}`}>

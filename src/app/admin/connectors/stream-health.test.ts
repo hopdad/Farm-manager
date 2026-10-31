@@ -1,7 +1,7 @@
 /** /admin/connectors stream state (1f review): stale against each stream's own schedule. */
 import { describe, expect, test } from 'vitest';
 import { registry } from '@/jobs/registry';
-import { sourceCadences, sourceOfConnector, streamHealth } from './stream-health';
+import { sourceOfConnector, streamCadences, streamHealth } from './stream-health';
 
 const NOW = new Date('2026-11-30T15:00:00.000Z');
 const ago = (min: number) => new Date(NOW.getTime() - min * 60_000);
@@ -44,11 +44,51 @@ describe('streamHealth', () => {
     expect(streamHealth(row({ lastOkAt: null }), NOW).text).toBe('not run yet');
   });
 
-  test('cadences per source from the registry', () => {
-    const c = sourceCadences(registry, NOW);
-    expect(c.aemp).toBe(900);
-    expect(c.deere).toBe(3600); // deere.fields hourly is its slowest job
-    expect(c.samsara).toBe(3600); // fleet.vehicles hourly
+  test('cadences per stream: the job that runs it, not the slowest job of its source', () => {
+    const cadenceOf = streamCadences(registry, NOW);
+    expect(cadenceOf('aemp', 'faults')).toBe(900);
+    expect(cadenceOf('deere', 'fields')).toBe(3600); // deere.fields hourly
+    expect(cadenceOf('deere', 'operations')).toBe(900); // deere.ops
+    expect(cadenceOf('deere', 'locations')).toBe(120); // fleet.deere, every 2 min
+    expect(cadenceOf('samsara', 'vehicles')).toBe(3600); // fleet.vehicles hourly
+    expect(cadenceOf('samsara', 'positions')).toBe(30); // fleet.trucks
+    expect(cadenceOf('samsara', 'faults')).toBe(30);
+    expect(cadenceOf('samsara', 'equipment_stats')).toBe(60); // fleet.equipment
+    expect(cadenceOf('nws', 'observations')).toBe(1800);
+    // A stream no job declares: the fastest job of its source; no job at all: none.
+    expect(cadenceOf('samsara', 'something_new')).toBe(30);
+    expect(cadenceOf('nope', 'x')).toBeNull();
     expect(sourceOfConnector('CONNECTOR_WEATHER')).toBe('nws');
+  });
+
+  test('a fast stream that stops without an error reads stale after 10 min, not 2 h', () => {
+    const cadenceOf = streamCadences(registry, NOW);
+    for (const [source, stream] of [
+      ['samsara', 'positions'],
+      ['samsara', 'faults'],
+      ['deere', 'locations'],
+    ] as const) {
+      const at = (min: number) => row({ lastOkAt: ago(min), lastRunAt: ago(min) });
+      expect(streamHealth(at(5), NOW, cadenceOf(source, stream)).kind, stream).toBe('ok');
+      expect(streamHealth(at(11), NOW, cadenceOf(source, stream)).kind, stream).toBe('warn');
+      expect(streamHealth(at(90), NOW, cadenceOf(source, stream)).kind, stream).toBe('warn');
+    }
+    // The hourly streams of the same sources stay ok on schedule.
+    const hourly = row({ lastOkAt: ago(90), lastRunAt: ago(90) });
+    expect(streamHealth(hourly, NOW, cadenceOf('deere', 'fields')).kind).toBe('ok');
+    expect(streamHealth(hourly, NOW, cadenceOf('samsara', 'vehicles')).kind).toBe('ok');
+  });
+
+  test('every connector job in the registry names the streams it runs, none twice', () => {
+    const seen = new Map<string, string>();
+    for (const [name, def] of Object.entries(registry)) {
+      if (!def?.connector) continue;
+      expect(def.streams?.length, name).toBeGreaterThan(0);
+      for (const stream of def.streams ?? []) {
+        const key = `${sourceOfConnector(def.connector)}/${stream}`;
+        expect(seen.get(key), key).toBeUndefined();
+        seen.set(key, name);
+      }
+    }
   });
 });
