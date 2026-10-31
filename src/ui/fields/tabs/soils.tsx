@@ -7,7 +7,9 @@
  * survey it is, or that the synthetic test fixture is loaded.
  *
  * Wall: a table with 72 px rows; phone: a list. Styles are inline (the panel's CSS module is the
- * field-panel builder's) and follow the panel's variables: --font, --target.
+ * field-panel builder's) and follow the panel's variables: --font, --target. Each map unit's
+ * symbol opens the soil map unit sheet (its components; ../../soils/MapUnitSheet.tsx) over the
+ * panel.
  */
 import { type CSSProperties, useEffect, useState } from 'react';
 import type { FieldDetail } from '../../../domain/fields';
@@ -19,6 +21,8 @@ import {
   summarizeFieldSoils,
 } from '../../../domain/soils';
 import { DRAINAGE_COLORS, DRAINAGE_UNKNOWN_COLOR } from '../../map/layers/soils';
+import type { MapUnitPreview } from '../../soils/map-unit';
+import { useMapUnitSheet } from '../../soils/sheet-store';
 import { type FieldPanelTab, type FieldPanelTabProps, TAB_ORDER } from '../tabs';
 
 // ---------------------------------------------------------------------------------------------
@@ -260,6 +264,19 @@ const S = {
     fontSize: 'calc(var(--font, 18px) * 0.85)',
   },
   foot: { fontSize: 'calc(var(--font, 18px) * 0.72)', color: 'rgb(231 239 233 / 60%)' },
+  open: {
+    minHeight: 'calc(var(--target, 56px) * 0.8)',
+    minWidth: 'calc(var(--target, 56px) * 1.1)',
+    padding: '0 10px',
+    borderRadius: 10,
+    border: '1px solid rgb(125 211 252 / 45%)',
+    background: 'rgb(56 189 248 / 10%)',
+    color: '#bae6fd',
+    font: 'inherit',
+    fontWeight: 700,
+    cursor: 'pointer',
+    touchAction: 'manipulation',
+  },
   skeleton: {
     height: '1.2em',
     borderRadius: 6,
@@ -270,6 +287,35 @@ const S = {
 
 function Swatch({ color }: { color: string }) {
   return <span aria-hidden="true" style={{ ...S.swatch, background: color }} />;
+}
+
+/** A field soil row as what the map unit sheet opens with. */
+export function mapUnitPreviewOf(r: FieldSoilRow): MapUnitPreview {
+  return {
+    mukey: r.mukey,
+    musym: r.musym,
+    muname: r.muname,
+    drainage_class: r.drainageClass,
+    hydgrp: r.hydgrp,
+    farmland_class: r.farmlandClass,
+    nccpi: r.nccpi,
+  };
+}
+
+/** The map unit's symbol, as a button that opens its sheet (components, series description). */
+function OpenMapUnit({ row, symbol }: { row: FieldSoilRow | undefined; symbol: string }) {
+  if (!row) return <>{symbol}</>;
+  return (
+    <button
+      type="button"
+      style={S.open}
+      aria-label={`Map unit ${symbol}: components and series`}
+      onClick={() => useMapUnitSheet.getState().show(mapUnitPreviewOf(row))}
+      data-testid="field-soils-open-mapunit"
+    >
+      {symbol} ›
+    </button>
+  );
 }
 
 export function SoilsTab({ detail, variant }: FieldPanelTabProps) {
@@ -302,6 +348,7 @@ export function SoilsBody({
   source: SoilsSource | null;
 }) {
   const v = soilsTabView(detail.soils, detail.soilsSummary);
+  const byMukey = new Map(detail.soils.map((r) => [r.mukey, r]));
   if (v.empty) {
     return (
       <section style={S.section} data-testid="field-soils-empty">
@@ -378,7 +425,9 @@ export function SoilsBody({
                   data-mukey={r.mukey}
                   style={{ height: 'var(--target, 56px)' }}
                 >
-                  <td style={{ ...S.td, fontWeight: 700 }}>{r.symbol}</td>
+                  <td style={{ ...S.td, fontWeight: 700 }}>
+                    <OpenMapUnit row={byMukey.get(r.mukey)} symbol={r.symbol} />
+                  </td>
                   <td style={S.td}>
                     <div>{r.series ?? r.name}</div>
                     <div style={{ ...S.muted, fontSize: '0.85em' }}>{r.name}</div>
@@ -400,7 +449,8 @@ export function SoilsBody({
             {v.rows.map((r) => (
               <div key={r.mukey} style={S.item} data-testid="field-soils-row" data-mukey={r.mukey}>
                 <div>
-                  <strong>{r.series ?? r.name}</strong> <span style={S.muted}>({r.symbol})</span>
+                  <OpenMapUnit row={byMukey.get(r.mukey)} symbol={r.symbol} />{' '}
+                  <strong>{r.series ?? r.name}</strong>
                   <span style={{ float: 'right', ...S.num }}>
                     {r.pct} · {r.acres} ac
                   </span>

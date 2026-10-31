@@ -16,6 +16,7 @@ import { type FleetStatus, useFleet } from '../map/fleet/useFleet';
 import { useLayerVisible } from '../map/layers/visibility';
 import { LayerRail, type RailMap } from '../map/rail/LayerRail';
 import type { MapPageData, MapVariant } from '../map/types';
+import { MapUnitSheet, mapUnitAt, useMapUnitSheet } from '../soils';
 import { SprayFieldState, WeatherStrip } from '../weather';
 import css from './board.module.css';
 import { ACTIVITY_LABELS, compassPoint, formatAge, formatClock, SOURCE_LABELS } from './format';
@@ -186,7 +187,8 @@ function PhoneMachineCard({ m, onClose }: { m: FleetFrame; onClose(): void }) {
  * One MapLibre map (`onMapReady`) is shared by the rail (applyLayers), the spray colours
  * (SprayFieldState), the field panel's highlight and the tile tool. Field taps open the panel,
  * except while a tile line is being drawn; the rail's "Machines and trucks" toggle hides the
- * deck.gl fleet.
+ * deck.gl fleet. With soils on, a tap on empty map opens the soil map unit sheet in the field
+ * panel's place (a field tap still opens the field panel), except while the tile tool is open.
  */
 export function BoardScreen({ data, variant }: { data: MapPageData; variant: MapVariant }) {
   useKiosk();
@@ -203,19 +205,52 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
   const [railOpen, setRailOpen] = useState(variant === 'wall');
   const [flyTo, setFlyTo] = useState<{ lng: number; lat: number; nonce: number } | null>(null);
   const fleetVisible = useLayerVisible('fleet', true);
+  const soilsVisible = useLayerVisible('soils', false);
   const drawing = useTileDrawStore((s) => s.drawing);
+  // Taps belong to the open tile tool (selecting a line, a point of the sketch): no soil sheet.
+  const tileToolOpen = useTileDrawStore((s) => s.open);
   const selected = status.machines.find((m) => m.id === selectedId) ?? null;
-  // A machine picked on the map closes the field panel: its card would sit under the panel
-  // (wall), and the phone shows one bottom sheet at a time.
-  const onSelect = useCallback((id: string | null) => {
-    setSelectedId(id);
-    if (id) setFieldId(null);
-  }, []);
+  const closeMapUnit = useMapUnitSheet((s) => s.close);
+  // A machine picked on the map closes the field panel and the map unit sheet: its card would
+  // sit under the panel (wall), and the phone shows one bottom sheet at a time.
+  const onSelect = useCallback(
+    (id: string | null) => {
+      setSelectedId(id);
+      if (id) {
+        setFieldId(null);
+        closeMapUnit();
+      }
+    },
+    [closeMapUnit],
+  );
+  const onFieldTap = useCallback(
+    (id: string | null) => {
+      setFieldId(id);
+      if (id) closeMapUnit();
+    },
+    [closeMapUnit],
+  );
+  // Soils on: a tap outside any field opens the map unit under it (else closes the sheet).
+  const onEmptyTap = useCallback(
+    (lngLat: { lng: number; lat: number }) => {
+      const unit = soilsVisible && map ? mapUnitAt(map, lngLat) : null;
+      if (unit) useMapUnitSheet.getState().show(unit);
+      else closeMapUnit();
+    },
+    [soilsVisible, map, closeMapUnit],
+  );
+  useEffect(() => {
+    if (!soilsVisible) closeMapUnit();
+  }, [soilsVisible, closeMapUnit]);
   const locate = useCallback((m: { id: string; lng: number; lat: number }) => {
     setSelectedId(m.id);
     setFlyTo({ lng: m.lng, lat: m.lat, nonce: Date.now() });
   }, []);
   const closeField = useCallback(() => setFieldId(null), []);
+  const closePanels = useCallback(() => {
+    setFieldId(null);
+    closeMapUnit();
+  }, [closeMapUnit]);
 
   return (
     <main
@@ -237,7 +272,8 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
           showLegend={variant === 'wall' && !railOpen}
           flyTo={flyTo}
           fleetVisible={fleetVisible}
-          onFieldTap={drawing ? undefined : setFieldId}
+          onFieldTap={drawing ? undefined : onFieldTap}
+          onEmptyTap={drawing || tileToolOpen ? undefined : onEmptyTap}
           onMapReady={setMap}
         />
         <SprayFieldState map={map} />
@@ -247,7 +283,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
         {selected && fleetVisible && variant === 'wall' && (
           <MachineCard m={selected} onClose={() => setSelectedId(null)} />
         )}
-        <TileLineDrawTool map={map} variant={variant} config={data.config} onOpen={closeField} />
+        <TileLineDrawTool map={map} variant={variant} config={data.config} onOpen={closePanels} />
         {fieldId && (
           <FieldPanel
             fieldId={fieldId}
@@ -257,6 +293,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
             onClose={closeField}
           />
         )}
+        <MapUnitSheet variant={variant} map={map} />
       </div>
       {selected && fleetVisible && variant === 'phone' && (
         <PhoneMachineCard m={selected} onClose={() => setSelectedId(null)} />

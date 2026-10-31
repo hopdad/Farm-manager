@@ -12,16 +12,21 @@
  *  - ready
  * plus a zoom hint when an "on" layer only draws further in (soils from z10), the layer's
  * legend while it is on, and where its data comes from (survey vintage, or the synthetic fixture).
- * A group nobody has built a layer for yet says what will fill it.
+ * A layer drawn more than one way (./modes.ts: the soils colour-by modes) offers its modes while
+ * it is on, and its legend is the chosen mode's. A group nobody has built a layer for yet says
+ * what will fill it.
  */
 import type { LayerLegend } from '../../../domain/map-layers';
 import {
   LAYER_GROUP_LABELS,
   LAYER_GROUPS,
+  type LayerDef,
   type LayerGroup,
   type ResolvedLayer,
 } from '../layers/types';
 import { isLayerVisible } from '../layers/visibility';
+import type { BasemapFlavor, MapVariant } from '../types';
+import { LAYER_MODES, type LayerModeOption, type LayerModes, layerModeOf } from './modes';
 
 export type RailItemStatus = 'ready' | 'loading' | 'missing' | 'mismatch' | 'offline';
 
@@ -37,8 +42,10 @@ export interface RailItem {
   message: string | null;
   /** "Zoom in to see it" when on but the map is out of its zooms. */
   zoomHint: string | null;
-  /** Legend while on. */
+  /** Legend while on (a layer with modes: the chosen mode's). */
   legend: LayerLegend | null;
+  /** The ways it can be drawn and the chosen one, while it is on (null: one way only). */
+  mode: { options: readonly LayerModeOption[]; current: string } | null;
   /** Data source line (survey vintage), or the synthetic-fixture warning. */
   source: string | null;
   synthetic: boolean;
@@ -71,13 +78,37 @@ export interface RailModelInput {
   failing: ReadonlySet<string>;
   /** Current map zoom (null before the map exists). */
   zoom: number | null;
+  /** Chosen modes by layer key (absent: the layer's default). */
+  modes?: Readonly<Record<string, string>>;
+  /** What the layers are styled for (a mode's legend may depend on it); default dark. */
+  flavor?: BasemapFlavor;
+  variant?: MapVariant;
+  /** Layers with modes (tests); default LAYER_MODES. */
+  modeRegistry?: Readonly<Record<string, LayerModes>>;
+}
+
+/** Its tiles come over the internet (an online layer, or one that doesn't work offline). */
+export function isOnlineOnly(def: Pick<LayerDef, 'kind' | 'offline'>): boolean {
+  return def.kind === 'online' || !def.offline;
+}
+
+/**
+ * Is the internet down behind a working LAN? Yes while an online-only layer's tiles fail (a
+ * local layer failing is the app or the PC, not the internet). ./internet.ts carries it to the
+ * soil map unit sheet.
+ */
+export function wanDownOf(
+  resolved: readonly { def: Pick<LayerDef, 'key' | 'kind' | 'offline'> }[],
+  failing: ReadonlySet<string>,
+): boolean {
+  return resolved.some((r) => isOnlineOnly(r.def) && failing.has(r.def.key));
 }
 
 function itemOf(r: ResolvedLayer, input: RailModelInput): RailItem {
   const { def, row } = r;
   const on = isLayerVisible(input.overrides, def.key, r.defaultVisible);
   const needsRow = def.render === 'maplibre' && def.requiresRow;
-  const onlineOnly = def.kind === 'online' || !def.offline;
+  const onlineOnly = isOnlineOnly(def);
   let status: RailItemStatus = 'ready';
   let message: string | null = null;
   if (needsRow && !input.loaded && !row) {
@@ -99,6 +130,11 @@ function itemOf(r: ResolvedLayer, input: RailModelInput): RailItem {
     if (input.zoom < minzoom - 1e-6) zoomHint = `Zoom in to see it (from zoom ${minzoom})`;
   }
   const synthetic = row?.meta.fixture === true;
+  const shown = on && (status === 'ready' || status === 'offline');
+  const registry = input.modeRegistry ?? LAYER_MODES;
+  const modes = registry[def.key];
+  const current = modes ? layerModeOf(input.modes ?? {}, def.key, registry) : null;
+  const ctx = { flavor: input.flavor ?? 'dark', variant: input.variant ?? 'wall' } as const;
   return {
     key: def.key,
     label: def.label,
@@ -108,7 +144,8 @@ function itemOf(r: ResolvedLayer, input: RailModelInput): RailItem {
     status,
     message,
     zoomHint,
-    legend: on && (status === 'ready' || status === 'offline') ? r.legend : null,
+    legend: shown ? (modes && current !== null ? modes.legend(current, ctx) : r.legend) : null,
+    mode: shown && modes && current !== null ? { options: modes.options, current } : null,
     source: synthetic ? 'Synthetic test fixture, not survey data' : (row?.sourceVintage ?? null),
     synthetic,
   };
