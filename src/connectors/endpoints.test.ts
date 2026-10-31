@@ -255,7 +255,7 @@ describe('DEERE_REDIRECT_URI (decision 6)', () => {
     DEERE_CLIENT_SECRET: 'secret',
   };
 
-  test('unset: ${PUBLIC_URL}/api/oauth/deere in every mode', () => {
+  test('unset: PUBLIC_URL + /api/oauth/deere in every mode', () => {
     for (const mode of ['sim', 'replay', 'sandbox', 'live'] as const) {
       expect(deereEndpoints(mode, live).redirectUri).toBe('http://localhost:3000/api/oauth/deere');
     }
