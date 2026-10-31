@@ -1,0 +1,38 @@
+{
+  "format": 1,
+  "source": "motive",
+  "stream": "companies",
+  "kind": "doc-derived",
+  "reference": "https://developer-docs.gomotive.com/reference/identify-a-company-using-its-access-token (GET /v1/companies → companies[].company.id, the sourceOrg). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/companies"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "companies": [
+            {
+              "company": {
+                "id": 731204,
+                "company_id": "KTSIM73120",
+                "name": "Hired hauler (simulated)",
+                "time_zone": "Eastern Time (US & Canada)",
+                "metric_units": false,
+                "subscription_plan": "Enterprise"
+              }
+            }
+          ],
+          "pagination": {
+            "per_page": 25,
+            "page_no": 1,
+            "total": 1
+          }
+        }
+      }
+    }
+  ]
+}

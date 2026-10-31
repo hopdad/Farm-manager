@@ -1,0 +1,174 @@
+{
+  "format": 1,
+  "source": "geotab",
+  "stream": "lookups",
+  "kind": "doc-derived",
+  "reference": "https://my.geotab.com/api.json (Get Diagnostic: code, source, controller, unitOfMeasure; Get FailureMode: code = FMI). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
+  "anchor": "2026-10-15T13:00:00.000Z",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/apiv1",
+        "body": {
+          "method": "Get",
+          "params": {
+            "typeName": "Diagnostic"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "result": [
+            {
+              "id": "DiagnosticEngineHoursId",
+              "name": "Engine hours",
+              "code": 247,
+              "source": {
+                "id": "SourceGeotabGoId"
+              },
+              "unitOfMeasure": {
+                "id": "UnitOfMeasureSecondsId"
+              },
+              "diagnosticType": "GoDiagnostic"
+            },
+            {
+              "id": "DiagnosticOdometerId",
+              "name": "Odometer",
+              "code": 245,
+              "source": {
+                "id": "SourceGeotabGoId"
+              },
+              "unitOfMeasure": {
+                "id": "UnitOfMeasureMetersId"
+              },
+              "diagnosticType": "GoDiagnostic"
+            },
+            {
+              "id": "DiagnosticFuelLevelId",
+              "name": "Fuel level (percentage)",
+              "code": 96,
+              "source": {
+                "id": "SourceJ1939Id"
+              },
+              "unitOfMeasure": {
+                "id": "UnitOfMeasurePercentageId"
+              },
+              "diagnosticType": "SuspectParameter"
+            },
+            {
+              "id": "DiagnosticDieselExhaustFluidId",
+              "name": "Diesel exhaust fluid level",
+              "code": 1761,
+              "source": {
+                "id": "SourceJ1939Id"
+              },
+              "unitOfMeasure": {
+                "id": "UnitOfMeasurePercentageId"
+              },
+              "diagnosticType": "SuspectParameter"
+            },
+            {
+              "id": "DiagnosticIgnitionId",
+              "name": "Ignition",
+              "code": 0,
+              "source": {
+                "id": "SourceGeotabGoId"
+              },
+              "unitOfMeasure": {
+                "id": "UnitOfMeasureNoneId"
+              },
+              "diagnosticType": "GoDiagnostic"
+            },
+            {
+              "id": "DiagnosticEngineSpeedId",
+              "name": "Engine speed",
+              "code": 190,
+              "source": {
+                "id": "SourceJ1939Id"
+              },
+              "unitOfMeasure": {
+                "id": "UnitOfMeasureRevolutionsPerMinuteId"
+              },
+              "diagnosticType": "SuspectParameter"
+            },
+            {
+              "id": "DiagnosticEngineCoolantTemperatureId",
+              "name": "Engine coolant temperature",
+              "code": 110,
+              "source": {
+                "id": "SourceJ1939Id"
+              },
+              "unitOfMeasure": {
+                "id": "UnitOfMeasureDegreesCelsiusId"
+              },
+              "diagnosticType": "SuspectParameter"
+            },
+            {
+              "id": "aSimSpn110",
+              "name": "Engine coolant temperature",
+              "code": 110,
+              "source": {
+                "id": "SourceJ1939Id"
+              },
+              "diagnosticType": "SuspectParameter"
+            },
+            {
+              "id": "aSimObd309",
+              "name": "O2 sensor circuit (bank 1 sensor 1)",
+              "code": 309,
+              "source": {
+                "id": "SourceObdId"
+              },
+              "controller": {
+                "id": "ControllerObdPowertrainId"
+              },
+              "diagnosticType": "ObdFault"
+            },
+            {
+              "id": "aSimProp4711",
+              "name": "Aftertreatment derate",
+              "code": 4711,
+              "source": {
+                "id": "SourceProprietaryId"
+              },
+              "diagnosticType": "ProprietaryFault"
+            }
+          ],
+          "jsonrpc": "2.0"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/apiv1",
+        "body": {
+          "method": "Get",
+          "params": {
+            "typeName": "FailureMode"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "result": [
+            {
+              "id": "aSimFmi0",
+              "code": 0,
+              "name": "Data valid but above normal operational range - most severe level"
+            },
+            {
+              "id": "NoFailureModeId",
+              "code": 0,
+              "name": "No failure mode"
+            }
+          ],
+          "jsonrpc": "2.0"
+        }
+      }
+    }
+  ]
+}
