@@ -146,17 +146,21 @@ function Row(props: {
               data-testid="fleet-fault-badge"
             >
               {faultText}
-              {faultDesc && (
-                <span className={css.faultDesc} data-testid="fleet-fault-description">
-                  {faultDesc}
-                </span>
-              )}
             </span>
           ) : m.faultsNotReported ? (
             <span className={css.faultsUnknown} data-testid="fleet-faults-not-reported">
               faults not reported
             </span>
           ) : null}
+          {faultDesc && (
+            <span
+              className={css.faultDesc}
+              data-severity={worst?.severity}
+              data-testid="fleet-fault-description"
+            >
+              {faultDesc}
+            </span>
+          )}
         </span>
       </button>
       {props.canMarkDown && m.status !== 'retired' && (

@@ -116,6 +116,10 @@ test('a critical code: the badge everywhere, "mark down?" for a driver, cleared 
     await expect(badge).toHaveText('Critical: J1939 SPN 110 FMI 0', { timeout: RUN_MS });
     await expect(badge).toHaveAttribute('data-severity', 'critical');
     await expect(badge).toHaveAttribute('title', /Engine Coolant Temperature/);
+    // 1f review: the meaning on screen too (a touch wall shows no title).
+    await expect(wallRow.getByTestId('fleet-fault-description')).toContainText(
+      'Engine Coolant Temperature',
+    );
     await expect(wallRow).toHaveAttribute('data-fault', 'critical');
     await expect(wall.getByTestId('fleet-critical-prompt')).toHaveCount(0);
     const listed = (await machines(wall)).machines.find((m) => m.id === s3);
@@ -241,6 +245,9 @@ test("the phone's machine card shows the tapped machine's code", async ({ browse
       timeout: 15_000,
     });
     await expect(card.getByTestId('machine-fault-tag')).toHaveAttribute('data-severity', 'warning');
+    await expect(card.getByTestId('machine-fault-description')).toHaveText(
+      'Fuel Rail/System Pressure - Too Low',
+    );
   } finally {
     await simFaults('PU1', null).catch(() => {});
     await ctx.close();

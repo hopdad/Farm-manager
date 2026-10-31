@@ -30,19 +30,21 @@ export function MachineFaultTag({ machineId }: { machineId: string }) {
     ) : null;
   }
   return (
-    <div
-      className={css.faultTag}
-      data-severity={worst.severity}
-      title={faultListText(m.faults ?? [], now)}
-      data-testid="machine-fault-tag"
-    >
-      {faultBadgeText(m.faults ?? [])}
+    <>
+      <div
+        className={css.faultTag}
+        data-severity={worst.severity}
+        title={faultListText(m.faults ?? [], now)}
+        data-testid="machine-fault-tag"
+      >
+        {faultBadgeText(m.faults ?? [])}
+      </div>
       {description && (
         <div className={css.faultDesc} data-testid="machine-fault-description">
           {description}
         </div>
       )}
-    </div>
+    </>
   );
 }
 

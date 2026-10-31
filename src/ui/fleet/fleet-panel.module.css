@@ -389,10 +389,20 @@
 /* The worst code's meaning under the badge or tag (1f review: no title on a touch screen). */
 .faultDesc {
   display: block;
+  justify-self: start;
+  max-width: 100%;
   margin-top: 2px;
-  font-weight: 400;
-  font-size: 0.92em;
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
   opacity: 0.9;
+}
+
+.faultDesc[data-severity="critical"] {
+  color: #fecaca;
+}
+
+.faultDesc[data-severity="warning"] {
+  color: #fde68a;
 }
 
 .faultsUnknown {
