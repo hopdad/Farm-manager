@@ -115,6 +115,30 @@ export const DOC_DERIVED: readonly DocDerivedItem[] = [
     basis: 'spec',
   },
   {
+    source: 'deere',
+    what: "a 403's kind from its text: 'Access Denied' (org not connected), 'The client does not have a proper access for this API' (scope or licence), 'Requested org is in a restricted state' + X-Deere-Terms-Location (terms); the Equipment API's errors as a bare array [{ code, message }]",
+    confirm:
+      'the real messages on both APIs (deereDenialOf matches scope/licence/"proper access" in the text), and that an unapproved org answers the Equipment API with the same 403',
+    file: 'src/connectors/deere/orgs.ts (deereDenialOf), src/connectors/http.ts (errorDetail)',
+    basis: 'spec',
+  },
+  {
+    source: 'deere',
+    what: 'Deere Connections: https://connections.deere.com/connections/{clientId}/select-organizations?redirect_uri=<PUBLIC_URL>/admin/connectors',
+    confirm:
+      'that Deere sends the person back to /admin/connectors once that URL is registered as a Redirect URI in the app profile (the parameter name is documented)',
+    file: 'src/connectors/deere/connections.ts (approvalLink)',
+    basis: 'spec',
+  },
+  {
+    source: 'deere',
+    what: 'the daily call limit (DEERE_DAILY_CALL_BUDGET, decision 4)',
+    confirm:
+      "Deere publishes no per-day limit beyond the sandbox's 150,000 calls a month; the production limit comes with the production-access agreement (or a 429's Retry-After)",
+    file: 'src/connectors/call-budget.ts, src/connectors/deere/call-shares.ts',
+    basis: 'doc',
+  },
+  {
     source: 'samsara',
     what: 'faultCodes stat type: OBD-II codes per module (txId); the oem block',
     confirm:
