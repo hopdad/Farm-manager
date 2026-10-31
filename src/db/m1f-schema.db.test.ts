@@ -269,7 +269,11 @@ describe('farm.machine_hours and farm.machine_faults', () => {
       .db.insert(machineFaults)
       .values({ ...fault, code: 'y', ageOutSeconds: 86_400 });
     expect(
-      await pgCode(t().db.insert(machineFaults).values({ ...fault, code: 'z', ageOutSeconds: 0 })),
+      await pgCode(
+        t()
+          .db.insert(machineFaults)
+          .values({ ...fault, code: 'z', ageOutSeconds: 0 }),
+      ),
     ).toBe('23514');
   });
 
