@@ -112,6 +112,10 @@ export const panelMachineSchema = z.object({
   odometerMi: z.number().nullable().optional(),
   /** 1f: fuel level, percent 0-100 (machine_state.fuel_pct, time-guarded by stats_at). Null = none known. */
   fuelPct: z.number().nullable().optional(),
+  /** 1f.2: diesel exhaust fluid, percent 0-100 (machine_state.def_pct, guarded like fuel). Null = none known. */
+  defPct: z.number().nullable().optional(),
+  /** 1f.2: the route reports no fault system (`faultsNotReported`): "faults not reported", not a clean bill. */
+  faultsNotReported: z.boolean().optional(),
   /** 1f.2: how its vendor gets the data (machines.telematics_via: ford_pro, stellantis, gateway). */
   via: telematicsViaSchema.nullable().optional(),
   /** 1f.2: who set `kind` (a kind set on /admin wins over vendor tags). */

@@ -177,13 +177,19 @@ the internet drops (it says "Forecast stale" once NWS hasn't been reached for 2 
 ## Replay mode (Deere and the trucks from recorded fixtures)
 
 `CONNECTOR_DEERE=replay` and `CONNECTOR_SAMSARA=replay` in `.env.local` run the real Deere and
-Samsara clients on fixtures written from the vendors' published API documents (no stand-in, no
-account): the fleet panel says "John Deere: replay · Samsara: replay". Delete the lines to go
-back to the simulation. Every telematics vendor has its own key (`CONNECTOR_SAMSARA`,
-`CONNECTOR_MOTIVE`, `CONNECTOR_GEOTAB`, `CONNECTOR_AEMP`, `CONNECTOR_CNH`, `CONNECTOR_TERMINAL`;
-all `sim` by default, so the board shows the whole mixed demo fleet). An older `.env.local` with
-`CONNECTOR_ELD` / `ELD_VENDOR` still works: those set the named vendor's key, and
-`/admin/connectors` says which line to write instead.
+Samsara clients on fixtures written from the vendors' published API documents (no account):
+the fleet panel lists "John Deere: replay" and "Samsara: replay" among its mode notices (one per
+connection that isn't live). Delete the lines to go back to the simulation. Every telematics
+vendor has its own key (`CONNECTOR_SAMSARA`, `CONNECTOR_MOTIVE`, `CONNECTOR_GEOTAB`,
+`CONNECTOR_AEMP`, `CONNECTOR_CNH`, `CONNECTOR_TERMINAL`; all `sim` by default, so the board shows
+the whole mixed demo fleet, and the vendor stand-in still runs for the ones left in sim). To
+replay everything else too, set those keys to `replay` (Motive, Geotab, AEMP and Terminal; CNH
+has no replay mode) or `off`. An older `.env.local` with `CONNECTOR_ELD` / `ELD_VENDOR` still
+works: those set the named vendor's key only (the other vendors, the hired haulers on Motive and
+Geotab included, stay `sim`), and `/admin/connectors` says which line to write instead.
+
+After pulling slice 1f.2, run `pnpm db:seed demo` once: the mixed fleet's machines and their
+vendor refs land in an existing database (and counters a route doesn't report are cleared).
 
 ## Ports
 

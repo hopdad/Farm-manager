@@ -46,8 +46,10 @@ const local = (iso: string) => {
 describe('determinism', () => {
   test('same (scenario, seed, simTime) gives the same sample: golden hash', () => {
     // Update deliberately when the simulation changes on purpose (pnpm test prints the new hash).
+    // Last: the 1f.2 fleet's Terminal hauler H3 and the RoGator's odometer (the M0 hash below
+    // is unchanged).
     expect(sampleHash('harvest-day')).toBe(
-      '6ad25b579ee5f9e83546dc154270fa59d443321616a87e633a58021084100347',
+      'd6fba004d6b45b610458eccf43cc2216dbe05fd47413d318fb45aae5db00e55d',
     );
   });
 

@@ -9,7 +9,7 @@ import type { Layer } from '@deck.gl/core';
 import { IconLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import type { LabelGroup } from './labels';
 import type { FleetFrame } from './model';
-import { HALO_FILL, hexToRgba, ICON_ATLAS, ICON_MAPPING, markerLook } from './style';
+import { HALO_FILL, hexToRgba, ICON_ATLAS, ICON_MAPPING, iconFor, markerLook } from './style';
 
 export interface FleetLayerSizes {
   ringRadiusPx: number;
@@ -79,7 +79,7 @@ export function buildFleetLayers(
       data: frames,
       iconAtlas: ICON_ATLAS,
       iconMapping: ICON_MAPPING,
-      getIcon: () => 'arrow',
+      getIcon: (f) => iconFor(f.kind),
       sizeUnits: 'pixels',
       getSize: sizes.iconPx,
       billboard: false,

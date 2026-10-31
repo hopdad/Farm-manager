@@ -371,8 +371,13 @@ test('"trucks API down": the trucks go stale with a badge; off: they catch up', 
       message: 'semis fresh again',
     })
     .toBe(0);
-  await expect(page.getByTestId('badge-stale')).toHaveCount(0);
-  for (const m of await semis()) {
+  // "Trucks API down" takes every Samsara path down: machines on Samsara's other feeds (1f.2's
+  // asset-gateway sprayer on the equipment feed, polled every 10 s; the pickups' 30 s grid) catch
+  // up on their own cadence, so the badge gets as long as the slowest of them.
+  await expect(page.getByTestId('badge-stale')).toHaveCount(0, { timeout: 45_000 });
+  // The Samsara trucks caught up: their latest fix is current (other vendors report on their own
+  // cadence and were never down).
+  for (const m of (await semis()).filter((x) => SAMSARA_SEMIS.has(x.id))) {
     expect(Date.now() - Date.parse(m.ts), `${m.unitNo} fix age (ms)`).toBeLessThan(30_000);
   }
   expect(wall.blocked, 'requests to non-local hosts').toEqual([]);

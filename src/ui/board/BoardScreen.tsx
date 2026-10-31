@@ -195,6 +195,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
     realtime: data.config.realtime,
     staleAfterSeconds: data.config.staleAfterSeconds,
     deereStaleAfterSeconds: data.config.deereStaleAfterSeconds,
+    lastKnownStaleAfterSeconds: data.config.lastKnownStaleAfterSeconds,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fieldId, setFieldId] = useState<string | null>(null);

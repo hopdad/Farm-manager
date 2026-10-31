@@ -66,6 +66,22 @@ describe('interpolation helpers', () => {
 });
 
 describe('FleetModel', () => {
+  test('a last-known fix goes stale on FLEET_STALE_SECONDS_LAST_KNOWN, as on the panel (1f.2)', () => {
+    const wall = { now: T0 + 2 * 3_600_000 };
+    const at = (lastKnownStaleAfterSeconds?: number) => {
+      const m = new FleetModel({
+        staleAfterSeconds: 90,
+        ...(lastKnownStaleAfterSeconds ? { lastKnownStaleAfterSeconds } : {}),
+        wallNow: () => new Date(wall.now),
+      });
+      m.applySnapshot([machine({ kind: 'loader', positionKind: 'last_known' })], wall.now);
+      return m.frame(wall.now)[0];
+    };
+    // Two hours old: fresh under the 3 h default, stale under a 1 h setting.
+    expect(at()).toMatchObject({ stale: false, positionKind: 'last_known' });
+    expect(at(3_600)?.stale).toBe(true);
+  });
+
   test('a snapshot places machines without gliding', () => {
     const m = model();
     m.applySnapshot([machine()], 0);

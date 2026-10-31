@@ -32,6 +32,11 @@ export interface FleetModelOptions {
   staleAfterSeconds: number;
   /** FLEET_STALE_SECONDS_DEERE: Deere working-only fixes (default: staleAfterSeconds). */
   deereStaleAfterSeconds?: number;
+  /**
+   * FLEET_STALE_SECONDS_LAST_KNOWN (1f.2): vendor snapshots (AEMP, Terminal's latest location).
+   * Default: DEFAULT_LAST_KNOWN_STALE_AFTER_SECONDS, never below the other two (staleAfterFor).
+   */
+  lastKnownStaleAfterSeconds?: number;
   /** Glide length when a machine has no regular fix interval yet and two ticks haven't been seen. */
   defaultIntervalMs?: number;
   minIntervalMs?: number;
@@ -58,6 +63,8 @@ export interface FleetFrame {
   activity: MachineView['activity'];
   status: MachineView['status'];
   positionSource: MachineView['positionSource'];
+  /** 1f.2: present for a `last_known` fix only (a vendor snapshot: drawn as such, no glide trail). */
+  positionKind?: MachineView['positionKind'];
   speedMph: number;
   ts: string;
   /** Interpolated position (WGS84) and heading for this frame. */
@@ -76,8 +83,11 @@ export interface FleetCounts {
 
 export class FleetModel {
   private readonly machines = new Map<string, Entry>();
-  private readonly opts: Required<Omit<FleetModelOptions, 'wallNow'>> & {
+  private readonly opts: Required<
+    Omit<FleetModelOptions, 'wallNow' | 'lastKnownStaleAfterSeconds'>
+  > & {
     wallNow: () => Date;
+    lastKnownStaleAfterSeconds?: number;
   };
   private intervalMs: number;
   private lastTickAt: number | null = null;
@@ -133,6 +143,9 @@ export class FleetModel {
     return {
       staleAfterSeconds: this.opts.staleAfterSeconds,
       deereStaleAfterSeconds: this.opts.deereStaleAfterSeconds,
+      ...(this.opts.lastKnownStaleAfterSeconds
+        ? { lastKnownStaleAfterSeconds: this.opts.lastKnownStaleAfterSeconds }
+        : {}),
     };
   }
 
@@ -224,6 +237,7 @@ export class FleetModel {
         activity: v.activity,
         status: v.status,
         positionSource: v.positionSource,
+        ...(v.positionKind ? { positionKind: v.positionKind } : {}),
         speedMph: v.speedMph,
         ts: v.ts,
         lng: p.lng,

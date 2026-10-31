@@ -6,7 +6,12 @@ import { MACHINE_KINDS } from '../../domain/fleet';
 import { demoId, isUuid } from '../../domain/ids';
 import { toGeoRef } from '../geo/georef';
 import { distToSegment, pointInPolygon, type Vec } from '../geo/vec';
-import { SIM_DEERE_HOME_ORG, simExternalRefs } from '../types';
+import {
+  SIM_CNH_COMPANY_ID,
+  SIM_DEERE_HOME_ORG,
+  SIM_TERMINAL_CONNECTION_ID,
+  simExternalRefs,
+} from '../types';
 import { buildDemoFarm, INTERIOR_INSET_M, ROAD_SIDE_INSET_M, TOWNS } from './build';
 import { eldVehicleId } from './fleet';
 import { lngLatToGrid } from './grid';
@@ -169,12 +174,18 @@ describe('buildDemoFarm', () => {
         ? [by(unit)?.kind, t.vendor, t.provider ?? null, t.feed ?? null, t.via ?? null]
         : null;
     };
-    expect(route('C3')).toEqual(['combine', 'aemp', 'cnh', null, null]);
-    expect(route('T1')).toEqual(['tractor', 'aemp', 'cnh', null, null]);
+    // CNH FieldOps has its own connection: the Case IH machines by VIN in the CNH company.
+    expect(route('C3')).toEqual(['combine', 'cnh', SIM_CNH_COMPANY_ID, null, null]);
+    expect(route('T1')).toEqual(['tractor', 'cnh', SIM_CNH_COMPANY_ID, null, null]);
+    expect(by('C3')?.telematics?.id).toMatch(/^YJG\d{8}$/);
     expect(route('SP2')).toEqual(['sprayer', 'samsara', null, 'equipment', 'gateway']);
     expect(route('L1')).toEqual(['loader', 'aemp', 'kubota', null, null]);
     expect(route('H1')).toEqual(['semi', 'motive', null, null, null]);
+    expect(by('H1')?.telematics?.gateway).toBe(true);
     expect(route('H2')).toEqual(['semi', 'geotab', null, null, null]);
+    // A Terminal hauler: the connection is the source_org, the TSP its badge.
+    expect(route('H3')).toEqual(['semi', 'terminal', SIM_TERMINAL_CONNECTION_ID, null, null]);
+    expect(by('H3')?.telematics?.tsp).toBe('omnitracs-xrs');
     expect(route('PU1')).toEqual(['pickup', 'samsara', null, 'vehicle', 'ford_pro']);
     expect(route('PU2')).toEqual(['pickup', 'samsara', null, 'vehicle', 'stellantis']);
     expect(by('PU1')?.telematics?.reportEverySeconds).toBe(30);
@@ -206,6 +217,7 @@ describe('buildDemoFarm', () => {
       'L1',
       'H1',
       'H2',
+      'H3',
       'PU1',
       'PU2',
     ]);
@@ -282,9 +294,9 @@ describe('buildDemoFarm', () => {
     );
     expect(new Set(keys).size).toBe(keys.length);
     // farms + fields + shared fields + boundaries + Deere machines + telematics machines
-    // (4 semis, 2 pickups, the RoGator twice: Samsara and AEMP provider samsara, 3 on AEMP,
-    // the Motive and Geotab haulers).
-    expect(rows.length).toBe(7 + 40 + 3 + 40 + 6 + 13);
+    // (4 semis, 2 pickups, the RoGator twice: Samsara and AEMP provider samsara, the Kubota on
+    // AEMP, 2 Case IH on CNH, the Motive, Geotab and Terminal haulers).
+    expect(rows.length).toBe(7 + 40 + 3 + 40 + 6 + 14);
     for (const r of rows) expect(EXTERNAL_REF_KINDS).toContain(r.ref.kind);
     const shared = farm.fields.find((f) => f.sharedWith);
     expect(
@@ -296,13 +308,14 @@ describe('buildDemoFarm', () => {
       .filter((r) => r.entity === 'machine')
       .map((r) => `${r.ref.source}/${r.ref.sourceOrg}`);
     expect([...new Set(sources)].sort()).toEqual([
-      'aemp/cnh',
       'aemp/kubota',
       'aemp/samsara',
+      `cnh/${SIM_CNH_COMPANY_ID}`,
       'deere/org-home',
       'geotab/',
       'motive/',
       'samsara/',
+      `terminal/${SIM_TERMINAL_CONNECTION_ID}`,
     ]);
   });
 });

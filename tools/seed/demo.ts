@@ -23,14 +23,16 @@
  */
 import type pg from 'pg';
 import { externalRefKey } from '../../src/connectors/types';
+import { statsNotReported } from '../../src/connectors/vendors';
 import { exec } from '../../src/db/exec';
 import { upsertExternalRef } from '../../src/db/external-refs';
+import { positionVendorId } from '../../src/domain/fleet';
 import { demoId } from '../../src/domain/ids';
 import { buildDemoFarm, type DemoFarm } from '../../src/sim/farm/build';
 import { FLEET } from '../../src/sim/farm/fleet';
 import { fieldEntranceGeofences } from '../../src/sim/farm/geofences';
 import { simFieldSeasons } from '../../src/sim/seasons';
-import { simExternalRefs } from '../../src/sim/types';
+import { type SimMachine, simExternalRefs } from '../../src/sim/types';
 
 /** Lower bound of every seeded boundary's validity (fixed, so re-runs are no-ops). */
 export const DEMO_VALID_FROM = '2020-01-01T00:00:00Z';
@@ -243,6 +245,13 @@ export async function seedDemo(
 
     for (const m of farm.machines) {
       const spec = FLEET.find((f) => f.key === m.key);
+      // A counter the machine's route doesn't report is null, never 0 or a made-up number
+      // (src/connectors/vendors.ts statsNotReported; the panel then says "not reported"). A
+      // re-seed clears such a counter too (it can only have come from an older seed), and
+      // replaces a 0 an older seed wrote for a counter the route does report.
+      const notReported = statsNotReported(seededPositionVendor(m), m.telematics?.via);
+      const noHours = notReported.includes('engineHours') || spec?.hoursAt2026 == null;
+      const noOdometer = notReported.includes('odometerMi') || spec?.odometerAt2026 == null;
       count(
         'machines',
         await upsert(
@@ -256,13 +265,26 @@ export async function seedDemo(
              unit_no = excluded.unit_no, make = excluded.make,
              model = excluded.model, year = excluded.year, vin_serial = excluded.vin_serial,
              source = excluded.source, source_id = excluded.source_id,
-             telematics_via = excluded.telematics_via, updated_at = now()
+             telematics_via = excluded.telematics_via,
+             engine_hours = case when $13::boolean then null
+                                 when t.engine_hours = 0 then excluded.engine_hours
+                                 else t.engine_hours end,
+             odometer_mi = case when $14::boolean then null
+                                when t.odometer_mi = 0 then excluded.odometer_mi
+                                else t.odometer_mi end,
+             updated_at = now()
            where (case when t.kind_set_by = 'default' then t.kind else excluded.kind end,
                   t.unit_no, t.make, t.model, t.year, t.vin_serial, t.source, t.source_id,
-                  t.telematics_via)
+                  t.telematics_via, t.engine_hours, t.odometer_mi)
              is distinct from (excluded.kind, excluded.unit_no, excluded.make, excluded.model,
                                excluded.year, excluded.vin_serial, excluded.source, excluded.source_id,
-                               excluded.telematics_via)
+                               excluded.telematics_via,
+                               case when $13::boolean then null
+                                    when t.engine_hours = 0 then excluded.engine_hours
+                                    else t.engine_hours end,
+                               case when $14::boolean then null
+                                    when t.odometer_mi = 0 then excluded.odometer_mi
+                                    else t.odometer_mi end)
            returning (xmax = 0) as inserted`,
           [
             m.id,
@@ -272,11 +294,13 @@ export async function seedDemo(
             m.model,
             m.year,
             `SIM-${m.unitNo}-${m.year}`,
-            (spec?.hoursAt2026 ?? 0).toFixed(1),
-            (spec?.odometerAt2026 ?? 0).toFixed(1),
+            noHours ? null : (spec?.hoursAt2026 ?? 0).toFixed(1),
+            noOdometer ? null : (spec?.odometerAt2026 ?? 0).toFixed(1),
             DEMO_SOURCE,
             m.key,
             m.telematics?.via ?? null,
+            noHours,
+            noOdometer,
           ],
         ),
       );
@@ -428,4 +452,20 @@ export function formatSeedReport(r: SeedReport): string {
     );
   }
   return lines.join('\n');
+}
+
+/**
+ * The position vendor a seeded machine's fixes will carry (machine_state.position_vendor): its
+ * telematics route (`aemp_<provider>`, `terminal_<tsp>`, or the connection), else `deere` for a
+ * JDLink machine, else null (manual: nothing is known about its counters).
+ */
+export function seededPositionVendor(
+  m: Pick<SimMachine, 'telematics' | 'vendorIds'>,
+): string | null {
+  const t = m.telematics;
+  if (t) {
+    const provider = t.vendor === 'aemp' ? t.provider : t.vendor === 'terminal' ? t.tsp : null;
+    return positionVendorId(t.vendor, provider);
+  }
+  return m.vendorIds.deere ? 'deere' : null;
 }

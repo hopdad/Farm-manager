@@ -1,7 +1,8 @@
 /**
  * 1f.2: a fix stores its vendor id (position_vendor: `positionVendorId(source, provider)`) and its
  * kind; a `last_known` snapshot moves machine_state only (never farm.positions, never back in
- * time) and goes stale on its own, longer threshold.
+ * time), never replaces a fresh live fix (decision 1f-11's precedence), and goes stale on its
+ * own, longer threshold.
  */
 import { describe, expect, test } from 'vitest';
 import type { NormalizedPosition } from '../../connectors/types';
@@ -78,6 +79,53 @@ describe('upsertPosition: vendor id and position kind (1f.2)', () => {
     const older = await upsertPosition(t().pool, id, { ...snap, ts: '2026-10-15T13:30:00.000Z' });
     expect(older.stateUpdated).toBe(false);
     expect(await state(id)).toMatchObject({ position_vendor: 'samsara', position_kind: 'live' });
+  });
+
+  test('precedence: a fresh live fix is never replaced by a newer snapshot; a stale one is', async () => {
+    const id = await machine('SP2');
+    const stale = { staleAfterSeconds: 60, deereStaleAfterSeconds: 120 };
+    const snap = (ts: string) =>
+      fix({
+        source: 'aemp',
+        sourceOrg: 'samsara',
+        provider: 'samsara',
+        positionKind: 'last_known',
+        ts,
+      });
+    await upsertPosition(t().pool, id, fix({ ts: '2026-10-15T14:00:00.000Z' }), stale);
+    // The snapshot is newer, but the live fix was only 30 s old when it was taken: kept.
+    expect(
+      (await upsertPosition(t().pool, id, snap('2026-10-15T14:00:30.000Z'), stale)).stateUpdated,
+    ).toBe(false);
+    expect(await state(id)).toMatchObject({ position_vendor: 'samsara', position_kind: 'live' });
+    // The live feed went quiet: a snapshot more than the live threshold later takes over.
+    expect(
+      (await upsertPosition(t().pool, id, snap('2026-10-15T14:01:30.000Z'), stale)).stateUpdated,
+    ).toBe(true);
+    expect(await state(id)).toMatchObject({
+      position_vendor: 'aemp_samsara',
+      position_kind: 'last_known',
+    });
+    // A newer snapshot follows a snapshot; a newer live fix takes the machine back.
+    expect(
+      (await upsertPosition(t().pool, id, snap('2026-10-15T14:05:00.000Z'), stale)).stateUpdated,
+    ).toBe(true);
+    await upsertPosition(t().pool, id, fix({ ts: '2026-10-15T14:05:05.000Z' }), stale);
+    expect(await state(id)).toMatchObject({ position_vendor: 'samsara', position_kind: 'live' });
+    // A Deere working fix keeps its own (longer) threshold.
+    const jd = await machine('C9');
+    await upsertPosition(
+      t().pool,
+      jd,
+      fix({ source: 'deere', positionSource: 'deere_working', ts: '2026-10-15T14:00:00.000Z' }),
+      stale,
+    );
+    expect(
+      (await upsertPosition(t().pool, jd, snap('2026-10-15T14:01:30.000Z'), stale)).stateUpdated,
+    ).toBe(false);
+    expect(
+      (await upsertPosition(t().pool, jd, snap('2026-10-15T14:02:30.000Z'), stale)).stateUpdated,
+    ).toBe(true);
   });
 
   test('the tick: a two-hour-old snapshot is fresh, a two-hour-old live fix is stale', async () => {

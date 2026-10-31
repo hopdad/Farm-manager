@@ -31,14 +31,17 @@ export function useFleet(opts: {
   realtime: PublicConfig['realtime'];
   staleAfterSeconds: number;
   deereStaleAfterSeconds: number;
+  /** FLEET_STALE_SECONDS_LAST_KNOWN (1f.2), so the map's stale ring agrees with the panel. */
+  lastKnownStaleAfterSeconds?: number;
 }): {
   model: FleetModel;
   status: FleetStatus;
 } {
   const { appEnv, realtime, staleAfterSeconds, deereStaleAfterSeconds } = opts;
+  const { lastKnownStaleAfterSeconds } = opts;
   const model = useMemo(
-    () => new FleetModel({ staleAfterSeconds, deereStaleAfterSeconds }),
-    [staleAfterSeconds, deereStaleAfterSeconds],
+    () => new FleetModel({ staleAfterSeconds, deereStaleAfterSeconds, lastKnownStaleAfterSeconds }),
+    [staleAfterSeconds, deereStaleAfterSeconds, lastKnownStaleAfterSeconds],
   );
   const [status, setStatus] = useState<FleetStatus>({
     connection: 'loading',

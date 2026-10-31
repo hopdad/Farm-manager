@@ -222,6 +222,45 @@ describe('pnpm db:seed demo', () => {
     expect(await snapshot()).toEqual(before);
   });
 
+  test('counters a route does not report are null, never 0 (and a re-seed clears old ones)', async () => {
+    const { pool } = t();
+    await seedDemo(pool, { seed: 1 });
+    const counters = async () =>
+      new Map(
+        (
+          await pool.query<{ unit_no: string; h: number | null; mi: number | null }>(
+            `select unit_no, engine_hours::float8 as h, odometer_mi::float8 as mi from farm.machines`,
+          )
+        ).rows.map((r) => [r.unit_no, { h: r.h, mi: r.mi }]),
+      );
+    const c = await counters();
+    // Carmaker clouds (Ford Pro, Stellantis): neither counter is confirmed through Samsara.
+    expect(c.get('PU1')).toEqual({ h: null, mi: null });
+    expect(c.get('PU2')).toEqual({ h: null, mi: null });
+    // No odometer at all (a track loader, a drone); Deere reports engine hours, not odometers.
+    expect(c.get('L1')?.mi).toBeNull();
+    expect(c.get('D1')?.mi).toBeNull();
+    expect(c.get('C1')).toEqual({ h: 612, mi: null });
+    // Routes that report both keep the seeded numbers.
+    expect(c.get('S1')?.h).toBeGreaterThan(0);
+    expect(c.get('S1')?.mi).toBeGreaterThan(0);
+    expect(c.get('SP2')?.mi).toBeGreaterThan(0);
+    expect(c.get('H3')?.h).toBeGreaterThan(0);
+    for (const v of c.values()) {
+      expect(v.h).not.toBe(0);
+      expect(v.mi).not.toBe(0);
+    }
+    // A database seeded before 1f.2 had made-up counters: a re-seed clears them, and replaces
+    // the 0 it wrote for a counter the route does report (the RoGator's GPS odometer).
+    await pool.query(
+      `update farm.machines set engine_hours = 1120, odometer_mi = 0 where unit_no = 'PU1'`,
+    );
+    await pool.query(`update farm.machines set odometer_mi = 0 where unit_no = 'SP2'`);
+    await seedDemo(pool, { seed: 1 });
+    expect((await counters()).get('PU1')).toEqual({ h: null, mi: null });
+    expect((await counters()).get('SP2')?.mi).toBe(7640);
+  });
+
   test('app-owned columns survive a re-seed; seeded columns are restored', async () => {
     const { pool } = t();
     const f = farm.fields[1];

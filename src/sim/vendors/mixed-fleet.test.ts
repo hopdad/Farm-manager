@@ -1,8 +1,13 @@
 /**
  * The 1f.2 mixed demo fleet in the stand-in (docs/contracts-1f.md part B): each vendor lists
  * exactly its own machines, the carmaker-cloud pickups report on their own sparser grid and leave
- * out the stats their route doesn't report (never 0), and the new vendors' modules exist but
- * serve nothing yet ("not simulated").
+ * out the stats their route doesn't report (never 0), and every telematics machine has a vendor
+ * whose stand-in will list it.
+ *
+ * Parts (docs/contracts-1f.md §1.3): the Samsara vehicle-feed tests are fleet-faults'; the
+ * Motive test is trucks'; the world test at the end is the integrator's. Each part B builder
+ * tests its own stand-in in its own directory (nothing here asserts what an unbuilt stand-in
+ * answers).
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import type { SamsaraLocationsFeed, SamsaraStatsFeed } from '../../connectors/samsara/schemas';
@@ -62,9 +67,10 @@ describe('the mixed fleet in the stand-in', () => {
         .filter((k) => k !== 'id' && k !== 'name')
         .sort();
     expect(kinds('S1')).toEqual(['fuelPercents', 'obdEngineSeconds', 'obdOdometerMeters']);
-    // Ford Pro: fuel (engine hours and odometer unconfirmed); Stellantis: engine hours and fuel.
+    // Ford Pro and Stellantis through Samsara: fuel only (engine hours and odometer unconfirmed;
+    // no official source lists Stellantis engine hours).
     expect(kinds('PU1')).toEqual(['fuelPercents']);
-    expect(kinds('PU2')).toEqual(['fuelPercents', 'obdEngineSeconds']);
+    expect(kinds('PU2')).toEqual(['fuelPercents']);
   });
 
   test("Motive lists only its own vehicle (the hired hauler H1), in Motive's ids", async () => {
@@ -77,26 +83,20 @@ describe('the mixed fleet in the stand-in', () => {
       simTelematicsMachines(sim.world.farm, 'motive')[0]?.telematics?.id,
     );
   });
+});
 
-  test('the new vendors and the Samsara route modules exist but serve nothing yet', async () => {
-    for (const path of [
-      '/geotab/apiv1',
-      '/aemp/cnh/Fleet/1',
-      '/aemp/kubota/Fleet/1',
-      '/cnh/api/vehicles',
-      '/terminal/tsp/v1/vehicles',
-    ]) {
-      const res = await fetch(`${sim.url}${path}`);
-      expect(res.status, path).toBe(404);
-      expect(await res.text(), path).toMatch(/not simulated/);
-    }
-    const equipment = await fetch(`${sim.url}/samsara/fleet/equipment/locations/feed`, {
-      headers: { authorization: `Bearer ${SIM_CREDENTIALS.samsara.apiToken}` },
-    });
-    expect(equipment.status).toBe(404);
-    // Every telematics machine has a vendor whose stand-in will list it.
-    for (const v of ['geotab', 'aemp'] as const) {
-      expect(simTelematicsMachines(sim.world.farm, v).length, v).toBeGreaterThan(0);
-    }
+describe('the mixed fleet in the world', () => {
+  test('every telematics vendor has machines its stand-in will list, each on one connection', () => {
+    const farm = sim.world.farm;
+    const units = (v: Parameters<typeof simTelematicsMachines>[1], o = {}) =>
+      simTelematicsMachines(farm, v, o).map((m) => m.unitNo);
+    expect(units('geotab')).toEqual(['H2']);
+    expect(units('terminal')).toEqual(['H3']);
+    expect(units('cnh')).toEqual(['C3', 'T1']);
+    expect(units('aemp', { provider: 'kubota' })).toEqual(['L1']);
+    // The AEMP provider `samsara` serves Samsara's asset-gateway machines (the same ids).
+    expect(units('aemp', { provider: 'samsara' })).toEqual(['SP2']);
+    expect(units('samsara', { feed: 'equipment' })).toEqual(['SP2']);
+    expect(units('aemp', { provider: 'cnh' })).toEqual([]);
   });
 });

@@ -21,6 +21,7 @@
 
 import type { NormalizedPosition, NormalizedVehicleStat } from '../../connectors/types';
 import {
+  DEFAULT_STALE_AFTER_SECONDS,
   type FleetTick,
   isMachineStale,
   type MachineView,
@@ -28,6 +29,7 @@ import {
   type PositionKind,
   positionVendorId,
   type StaleThresholds,
+  staleThresholds,
 } from '../../domain/fleet';
 import { publish } from '../../platform/realtime/publish';
 import type { MachineStatusPayload } from '../../platform/realtime/types';
@@ -129,12 +131,25 @@ export interface UpsertPositionResult {
   stateUpdated: boolean;
 }
 
-/** Store one fix for `machineId` (already resolved through ingest.external_refs). */
+/**
+ * Store one fix for `machineId` (already resolved through ingest.external_refs).
+ *
+ * Precedence (1f.2, decision 1f-11): a newer fix moves machine_state, except that a
+ * `last_known` snapshot never replaces a FRESH live fix. It moves the state only when the
+ * state is itself last-known, or when the live fix was already stale when the snapshot was
+ * taken (older than the snapshot by more than the live fix's stale threshold, `stale`: the
+ * FLEET_STALE_SECONDS / _DEERE pair; default 600 s). So a machine on both a live feed and a
+ * snapshot feed (the RoGator on Samsara's equipment feed and on Samsara's AEMP feed; a Terminal
+ * truck's latest location and its history) keeps its live badge and threshold while the live
+ * feed works, and falls back to the snapshot once it doesn't. A live fix always wins when newer.
+ */
 export async function upsertPosition(
   ex: Executor,
   machineId: string,
   p: NormalizedPosition,
+  stale: number | StaleThresholds = DEFAULT_STALE_AFTER_SECONDS,
 ): Promise<UpsertPositionResult> {
+  const th = staleThresholds(stale);
   const heading = p.heading === null ? null : normalizeHeading(p.heading);
   const speed = p.speedMph === null ? null : Math.max(0, p.speedMph);
   const kind: PositionKind = p.positionKind ?? 'live';
@@ -184,8 +199,25 @@ export async function upsertPosition(
            position_source = excluded.position_source,
            position_vendor = excluded.position_vendor,
            position_kind = excluded.position_kind, updated_at = now()
-     where ms.ts < excluded.ts`,
-    [machineId, p.ts, p.lng, p.lat, speed, heading, p.engineOn, p.positionSource, vendor, kind],
+     where ms.ts < excluded.ts
+       and (excluded.position_kind = 'live'
+            or ms.position_kind = 'last_known'
+            or ms.ts < excluded.ts - make_interval(secs => case
+                 when ms.position_source = 'deere_working' then $12::float8 else $11::float8 end))`,
+    [
+      machineId,
+      p.ts,
+      p.lng,
+      p.lat,
+      speed,
+      heading,
+      p.engineOn,
+      p.positionSource,
+      vendor,
+      kind,
+      th.staleAfterSeconds,
+      th.deereStaleAfterSeconds,
+    ],
   );
   return { inserted: ins.rowCount === 1, stateUpdated: st.rowCount === 1 };
 }

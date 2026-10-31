@@ -1,6 +1,11 @@
 /**
- * How machines look on the map: colours by kind, the stale and down treatments, and the icon
- * atlas (an inline SVG data URL, so no request leaves the page). Pure.
+ * How machines look on the map: colours by kind, the stale, down and last-known treatments, and
+ * the icon atlas (an inline SVG data URL, so no request leaves the page). Pure.
+ *
+ * 1f.2 (docs/contracts-1f.md §B.4.7): terminal-pickups owns this file; its exports are frozen
+ * (additive changes only: FleetPanel, BoardScreen and the map's layers read them). The map's
+ * IconLayer draws `iconFor(kind)` from ICON_MAPPING, so a per-kind icon needs only an atlas
+ * entry and an `iconFor` case here.
  */
 import type { MachineKind } from '../../../domain/fleet';
 
@@ -51,6 +56,12 @@ export function hexToRgba(hex: string, alpha = 255): Rgba {
   ];
 }
 
+/**
+ * Icon alpha of a `last_known` fix (a vendor snapshot, AEMP or Terminal's latest location): drawn
+ * fainter than a live fix, so the board tells "was here at the last snapshot" from "is here".
+ */
+export const LAST_KNOWN_ICON_ALPHA = 150;
+
 export interface MarkerLook {
   icon: Rgba;
   ring: Rgba;
@@ -63,6 +74,7 @@ export function markerLook(m: {
   stale: boolean;
   status: 'active' | 'down' | 'retired';
   unitNo: string;
+  positionKind?: 'live' | 'last_known';
 }): MarkerLook {
   if (m.stale) {
     return {
@@ -72,9 +84,18 @@ export function markerLook(m: {
     };
   }
   const kind = hexToRgba(KIND_COLORS[m.kind]);
-  if (m.status === 'down')
-    return { icon: kind, ring: hexToRgba(DOWN_COLOR), label: `${m.unitNo} down` };
-  return { icon: kind, ring: kind, label: m.unitNo };
+  const icon =
+    m.positionKind === 'last_known' ? hexToRgba(KIND_COLORS[m.kind], LAST_KNOWN_ICON_ALPHA) : kind;
+  if (m.status === 'down') return { icon, ring: hexToRgba(DOWN_COLOR), label: `${m.unitNo} down` };
+  return { icon, ring: kind, label: m.unitNo };
+}
+
+/**
+ * The ICON_MAPPING entry a machine kind is drawn with (every kind the arrow until
+ * terminal-pickups adds per-kind icons to the atlas).
+ */
+export function iconFor(_kind: MachineKind): keyof typeof ICON_MAPPING {
+  return 'arrow';
 }
 
 /** A 64×64 navigation arrow pointing north (alpha mask; tinted per machine). */

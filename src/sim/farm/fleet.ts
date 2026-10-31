@@ -10,19 +10,27 @@
  * 1f.2, the mixed fleet (docs/contracts-1f.md part B): appended AFTER the M0 machines, so their
  * indices, shop slots and motion are unchanged (no scenario names the new keys: they stay parked
  * at the shop, engines off):
- *   C3  Case IH Axial-Flow 8260 combine   AEMP provider `cnh` (CNH's own API later)
- *   T1  Case IH Magnum 340 tractor        AEMP provider `cnh`
+ *   C3  Case IH Axial-Flow 8260 combine   CNH FieldOps (its own API; id = VIN, org = the company)
+ *   T1  Case IH Magnum 340 tractor        CNH FieldOps
  *   SP2 RoGator RG1100C sprayer           Samsara asset gateway (equipment feeds, via gateway)
  *   L1  Kubota SVL97-2 track loader       AEMP provider `kubota`
- *   H1  hired hauler's Kenworth T880      Motive
+ *   H1  hired hauler's Kenworth T880      Motive (on a Motive Vehicle Gateway)
  *   H2  hired hauler's Volvo VNL 760      Geotab
+ *   H3  hired hauler's Mack Anthem        Terminal (connection of an Omnitracs XRS hauler)
  *   PU1 Ford F-250 Super Duty pickup      Samsara, via Ford Pro (carmaker cloud, sparser fixes)
  *   PU2 Ram 2500 pickup                   Samsara, via Stellantis Mobilisights
+ * A machine whose route doesn't report a counter has none here (`odometerAt2026: null`, as for
+ * a loader, a drone or a parked sprayer's road miles): the seed then writes null, never 0.
  */
 import type { MachineKind } from '../../domain/fleet';
 import { deterministicId } from '../../domain/ids';
 import { hash32 } from '../rng';
-import type { SimTelematics, SimTelematicsVendor } from '../types';
+import {
+  SIM_CNH_COMPANY_ID,
+  SIM_TERMINAL_CONNECTION_ID,
+  type SimTelematics,
+  type SimTelematicsVendor,
+} from '../types';
 
 export type MachineRole =
   | 'combine'
@@ -71,8 +79,8 @@ export interface FleetSpec {
   /** Engine hours on 2026-01-01 and per year. */
   hoursAt2026: number;
   hoursPerYear: number;
-  /** Odometer (miles) on 2026-01-01 and per year. */
-  odometerAt2026: number;
+  /** Odometer (miles) on 2026-01-01 and per year; null = the machine has none (never 0). */
+  odometerAt2026: number | null;
   milesPerYear: number;
 }
 
@@ -261,7 +269,7 @@ export const FLEET: readonly FleetSpec[] = [
     burnGalPerHour: { working: 0, transport: 0, idle: 0 },
     hoursAt2026: 41,
     hoursPerYear: 60,
-    odometerAt2026: 0,
+    odometerAt2026: null,
     milesPerYear: 0,
   },
   // ---- 1f.2: the mixed fleet (parked at the shop in every scenario) -------------------------
@@ -274,7 +282,7 @@ export const FLEET: readonly FleetSpec[] = [
     model: 'Axial-Flow 8260',
     year: 2023,
     deere: false,
-    telematics: { vendor: 'aemp', provider: 'cnh' },
+    telematics: { vendor: 'cnh', provider: SIM_CNH_COMPANY_ID },
     implementWidthFt: 40,
     roadMph: 18,
     fieldMph: 6,
@@ -298,7 +306,7 @@ export const FLEET: readonly FleetSpec[] = [
     model: 'Magnum 340',
     year: 2022,
     deere: false,
-    telematics: { vendor: 'aemp', provider: 'cnh' },
+    telematics: { vendor: 'cnh', provider: SIM_CNH_COMPANY_ID },
     roadMph: 25,
     fieldMph: 8,
     fuelTankGal: 230,
@@ -329,8 +337,9 @@ export const FLEET: readonly FleetSpec[] = [
     burnGalPerHour: { working: 10, transport: 8, idle: 2 },
     hoursAt2026: 2480,
     hoursPerYear: 400,
-    odometerAt2026: 0,
-    milesPerYear: 0,
+    // Samsara's equipment feed reports a GPS odometer (gpsOdometerMeters) for a gateway.
+    odometerAt2026: 7_640,
+    milesPerYear: 2_300,
   },
   {
     key: 'loader-1',
@@ -348,13 +357,14 @@ export const FLEET: readonly FleetSpec[] = [
     burnGalPerHour: { working: 4, transport: 3, idle: 1 },
     hoursAt2026: 1830,
     hoursPerYear: 300,
-    odometerAt2026: 0,
+    odometerAt2026: null,
     milesPerYear: 0,
   },
   ...(
     [
       ['semi-hauler-motive', 'H1', 'Kenworth', 'T880', 2020, 488_200, 13_410, 'motive'],
       ['semi-hauler-geotab', 'H2', 'Volvo', 'VNL 760', 2019, 571_640, 15_020, 'geotab'],
+      ['semi-hauler-terminal', 'H3', 'Mack', 'Anthem', 2021, 402_870, 11_960, 'terminal'],
     ] as const
   ).map(
     ([key, unitNo, make, model, year, odometer, hours, vendor]): FleetSpec => ({
@@ -366,7 +376,12 @@ export const FLEET: readonly FleetSpec[] = [
       model: `${model} + hopper trailer (hired)`,
       year,
       deere: false,
-      telematics: { vendor },
+      telematics:
+        vendor === 'motive'
+          ? { vendor, gateway: true }
+          : vendor === 'terminal'
+            ? { vendor, provider: SIM_TERMINAL_CONNECTION_ID, tsp: 'omnitracs-xrs' }
+            : { vendor },
       roadMph: 50,
       loadedRoadMph: 45,
       fieldMph: 6,
@@ -436,6 +451,8 @@ export function telematicsId(vendor: SimTelematicsVendor, key: string, provider?
       const prefix = (provider ?? 'aemp').slice(0, 3).toUpperCase();
       return `${prefix}${String(1_000_000 + (hash32('sim-aemp-equipment', key) % 9_000_000))}`;
     }
+    case 'cnh': // CNH addresses machines by VIN (GET /equipment, /Fleet/Equipment/{vin}/…)
+      return `YJG${String(10_000_000 + (hash32('sim-cnh-vin', key) % 90_000_000))}`;
     case 'terminal':
       return `vcl_${hash32('sim-terminal-vehicle', key).toString(16).padStart(8, '0')}`;
   }
@@ -452,7 +469,11 @@ export function fleetSpec(key: string): FleetSpec {
   return spec;
 }
 
-/** Engine hours / odometer a machine has at an instant (linear wear since 2026-01-01). */
+/**
+ * Engine hours / odometer a machine has at an instant (linear wear since 2026-01-01). A machine
+ * with no odometer reads 0 here (the sim sample's number); vendors never report it (the seed
+ * writes null, and a stand-in leaves it out).
+ */
 export function countersAt(
   spec: FleetSpec,
   ms: number,
@@ -460,6 +481,6 @@ export function countersAt(
   const years = (ms - Date.UTC(2026, 0, 1)) / (365.25 * 86_400_000);
   return {
     engineHours: Math.max(0, spec.hoursAt2026 + spec.hoursPerYear * years),
-    odometerMi: Math.max(0, spec.odometerAt2026 + spec.milesPerYear * years),
+    odometerMi: Math.max(0, (spec.odometerAt2026 ?? 0) + spec.milesPerYear * years),
   };
 }

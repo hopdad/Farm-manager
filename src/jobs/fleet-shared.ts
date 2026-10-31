@@ -126,12 +126,17 @@ export function tickAfterRun(stale: StaleThresholds) {
 /**
  * One fix: farm.positions + machine_state, then geofence enter/exit for a NEW fix in the same
  * per-event transaction (src/jobs/geofences.ts), so a fix and its visits commit together.
+ * `stale` (staleThresholdsOf(cfg)) decides when a last-known snapshot may replace a live fix
+ * (upsertPosition's precedence; jobs that write `last_known` fixes pass it).
  */
-export function positionsUpsert(resolve: ReturnType<typeof machineResolver>) {
+export function positionsUpsert(
+  resolve: ReturnType<typeof machineResolver>,
+  stale?: StaleThresholds,
+) {
   return async (tx: Executor, p: NormalizedPosition, sctx: SyncContext): Promise<void> => {
     const id = await resolve(tx, sctx, p.source, p.sourceOrg, p.externalMachineId);
     if (!id) return;
-    const stored = await upsertPosition(tx, id, p);
+    const stored = await upsertPosition(tx, id, p, stale);
     if (stored.inserted) await detectGeofenceVisits(tx, id, p.ts);
   };
 }
