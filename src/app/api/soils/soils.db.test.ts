@@ -9,7 +9,8 @@
  */
 import type { MultiPolygon } from 'geojson';
 import { beforeAll, describe, expect, test } from 'vitest';
-import { geosHasInscribedCircle } from '@/db/queries/soils-labels';
+import type { Queryable } from '@/db/client';
+import { clearSoilLabelPoints, geosHasInscribedCircle } from '@/db/queries/soils-labels';
 import { makeSession, runWithSession } from '@/platform/auth/testing';
 import { ROLES, type Role } from '@/platform/auth/types';
 import { setupTestDb } from '@/test/db';
@@ -188,6 +189,100 @@ describe('GET /api/soils/labels', () => {
     if (!a) throw new Error('no label for the L');
     expect(await inside(a.id, a.geometry.coordinates)).toBe(true);
     expect(await geosHasInscribedCircle(t().pool)).toBe(true);
+    // And it IS the inscribed-circle centre, not the point-on-surface fallback (which is also
+    // inside the L and also never moves: -84.17, 41.885 here, at the edge of the long arm).
+    const r = await t().pool.query<{ mic: [number, number]; pos: [number, number] }>(
+      `select array[extensions.ST_X(c.center), extensions.ST_Y(c.center)] as mic,
+              array[extensions.ST_X(s.p), extensions.ST_Y(s.p)] as pos
+         from gis.soil_polygons p
+        cross join lateral extensions.ST_MaximumInscribedCircle(p.geom) c
+        cross join lateral (select extensions.ST_PointOnSurface(p.geom) as p) s
+        where p.id = $1::uuid`,
+      [a.id],
+    );
+    const { mic, pos } = r.rows[0] ?? { mic: [0, 0], pos: [0, 0] };
+    const [lng, lat] = a.geometry.coordinates;
+    expect(Math.abs(lng - mic[0])).toBeLessThan(2e-6);
+    expect(Math.abs(lat - mic[1])).toBeLessThan(2e-6);
+    expect(Math.hypot(lng - pos[0], lat - pos[1])).toBeGreaterThan(1e-3);
+  });
+
+  test('each point is computed once per soils version: a repeat asks for candidates only', async () => {
+    const pool = t().pool;
+    const asked: string[] = [];
+    const counting: Queryable = {
+      query: ((sql: string, params?: unknown[]) => {
+        asked.push(sql.includes('ST_MaximumInscribedCircle') ? 'points' : 'candidates');
+        return pool.query(sql, params);
+      }) as unknown as Queryable['query'],
+    };
+    const run = () =>
+      as('viewer', () =>
+        handleSoilLabels(
+          new Request(`http://localhost:3121/api/soils/labels?bbox=${BBOX}&z=13`),
+          counting,
+        ),
+      ).then(async (res) => (await res.json()) as SoilLabelsResponse);
+    const at = (body: SoilLabelsResponse) => body.features.find((f) => f.id === ids.mid);
+    const was = await pool.query<{ version: string | null }>(
+      `select version from gis.map_layers where key = 'soils'`,
+    );
+    await pool.query(`update gis.map_layers set version = 'memo-1' where key = 'soils'`);
+    try {
+      clearSoilLabelPoints();
+      const first = await run();
+      expect(asked).toEqual(['candidates', 'points']);
+      asked.length = 0;
+      const again = await run();
+      expect(asked, 'the points come from memory').toEqual(['candidates']);
+      expect(again).toEqual(first);
+
+      // A reload of the soils (a new version) may move a polygon: its point is computed again.
+      await pool.query(
+        `update gis.soil_polygons
+            set geom = extensions.ST_Translate(geom, 0.01, 0) where id = $1::uuid`,
+        [ids.mid],
+      );
+      await pool.query(`update gis.map_layers set version = 'memo-2' where key = 'soils'`);
+      asked.length = 0;
+      const reloaded = await run();
+      expect(asked).toEqual(['candidates', 'points']);
+      const [x0, y0] = at(first)?.geometry.coordinates ?? [0, 0];
+      const [x1, y1] = at(reloaded)?.geometry.coordinates ?? [0, 0];
+      expect(x1 - x0).toBeCloseTo(0.01, 5);
+      expect(y1).toBeCloseTo(y0, 6);
+      expect(await inside(ids.mid ?? '', [x1, y1])).toBe(true);
+    } finally {
+      await pool.query(
+        `update gis.soil_polygons
+            set geom = extensions.ST_Translate(geom, -0.01, 0) where id = $1::uuid`,
+        [ids.mid],
+      );
+      await pool.query(`update gis.map_layers set version = $1 where key = 'soils'`, [
+        was.rows[0]?.version ?? null,
+      ]);
+      clearSoilLabelPoints();
+    }
+  });
+
+  test('without a soils version (nothing loaded by gis:soils) the points are computed each time', async () => {
+    const pool = t().pool;
+    const asked: string[] = [];
+    const counting: Queryable = {
+      query: ((sql: string, params?: unknown[]) => {
+        asked.push(sql.includes('ST_MaximumInscribedCircle') ? 'points' : 'candidates');
+        return pool.query(sql, params);
+      }) as unknown as Queryable['query'],
+    };
+    for (let i = 0; i < 2; i++) {
+      await as('viewer', () =>
+        handleSoilLabels(
+          new Request(`http://localhost:3121/api/soils/labels?bbox=${BBOX}&z=13`),
+          counting,
+        ),
+      );
+    }
+    expect(asked).toEqual(['candidates', 'points', 'candidates', 'points']);
   });
 
   test('small polygons are labelled only once they are big enough on screen', async () => {
@@ -267,6 +362,20 @@ describe('GET /api/soils/mapunits/<mukey>', () => {
       ['Pewamo', 10, false],
       ['Glynwood', 5, false],
     ]);
+  });
+
+  test('tied shares keep the stored order: the dominant component the loader chose first', async () => {
+    // gis:soils stores components by share, then lowest cokey, and takes the drainage class and
+    // hydrologic group from the first: Pewamo here, though Blount sorts first by name.
+    await insertUnit('100003', 'PbA', 'Pewamo-Blount complex, 0 to 2 percent slopes', [
+      { name: 'Pewamo', pct: 45, major: true, drainageClass: 'Very poorly drained', hydgrp: 'C/D' },
+      { name: 'Blount', pct: 45, major: true, drainageClass: 'Somewhat poorly drained' },
+      { name: 'Del Rey', pct: 10, major: false, drainageClass: 'Somewhat poorly drained' },
+    ]);
+    const res = await as('viewer', () => handleMapUnit('100003', t().pool));
+    const d = (await res.json()) as MapUnitDetail;
+    expect(d.dominantComponent).toBe('Pewamo');
+    expect(d.components.map((c) => c.name)).toEqual(['Pewamo', 'Blount', 'Del Rey']);
   });
 
   test('404 unknown, 400 malformed, 401 signed out', async () => {

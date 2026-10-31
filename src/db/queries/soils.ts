@@ -128,9 +128,9 @@ export async function mapUnitDetail(ex: Queryable, mukey: string): Promise<MapUn
     hydgrp: x.hydgrp,
     farmlandClass: x.farmland_class,
     nccpi: x.nccpi,
-    components: parseComponents(x.components).sort(
-      (a, b) => b.pct - a.pct || a.name.localeCompare(b.name),
-    ),
+    // Largest first; ties keep the stored order (gis:soils writes them by share, then lowest
+    // cokey: the same order it picks the dominant component by), so the first one is it.
+    components: parseComponents(x.components).sort((a, b) => b.pct - a.pct),
     surveyVersion: x.survey_version,
     synthetic: x.fixture === 'true',
   };
