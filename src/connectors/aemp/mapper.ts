@@ -98,12 +98,26 @@ interface StatPart {
   reading: StatReading;
 }
 
+/** Whose snapshot it is: the generic AEMP client's (default) or CNH FieldOps' own ISO-style one. */
+export interface SnapshotOwner {
+  source: 'aemp' | 'cnh';
+  /** external_refs source_org: the AEMP provider, or the CNH company id. */
+  sourceOrg: string;
+  /** NormalizedPosition.provider (`aemp_<provider>`), or null (CNH: position_vendor `cnh`). */
+  provider: string | null;
+}
+
 /** The position (last-known) and stats of one machine's snapshot sections. */
-export function aempSnapshotItems(raw: AempFleetRaw): AempFleetItem[] {
-  const { provider, machineId, equipment: eq } = raw;
+export function aempSnapshotItems(raw: AempFleetRaw, owner?: SnapshotOwner): AempFleetItem[] {
+  const { machineId, equipment: eq } = raw;
+  const who: SnapshotOwner = owner ?? {
+    source: 'aemp',
+    sourceOrg: raw.provider,
+    provider: raw.provider,
+  };
   const at = (datetime: string | undefined) => datetime ?? raw.snapshotTime;
   const out: AempFleetItem[] = [];
-  const base = { source: 'aemp' as const, externalMachineId: machineId, sourceOrg: provider };
+  const base = { source: who.source, externalMachineId: machineId, sourceOrg: who.sourceOrg };
 
   const loc = eq.Location;
   const locTs = at(loc?.datetime);
@@ -122,7 +136,7 @@ export function aempSnapshotItems(raw: AempFleetRaw): AempFleetItem[] {
         engineOn: engine && at(engine.datetime) === locTs ? engine.Running : null,
         positionSource: 'eld',
         positionKind: 'last_known',
-        provider,
+        provider: who.provider,
       },
     });
   }

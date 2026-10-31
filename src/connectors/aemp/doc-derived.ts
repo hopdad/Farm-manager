@@ -47,7 +47,7 @@ export const AEMP_DOC_DERIVED: readonly DocDerivedItem[] = [
     source: 'aemp',
     what: 'a fault series that answers 404 for a window with no faults',
     confirm:
-      "read as \"no faults\" (Trackunit's own importer has a flag for servers that do so: faultCodesAcceptHttpNotFoundAsEmptyData); confirm per provider on a recording",
+      'read as "no faults" (Trackunit\'s own importer has a flag for servers that do so: faultCodesAcceptHttpNotFoundAsEmptyData); confirm per provider on a recording',
     file: 'src/connectors/aemp/client.ts (machineFaults)',
     basis: 'doc',
   },

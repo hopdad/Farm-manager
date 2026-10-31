@@ -98,6 +98,59 @@ const shortError = (e: unknown) => {
   return m.length > 200 ? `${m.slice(0, 197)}...` : m;
 };
 
+/** A machine of a snapshot, with the page's `snapshotTime` (dates sections without their own). */
+export interface SnapshotMachine {
+  id: string;
+  equipment: AempEquipment;
+  snapshotTime: string | null;
+}
+
+/**
+ * The snapshot diff of the AEMP model (src/connectors/sync-models.ts `pollSnapshotDiff`, mode
+ * `newer`): key `<prefix><machine id>:<section>`, version = the section's own datetime (else the
+ * page's snapshotTime). Returns each machine whose sections moved, with its header and the moved
+ * sections only. Shared by the generic AEMP client and CNH's Fleet snapshot.
+ */
+export async function diffSnapshotSections(
+  prefix: string,
+  machines: readonly SnapshotMachine[],
+  seen: string | null,
+): Promise<{
+  changed: { machine: SnapshotMachine; equipment: AempEquipment; latest: number }[];
+  cursor: string;
+}> {
+  const sections = machines.flatMap((m) =>
+    AEMP_SECTIONS.flatMap((s) => {
+      const sec = m.equipment[s];
+      if (!sec) return [];
+      return [{ m, s, ms: Date.parse(sec.datetime ?? m.snapshotTime ?? '') }];
+    }),
+  );
+  const diff = await pollSnapshotDiff({
+    cursor: seen,
+    fetchSnapshot: async () => sections,
+    keyOf: (x) => `${prefix}${x.m.id}:${x.s}`,
+    versionOf: (x) => x.ms,
+    mode: 'newer',
+    maxKeys: 30_000,
+  });
+  const byMachine = new Map<
+    string,
+    { machine: SnapshotMachine; equipment: AempEquipment; latest: number }
+  >();
+  for (const x of diff.items) {
+    const hit = byMachine.get(x.m.id) ?? {
+      machine: x.m,
+      equipment: { EquipmentHeader: x.m.equipment.EquipmentHeader },
+      latest: 0,
+    };
+    (hit.equipment as Record<string, unknown>)[x.s] = x.m.equipment[x.s];
+    hit.latest = Math.max(hit.latest, x.ms);
+    byMachine.set(x.m.id, hit);
+  }
+  return { changed: [...byMachine.values()], cursor: diff.cursor };
+}
+
 export interface AempPollResult<T> extends PollResult<RawItem<T>> {
   /** Providers that failed this poll (the poll itself still succeeded). */
   failed: { provider: string; error: string }[];
@@ -307,40 +360,16 @@ export class AempClient {
       due++;
       try {
         const snap = await this.fleetSnapshot(ep);
-        const sections = snap.machines.flatMap((m) =>
-          AEMP_SECTIONS.flatMap((s) => {
-            const sec = m.equipment[s];
-            if (!sec) return [];
-            return [{ m, s, ms: Date.parse(sec.datetime ?? m.snapshotTime ?? '') }];
-          }),
-        );
-        const diff = await pollSnapshotDiff({
-          cursor: st.seen ?? null,
-          fetchSnapshot: async () => sections,
-          keyOf: (x) => `${ep.id}:${x.m.id}:${x.s}`,
-          versionOf: (x) => x.ms,
-          mode: 'newer',
-          maxKeys: 30_000,
-        });
-        const byMachine = new Map<string, { raw: AempFleetRaw; latest: number }>();
-        for (const x of diff.items) {
-          const hit = byMachine.get(x.m.id) ?? {
-            raw: {
-              provider: ep.id,
-              machineId: x.m.id,
-              snapshotTime: x.m.snapshotTime,
-              equipment: { EquipmentHeader: x.m.equipment.EquipmentHeader },
-            },
-            latest: 0,
-          };
-          (hit.raw.equipment as Record<string, unknown>)[x.s] = x.m.equipment[x.s];
-          hit.latest = Math.max(hit.latest, x.ms);
-          byMachine.set(x.m.id, hit);
-        }
-        for (const { raw, latest } of byMachine.values()) {
+        const diff = await diffSnapshotSections(`${ep.id}:`, snap.machines, st.seen ?? null);
+        for (const { machine, equipment, latest } of diff.changed) {
           items.push({
-            externalId: `${ep.id}:${raw.machineId}@${new Date(latest).toISOString()}`,
-            payload: raw,
+            externalId: `${ep.id}:${machine.id}@${new Date(latest).toISOString()}`,
+            payload: {
+              provider: ep.id,
+              machineId: machine.id,
+              snapshotTime: machine.snapshotTime,
+              equipment,
+            },
           });
         }
         next.providers[ep.id] = {
