@@ -5,6 +5,7 @@
  */
 import { describe, expect, test } from 'vitest';
 import { SIM_CREDENTIALS } from '../sim/types';
+import { deereAuthorizeUrl, exchangeDeereCode } from './deere/oauth';
 import {
   aempEndpoints,
   CNH_ENVIRONMENTS,
@@ -15,6 +16,7 @@ import {
   DEERE_LIVE_API_BASE,
   DEERE_SANDBOX_API_BASE,
   deereEndpoints,
+  deereRedirectUri,
   geotabEndpoint,
   MOTIVE_DEFAULT_BASE,
   motiveEndpoint,
@@ -243,5 +245,40 @@ describe('1f.2 endpoint resolvers', () => {
         ],
       }),
     ).toThrow(/needs 'username'/);
+  });
+});
+
+describe('DEERE_REDIRECT_URI (decision 6)', () => {
+  const live: ConnectorConfig = {
+    ...cfg,
+    DEERE_CLIENT_ID: 'app',
+    DEERE_CLIENT_SECRET: 'secret',
+  };
+
+  test('unset: ${PUBLIC_URL}/api/oauth/deere in every mode', () => {
+    for (const mode of ['sim', 'replay', 'sandbox', 'live'] as const) {
+      expect(deereEndpoints(mode, live).redirectUri).toBe('http://localhost:3000/api/oauth/deere');
+    }
+    expect(deereRedirectUri({ PUBLIC_URL: 'https://farm.example/' })).toBe(
+      'https://farm.example/api/oauth/deere',
+    );
+  });
+
+  test('set: the authorize URL and the code exchange both send it', async () => {
+    const forwarder = 'https://pages.example/deere-callback.html';
+    const ep = deereEndpoints('sandbox', { ...live, DEERE_REDIRECT_URI: forwarder });
+    expect(ep.redirectUri).toBe(forwarder);
+    expect(new URL(deereAuthorizeUrl(ep, 'st4te')).searchParams.get('redirect_uri')).toBe(
+      forwarder,
+    );
+    const bodies: string[] = [];
+    await exchangeDeereCode(ep, 'c0de', {
+      fetch: async (_url, init) => {
+        bodies.push(String(init?.body));
+        return Response.json({ access_token: 'a', token_type: 'Bearer', expires_in: 3600 });
+      },
+    });
+    expect(new URLSearchParams(bodies[0]).get('redirect_uri')).toBe(forwarder);
+    expect(new URLSearchParams(bodies[0]).get('grant_type')).toBe('authorization_code');
   });
 });
