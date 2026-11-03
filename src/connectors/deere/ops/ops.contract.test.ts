@@ -115,10 +115,21 @@ describe('deere.ops against the stand-in (sim world)', () => {
     expect(r.stats.skippedOrgs.sort()).toEqual(['org-customer-1', 'org-customer-2']);
     expect(r.stats.fieldsChecked).toBe(homeFields().length);
     const ops = r.items.flatMap((i) => mapDeereOperation(i.payload));
-    expect(ops.length).toBe(homeFields().length);
+    // Every home field's planting of 2026, and (D23 rule 3) the wheat seeded this October,
+    // which Deere files under 2027.
+    expect(ops.filter((o) => o.cropYear === 2026).length).toBe(homeFields().length);
+    const next = ops.filter((o) => o.cropYear === 2027);
+    const wheat = homeFields().filter((f) => cropFor(1, f, CURRENT_CROP_YEAR) === 'wheat');
+    expect(wheat.length).toBeGreaterThan(0);
+    expect(next.map((o) => o.fieldExternalId).sort()).toEqual(
+      wheat.map((f) => f.deereFieldId).sort(),
+    );
+    for (const o of next) {
+      expect(o.crop).toBe('wheat');
+      expect(o.startedAt.slice(0, 7)).toBe('2026-10');
+    }
     for (const op of ops) {
       expect(op.kind).toBe('seeding');
-      expect(op.cropYear).toBe(2026);
       expect(op.sourceOrg).toBe(SIM_DEERE_HOME_ORG);
       expect(Date.parse(op.endedAt as string)).toBeLessThanOrEqual(WALL);
       expect(op.products[0]).toMatchObject({ kind: 'seed', rateUnit: 'seeds1ac-1' });
@@ -189,8 +200,9 @@ describe('deere.ops against the stand-in (sim world)', () => {
       seasonsPerField: 2,
       listings: 2 * homeFields().length,
     });
-    // The stand-in has nothing filed under 2027: one planting a field, not two.
-    expect(r.items).toHaveLength(homeFields().length);
+    // Under 2027 the stand-in has only this October's wheat seeding (D23 rule 3).
+    const wheat = homeFields().filter((f) => cropFor(1, f, CURRENT_CROP_YEAR) === 'wheat');
+    expect(r.items).toHaveLength(homeFields().length + wheat.length);
   }, 30_000);
 
   test('an operation listed under both seasons (a vendor ignoring cropSeason) is read once', async () => {

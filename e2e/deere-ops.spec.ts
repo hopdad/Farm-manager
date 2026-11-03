@@ -1,9 +1,11 @@
 /**
  * Slice 1f deere-ops done-when, in sim mode (CONNECTOR_DEERE=sim, the Deere stand-in's `ops`
  * module): deere.ops (run now, as the clock does every 20 s in the demo) lands this season's
- * operations (D23: the two crop seasons of the sync window; the stand-in files its season under
- * the one being harvested, so this holds in January too), and a field's History tab on /board
- * and /m shows them under its growing year: kind, crop, acres, the
+ * operations (D23: the two crop seasons of the sync window; the stand-in files the scenario's
+ * work under the one being harvested and a later season's plantings under that season, so this
+ * holds all year), and a field's History tab on /board and /m shows them under its growing
+ * year (final, or still provisional the day after the field's new-season planting): kind, crop,
+ * acres, the
  * seed and its rate, the machine and operator, coverage; a field whose coverage call Deere
  * answers 400 (an active boundary) shows its operation with the measured area and no coverage
  * map. A change to a field's operations (`fields`/`updated` with part 'operations') reaches the
@@ -15,7 +17,9 @@
 import { randomBytes } from 'node:crypto';
 import { expect, type Page, test } from '@playwright/test';
 import { getConfig } from '../src/config';
+import { FINAL_AFTER_MS } from '../src/db/queries/operations';
 import { cropSeasonsToSync } from '../src/domain/crops';
+import type { FieldOperationsResponse } from '../src/domain/operations';
 import { buildDemoFarm } from '../src/sim/farm/build';
 import { SIM_OPS_REFUSED_EVERY } from '../src/sim/vendors/deere/ops-world';
 import { e2ePool, signInAs } from './support/auth';
@@ -113,8 +117,15 @@ test("a field's History tab shows this season's operations from Operations Cente
   // The heading names the year the server answered with: the field's growing year (D23), a
   // season of the sync window, whatever the calendar says (January included).
   const api = await page.request.get(`/api/fields/${MAPPED?.id}/operations`);
-  const { cropYear } = (await api.json()) as { cropYear: number };
+  const { cropYear, operations } = (await api.json()) as FieldOperationsResponse;
   expect(cropSeasonsToSync(new Date())).toContain(cropYear);
+  // Final once Deere hasn't changed it for 24 h. The field moves to a new season with its
+  // own planting (D23: the stand-in serves May 5's planting under the new season once it
+  // ended), so for a day after that the planting is still provisional.
+  const seeding = operations.find((o) => o.kind === 'seeding');
+  const dayOld =
+    !!seeding?.endedAt && Date.parse(seeding.endedAt) < Date.now() - FINAL_AFTER_MS - 3_600_000;
+  const status = dayOld ? 'final' : (seeding?.status ?? 'final');
   const section = page.getByTestId('field-operations');
   await expect(section).toHaveAttribute('data-crop-year', String(cropYear));
   await expect(page.getByTestId('field-operations-heading')).toHaveText(
@@ -123,7 +134,7 @@ test("a field's History tab shows this season's operations from Operations Cente
   const planting = page.locator('[data-testid="field-operation"][data-kind="seeding"]');
   await expect(planting).toHaveCount(1);
   await expect(planting).toHaveAttribute('data-coverage', 'yes');
-  await expect(planting).toHaveAttribute('data-status', 'final');
+  await expect(planting).toHaveAttribute('data-status', status);
   await expect(planting).toContainText(/Planting · (corn|soybeans|wheat)/);
   await expect(planting.getByTestId('field-operation-acres')).toContainText(/\d+(\.\d)? ac/);
   await expect(planting.getByTestId('field-operation-products')).toContainText('seeds/ac');

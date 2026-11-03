@@ -1,14 +1,14 @@
 /**
  * Deere stand-in route module `ops` (1f, owner: deere-ops; docs/contracts-1f.md §7.1): the field
- * operations of the simulated farm's one modelled season (./ops-world.ts: finished work from the
- * day reports, the spring planting, the full-day sprayer knob; filed under the season being
- * harvested at the wall, D23), in the shapes of Deere's Field Operations API
- * (src/connectors/deere/ops/schemas.ts):
+ * operations of the simulated farm (./ops-world.ts: finished work from the day reports, the
+ * plantings, the full-day sprayer knob; D23: the scenario's work under the season being
+ * harvested at the wall, a later season's plantings under that season), in the shapes of
+ * Deere's Field Operations API (src/connectors/deere/ops/schemas.ts):
  *
  *   GET /platform/organizations/{org}/fields/{field}/fieldOperations
  *       ?cropSeason=&fieldOperationType=&embed=measurementTypes&pageOffset=&itemLimit=
  *       the owning org's operations on the field (a sharing org lists none) of the season
- *       asked (`cropSeason`; absent = the modelled one; any other season lists none);
+ *       asked (`cropSeason`; absent = the season being harvested; an older one lists none);
  *       `fieldOperationType` filters (case-insensitively); `embed=measurementTypes` puts each
  *       operation's measurements on it
  *   GET /platform/fieldOperations/{id}[?embed=measurementTypes]

@@ -1,7 +1,8 @@
 /**
  * deere.ops end to end against the stand-in in-process (the real sim world: day reports) and a
  * database seeded with the demo farm (fields, boundaries, machines and exactly the external refs
- * the demo seed writes): this season's planting lands on the seeded fields with no duplicate,
+ * the demo seed writes): this season's planting (and, D23, the wheat seeded this October under
+ * next year's season) lands on the seeded fields with no duplicate,
  * a second run changes nothing and publishes nothing, a field the simulation finishes lands as
  * a harvest with `fields`/`updated` { parts: ['operations'] }, the provisional → final sweep,
  * `fieldsPerRun` in sync_state.extra, and the per-run field cap under a budget (a sandbox-mode
@@ -12,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { deterministicId } from '../../../domain/ids';
 import { createDeereOpsJob, type DeereOpsConfig } from '../../../jobs/deere-ops';
 import { createSimWorld } from '../../../sim/index';
+import { CURRENT_CROP_YEAR, cropFor } from '../../../sim/seasons';
 import { SIM_CREDENTIALS } from '../../../sim/types';
 import { simDeereOnlyField } from '../../../sim/vendors/deere/fields-world';
 import { SIM_OPS_REFUSED_EVERY } from '../../../sim/vendors/deere/ops-world';
@@ -46,6 +48,12 @@ const run = (c: DeereOpsConfig = cfg) =>
 
 /** Every demo field: its owning org (home or a customer's) lists its operations. */
 const allFields = () => world.farm.fields;
+/**
+ * The fields seeded to wheat this October: the stand-in files that seeding under 2027 (D23
+ * rule 3), the newer season of the window, so they have a second planting row.
+ */
+const wheatFields = () =>
+  world.farm.fields.filter((f) => cropFor(world.seed, f, CURRENT_CROP_YEAR) === 'wheat');
 
 async function operations() {
   const r = await t().pool.query(
@@ -78,10 +86,20 @@ afterAll(async () => {
 describe('deere.ops (sim)', () => {
   test("the first run lands every field's planting on the seeded fields", async () => {
     const before = listener.messages.length;
-    expect(await run()).toEqual({ items: allFields().length });
+    // 2026's plantings, and 2027's wheat seeded this October (Oct 31: [2026, 2027]).
+    expect(wheatFields().length).toBeGreaterThan(0);
+    expect(await run()).toEqual({ items: allFields().length + wheatFields().length });
     const rows = await operations();
-    expect(rows).toHaveLength(allFields().length);
+    expect(rows).toHaveLength(allFields().length + wheatFields().length);
     expect(new Set(rows.map((r) => r.field_id))).toEqual(new Set(allFields().map((f) => f.id)));
+    const nextYear = await t().pool.query<{ field_id: string }>(
+      `select field_id::text from farm.operations where crop_year = 2027 order by 1`,
+    );
+    expect(nextYear.rows.map((r) => r.field_id)).toEqual(
+      wheatFields()
+        .map((f) => f.id)
+        .sort(),
+    );
     const planter = world.farm.machines.find((m) => m.kind === 'planter');
     for (const r of rows) {
       expect(r).toMatchObject({ kind: 'seeding', status: 'final', operator_name: 'Dale Mercer' });
@@ -91,6 +109,7 @@ describe('deere.ops (sim)', () => {
     expect(rows.filter((r) => r.has_geom === false).length).toBeGreaterThan(0);
     for (const f of allFields()) {
       const r = rows.find((x) => x.field_id === f.id);
+      // (A wheat field's two plantings, 2026's and 2027's, share the field's coverage rule.)
       const refused =
         world.farm.fields.indexOf(f) % SIM_OPS_REFUSED_EVERY === SIM_OPS_REFUSED_EVERY - 1;
       expect(r?.has_geom).toBe(!refused);
@@ -285,7 +304,7 @@ describe('deere.ops under a call budget (sandbox mode against the stand-in)', ()
     expect(caps).toEqual([6, 6, 6]);
     // Its operations were written like sim's (same deterministic ids, nothing duplicated).
     const total = await t().pool.query('select count(*)::int as n from farm.operations');
-    expect(total.rows[0].n).toBe(allFields().length + 1);
+    expect(total.rows[0].n).toBe(allFields().length + wheatFields().length + 1);
     expect(deterministicId('deere', 'x')).toMatch(/-/);
   }, 120_000);
 });

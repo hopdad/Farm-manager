@@ -171,7 +171,7 @@ describe('simOperations', () => {
   });
 });
 
-describe('the season served (D23: the season being harvested at the wall)', () => {
+describe('the seasons served (D23: the work under the season being harvested at the wall)', () => {
   /** The scenario's first harvest range, and a sim instant just after it ended. */
   function afterFirstHarvest(world: DemoWorld) {
     const work = world.dayReport(0).work.filter((w) => w.op === 'harvest');
@@ -180,7 +180,7 @@ describe('the season served (D23: the season being harvested at the wall)', () =
     return { first, simNow: new Date(Date.parse(first.lastAt) + 60_000) };
   }
 
-  test('at a January wall last season is served, plantings and harvest; this season is empty', () => {
+  test('at a January wall last season is served, plantings and harvest; next season only the wheat seeded in October', () => {
     const JANUARY = new Date('2027-01-15T15:00:00.000Z');
     expect(simOpsSeason(JANUARY)).toBe(2026);
     const world = createSimWorld({ scenario: 'harvest-day' }) as DemoWorld;
@@ -188,7 +188,6 @@ describe('the season served (D23: the season being harvested at the wall)', () =
     const c = contextFor(world, simNow, JANUARY);
     const last = simOperations(c, 2026);
     expect(simOperations(c)).toEqual(last);
-    expect(simOperations(c, 2027)).toEqual([]);
     expect(new Set(last.map((o) => o.cropSeason))).toEqual(new Set(['2026']));
     // Every field's spring planting, at its written date in 2026 (wheat: the fall of 2025).
     const plantings = last.filter((o) => o.kind === 'seeding');
@@ -204,6 +203,56 @@ describe('the season served (D23: the season being harvested at the wall)', () =
     const harvest = last.find((o) => o.kind === 'harvest' && o.field.id === first.fieldId);
     expect(harvest).toMatchObject({ cropSeason: '2026', crop: 'corn' });
     expect(Date.parse(harvest?.endDate as string)).toBe(JANUARY.getTime() - 60_000);
+    // 2027: the wheat seeded in October 2026 (D23 rule 3: filed under next year), nothing of
+    // the scenario's, and no spring planting yet.
+    const next = simOperations(c, 2027);
+    const wheat = world.farm.fields.filter((f) => cropFor(1, f, CURRENT_CROP_YEAR) === 'wheat');
+    expect(wheat.length).toBeGreaterThan(0);
+    expect(next.map((o) => o.field.id).sort()).toEqual(wheat.map((f) => f.id).sort());
+    for (const o of next) {
+      expect(o).toMatchObject({ kind: 'seeding', crop: 'wheat', cropSeason: '2027' });
+      expect(o.startDate.slice(0, 7)).toBe('2026-10');
+      expect(o.id).toBe(simOperationId(o.field.key, 'seeding', '2027'));
+    }
+  });
+
+  test('in spring each field moves to the new season with its own planting, once it ended', () => {
+    const MAY_20 = new Date('2027-05-20T15:00:00.000Z');
+    expect(simOpsSeason(MAY_20)).toBe(2026);
+    const world = createSimWorld({ scenario: 'harvest-day' }) as DemoWorld;
+    const { first, simNow } = afterFirstHarvest(world);
+    const c = contextFor(world, simNow, MAY_20);
+    const next = simOperations(c, 2027);
+    const ended = (o: { endDate: string }) => Date.parse(o.endDate) <= MAY_20.getTime();
+    // The plantings of 2027 that ended by May 20 (corn from Apr 24, soybeans from May 4; the
+    // wheat last October), each on its written date; the later ones not yet.
+    for (const f of world.farm.fields) {
+      const p = simPlanting(1, f, CURRENT_CROP_YEAR);
+      const o = next.find((x) => x.field.id === f.id);
+      const y = p.crop === 'wheat' ? 2026 : 2027;
+      const end =
+        Date.parse(
+          `${y}-${String(p.date.m).padStart(2, '0')}-${String(p.date.d).padStart(2, '0')}T00:00:00-04:00`,
+        ) +
+        (p.startMinute + p.minutes) * 60_000;
+      if (end <= MAY_20.getTime()) {
+        expect(o).toMatchObject({
+          kind: 'seeding',
+          cropSeason: '2027',
+          endDate: new Date(end).toISOString(),
+        });
+      } else {
+        expect(o).toBeUndefined();
+      }
+    }
+    expect(next.every(ended)).toBe(true);
+    expect(next.length).toBeGreaterThan(2);
+    expect(next.length).toBeLessThan(world.farm.fields.length);
+    // The scenario's work stays under the season being harvested.
+    expect(next.some((o) => o.kind !== 'seeding')).toBe(false);
+    expect(
+      simOperations(c, 2026).some((o) => o.kind === 'harvest' && o.field.id === first.fieldId),
+    ).toBe(true);
   });
 
   test('the stand-in moves to the next season on Aug 1 (America/Detroit), not on Jan 1', () => {
@@ -226,12 +275,42 @@ describe('the season served (D23: the season being harvested at the wall)', () =
     }
   });
 
-  test('the listing serves the cropSeason asked: the modelled one, and nothing for others', async () => {
+  test('in October the wheat seeded for next year is filed under it (D23 rule 3)', () => {
+    const OCTOBER = new Date('2027-10-20T15:00:00.000Z');
+    expect(simOpsSeason(OCTOBER)).toBe(2027);
+    const world = createSimWorld({ scenario: 'harvest-day' }) as DemoWorld;
+    const c = contextFor(world, world.startsAt, OCTOBER);
+    const next = simOperations(c, 2028);
+    expect(next.length).toBeGreaterThan(0);
+    for (const o of next) {
+      expect(o).toMatchObject({ kind: 'seeding', crop: 'wheat', cropSeason: '2028' });
+      expect(o.startDate.slice(0, 7)).toBe('2027-10');
+    }
+    // This season's wheat was the one seeded a year earlier.
+    const now = simOperations(c, 2027).filter((o) => o.crop === 'wheat');
+    expect(now.map((o) => o.startDate.slice(0, 7))).toEqual(next.map(() => '2026-10'));
+  });
+
+  test('the listing serves the cropSeason asked; an older season has nothing', async () => {
     const JANUARY = new Date('2027-01-15T15:00:00.000Z');
     const world = createSimWorld({ scenario: 'harvest-day' }) as DemoWorld;
     const c = contextFor(world, world.startsAt, JANUARY);
     expect(simOperations(c, 2025)).toEqual([]);
     expect(simOperations(c, 2026).length).toBe(world.farm.fields.length);
+    // Two seasons on: nothing has been planted for it yet.
+    expect(simOperations(c, 2028)).toEqual([]);
+  });
+
+  test('winter-idle in January: the wheat in the ground is filed under next year', () => {
+    const JANUARY = new Date('2027-01-15T15:00:00.000Z');
+    const world = createSimWorld({ scenario: 'winter-idle' }) as DemoWorld;
+    const c = contextFor(world, world.startsAt, JANUARY);
+    const next = simOperations(c, 2027);
+    expect(next.length).toBeGreaterThan(0);
+    expect(next.every((o) => o.crop === 'wheat' && o.startDate.startsWith('2026-10'))).toBe(true);
+    expect(
+      simOperations(c, 2026).every((o) => o.crop === 'wheat' && o.startDate.startsWith('2025-10')),
+    ).toBe(true);
   });
 });
 
