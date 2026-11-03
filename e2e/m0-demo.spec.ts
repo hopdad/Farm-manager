@@ -91,7 +91,10 @@ async function openMap(
   const page = await context.newPage();
   const blocked = await blockExternalHosts(page, url);
   await page.goto(url);
-  await waitForMap(page);
+  // A phone-sized map at Pixel 7's density, drawn in software beside the wall's, can take more
+  // than the default 45 s to load on a busy CI runner (CI run for 31e8cd2: failed once, then
+  // passed on the retry). What this file checks is the fixes, not load time.
+  await waitForMap(page, 90_000);
   await mapIdle(page);
   return { context, page, blocked };
 }
@@ -249,7 +252,8 @@ test('a phone at /m (over the LAN address) shows the same fixes within 2 s of th
   browser,
   baseURL,
 }) => {
-  test.setTimeout(120_000);
+  // The phone's map load (up to 90 s, openMap) plus the 45 s wait for a new fix.
+  test.setTimeout(180_000);
   const base = new URL(baseURL as string);
   const ip = lanAddress();
   if (ip && ['localhost', '127.0.0.1'].includes(base.hostname)) base.hostname = ip;
