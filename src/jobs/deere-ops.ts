@@ -1,20 +1,23 @@
 /**
  * deere.ops (slice 1f; owner: the deere-ops builder, docs/contracts-1f.md §1, §5.1): every
- * 15 min (20 s demo cadence in sim/replay), per connected Deere org (decision 5): this crop
- * season's field operations with measurements, products and simplified coverage →
+ * 15 min (20 s demo cadence in sim/replay), per connected Deere org (decision 5): the field
+ * operations of the crop seasons in the sync window (D23: `cropSeasonsToSync(now)`, two
+ * seasons, America/Detroit) with measurements, products and simplified coverage →
  * farm.operations, then `fields`/`updated` with part 'operations' per changed field.
  *
  * One sync step, stream `operations` (DEERE_OPERATIONS_STREAM):
- *   poll    src/connectors/deere/ops/poll.ts: orgs → fields → each field's operations of the
- *           crop year (America/Detroit), the fields checked longest ago first, at most the
- *           per-run cap under DEERE_DAILY_CALL_BUDGET (./deere-ops-budget.ts, sandbox/live only)
- *           and none started in the last PROCESS_RESERVE_MS of the job's budget; unchanged
- *           operations (same modifiedTime as stored) cost no more calls
+ *   poll    src/connectors/deere/ops/poll.ts: orgs → fields → each field's operations of each
+ *           season of the window, the fields checked longest ago first, at most the per-run
+ *           cap under DEERE_DAILY_CALL_BUDGET (./deere-ops-budget.ts, sandbox/live only; a
+ *           field costs a listing per season) and none started in the last PROCESS_RESERVE_MS
+ *           of the job's budget; unchanged operations (same modifiedTime as stored) cost no
+ *           more calls
  *   map     src/connectors/deere/ops/mapper.ts (pure)
  *   upsert  src/db/queries/operations.ts upsertOperation (clipping against the boundary valid
  *           at started_at, deterministic ids, nothing touched when nothing changed)
  *   afterRun  ages provisional operations into `final` (24 h unchanged), records the run's
- *           `fieldsPerRun` in sync_state.extra (calls per field for the cap), publishes
+ *           `fieldsPerRun` and (a successful run) its seasons per field in sync_state.extra
+ *           (calls per field for the cap), publishes
  *           `fields`/`updated` { parts: ['operations'] } once per changed field (one
  *           `fields`/`invalidate` above MAX_FIELD_MESSAGES), then `admin`/`sync.status`.
  *
@@ -47,7 +50,7 @@ import {
   upsertOperation,
 } from '../db/queries/operations';
 import { readOpsBudget } from '../db/queries/operations-budget';
-import { currentCropYear } from '../domain/crops';
+import { cropSeasonsToSync } from '../domain/crops';
 import { publish } from '../platform/realtime/publish';
 import { opsFieldCap } from './deere-ops-budget';
 import { httpFor, publishSyncStatus } from './fleet-shared';
@@ -95,6 +98,7 @@ export function createDeereOpsJob(opts: DeereOpsJobOptions = {}) {
     const http = httpFor(ctx, opts.http);
     let client: DeereClient | null = null;
     let fieldsChecked: number | null = null;
+    let seasonsPerField: number | null = null;
     const changed = new Set<string>();
 
     const clientFor = (): DeereClient => {
@@ -123,11 +127,13 @@ export function createDeereOpsJob(opts: DeereOpsJobOptions = {}) {
       stream: DEERE_OPS_STREAM,
       mode,
       poll: async (cursor) => {
+        const cropSeasons = cropSeasonsToSync(ctx.now());
         const fieldCap =
           mode === 'sandbox' || mode === 'live'
             ? opsFieldCap({
                 budget: cfg.DEERE_DAILY_CALL_BUDGET,
                 mode,
+                seasonsPerField: cropSeasons.length,
                 ...(await readOpsBudget(ctx.pool, mode, ctx.now())),
               })
             : null;
@@ -135,13 +141,14 @@ export function createDeereOpsJob(opts: DeereOpsJobOptions = {}) {
           client: clientFor(),
           now: () => ctx.now(),
           stopAt: new Date(ctx.deadline.getTime() - PROCESS_RESERVE_MS),
-          cropSeason: currentCropYear(ctx.now()),
+          cropSeasons,
           fieldCap,
           storedModified: (ids) => storedOperationModified(ctx.pool, 'deere', ids),
           log: ctx.log,
         });
         fieldsChecked = r.stats.fieldsChecked;
-        ctx.log.info('deere.ops: polled', { ...r.stats, fieldCap });
+        seasonsPerField = r.stats.seasonsPerField;
+        ctx.log.info('deere.ops: polled', { ...r.stats, cropSeasons, fieldCap });
         return r;
       },
       map: (raw) => mapDeereOperation(raw),
@@ -152,7 +159,15 @@ export function createDeereOpsJob(opts: DeereOpsJobOptions = {}) {
       afterRun: async (result, sctx) => {
         for (const f of await finalizeOperations(ctx.pool, 'deere', ctx.now())) changed.add(f);
         if (fieldsChecked !== null) {
-          await recordFieldsPerRun(ctx.pool, 'deere', DEERE_OPS_STREAM, fieldsChecked);
+          // Seasons only for a successful run: those are the runs sync-health's callsPerRun
+          // averages (src/db/queries/operations-budget.ts seasonsMeasuredOf).
+          await recordFieldsPerRun(
+            ctx.pool,
+            'deere',
+            DEERE_OPS_STREAM,
+            fieldsChecked,
+            result.ok ? seasonsPerField : null,
+          );
         }
         await publishOperationsChanged(ctx.pool, [...changed]);
         await publishSyncStatus(result, sctx);

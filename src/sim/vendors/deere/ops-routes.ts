@@ -1,14 +1,16 @@
 /**
- * Deere stand-in route module `ops` (1f, owner: deere-ops; docs/contracts-1f.md §7.1): this crop
- * season's field operations of the simulated farm (./ops-world.ts: finished work from the day
- * reports, the spring planting, the full-day sprayer knob), in the shapes of Deere's Field
- * Operations API (src/connectors/deere/ops/schemas.ts):
+ * Deere stand-in route module `ops` (1f, owner: deere-ops; docs/contracts-1f.md §7.1): the field
+ * operations of the simulated farm's one modelled season (./ops-world.ts: finished work from the
+ * day reports, the spring planting, the full-day sprayer knob; filed under the season being
+ * harvested at the wall, D23), in the shapes of Deere's Field Operations API
+ * (src/connectors/deere/ops/schemas.ts):
  *
  *   GET /platform/organizations/{org}/fields/{field}/fieldOperations
  *       ?cropSeason=&fieldOperationType=&embed=measurementTypes&pageOffset=&itemLimit=
- *       the owning org's operations on the field (a sharing org lists none); `cropSeason` and
- *       `fieldOperationType` filter (the type case-insensitively); `embed=measurementTypes`
- *       puts each operation's measurements on it
+ *       the owning org's operations on the field (a sharing org lists none) of the season
+ *       asked (`cropSeason`; absent = the modelled one; any other season lists none);
+ *       `fieldOperationType` filters (case-insensitively); `embed=measurementTypes` puts each
+ *       operation's measurements on it
  *   GET /platform/fieldOperations/{id}[?embed=measurementTypes]
  *   GET /platform/fieldOperations/{id}/measurementTypes
  *   GET /platform/fieldOperations/{id}/boundary      the worked area; 400 on the fields that
@@ -344,9 +346,8 @@ function listing(r: DeerePlatformRequest, orgId: string, fieldId: string): SimRe
   const type = r.req.url.searchParams.get('fieldOperationType')?.trim().toLowerCase() || null;
   const c = opsContext(r);
   const embed = wantsEmbed(r.req);
-  const ops = simOperations(c)
+  const ops = simOperations(c, season === null ? undefined : Number(season))
     .filter((o) => o.orgId === orgId && o.deereFieldId === fieldId)
-    .filter((o) => season === null || o.cropSeason === season)
     .filter((o) => type === null || o.kind === type)
     .map((o) => simOperationJson(c, o, r.base, embed));
   return pagedReply(r.req, ops);
@@ -356,9 +357,10 @@ function findOperation(
   r: DeerePlatformRequest,
   id: string,
 ): { c: SimOpsContext; o: SimOperation } | null {
-  if (!parseSimOperationId(id)) return null;
+  const parsed = parseSimOperationId(id);
+  if (!parsed) return null;
   const c = opsContext(r);
-  const o = simOperations(c).find((x) => x.id === id);
+  const o = simOperations(c, Number(parsed.cropSeason)).find((x) => x.id === id);
   return o ? { c, o } : null;
 }
 

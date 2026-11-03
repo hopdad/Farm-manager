@@ -1,7 +1,9 @@
 'use client';
 /**
  * "This season" in the field panel's History tab (slice 1f, deere-ops; docs/contracts-1f.md
- * §5.1): the field's operations of the current crop year from Operations Center, oldest first,
+ * §5.1): the field's operations of its growing year (D23: the newest crop season of the synced
+ * window with operations on the field; the heading shows the year the server answered with)
+ * from Operations Center, oldest first,
  * each with its kind, crop, dates, acres, yield or rates, products, machines and operator,
  * coverage and provisional/final state. Data and refresh: ./operations.ts (the loader refetches
  * on `fields`/`updated` with part 'operations', on invalidate and resync, and polls while
@@ -64,7 +66,7 @@ const resolveRealtime: RealtimeResolver = ({ realtime, appEnv }) =>
     appEnv: appEnv === 'production' ? 'production' : appEnv === 'test' ? 'test' : 'development',
   });
 
-/** The field's operations of the current crop year, kept current. */
+/** The field's operations of its growing year (the server picks it), kept current. */
 export function useFieldOperations(fieldId: string): OperationsState {
   const [state, setState] = useState<OperationsState>(() => ({
     fieldId,
@@ -97,8 +99,15 @@ export function OperationsSection({
   const s = useFieldOperations(fieldId);
   const year = s.data?.cropYear;
   return (
-    <section style={S.section} data-testid="field-operations" aria-busy={s.status === 'loading'}>
-      <h4 style={S.h}>This season{year ? ` (${year})` : ''}: field operations</h4>
+    <section
+      style={S.section}
+      data-testid="field-operations"
+      data-crop-year={year ?? undefined}
+      aria-busy={s.status === 'loading'}
+    >
+      <h4 style={S.h} data-testid="field-operations-heading">
+        This season{year ? ` (${year})` : ''}: field operations
+      </h4>
       {s.status === 'loading' && <p style={S.muted}>Loading operations…</p>}
       {s.status === 'denied' && <p style={S.muted}>Sign in to see this field's operations.</p>}
       {s.status === 'error' && <p style={S.error}>Could not load the operations ({s.error}).</p>}

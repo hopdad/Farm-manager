@@ -10,8 +10,10 @@
  *    `CORN_WET`, `SOYBEANS`, `WHEAT_SOFT_RED_WINTER`, the ISG crop list behind
  *    https://developer.deere.com/dev-docs/crop-types) → the app's name; an unknown token is
  *    written out in words ('SUGAR_BEETS' → 'sugar beets') instead of kept in capitals.
- *  - `currentCropYear(now)`: the crop year a date falls in, America/Detroit (the calendar year:
- *    the field panel's default listing and deere.ops' `cropSeason`).
+ *  - `currentCropYear(now)`: the calendar year a date falls in, America/Detroit (a field's
+ *    "this season" when it has no operations in the synced window).
+ *  - `cropSeasonsToSync(now)` / `harvestCropYear(now)`: the two crop seasons deere.ops syncs
+ *    (D23, the growing year) and the older of them, the one being harvested.
  *
  * Pure, no runtime imports beyond the farm's time zone.
  */
@@ -73,8 +75,53 @@ export function normalizeDeereCrop(token: string | null | undefined): string | n
 }
 
 const YEAR_FORMAT = new Intl.DateTimeFormat('en-US', { timeZone: FARM_TIME_ZONE, year: 'numeric' });
+const YEAR_MONTH_FORMAT = new Intl.DateTimeFormat('en-US', {
+  timeZone: FARM_TIME_ZONE,
+  year: 'numeric',
+  month: 'numeric',
+});
 
-/** The crop year `now` falls in (its calendar year in America/Detroit). */
+/**
+ * The calendar year `now` falls in, America/Detroit. An operation's crop year is the crop season
+ * Deere gives it (D23), never this; this is only the fallback "this season" of a field with no
+ * operations in the synced window (`cropSeasonsToSync`).
+ */
 export function currentCropYear(now: Date): number {
   return Number(YEAR_FORMAT.format(now));
+}
+
+/** The month (1-12) from whose first day, America/Detroit, the sync window moves a season on. */
+export const SYNC_WINDOW_TURN_MONTH = 8;
+
+/**
+ * The crop seasons deere.ops lists per field at `now` (D23, Derrick Nov 3 2026: "the season
+ * should follow the growing year"), oldest first, America/Detroit, Y = the calendar year:
+ *
+ *   Jan 1 - Jul 31   [Y - 1, Y]   last season's late edits (a yield recalibration, a harvest
+ *                                 finished in January) and this season's spring work;
+ *   Aug 1 - Dec 31   [Y, Y + 1]   this season's harvest and the fall-seeded crops (winter
+ *                                 wheat, cover crops) Deere files under next year's cropSeason.
+ *
+ * Two seasons a field: about twice the operations listing calls per field of one season, which
+ * the per-run field cap counts (`seasonsPerField`, src/jobs/deere-ops-budget.ts). An operation
+ * keeps the season Deere gives it; there is no rollover date for operations, only for which
+ * seasons are asked.
+ */
+export function cropSeasonsToSync(now: Date): [number, number] {
+  let year = Number.NaN;
+  let month = Number.NaN;
+  for (const p of YEAR_MONTH_FORMAT.formatToParts(now)) {
+    if (p.type === 'year') year = Number(p.value);
+    if (p.type === 'month') month = Number(p.value);
+  }
+  return month >= SYNC_WINDOW_TURN_MONTH ? [year, year + 1] : [year - 1, year];
+}
+
+/**
+ * The crop season being harvested at `now`: this year's from Aug 1, last year's before
+ * (America/Detroit). The older season of `cropSeasonsToSync(now)`; the Deere stand-in labels
+ * its scenario's work with it.
+ */
+export function harvestCropYear(now: Date): number {
+  return cropSeasonsToSync(now)[0];
 }

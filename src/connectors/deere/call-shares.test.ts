@@ -11,6 +11,7 @@ import {
   deereCallSplit,
   lastFullUtcDay,
   locationsShare,
+  operationsCallsPerField,
   operationsFieldCap,
   operationsShare,
   paceSeconds,
@@ -67,6 +68,20 @@ describe('Deere call shares', () => {
     expect(operationsFieldCap(2_880, 96, 3)).toBe(10);
     expect(operationsFieldCap(10, 96, 3)).toBe(1);
     expect(operationsFieldCap(2_880, 96, null)).toBeNull();
+  });
+
+  test('calls per field scale with the crop seasons listed per field (D23)', () => {
+    const m = { callsPerRun: 30, fieldsPerRun: 10, seasons: 2, seasonsMeasured: 2 };
+    expect(operationsCallsPerField(m)).toBe(3);
+    // Measured listing one season a field (before D23), now two: twice the calls a field.
+    expect(operationsCallsPerField({ ...m, seasonsMeasured: 1 })).toBe(6);
+    // 2 880 calls a day: 10 fields a run at the measured cost, 5 when it was one season's.
+    expect(operationsFieldCap(2_880, 96, operationsCallsPerField(m))).toBe(10);
+    expect(
+      operationsFieldCap(2_880, 96, operationsCallsPerField({ ...m, seasonsMeasured: 1 })),
+    ).toBe(5);
+    expect(operationsCallsPerField({ ...m, callsPerRun: null })).toBeNull();
+    expect(operationsCallsPerField({ ...m, fieldsPerRun: 0 })).toBeNull();
   });
 
   test('the split /admin/connectors shows, with the warning', () => {

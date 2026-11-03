@@ -79,14 +79,17 @@ describe('time shifting', () => {
     expect(body.a).toBe('2026-11-30T13:00:00Z');
   });
 
-  test('cropYearKeys move by whole crop years with the anchor (America/Detroit)', () => {
+  test('cropYearKeys move by whole crop seasons with the anchor, at Aug 1 (D23, America/Detroit)', () => {
     const f = { anchor: '2026-10-16T09:00:00Z' };
     const to = (iso: string) => Date.parse(iso) - Date.parse(f.anchor);
     expect(replayCropYearShift(f, to('2026-12-31T23:59:00-05:00'))).toBe(0);
-    // Midnight EST on Jan 1 is 05:00 UTC: the year turns there, not at UTC midnight.
-    expect(replayCropYearShift(f, to('2027-01-01T04:59:00Z'))).toBe(0);
-    expect(replayCropYearShift(f, to('2027-01-01T05:00:00Z'))).toBe(1);
-    expect(replayCropYearShift(f, to('2029-07-04T12:00:00Z'))).toBe(3);
+    // New Year moves nothing: in January the 2026 harvest is still 2026's (a late one).
+    expect(replayCropYearShift(f, to('2027-01-01T05:00:00Z'))).toBe(0);
+    // Midnight EDT on Aug 1 is 04:00 UTC: the season moves on there, not at UTC midnight.
+    expect(replayCropYearShift(f, to('2027-08-01T03:59:00Z'))).toBe(0);
+    expect(replayCropYearShift(f, to('2027-08-01T04:00:00Z'))).toBe(1);
+    expect(replayCropYearShift(f, to('2029-07-04T12:00:00Z'))).toBe(2);
+    expect(replayCropYearShift(f, to('2029-08-04T12:00:00Z'))).toBe(3);
 
     const body = { ops: [{ cropSeason: '2026', year: 2026, startDate: '2026-10-16T08:00:00Z' }] };
     const out = shiftInstants(body, HOUR, [], { keys: ['cropSeason', 'year'], by: 1 });

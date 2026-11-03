@@ -1,7 +1,7 @@
 /**
  * farm.operations (slice 1f, deere-ops; docs/contracts-1f.md §3.1, §5.1): the writer the
  * `deere.ops` sync step upserts through, the provisional → final sweep, and the field panel's
- * read (GET /api/fields/<id>/operations).
+ * read (GET /api/fields/<id>/operations: the field's growing year, `fieldGrowingYear`, D23).
  *
  * Writer rules (one statement per operation, in the per-event transaction):
  *  - id = deterministicId('deere', <Deere operation id>), source 'deere', source_id = that id,
@@ -37,6 +37,7 @@ import {
   operationProductSchema,
 } from '../../domain/operations';
 import { type Executor, exec } from '../exec';
+import { CALLS_PER_RUN_WINDOW } from './api-calls';
 import { ACRES, NORMALIZED_POLYGON } from './boundaries-sql';
 
 /** ST_SimplifyPreserveTopology tolerance of stored coverage, degrees (≈ 1.1 m N-S, 0.8 m E-W). */
@@ -282,6 +283,29 @@ function measurementsOf(v: unknown): OperationMeasurements {
 }
 
 /**
+ * A field's growing year (D23): the newest crop year among `seasons` (the synced window,
+ * `cropSeasonsToSync(now)`) that has operations on the field, or null when none has (the caller
+ * falls back to `currentCropYear(now)`). Per field: a corn field still in last season's harvest
+ * is that season in January, a field seeded to wheat in October (Deere's cropSeason Y + 1) is
+ * Y + 1 while its neighbour is Y, and each field moves on with its own first operation of a new
+ * season. A crop year past the window (a mistyped cropSeason) never wins.
+ */
+export async function fieldGrowingYear(
+  ex: Executor,
+  fieldId: string,
+  seasons: readonly number[],
+): Promise<number | null> {
+  if (!isUuid(fieldId) || !seasons.length) return null;
+  const r = await exec<{ year: number | null }>(
+    ex,
+    `select max(crop_year)::int as year from farm.operations
+      where field_id = $1::uuid and crop_year between $2::int and $3::int`,
+    [fieldId, Math.min(...seasons), Math.max(...seasons)],
+  );
+  return r.rows[0]?.year ?? null;
+}
+
+/**
  * The operations of one field in one crop year, oldest first (OperationView). Null when the
  * field doesn't exist (or the id isn't a uuid).
  */
@@ -329,23 +353,45 @@ export async function fieldOperations(
     }));
 }
 
+/** Successful runs whose seasons per field `seasonsRecent` keeps (sync-health's window). */
+export const SEASONS_RECENT_WINDOW = CALLS_PER_RUN_WINDOW;
+
 /**
- * Merge `fieldsPerRun` (fields the last run checked) into the stream's sync_state.extra
- * (src/connectors/deere/call-shares.ts: calls per field = callsPerRun / fieldsPerRun). Writers
- * merge their own keys and never replace the object (docs/contracts-1f.md §3.1).
+ * Merge `fieldsPerRun` (fields the last run checked) into the stream's sync_state.extra, and,
+ * for a successful run (`seasonsPerField` set), append the crop seasons it listed per field to
+ * `seasonsRecent` (the last SEASONS_RECENT_WINDOW runs, the ones sync-health's `callsPerRun`
+ * averages): src/connectors/deere/call-shares.ts `operationsCallsPerField`. Writers merge their
+ * own keys and never replace the object (docs/contracts-1f.md §3.1).
  */
 export async function recordFieldsPerRun(
   ex: Executor,
   source: string,
   stream: string,
   fieldsPerRun: number,
+  seasonsPerField: number | null = null,
 ): Promise<void> {
   await exec(
     ex,
     `update ingest.sync_state
-        set extra = coalesce(extra, '{}'::jsonb) || jsonb_build_object('fieldsPerRun', $3::int),
+        set extra = coalesce(extra, '{}'::jsonb)
+              || jsonb_build_object('fieldsPerRun', $3::int)
+              || case when $4::int is null then '{}'::jsonb else jsonb_build_object(
+                   'seasonsRecent',
+                   (select coalesce(jsonb_agg(v order by i), '[]'::jsonb)
+                      from (select v, i from jsonb_array_elements(
+                              (case when jsonb_typeof(extra->'seasonsRecent') = 'array'
+                                    then extra->'seasonsRecent' else '[]'::jsonb end)
+                              || jsonb_build_array($4::int))
+                              with ordinality as e(v, i)
+                             order by i desc limit $5::int) w)) end,
             updated_at = now()
       where source = $1 and stream = $2`,
-    [source, stream, Math.max(0, Math.round(fieldsPerRun))],
+    [
+      source,
+      stream,
+      Math.max(0, Math.round(fieldsPerRun)),
+      seasonsPerField === null ? null : Math.max(1, Math.round(seasonsPerField)),
+      SEASONS_RECENT_WINDOW,
+    ],
   );
 }

@@ -4,7 +4,8 @@
  * call here needs scope `ag2` (docs/contracts-1f.md §5.1):
  *
  *   GET /organizations/{org}/fields/{field}/fieldOperations?cropSeason=&fieldOperationType=
- *       &embed=measurementTypes        one call per field (Deere has no org-wide listing)
+ *       &embed=measurementTypes        one call per field and crop season (Deere has no
+ *                                       org-wide listing; deere.ops asks two seasons, D23)
  *   GET /fieldOperations/{id}/measurementTypes      only when the listing didn't embed them
  *   GET /fieldOperations/{id}/boundary              the coverage; 400 = refused (an active field
  *                                                   boundary, or a merged field)

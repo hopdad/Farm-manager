@@ -14,6 +14,9 @@
  *                                          − locations' calls a day at its cron)
  *               fields per run = max(1, floor(share / (runs a day × calls per field))),
  *               the fields checked longest ago first
+ *               calls per field = callsPerRun / fieldsPerRun × seasons now / seasons measured
+ *               (D23: every field is listed once per crop season of the sync window, two;
+ *               a measurement taken listing fewer seasons a field is scaled up)
  *
  * Locations come first (the live board): operations get what is left after the unpaced streams
  * and locations at full cadence, so the two paced streams never both plan on the same calls.
@@ -80,6 +83,25 @@ export function operationsShare(
 export function paceSeconds(callsPerRun: number | null, share: number): number | null {
   if (!callsPerRun || callsPerRun <= 0 || !(share > 0)) return null;
   return Math.ceil((callsPerRun * DAY_SECONDS) / share);
+}
+
+/**
+ * deere.ops's calls per field when it lists `seasons` crop seasons per field (D23: two), from
+ * sync-health's `callsPerRun` (the mean of the stream's recent runs) and the last run's
+ * `fieldsPerRun`, measured while listing `seasonsMeasured` seasons per field (the fewest of the
+ * runs behind that mean; runs from before D23 listed one). Every call of a run is scaled with
+ * the seasons (the listings double; the per-operation calls and the org and field listings
+ * don't, so this errs high: the budget holds). Null when not measured.
+ */
+export function operationsCallsPerField(m: {
+  callsPerRun: number | null;
+  fieldsPerRun: number | null;
+  seasons: number;
+  seasonsMeasured: number;
+}): number | null {
+  if (!m.callsPerRun || m.callsPerRun <= 0 || !m.fieldsPerRun || m.fieldsPerRun <= 0) return null;
+  const scale = Math.max(1, m.seasons) / Math.max(1, m.seasonsMeasured);
+  return (m.callsPerRun / m.fieldsPerRun) * scale;
 }
 
 /** Fields deere.ops may check in one run (at least 1); null when calls per field aren't measured. */

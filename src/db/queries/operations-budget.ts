@@ -5,7 +5,9 @@
  * connector's mode: sim and replay rows never count against a real budget), and the measured
  * `callsPerRun` (sync-health writes it) and `fieldsPerRun` (deere.ops writes it) in the
  * `locations` and `operations` streams' sync_state.extra (callsPerRun only when measured in
- * this mode, `callsPerRunMode`).
+ * this mode, `callsPerRunMode`), and the crop seasons per field the runs behind that
+ * `callsPerRun` listed (D23: deere.ops' `seasonsRecent`, one entry per successful run, beside
+ * sync-health's `callsRecent`; runs it has no entry for listed one season, as before D23).
  */
 import {
   DEERE_LOCATIONS_STREAM,
@@ -25,6 +27,22 @@ export interface OpsBudgetReadings {
   /** deere.ops' measured calls per run and fields per run (null: not measured yet). */
   callsPerRun: number | null;
   fieldsPerRun: number | null;
+  /** The fewest crop seasons per field among the runs behind `callsPerRun` (1 before D23). */
+  seasonsMeasured: number;
+}
+
+/**
+ * The fewest seasons per field among the last `runs` runs (sync-health's `callsRecent`, the
+ * runs its mean covers), from deere.ops' `seasonsRecent` (newest last); a run with no entry
+ * (written before D23) listed one season. With no runs measured: the newest entry, else 1.
+ */
+export function seasonsMeasuredOf(runs: number, seasonsRecent: unknown): number {
+  const recent = Array.isArray(seasonsRecent)
+    ? seasonsRecent.filter((n): n is number => Number.isInteger(n) && n >= 1)
+    : [];
+  if (runs <= 0) return recent.at(-1) ?? 1;
+  const covered = recent.slice(-runs);
+  return Math.min(...covered, ...(covered.length < runs ? [1] : []));
 }
 
 const num = (v: unknown): number | null => {
@@ -51,10 +69,16 @@ export async function readOpsBudget(
     const m = callsPerRunOfExtra(extra(stream));
     return m.mode === mode ? num(m.callsPerRun) : null;
   };
+  const ops = extra(DEERE_OPERATIONS_STREAM);
+  const opsCalls = callsPerRunOfExtra(ops);
   return {
     lastDay,
     locationsCallsPerRun: callsPerRun(DEERE_LOCATIONS_STREAM),
     callsPerRun: callsPerRun(DEERE_OPERATIONS_STREAM),
-    fieldsPerRun: num(extra(DEERE_OPERATIONS_STREAM).fieldsPerRun),
+    fieldsPerRun: num(ops.fieldsPerRun),
+    seasonsMeasured: seasonsMeasuredOf(
+      opsCalls.mode === mode ? Math.max(opsCalls.recent.length, opsCalls.callsPerRun ? 1 : 0) : 0,
+      ops.seasonsRecent,
+    ),
   };
 }

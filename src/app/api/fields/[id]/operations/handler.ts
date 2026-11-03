@@ -1,8 +1,11 @@
 /**
  * GET /api/fields/<id>/operations[?cropYear=YYYY] (slice 1f, deere-ops; docs/contracts-1f.md
- * §5.1) → `FieldOperationsResponse`: the field's operations of one crop year (default: the
- * current one, America/Detroit), oldest first, for the History tab. Framework-free (the DB test
- * calls it under runWithSession):
+ * §5.1) → `FieldOperationsResponse`: the field's operations of one crop year, oldest first, for
+ * the History tab. Default (D23): the field's growing year, the newest crop year of the synced
+ * window (`cropSeasonsToSync(now)`) with operations on the field (`fieldGrowingYear`), else the
+ * calendar year (America/Detroit); an explicit `cropYear` wins. The answer names the year it
+ * used (`cropYear`), which the tab's heading shows. Framework-free (the DB test calls it under
+ * runWithSession):
  *
  *  - requireRole(ROLE_FOR.viewPrivate) FIRST (401/403 JSON otherwise);
  *  - 400 for a crop year that isn't a year (1950-2100), 404 for an unknown or malformed field,
@@ -13,8 +16,8 @@
  */
 import { getConfig } from '@/config';
 import type { Executor } from '@/db/exec';
-import { fieldOperations } from '@/db/queries/operations';
-import { currentCropYear } from '@/domain/crops';
+import { fieldGrowingYear, fieldOperations } from '@/db/queries/operations';
+import { cropSeasonsToSync, currentCropYear } from '@/domain/crops';
 import type { FieldOperationsResponse } from '@/domain/operations';
 import { authErrorResponse, requireRole } from '@/platform/auth/server';
 import { ROLE_FOR } from '@/platform/auth/types';
@@ -51,8 +54,11 @@ export async function handleFieldOperations(
   }
   const asked = parseCropYear(new URL(request.url));
   if (asked === 'invalid') return json(400, { error: 'cropYear must be a year (1950-2100)' });
-  const cropYear = asked ?? currentCropYear(now);
   try {
+    const cropYear =
+      asked ??
+      (await fieldGrowingYear(ex, fieldId, cropSeasonsToSync(now))) ??
+      currentCropYear(now);
     const operations = await fieldOperations(ex, fieldId, cropYear);
     if (!operations) return json(404, { error: 'field not found' });
     const body: FieldOperationsResponse = { fieldId, cropYear, operations };

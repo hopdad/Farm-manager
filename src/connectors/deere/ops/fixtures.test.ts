@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
+import { cropSeasonsToSync } from '../../../domain/crops';
 import { simExternalRefs } from '../../../sim/types';
 import type { ConnectorConfig } from '../../endpoints';
 import { type ReplayFixture, replayFixtureSchema } from '../../replay';
@@ -111,13 +112,17 @@ describe('deere.ops in replay (the live client on the committed fixtures)', () =
       client,
       now,
       stopAt: new Date(now().getTime() + 60_000),
-      cropSeason: 2026,
+      cropSeasons: cropSeasonsToSync(now()),
       fieldCap: null,
       storedModified: async () => new Map(),
       log: collectingLogger(),
     });
     expect(r.stats.skippedOrgs).toEqual([]);
     const ops = r.items.flatMap((i) => mapDeereOperation(i.payload));
+    // Both seasons of the window are asked per field; replay ignores cropSeason, so the second
+    // listing repeats the first and each operation is still read once.
+    expect(r.stats.listings).toBe(2 * r.stats.fieldsChecked);
+    expect(new Set(r.items.map((i) => i.externalId)).size).toBe(r.items.length);
     // 1a: harvest + seeding on 4 fields; 30: a planting on 10 fields and one burndown.
     expect(ops.filter((o) => o.kind === 'harvest')).toHaveLength(4);
     expect(ops.filter((o) => o.kind === 'seeding')).toHaveLength(4 + OPS_FIXTURE_FIELDS);

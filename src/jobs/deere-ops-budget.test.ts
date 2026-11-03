@@ -15,6 +15,9 @@ const base = {
   locationsCallsPerRun: 1,
   callsPerRun: 10,
   fieldsPerRun: 40,
+  // Measured on runs that listed both crop seasons of the sync window (D23), as runs do now.
+  seasonsPerField: 2,
+  seasonsMeasured: 2,
 };
 
 describe('opsFieldCap (decision 4)', () => {
@@ -30,6 +33,22 @@ describe('opsFieldCap (decision 4)', () => {
     expect(opsFieldCap({ ...base, callsPerRun: 1000, fieldsPerRun: 1 })).toBe(1);
     // Live counts like sandbox.
     expect(opsFieldCap({ ...base, mode: 'live' })).toBe(4);
+  });
+
+  test('two seasons a field (D23): a one-season measurement counts double, so the day still holds', () => {
+    // Measured before D23 (one listing a field), the run now lists two: calls per field
+    // 10 / 40 × 2 / 1 = 0.5 → floor(100 / (96 × 0.5)) = 2 fields, half of what one season gets.
+    expect(opsFieldCap({ ...base, seasonsMeasured: 1 })).toBe(2);
+    expect(opsFieldCap({ ...base, budget: 10_000, seasonsMeasured: 1 })).toBe(151);
+    // Measured on two-season runs: the per-field cost already holds both listings.
+    expect(opsFieldCap(base)).toBe(4);
+    // The day's calls at that cap stay within the operations share (100 here, 7280 with 10 000):
+    // runs a day × fields × calls per field at two seasons.
+    const perFieldTwoSeasons = (10 / 40) * 2;
+    expect(96 * 2 * perFieldTwoSeasons).toBeLessThanOrEqual(100);
+    expect(96 * 151 * perFieldTwoSeasons).toBeLessThanOrEqual(7280);
+    // A one-season measurement read as if it were two would overspend: 96 × 4 × 0.5 = 192 > 100.
+    expect(96 * 4 * perFieldTwoSeasons).toBeGreaterThan(100);
   });
 
   test('no cap without a budget, outside sandbox/live, or before anything is measured', () => {

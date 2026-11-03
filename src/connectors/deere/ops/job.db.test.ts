@@ -201,8 +201,10 @@ describe('deere.ops under a call budget (sandbox mode against the stand-in)', ()
     }).save({ ...tokens, expiresAt: new Date(wall + 3_600_000 * 48) });
 
     // Yesterday (UTC) in sandbox: nothing else spent; sim rows never count. Measured:
-    // locations 1 call a run (720 a day at its cron), operations 10 calls for 40 fields.
-    // share = max(100, 800 − 0 − 720) = 100; cap = floor(100 / (96 × 10/40)) = 4.
+    // locations 1 call a run (720 a day at its cron), operations 10 calls for 40 fields, on a
+    // run from before D23 (no seasons recorded: one listing a field). This run lists two
+    // seasons a field (D23), so a field costs twice that:
+    // share = max(100, 800 − 0 − 720) = 100; cap = floor(100 / (96 × 10/40 × 2/1)) = 2.
     const day = new Date(wall - 86_400_000).toISOString().slice(0, 10);
     await t().admin.query(
       `insert into ingest.api_calls_daily (source, stream, mode, day, calls)
@@ -216,7 +218,7 @@ describe('deere.ops under a call budget (sandbox mode against the stand-in)', ()
     );
     await t().admin.query(
       `update ingest.sync_state
-          set extra = extra || '{"callsPerRun": 10, "callsPerRunMode": "sandbox", "callsRecent": [10], "fieldsPerRun": 40}', cursor = null,
+          set extra = (extra - 'seasonsRecent') || '{"callsPerRun": 10, "callsPerRunMode": "sandbox", "callsRecent": [10], "fieldsPerRun": 40}', cursor = null,
               next_run_at = null
         where source = 'deere' and stream = 'operations'`,
     );
@@ -228,14 +230,16 @@ describe('deere.ops under a call budget (sandbox mode against the stand-in)', ()
       );
       return {
         checked: JSON.parse(r.rows[0].cursor as string).checked as Record<string, string>,
-        extra: r.rows[0].extra as Record<string, number>,
+        extra: r.rows[0].extra as Record<string, unknown>,
       };
     };
     const a = await cursor();
-    expect(Object.keys(a.checked)).toHaveLength(4);
-    expect(a.extra.fieldsPerRun).toBe(4);
+    expect(Object.keys(a.checked)).toHaveLength(2);
+    expect(a.extra.fieldsPerRun).toBe(2);
+    expect(a.extra.seasonsRecent).toEqual([2]);
 
-    // Next run: 10 calls for 4 fields measured → the cap is 1; it takes a field never checked.
+    // Next run: about 10 calls a run for 2 fields measured, one of the two runs behind it from
+    // before D23 (still scaled ×2) → the cap is 1; it takes a field never checked.
     wall += 60_000;
     await run(sandbox);
     const b = await cursor();

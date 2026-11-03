@@ -18,6 +18,7 @@
 import { type BrowserContext, devices, expect, type Page, test } from '@playwright/test';
 import { getConfig } from '../src/config';
 import { vendorLabel } from '../src/connectors/vendors';
+import { cropSeasonsToSync } from '../src/domain/crops';
 import { SAMSARA_SIM_FAULTS_CONTROL_PATH } from '../src/sim/vendors/samsara/control-types';
 import { type FleetPanelData, fleetPanelDataSchema } from '../src/ui/fleet/contract';
 import { e2ePool, signInAs } from './support/auth';
@@ -218,15 +219,17 @@ test("Deere flags as pins and this season's operations, synced from the Deere st
     )
     .toBeGreaterThan(0);
   let field: { id: string } | undefined;
+  // The seasons deere.ops syncs now (D23: two, by the growing year, not the calendar year).
+  const seasons = cropSeasonsToSync(new Date());
   await expect
     .poll(
       async () => {
         field = (
           await e2ePool().query<{ id: string }>(
             `select field_id::text as id from farm.operations
-              where source = 'deere' and field_id is not null
-                and crop_year = extract(year from now() at time zone 'America/Detroit')::int
+              where source = 'deere' and field_id is not null and crop_year = any($1::int[])
               limit 1`,
+            [seasons],
           )
         ).rows[0];
         return field !== undefined;
@@ -237,6 +240,8 @@ test("Deere flags as pins and this season's operations, synced from the Deere st
   const res = await page.request.get(`/api/fields/${field?.id}/operations`);
   expect(res.status()).toBe(200);
   const body = (await res.json()) as { cropYear: number; operations: { kind: string }[] };
+  // The field's growing year: a season of the window that has its operations.
+  expect(seasons).toContain(body.cropYear);
   expect(body.operations.length).toBeGreaterThan(0);
 });
 

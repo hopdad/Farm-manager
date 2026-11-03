@@ -1,7 +1,8 @@
 /**
- * The `poll` of deere.ops (slice 1f, deere-ops; docs/contracts-1f.md §5.1, §5.4, §5.5): this crop
- * season's field operations of every connected org, as raw items. Never writes; it may read
- * what is stored (through `storedModified`) to skip operations that haven't changed.
+ * The `poll` of deere.ops (slice 1f, deere-ops; docs/contracts-1f.md §5.1, §5.4, §5.5): the field
+ * operations of every connected org in the crop seasons of the sync window (D23,
+ * `cropSeasonsToSync`: two seasons), as raw items. Never writes; it may read what is stored
+ * (through `storedModified`) to skip operations that haven't changed.
  *
  *  1. GET /organizations; orgs whose listing carries a `connections` link need approval and are
  *     skipped (logged), and so is any org that answers 403 mid-run (decision 5), unless the 403
@@ -11,11 +12,14 @@
  *  3. The fields checked longest ago first (never-checked first), at most `fieldCap` of them
  *     (decision 4: the per-run cap from the call budget; null = every field), and none started
  *     after `stopAt` (the rest wait for the next run, checked first then).
- *  4. Per field: GET …/fieldOperations?cropSeason=<year>&embed=measurementTypes. An operation
- *     whose `modifiedTime` equals the stored one is unchanged and costs no more calls; for the
- *     others the measurements (when not embedded) and the coverage are read. A coverage refusal
- *     (400: the field has an active boundary, or was merged) is remembered per field for
- *     REFUSED_TTL_MS, so the next operations on that field don't spend a call on it.
+ *  4. Per field, once per season of `cropSeasons` (oldest first):
+ *     GET …/fieldOperations?cropSeason=<year>&embed=measurementTypes. An operation keeps the
+ *     season Deere gives it; one listed twice (a vendor that ignores `cropSeason`, as replay
+ *     does) is read once. An operation whose `modifiedTime` equals the stored one is unchanged
+ *     and costs no more calls; for the others the measurements (when not embedded) and the
+ *     coverage are read. A coverage refusal (400: the field has an active boundary, or was
+ *     merged) is remembered per field for REFUSED_TTL_MS, so the next operations on that field
+ *     don't spend a call on it.
  *
  * The cursor (JSON, ingest.sync_state.cursor) keeps each field's last check (`checked`) and the
  * fields whose coverage was refused (`refused`); fields no longer listed by an org that listed
@@ -29,7 +33,7 @@ import type { PollResult, RawItem } from '../../types';
 import type { DeereClient } from '../client';
 import { deereDenialOf, deereOrgAccess, isDeereOrgDenied } from '../orgs';
 import { fieldOperationCoverage, listFieldOperations, measurementsOf } from './client';
-import type { DeereOperationRaw } from './schemas';
+import type { DeereOperationRaw, DeereOpsFieldOperation } from './schemas';
 
 /** How long a field's coverage refusal (400) is trusted before the boundary call is tried again. */
 export const REFUSED_TTL_MS = 7 * 86_400_000;
@@ -104,8 +108,8 @@ export interface OpsPollDeps {
   now(): Date;
   /** No new field is started at or after this instant (the rest wait for the next run). */
   stopAt: Date;
-  /** The crop year listed (`cropSeason`). */
-  cropSeason: number;
+  /** The crop seasons listed per field (`cropSeason`), oldest first: `cropSeasonsToSync(now)`. */
+  cropSeasons: readonly number[];
   /** Fields one run may check (decision 4); null = every field. */
   fieldCap: number | null;
   /** The stored `source_modified_at` (ISO) of operations already written, by Deere operation id. */
@@ -120,6 +124,9 @@ export interface OpsPollStats {
   /** Fields the orgs list, and how many this run checked. */
   fields: number;
   fieldsChecked: number;
+  /** Seasons listed per field this run (`cropSeasons.length`), and the listings made. */
+  seasonsPerField: number;
+  listings: number;
   /** Operations seen, landed (new or changed) and skipped as unchanged. */
   operations: number;
   landed: number;
@@ -142,12 +149,15 @@ export async function pollDeereOperations(
   deps: OpsPollDeps,
 ): Promise<OpsPollResult> {
   const { client, log } = deps;
+  const seasons = [...new Set(deps.cropSeasons)].sort((a, b) => a - b);
   const cur = parseOpsCursor(cursor);
   const stats: OpsPollStats = {
     orgs: 0,
     skippedOrgs: [],
     fields: 0,
     fieldsChecked: 0,
+    seasonsPerField: seasons.length,
+    listings: 0,
     operations: 0,
     landed: 0,
     unchanged: 0,
@@ -194,9 +204,16 @@ export async function pollDeereOperations(
     if (deniedOrgs.has(f.orgId)) continue;
     const key = fieldKey(f.orgId, f.fieldId);
     try {
-      const ops = (
-        await listFieldOperations(client, f.orgId, f.fieldId, { cropSeason: deps.cropSeason })
-      ).filter((op) => operationKindOf(op.fieldOperationType) !== null);
+      const seen = new Set<string>();
+      const ops: DeereOpsFieldOperation[] = [];
+      for (const cropSeason of seasons) {
+        stats.listings++;
+        for (const op of await listFieldOperations(client, f.orgId, f.fieldId, { cropSeason })) {
+          if (operationKindOf(op.fieldOperationType) === null || seen.has(op.id)) continue;
+          seen.add(op.id);
+          ops.push(op);
+        }
+      }
       stats.operations += ops.length;
       const stored = ops.length ? await deps.storedModified(ops.map((o) => o.id)) : new Map();
       const refusedAt = cur.refused[key];

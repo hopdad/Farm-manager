@@ -1,8 +1,14 @@
 /**
  * What the Deere stand-in's `ops` module serves (slice 1f, deere-ops; docs/contracts-1f.md §7.1,
- * §7.2): this crop season's field operations of the simulated farm, as pure functions of the
- * world, its day reports, the clock and the module's knobs.
+ * §7.2): the field operations of the simulated farm's one modelled season, as pure functions of
+ * the world, its day reports, the clock and the module's knobs.
  *
+ *  - **The season (D23).** The stand-in models one crop season, the sim's CURRENT_CROP_YEAR,
+ *    and files it under the season being harvested at the wall (`simOpsSeason` =
+ *    `harvestCropYear(wall now)`: Y from Aug 1, Y - 1 before, America/Detroit), the older season
+ *    of the app's sync window (`cropSeasonsToSync`). A listing serves the `cropSeason` it is
+ *    asked for: that season's operations, and none for any other (so in January the demo still
+ *    shows last season, and the season after it is empty until Aug 1 moves the stand-in on).
  *  - **Work from the day reports.** Every work range (machine, field, op) of the scenario's days
  *    that ENDED before sim-now is finished work; the ranges of one field and op are one Deere
  *    operation (Operations Center keeps one operation per field, type and season, spanning days
@@ -17,10 +23,12 @@
  *  - **Time base (§7.2).** Work from the day reports is stamped in WALL time with the current
  *    clock segment's inverse of `wallToSim`: sim instant s → anchorWall + (s − anchorSim) / speed
  *    (= wall_now − (sim_now − s) / speed while the clock runs; stable while it is paused), so
- *    the 24 h provisional → final rule runs on wall time. The spring planting, which predates
- *    the scenario's clock, is served on its written month, day and time in the wall's crop
- *    year (never after wall-now), like past seasons are served as written. `cropSeason` is the
- *    wall's crop year (America/Detroit), so "this crop season" is the same in the app and here.
+ *    the 24 h provisional → final rule runs on wall time; it is filed under the served season
+ *    (harvest-day's harvest in January is last season's, as a late harvest is). The spring
+ *    planting, which predates the scenario's clock, is served on its written month, day and time
+ *    in the served season's year (a fall-seeded wheat in the fall before it, which rule 3 of D23
+ *    files under the next year: this season), never after wall-now, like past seasons are served
+ *    as written.
  *  - **Coverage.** The field boundary (contract §7.1), or for a field worked less than 90 % the
  *    rectangle around its passes (± half the implement), clamped to the field. Fields whose
  *    index in the farm is ≡ 5 mod SIM_OPS_REFUSED_EVERY (and fields named by the knob) answer
@@ -34,7 +42,7 @@
  * `sim-fieldop:<field key>:<kind>:<crop season>[:full-day]`.
  */
 import type { MultiPolygon, Position } from 'geojson';
-import { currentCropYear } from '../../../domain/crops';
+import { harvestCropYear } from '../../../domain/crops';
 import { rngFor } from '../../rng';
 import { type Crop, CURRENT_CROP_YEAR, cropFor } from '../../seasons';
 import { localToUtc } from '../../time';
@@ -365,13 +373,26 @@ function operatorsOf(world: SimWorld, machines: readonly SimMachine[]): Record<s
 }
 
 /**
- * Every operation the stand-in serves at `c.now`, in farm order (field, then season order:
- * seeding, application, harvest). Only owning orgs list operations.
+ * The crop season the stand-in files its one modelled season under at wall time `now` (D23):
+ * the season being harvested, `harvestCropYear(now)` (Y from Aug 1, Y - 1 before).
  */
-export function simOperations(c: SimOpsContext): SimOperation[] {
+export function simOpsSeason(now: Date): number {
+  return harvestCropYear(now);
+}
+
+/**
+ * Every operation the stand-in serves at `c.now` for crop season `season` (default: the one it
+ * models, `simOpsSeason(c.now)`; any other season has none), in farm order (field, then season
+ * order: seeding, application, harvest). Only owning orgs list operations.
+ */
+export function simOperations(
+  c: SimOpsContext,
+  season: number = simOpsSeason(c.now),
+): SimOperation[] {
+  if (season !== simOpsSeason(c.now)) return [];
   const { world } = c;
   const seed = world.seed;
-  const cropSeason = String(currentCropYear(c.now));
+  const cropSeason = String(season);
   const owners = new Map(
     simDeereFields(world.farm)
       .filter((f) => !f.shared)

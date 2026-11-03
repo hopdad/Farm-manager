@@ -8,7 +8,7 @@
  * unchanged operations, the per-run field cap and the deadline.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
-import { currentCropYear } from '../../../domain/crops';
+import { cropSeasonsToSync, harvestCropYear } from '../../../domain/crops';
 import { createSimWorld } from '../../../sim/index';
 import { CURRENT_CROP_YEAR, cropFor } from '../../../sim/seasons';
 import { SIM_DEERE_HOME_ORG } from '../../../sim/types';
@@ -88,7 +88,7 @@ function deps(over: Partial<OpsPollDeps> = {}): OpsPollDeps {
     client: new DeereClient({ endpoints: ep, tokens, http }),
     now,
     stopAt: new Date(WALL + 3_600_000),
-    cropSeason: currentCropYear(now()),
+    cropSeasons: cropSeasonsToSync(now()),
     fieldCap: null,
     storedModified: async () => new Map(),
     log: collectingLogger(),
@@ -156,9 +156,85 @@ describe('deere.ops against the stand-in (sim world)', () => {
     expect(harvest?.coverage === null).toBe(refused);
     // Its id is the stand-in's deterministic one.
     expect(harvest?.externalId).toBe(
-      simOperationId(field?.key ?? '', 'harvest', String(currentCropYear(now()))),
+      simOperationId(field?.key ?? '', 'harvest', String(harvestCropYear(now()))),
     );
   }, 30_000);
+
+  test('every field is listed once per crop season of the sync window (D23)', async () => {
+    const urls: URL[] = [];
+    const recording = new DeereClient({
+      endpoints: ep,
+      tokens: new MemoryTokenStore('deere', null, { now }),
+      http: {
+        ...http,
+        fetch: (async (input: string | URL | Request, init?: RequestInit) => {
+          urls.push(new URL(input instanceof Request ? input.url : String(input)));
+          return fetch(input, init);
+        }) as typeof fetch,
+      },
+    });
+    // Oct 31, 2026: this season's harvest and next year's fall seeding, [2026, 2027].
+    expect(cropSeasonsToSync(now())).toEqual([2026, 2027]);
+    const r = await pollDeereOperations(null, deps({ client: recording }));
+    const listings = urls.filter((u) => u.pathname.endsWith('/fieldOperations'));
+    const byField = new Map<string, string[]>();
+    for (const u of listings) {
+      const field = u.pathname.split('/').at(-2) ?? '';
+      byField.set(field, [...(byField.get(field) ?? []), u.searchParams.get('cropSeason') ?? '']);
+    }
+    expect(byField.size).toBe(homeFields().length);
+    for (const [, seasons] of byField) expect(seasons).toEqual(['2026', '2027']);
+    expect(r.stats).toMatchObject({
+      fieldsChecked: homeFields().length,
+      seasonsPerField: 2,
+      listings: 2 * homeFields().length,
+    });
+    // The stand-in has nothing filed under 2027: one planting a field, not two.
+    expect(r.items).toHaveLength(homeFields().length);
+  }, 30_000);
+
+  test('an operation listed under both seasons (a vendor ignoring cropSeason) is read once', async () => {
+    const field = homeFields()[0];
+    const once = await pollDeereOperations(null, deps({ cropSeasons: [2026] }));
+    const twice = await pollDeereOperations(null, deps({ cropSeasons: [2026, 2026] }));
+    expect(twice.stats.listings).toBe(once.stats.listings);
+    // The stand-in honours cropSeason; ignore it the way replay does: every season, the same list.
+    const deaf: DeereRouteModule = {
+      key: 'ops',
+      route: (req) => {
+        req.req.url.searchParams.set('cropSeason', '2026');
+        return deereOpsRoutes.route?.(req) ?? null;
+      },
+      control: deereOpsRoutes.control,
+    };
+    const deafSim = await startVendorSim({
+      createWorld: createSimWorld,
+      port: 0,
+      now,
+      modules: { deere: deereModuleWith([deaf]) },
+    });
+    try {
+      deafSim.control.reset({ scenario: 'harvest-day' });
+      const deafEp = deereEndpoints('sim', {
+        VENDOR_SIM_URL: deafSim.url,
+        PUBLIC_URL: 'http://localhost:3112',
+      });
+      const r = await pollDeereOperations(null, {
+        ...deps(),
+        client: new DeereClient({
+          endpoints: deafEp,
+          tokens: new MemoryTokenStore('deere', null, { now }),
+          http,
+        }),
+      });
+      expect(r.stats.listings).toBe(2 * r.stats.fieldsChecked);
+      const ids = r.items.map((i) => i.externalId);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(r.items.filter((i) => i.payload.fieldId === field?.deereFieldId)).toHaveLength(1);
+    } finally {
+      await deafSim.close();
+    }
+  }, 60_000);
 
   test("a field with an active boundary: Deere's 400 = no coverage, measured area kept", async () => {
     const field = world.farm.fields.find(
@@ -307,7 +383,7 @@ describe('deere.ops against the stand-in (sim world)', () => {
         }) as typeof fetch,
       },
     });
-    const list = (type?: string, season = d.cropSeason) =>
+    const list = (type?: string, season = d.cropSeasons[0] as number) =>
       listFieldOperations(recording, SIM_DEERE_HOME_ORG, field?.deereFieldId ?? '', {
         cropSeason: season,
         fieldOperationType: type,
@@ -318,7 +394,7 @@ describe('deere.ops against the stand-in (sim world)', () => {
     expect(await list(undefined, 2019)).toEqual([]);
     const sent = urls.filter((u) => u.includes('/fieldOperations')).map((u) => new URL(u));
     expect(sent[0]?.searchParams.get('fieldOperationType')).toBe('SEEDING');
-    expect(sent[0]?.searchParams.get('cropSeason')).toBe(String(d.cropSeason));
+    expect(sent[0]?.searchParams.get('cropSeason')).toBe(String(d.cropSeasons[0]));
     expect(sent[0]?.searchParams.get('embed')).toBe('measurementTypes');
     // The per-operation measurements call (used when a listing doesn't embed them).
     const op = (await list('SEEDING'))[0];

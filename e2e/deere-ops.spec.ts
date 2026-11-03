@@ -1,7 +1,9 @@
 /**
  * Slice 1f deere-ops done-when, in sim mode (CONNECTOR_DEERE=sim, the Deere stand-in's `ops`
  * module): deere.ops (run now, as the clock does every 20 s in the demo) lands this season's
- * operations, and a field's History tab on /board and /m shows them: kind, crop, acres, the
+ * operations (D23: the two crop seasons of the sync window; the stand-in files its season under
+ * the one being harvested, so this holds in January too), and a field's History tab on /board
+ * and /m shows them under its growing year: kind, crop, acres, the
  * seed and its rate, the machine and operator, coverage; a field whose coverage call Deere
  * answers 400 (an active boundary) shows its operation with the measured area and no coverage
  * map. A change to a field's operations (`fields`/`updated` with part 'operations') reaches the
@@ -13,6 +15,7 @@
 import { randomBytes } from 'node:crypto';
 import { expect, type Page, test } from '@playwright/test';
 import { getConfig } from '../src/config';
+import { cropSeasonsToSync } from '../src/domain/crops';
 import { buildDemoFarm } from '../src/sim/farm/build';
 import { SIM_OPS_REFUSED_EVERY } from '../src/sim/vendors/deere/ops-world';
 import { e2ePool, signInAs } from './support/auth';
@@ -107,6 +110,16 @@ test("a field's History tab shows this season's operations from Operations Cente
   await waitForMap(page, 90_000);
 
   await openHistory(page, MAPPED?.id as string, MAPPED?.name as string);
+  // The heading names the year the server answered with: the field's growing year (D23), a
+  // season of the sync window, whatever the calendar says (January included).
+  const api = await page.request.get(`/api/fields/${MAPPED?.id}/operations`);
+  const { cropYear } = (await api.json()) as { cropYear: number };
+  expect(cropSeasonsToSync(new Date())).toContain(cropYear);
+  const section = page.getByTestId('field-operations');
+  await expect(section).toHaveAttribute('data-crop-year', String(cropYear));
+  await expect(page.getByTestId('field-operations-heading')).toHaveText(
+    `This season (${cropYear}): field operations`,
+  );
   const planting = page.locator('[data-testid="field-operation"][data-kind="seeding"]');
   await expect(planting).toHaveCount(1);
   await expect(planting).toHaveAttribute('data-coverage', 'yes');

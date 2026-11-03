@@ -658,7 +658,8 @@ function operationsFixture(c: Ctx): ReplayFixture {
       ),
     );
   }
-  // cropSeason moves with the anchor (a 2027 replay serves 2027's operations).
+  // cropSeason moves with the anchor by whole seasons, at Aug 1 (D23): a replay from Aug 1, 2027
+  // serves 2027's operations; one in January 2027 still 2026's.
   return fixture('operations', REF.operations, OPERATIONS_ANCHOR, exchanges, undefined, [
     'cropSeason',
   ]);

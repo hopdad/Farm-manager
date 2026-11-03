@@ -20,6 +20,7 @@
  */
 import { expect, type Page, test } from '@playwright/test';
 import { getConfig } from '../src/config';
+import { cropSeasonsToSync } from '../src/domain/crops';
 import { fleetPanelDataSchema } from '../src/ui/fleet/contract';
 import { e2ePool, signInAs } from './support/auth';
 import { mapIdle, WEBGL_ARGS, waitForMap } from './support/map';
@@ -217,8 +218,10 @@ test("a field's History tab shows this season's operations", async ({ page }) =>
   // Rows only replay writes: 01-field-operations' ids are base64url('replay-fieldop:…'). The
   // 30 fixture shares the sim's ids, and CI runs this step after the sim suite on the same
   // database, so its rows (and any sim leftovers) can't prove the replay landed. The year: the
-  // fixture's cropSeason moves with its anchor (cropYearKeys), so a 2027 replay is 2027's.
+  // fixture's cropSeason moves with its anchor by whole seasons at Aug 1 (cropYearKeys, D23), so
+  // it is always a season of the sync window that deere.ops asks for.
   const REPLAY_ONLY = `source_id like 'cmVwbGF5LWZpZWxkb3A6%'`;
+  const SEASONS = cropSeasonsToSync(new Date());
   await expect
     .poll(
       async () =>
@@ -226,7 +229,8 @@ test("a field's History tab shows this season's operations", async ({ page }) =>
           await one<{ n: number }>(
             `select count(*)::int as n from farm.operations
               where source = 'deere' and field_id is not null and ${REPLAY_ONLY}
-                and crop_year = extract(year from now() at time zone 'America/Detroit')::int`,
+                and crop_year = any($1::int[])`,
+            [SEASONS],
           )
         )?.n ?? 0,
       { timeout: SYNC_WAIT_MS, message: "deere.ops landed this season's replayed operations" },
@@ -239,9 +243,9 @@ test("a field's History tab shows this season's operations", async ({ page }) =>
        from farm.operations o
        join farm.fields f on f.id = o.field_id
        join farm.current_boundaries b on b.field_id = f.id
-      where o.source = 'deere' and o.${REPLAY_ONLY}
-        and o.crop_year = extract(year from now() at time zone 'America/Detroit')::int
+      where o.source = 'deere' and o.${REPLAY_ONLY} and o.crop_year = any($1::int[])
       order by f.name limit 1`,
+    [SEASONS],
   );
   if (!field) throw new Error('no field with operations');
 

@@ -41,14 +41,16 @@
  *  - the start of an ISO 8601 interval (`2026-11-30T13:00:00+00:00/PT1H`, NWS `validTime`);
  *  - numbers under the property names in `epochMsKeys` (epoch milliseconds);
  *  - 4-digit years (strings or numbers) under the property names in `cropYearKeys`, by whole
- *    crop years: currentCropYear(anchor + delta) - currentCropYear(anchor) (America/Detroit).
- *    A fixture written in the 2026 season and replayed in 2027 then says `cropSeason: "2027"`,
- *    as a real account would for operations dated in 2027.
+ *    crop seasons: harvestCropYear(anchor + delta) - harvestCropYear(anchor) (America/Detroit;
+ *    D23: the season being harvested moves on at Aug 1, not Jan 1). A fixture written in the
+ *    2026 season (anchored in its harvest) and replayed in January 2027 still says
+ *    `cropSeason: "2026"`, its harvest now a late one, as the Deere stand-in files it; replayed
+ *    from Aug 1, 2027 it says "2027".
  * Date-only strings (`2026-11-30`) and everything else stay as written. Request query values
  * are never shifted.
  */
 import { z } from 'zod';
-import { currentCropYear } from '../domain/crops';
+import { harvestCropYear } from '../domain/crops';
 import type { ConnectorSource } from './types';
 
 /** Base origin of every replay-mode client (RFC 2606 `.invalid`: can never resolve). */
@@ -96,7 +98,7 @@ export interface ReplayFixture {
   basePath?: string;
   /** Property names whose numeric values are epoch milliseconds (shifted too). */
   epochMsKeys?: string[];
-  /** Property names holding a 4-digit crop year (shifted by whole crop years, see above). */
+  /** Property names holding a 4-digit crop year (shifted by whole crop seasons, see above). */
   cropYearKeys?: string[];
   exchanges: ReplayExchange[];
 }
@@ -158,13 +160,13 @@ export function replayDeltaMs(
   return Math.floor(raw / step) * step;
 }
 
-/** Whole crop years a fixture's `cropYearKeys` move by when replayed with `deltaMs`. */
+/** Whole crop seasons a fixture's `cropYearKeys` move by when replayed with `deltaMs` (D23). */
 export function replayCropYearShift(
   fixture: Pick<ReplayFixture, 'anchor'>,
   deltaMs: number,
 ): number {
   const anchor = Date.parse(fixture.anchor);
-  return currentCropYear(new Date(anchor + deltaMs)) - currentCropYear(new Date(anchor));
+  return harvestCropYear(new Date(anchor + deltaMs)) - harvestCropYear(new Date(anchor));
 }
 
 const DATE_TIME_RE =

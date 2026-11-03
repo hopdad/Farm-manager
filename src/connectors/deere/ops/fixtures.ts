@@ -165,7 +165,8 @@ export function buildDeereOpsFixtures(): Record<string, ReplayFixture> {
     reference: REFERENCE,
     anchor: OPERATIONS_ANCHOR,
     basePath: '/platform',
-    // The 2026 season moves with the anchor: replayed in 2027, these are 2027's operations.
+    // The 2026 season moves with the anchor by whole seasons, at Aug 1 (D23): replayed from
+    // Aug 1, 2027, these are 2027's operations; in January 2027 still 2026's.
     cropYearKeys: ['cropSeason'],
     exchanges,
   };

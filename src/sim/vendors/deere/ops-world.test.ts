@@ -13,6 +13,7 @@ import {
   simCoverageRefused,
   simOperationId,
   simOperations,
+  simOpsSeason,
   simPlanting,
   simToWall,
 } from './ops-world';
@@ -84,14 +85,15 @@ describe('operation ids', () => {
 function contextFor(
   world: DemoWorld | ReturnType<typeof createStubSimWorld>,
   simNow: Date,
+  wall: Date = WALL,
 ): SimOpsContext {
   return {
     world,
     days: simDayReportsOf(world),
-    now: WALL,
+    now: wall,
     simNow,
     clock: {
-      anchorWall: WALL.toISOString(),
+      anchorWall: wall.toISOString(),
       anchorSim: simNow.toISOString(),
       speed: 1,
       paused: false,
@@ -166,6 +168,70 @@ describe('simOperations', () => {
     expect(Date.parse(fd[0]?.endDate as string) - Date.parse(fd[0]?.startDate as string)).toBe(
       FULL_DAY_SPRAYER.seconds * 1000,
     );
+  });
+});
+
+describe('the season served (D23: the season being harvested at the wall)', () => {
+  /** The scenario's first harvest range, and a sim instant just after it ended. */
+  function afterFirstHarvest(world: DemoWorld) {
+    const work = world.dayReport(0).work.filter((w) => w.op === 'harvest');
+    const first = [...work].sort((a, b) => a.lastAt.localeCompare(b.lastAt))[0];
+    if (!first) throw new Error('no harvest');
+    return { first, simNow: new Date(Date.parse(first.lastAt) + 60_000) };
+  }
+
+  test('at a January wall last season is served, plantings and harvest; this season is empty', () => {
+    const JANUARY = new Date('2027-01-15T15:00:00.000Z');
+    expect(simOpsSeason(JANUARY)).toBe(2026);
+    const world = createSimWorld({ scenario: 'harvest-day' }) as DemoWorld;
+    const { first, simNow } = afterFirstHarvest(world);
+    const c = contextFor(world, simNow, JANUARY);
+    const last = simOperations(c, 2026);
+    expect(simOperations(c)).toEqual(last);
+    expect(simOperations(c, 2027)).toEqual([]);
+    expect(new Set(last.map((o) => o.cropSeason))).toEqual(new Set(['2026']));
+    // Every field's spring planting, at its written date in 2026 (wheat: the fall of 2025).
+    const plantings = last.filter((o) => o.kind === 'seeding');
+    expect(plantings).toHaveLength(world.farm.fields.length);
+    for (const o of plantings) {
+      const p = simPlanting(1, o.field, CURRENT_CROP_YEAR);
+      const local = new Date(Date.parse(o.startDate) - 5 * 3_600_000); // EST/EDT within an hour
+      expect(local.getUTCFullYear()).toBe(p.date.y);
+      expect(local.getUTCMonth() + 1).toBe(p.date.m);
+      expect(o.id).toBe(simOperationId(o.field.key, 'seeding', '2026'));
+    }
+    // The harvest the scenario finished, stamped in January's wall time, filed under 2026.
+    const harvest = last.find((o) => o.kind === 'harvest' && o.field.id === first.fieldId);
+    expect(harvest).toMatchObject({ cropSeason: '2026', crop: 'corn' });
+    expect(Date.parse(harvest?.endDate as string)).toBe(JANUARY.getTime() - 60_000);
+  });
+
+  test('the stand-in moves to the next season on Aug 1 (America/Detroit), not on Jan 1', () => {
+    const world = createSimWorld({ scenario: 'harvest-day' }) as DemoWorld;
+    const julyEnd = new Date('2027-08-01T03:59:00.000Z'); // Jul 31, 23:59 EDT
+    const aug1 = new Date('2027-08-01T04:00:00.000Z'); // Aug 1, 00:00 EDT
+    expect(simOpsSeason(new Date('2026-12-31T23:59:00-05:00'))).toBe(2026);
+    expect(simOpsSeason(new Date('2027-01-01T00:00:00-05:00'))).toBe(2026);
+    expect(simOpsSeason(julyEnd)).toBe(2026);
+    expect(simOpsSeason(aug1)).toBe(2027);
+    const before = simOperations(contextFor(world, world.startsAt, julyEnd));
+    const after = simOperations(contextFor(world, world.startsAt, aug1));
+    expect(before.every((o) => o.cropSeason === '2026')).toBe(true);
+    expect(after.every((o) => o.cropSeason === '2027')).toBe(true);
+    // From Aug 1 the plantings are this year's spring (2027), all ended by then.
+    expect(after).toHaveLength(world.farm.fields.length);
+    for (const o of after) {
+      if (o.crop === 'wheat') expect(o.startDate.slice(0, 4)).toBe('2026');
+      else expect(o.startDate.slice(0, 5)).toBe('2027-');
+    }
+  });
+
+  test('the listing serves the cropSeason asked: the modelled one, and nothing for others', async () => {
+    const JANUARY = new Date('2027-01-15T15:00:00.000Z');
+    const world = createSimWorld({ scenario: 'harvest-day' }) as DemoWorld;
+    const c = contextFor(world, world.startsAt, JANUARY);
+    expect(simOperations(c, 2025)).toEqual([]);
+    expect(simOperations(c, 2026).length).toBe(world.farm.fields.length);
   });
 });
 
