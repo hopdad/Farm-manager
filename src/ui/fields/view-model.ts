@@ -5,7 +5,7 @@
  * calendar dates (planted, harvested) are shown as stored, never shifted by a time zone.
  */
 import type { Tenure } from '../../domain/farm';
-import { FARM_TIME_ZONE } from '../../domain/farm';
+import { FARM_TIME_ZONE, farmDate } from '../../domain/farm';
 import type { FieldDetail, PartyRef, SeasonRow } from '../../domain/fields';
 import { COUNTY_FIPS } from '../../domain/parcels';
 import { ROLE_FOR, type Role, roleAtLeast } from '../../platform/auth/types';
@@ -220,7 +220,7 @@ export function boundaryView(detail: FieldDetail): BoundaryView | null {
   return {
     acres: formatAcres(b.acres) ?? DASH,
     source: BOUNDARY_SOURCE_LABELS[b.source] ?? b.source,
-    since: formatSeasonDate(b.validFrom.slice(0, 10)),
+    since: formatSeasonDate(farmDate(b.validFrom)),
     editable: b.editable,
     readOnlyReason: b.readOnlyReason,
     openRequests:

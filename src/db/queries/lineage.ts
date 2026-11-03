@@ -14,7 +14,7 @@
  */
 import type { LineString, MultiPolygon } from 'geojson';
 import type pg from 'pg';
-import type { Tenure } from '../../domain/farm';
+import { farmDate, type Tenure } from '../../domain/farm';
 import { boundaryEditPolicy } from '../../domain/fields';
 import { localParts, localToUtc } from '../../sim/time';
 import type { Queryable } from '../client';
@@ -111,7 +111,7 @@ async function lockEditable(c: pg.PoolClient, fieldId: string): Promise<Editable
 function checkAt(f: EditableField, at: Date): void {
   if (f.boundaryFrom && f.boundaryFrom.getTime() >= at.getTime()) {
     throw new FieldDataError(
-      `'${f.name}' has a boundary starting ${f.boundaryFrom.toISOString().slice(0, 10)}: pick a later date`,
+      `'${f.name}' has a boundary starting ${farmDate(f.boundaryFrom)}: pick a later date`,
       'conflict',
     );
   }

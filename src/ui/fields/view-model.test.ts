@@ -184,6 +184,20 @@ describe('fieldPanelView', () => {
     ).toBe('County 26001');
   });
 
+  test("the boundary's start date is the farm's date, not UTC's (an evening change)", () => {
+    const d = makeFieldDetail();
+    const at = (validFrom: string) =>
+      fieldPanelView(
+        makeFieldDetail({ boundary: d.boundary && { ...d.boundary, validFrom } }),
+        'viewer',
+        NOW,
+      ).boundary?.since;
+    // Dec 31, 2026 at 8 PM EST is Jan 1 in UTC.
+    expect(at('2027-01-01T01:00:00.000Z')).toBe('Dec 31, 2026');
+    // A July evening at 9 PM EDT.
+    expect(at('2026-07-15T01:00:00.000Z')).toBe('Jul 14, 2026');
+  });
+
   test('an editable (non-Deere) boundary has no read-only reason', () => {
     const d = makeFieldDetail();
     const editable = makeFieldDetail({

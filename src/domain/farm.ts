@@ -39,6 +39,22 @@ export const SQ_METRES_PER_ACRE = 4046.86;
 /** Display and business time zone. Storage is always timestamptz in UTC. */
 export const FARM_TIME_ZONE = 'America/Detroit';
 
+const FARM_DATE = new Intl.DateTimeFormat('en-CA', {
+  timeZone: FARM_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+/**
+ * The farm's calendar date of an instant, 'YYYY-MM-DD' in America/Detroit. Not
+ * `toISOString().slice(0, 10)`: that is the UTC date, a day ahead every evening from 7 PM (8 PM
+ * in summer).
+ */
+export function farmDate(at: Date | number | string): string {
+  return FARM_DATE.format(at instanceof Date ? at : new Date(at));
+}
+
 // ---------------------------------------------------------------------------------------------
 // M1 vocabulary (db/migrations/0003_m1_see_it.sql enforces the same lists with CHECKs).
 // ---------------------------------------------------------------------------------------------

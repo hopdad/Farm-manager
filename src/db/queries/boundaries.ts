@@ -15,7 +15,7 @@
  */
 import type { MultiPolygon } from 'geojson';
 import type pg from 'pg';
-import type { Tenure } from '../../domain/farm';
+import { farmDate, type Tenure } from '../../domain/farm';
 import { boundaryEditPolicy, DEERE_BOUNDARY_READ_ONLY } from '../../domain/fields';
 import type { Queryable } from '../client';
 import {
@@ -110,7 +110,7 @@ export async function writeBoundaryVersion(
   }
   if (prev?.from_at && prev.from_at.getTime() >= prev.at.getTime()) {
     throw new FieldDataError(
-      `the current boundary starts ${prev.from_at.toISOString().slice(0, 10)}: a new version must start after it`,
+      `the current boundary starts ${farmDate(prev.from_at)}: a new version must start after it`,
       'conflict',
     );
   }
