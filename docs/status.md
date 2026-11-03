@@ -1,6 +1,6 @@
 # Build status
 
-Oct 31, 2026. Update this file at the end of each build session.
+Nov 3, 2026. Update this file at the end of each build session.
 
 ## Branches
 
@@ -32,6 +32,29 @@ Lint, typecheck, unit (also in a clean clone with no env files), DB tests, build
 ## Not verifiable from the cloud build machine
 
 Its proxy blocks the real Protomaps basemap, live NWS weather, real SSURGO soils and NAIP close-ups. All four passed on Derrick's PC on Oct 29 (PC findings below). Live weather needs one re-check after the staleness change (Next).
+
+## Nov 3, 2026: nightly CI red from Nov 2, and a date sweep
+
+The nightly runs of Nov 2 and 3 (77, 78) failed three storage writer unit tests on Linux and
+Windows: a test pinned its clock at 2026-11-02 12:00 UTC while two calls used the real clock, so
+its 2 h upload grants read expired once the real date passed. Fixed on `main` (`832bec9`, CI green
+on Linux and Windows), together with the conformance test, which would have failed from Jan 1
+(the Deere stand-in has no new-season operations before the spring planting).
+
+A sweep for anything else that breaks on a coming date: the unit suite at shifted clocks (-30
+days to +3 years; nothing else), and four reviewers over the DB tests, the e2e specs and the stand-in,
+and product code (crop-year rollover, the 2027 clock changes). Fixed on `claude/date-fixes`:
+
+- The field panel's boundary "since" date and two boundary-conflict messages took the UTC date, a
+  day ahead every evening from 7 PM (8 PM in summer): a boundary saved Dec 31 at 8 PM read "since
+  Jan 1". `farmDate()` (`src/domain/farm.ts`) gives the farm's date.
+- Replay fixtures can name `cropYearKeys`: a 4-digit year there moves by whole crop years with the
+  anchor. The Deere operations fixtures use it for `cropSeason`, so a 2027 replay serves 2027's
+  operations (it said 2026 forever). `e2e/m1f-replay.spec.ts` now checks rows only replay writes,
+  not sim leftovers on CI's shared database.
+
+Open, needs Derrick (below in Next): what "this season" shows from Jan 1 until the new crop
+year's first operation.
 
 ## Oct 31, 2026: slices 1f and 1f.2 (merged into `main`)
 
@@ -177,6 +200,13 @@ Phase B (texture, slope, interpretations, OM/pH/CEC) is the PC's, after 1e.
     free migration (`0008` or later: 1f took `0007`);
   - E: branch cleanup, if Derrick agrees.
 - Then Derrick's own data (PC-AGENT.md section 3, item 2).
+- **Before Jan 1, 2027 (Derrick's call):** from Jan 1 until the spring planting, "this season's
+  operations" is empty (the crop year is the calendar year, as a real Deere account would show),
+  so the History tab goes blank all winter, deere.ops stops syncing late edits to last season,
+  and `e2e/deere-ops.spec.ts` fails on every full CI run from Jan 1 to about May 18. Recommended:
+  until the new season has an operation, show and keep syncing last season (a few more Deere
+  calls a field in winter). The other way: keep the empty winter and only make the demo and the
+  spec hold a planting date.
 - In the cloud, per `docs/build-plan.md` §6 and D22: the war board next (M2 2a job board and
   drag-to-assign, then 2b morning meeting, Work Plans and go/no-go v1), then the rest of 1g, then
   2c, then MD. The Deere season backfill is deferred to after MD.
