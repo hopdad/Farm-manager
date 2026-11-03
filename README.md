@@ -64,10 +64,15 @@ instead: `pnpm db:migrate`, `pnpm db:seed demo`, then `pnpm vendor-sim:connect`.
   has that the app doesn't lands with tenure "not set" (drawn grey; the demo has one, *New
   Ground 80*), flags show as read-only pins (the **Deere flags** toggle in the layer rail; tap one
   for its popup), and machines get their engine hours.
-- **This season's operations.** A field's **History** tab lists this crop year's planting,
-  spraying and harvest from Operations Center: acres (and the part inside the field), yield,
-  products and rates, machines and operator, coverage mapped or not, and whether Deere may still
-  change it.
+- **This season's operations.** A field's **History** tab lists the planting, spraying and
+  harvest of its growing year from Operations Center: acres (and the part inside the field),
+  yield, products and rates, machines and operator, coverage mapped or not, and whether Deere may
+  still change it. "This season" is the newest crop season with operations on that field
+  (decision D23), not the calendar year: in January a field still shows last season, and a field
+  seeded to winter wheat in October (which Deere files under next year) shows next year while its
+  neighbours stay on this one. The heading names the year shown. `deere.ops` syncs two crop
+  seasons: from Jan 1 to Jul 31 last season and this one, from Aug 1 this one and next (about
+  twice the Deere calls a field of one season; `DEERE_DAILY_CALL_BUDGET` still holds).
 - **Fault codes and stats on the fleet panel.** Each row shows where its position comes from
   ("Samsara · sim", "Kubota (AEMP) · sim", "John Deere · replay"), its kind (and "set by hand"),
   engine hours, odometer, fuel and DEF ("not reported" where the vendor's route doesn't send
@@ -227,7 +232,7 @@ client on fixtures written from the vendor's published API documents (no account
 
 | Setting | Vendor (what it brings) | Modes | Credentials for sandbox / live |
 |---|---|---|---|
-| `CONNECTOR_DEERE` | John Deere Operations Center: machine breadcrumbs, fields, boundaries, flags, equipment and engine hours, this season's operations | sim, replay, sandbox, live | `DEERE_CLIENT_ID`, `DEERE_CLIENT_SECRET` (then sign in at `/api/oauth/deere`); optional `DEERE_REDIRECT_URI`, `DEERE_HOME_ORG_ID`, `DEERE_DAILY_CALL_BUDGET`, `DEERE_API_BASE`, `DEERE_EQUIPMENT_API_BASE` |
+| `CONNECTOR_DEERE` | John Deere Operations Center: machine breadcrumbs, fields, boundaries, flags, equipment and engine hours, field operations of the two synced crop seasons (D23) | sim, replay, sandbox, live | `DEERE_CLIENT_ID`, `DEERE_CLIENT_SECRET` (then sign in at `/api/oauth/deere`); optional `DEERE_REDIRECT_URI`, `DEERE_HOME_ORG_ID`, `DEERE_DAILY_CALL_BUDGET`, `DEERE_API_BASE`, `DEERE_EQUIPMENT_API_BASE` |
 | `CONNECTOR_SAMSARA` | Samsara: the semis and pickups (positions, hours, odometer, fuel, fault codes), the vehicle list (tags), the RoGator's asset gateway | sim, replay, sandbox, live | `SAMSARA_API_TOKEN` |
 | `CONNECTOR_MOTIVE` | Motive (a hired hauler): positions, stats, fault codes | sim, replay, sandbox, live | `MOTIVE_API_KEY` (the hauler's read-only key scoped to your trucks; a TEST MODE key for sandbox); optional `MOTIVE_API_BASE` |
 | `CONNECTOR_GEOTAB` | MyGeotab (a hired hauler): positions, stats, fault codes | sim, replay, sandbox, live | `GEOTAB_DATABASE`, `GEOTAB_USERNAME`, `GEOTAB_PASSWORD` (a service account); optional `GEOTAB_SERVER` |

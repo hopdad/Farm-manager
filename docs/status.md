@@ -53,8 +53,14 @@ and product code (crop-year rollover, the 2027 clock changes). Fixed on `claude/
   operations (it said 2026 forever). `e2e/m1f-replay.spec.ts` now checks rows only replay writes,
   not sim leftovers on CI's shared database.
 
-Open, needs Derrick (below in Next): what "this season" shows from Jan 1 until the new crop
-year's first operation.
+Decided by Derrick the same day (D23, "the season should follow the growing year") and built on
+`claude/growing-year`: an operation keeps the crop season Deere gives it; a field's "this season"
+is the newest of the two synced seasons with operations on it (so in January it is still last
+season, and a field seeded to wheat in October moves to next year by itself); `deere.ops` syncs
+two seasons (Jan-Jul last season and this one, Aug-Dec this one and next) with the budget cap
+counting both listings; the stand-in files its season under the one being harvested, so the demo
+and `e2e/deere-ops.spec.ts` hold all year. Replay's `cropYearKeys` now move at Aug 1 too, not
+Jan 1: a replay in January 2027 serves 2026's operations, as the stand-in does.
 
 ## Oct 31, 2026: slices 1f and 1f.2 (merged into `main`)
 
@@ -200,13 +206,9 @@ Phase B (texture, slope, interpretations, OM/pH/CEC) is the PC's, after 1e.
     free migration (`0008` or later: 1f took `0007`);
   - E: branch cleanup, if Derrick agrees.
 - Then Derrick's own data (PC-AGENT.md section 3, item 2).
-- **Before Jan 1, 2027 (Derrick's call):** from Jan 1 until the spring planting, "this season's
-  operations" is empty (the crop year is the calendar year, as a real Deere account would show),
-  so the History tab goes blank all winter, deere.ops stops syncing late edits to last season,
-  and `e2e/deere-ops.spec.ts` fails on every full CI run from Jan 1 to about May 18. Recommended:
-  until the new season has an operation, show and keep syncing last season (a few more Deere
-  calls a field in winter). The other way: keep the empty winter and only make the demo and the
-  spec hold a planting date.
+- **Done (Nov 3, D23):** "this season" follows the growing year, so the History tab no longer
+  goes blank from Jan 1 and `e2e/deere-ops.spec.ts` passes all year (`claude/growing-year`, not
+  merged yet; see Nov 3 above). The season switcher and the rolling field timeline wait (D23).
 - In the cloud, per `docs/build-plan.md` §6 and D22: the war board next (M2 2a job board and
   drag-to-assign, then 2b morning meeting, Work Plans and go/no-go v1), then the rest of 1g, then
   2c, then MD. The Deere season backfill is deferred to after MD.

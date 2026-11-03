@@ -905,7 +905,7 @@ Built on the PC and shipped through the same pipeline.
 ### M4 Phase 4, "Decide with it" (Dec 2027 – Mar 2028) · gate in: Phase 3 gate
 - [ ] **4a** Field P&L and business-line P&L (grain, spraying, trucking, store) from `job_costs`, rent and a ledger import. The default import is a CSV export from QBO or Traction; the QBO API import is optional.
 - [ ] **4b** Leases with renewal reminders and rent due dates (`lease_payments`). Contact book (introduced by, last and next touch). Prospect parcels scored with CSB, CDL and lidar (plus flow paths if deferred from 1e).
-- [ ] **4c** Drone log import (D18), season flip-through per field including Deere yield and as-applied map layers, multi-year history, and inventory on hand vs planned. Needs the deferred Deere season backfill (D22; `docs/contracts-1f.md` §13) built first, after MD.
+- [ ] **4c** Drone log import (D18), season flip-through per field including Deere yield and as-applied map layers, multi-year history, and inventory on hand vs planned. Needs the deferred Deere season backfill (D22; `docs/contracts-1f.md` §13) built first, after MD. With it, the later views D23 records: a season switcher in the History tab and the rolling field timeline (a field's work as one strip across seasons, like the *Farming Simulator 25* calendar).
 
 *Done when:*
 - Every 2027 field has a P&L, and each business line has its own ledger.
