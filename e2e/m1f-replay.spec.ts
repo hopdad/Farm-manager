@@ -214,13 +214,18 @@ test('Deere machines from the Equipment API fixture carry their engine hours', a
 test("a field's History tab shows this season's operations", async ({ page }) => {
   test.setTimeout(2 * SYNC_WAIT_MS + 30_000);
   await replayRan('deere', 'operations');
+  // Rows only replay writes: 01-field-operations' ids are base64url('replay-fieldop:…'). The
+  // 30 fixture shares the sim's ids, and CI runs this step after the sim suite on the same
+  // database, so its rows (and any sim leftovers) can't prove the replay landed. The year: the
+  // fixture's cropSeason moves with its anchor (cropYearKeys), so a 2027 replay is 2027's.
+  const REPLAY_ONLY = `source_id like 'cmVwbGF5LWZpZWxkb3A6%'`;
   await expect
     .poll(
       async () =>
         (
           await one<{ n: number }>(
             `select count(*)::int as n from farm.operations
-              where source = 'deere' and field_id is not null
+              where source = 'deere' and field_id is not null and ${REPLAY_ONLY}
                 and crop_year = extract(year from now() at time zone 'America/Detroit')::int`,
           )
         )?.n ?? 0,
@@ -234,7 +239,7 @@ test("a field's History tab shows this season's operations", async ({ page }) =>
        from farm.operations o
        join farm.fields f on f.id = o.field_id
        join farm.current_boundaries b on b.field_id = f.id
-      where o.source = 'deere'
+      where o.source = 'deere' and o.${REPLAY_ONLY}
         and o.crop_year = extract(year from now() at time zone 'America/Detroit')::int
       order by f.name limit 1`,
   );

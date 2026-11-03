@@ -39,11 +39,16 @@
  *  - every string that is an RFC 3339 date-time (`2026-11-30T13:00:00Z`, `…+00:00`, with or
  *    without fractional seconds), anywhere in the body, keeping its offset and precision;
  *  - the start of an ISO 8601 interval (`2026-11-30T13:00:00+00:00/PT1H`, NWS `validTime`);
- *  - numbers under the property names in `epochMsKeys` (epoch milliseconds).
+ *  - numbers under the property names in `epochMsKeys` (epoch milliseconds);
+ *  - 4-digit years (strings or numbers) under the property names in `cropYearKeys`, by whole
+ *    crop years: currentCropYear(anchor + delta) - currentCropYear(anchor) (America/Detroit).
+ *    A fixture written in the 2026 season and replayed in 2027 then says `cropSeason: "2027"`,
+ *    as a real account would for operations dated in 2027.
  * Date-only strings (`2026-11-30`) and everything else stay as written. Request query values
  * are never shifted.
  */
 import { z } from 'zod';
+import { currentCropYear } from '../domain/crops';
 import type { ConnectorSource } from './types';
 
 /** Base origin of every replay-mode client (RFC 2606 `.invalid`: can never resolve). */
@@ -91,6 +96,8 @@ export interface ReplayFixture {
   basePath?: string;
   /** Property names whose numeric values are epoch milliseconds (shifted too). */
   epochMsKeys?: string[];
+  /** Property names holding a 4-digit crop year (shifted by whole crop years, see above). */
+  cropYearKeys?: string[];
   exchanges: ReplayExchange[];
 }
 
@@ -117,6 +124,7 @@ export const replayFixtureSchema = z.strictObject({
   shiftStepSeconds: z.number().int().positive().max(86_400).optional(),
   basePath: z.string().startsWith('/').optional(),
   epochMsKeys: z.array(z.string().min(1)).optional(),
+  cropYearKeys: z.array(z.string().min(1)).optional(),
   exchanges: z
     .array(
       z.strictObject({
@@ -148,6 +156,15 @@ export function replayDeltaMs(
   const step = (fixture.shiftStepSeconds ?? 60) * 1000;
   const raw = now.getTime() - Date.parse(fixture.anchor);
   return Math.floor(raw / step) * step;
+}
+
+/** Whole crop years a fixture's `cropYearKeys` move by when replayed with `deltaMs`. */
+export function replayCropYearShift(
+  fixture: Pick<ReplayFixture, 'anchor'>,
+  deltaMs: number,
+): number {
+  const anchor = Date.parse(fixture.anchor);
+  return currentCropYear(new Date(anchor + deltaMs)) - currentCropYear(new Date(anchor));
 }
 
 const DATE_TIME_RE =
@@ -183,17 +200,28 @@ function offsetMinutes(zone: string): number {
   return sign * ((h ?? 0) * 60 + (m ?? 0));
 }
 
-/** A deep copy of `body` with every instant shifted by `deltaMs` (see the rule above). */
+/**
+ * A deep copy of `body` with every instant shifted by `deltaMs` (see the rule above), and the
+ * 4-digit years under `cropYears.keys` moved by `cropYears.by`.
+ */
 export function shiftInstants(
   body: unknown,
   deltaMs: number,
   epochMsKeys: readonly string[] = [],
+  cropYears: { keys: readonly string[]; by: number } = { keys: [], by: 0 },
 ): unknown {
-  if (deltaMs === 0) return structuredClone(body);
+  if (deltaMs === 0 && cropYears.by === 0) return structuredClone(body);
   const epochKeys = new Set(epochMsKeys);
+  const yearKeys = new Set(cropYears.by === 0 ? [] : cropYears.keys);
+  const year = (v: string | number, key: string | null): string | number | null => {
+    if (key === null || !yearKeys.has(key)) return null;
+    if (typeof v === 'string') return /^\d{4}$/.test(v) ? String(Number(v) + cropYears.by) : null;
+    return Number.isInteger(v) && v >= 1000 && v <= 9999 ? v + cropYears.by : null;
+  };
   const walk = (v: unknown, key: string | null): unknown => {
-    if (typeof v === 'string') return shiftInstantString(v, deltaMs);
+    if (typeof v === 'string') return year(v, key) ?? shiftInstantString(v, deltaMs);
     if (typeof v === 'number' && key !== null && epochKeys.has(key)) return v + deltaMs;
+    if (typeof v === 'number') return year(v, key) ?? v;
     if (Array.isArray(v)) return v.map((x) => walk(x, null));
     if (v && typeof v === 'object') {
       const out: Record<string, unknown> = {};
@@ -289,11 +317,11 @@ export function createReplayFetch(
       );
     }
     const { fixture, exchange } = hit;
-    const body = shiftInstants(
-      exchange.response.body,
-      replayDeltaMs(fixture, now()),
-      fixture.epochMsKeys,
-    );
+    const delta = replayDeltaMs(fixture, now());
+    const body = shiftInstants(exchange.response.body, delta, fixture.epochMsKeys, {
+      keys: fixture.cropYearKeys ?? [],
+      by: replayCropYearShift(fixture, delta),
+    });
     return Response.json(body, {
       status: exchange.response.status,
       headers: { 'content-type': 'application/json', ...(exchange.response.headers ?? {}) },

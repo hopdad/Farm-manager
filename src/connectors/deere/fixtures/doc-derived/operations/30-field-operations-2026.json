@@ -6,6 +6,7 @@
   "reference": "https://developer.deere.com/dev-docs/field-operations (GET /organizations/{orgId}/fields/{fieldId}/fieldOperations?cropSeason&embed=measurementTypes, FieldOperation with varieties, products and fieldOperationMachines, FieldOperationMeasurement; scope ag2); https://developer.deere.com/dev-docs/boundaries (GET /fieldOperations/{operationId}/boundary: the worked area, 400 when the field has an active boundary). Values: the simulated demo farm (src/sim, seed 1, harvest-day), no real farm data.",
   "anchor": "2026-10-16T09:00:00.000Z",
   "basePath": "/platform",
+  "cropYearKeys": ["cropSeason"],
   "exchanges": [
     {
       "request": {

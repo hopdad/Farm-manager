@@ -5,6 +5,7 @@ import {
   REPLAY_ORIGIN,
   type ReplayFixture,
   replayBaseUrl,
+  replayCropYearShift,
   replayDeltaMs,
   replayFixtureSchema,
   shiftInstantString,
@@ -76,6 +77,29 @@ describe('time shifting', () => {
       plantedOn: '2026-05-01',
     });
     expect(body.a).toBe('2026-11-30T13:00:00Z');
+  });
+
+  test('cropYearKeys move by whole crop years with the anchor (America/Detroit)', () => {
+    const f = { anchor: '2026-10-16T09:00:00Z' };
+    const to = (iso: string) => Date.parse(iso) - Date.parse(f.anchor);
+    expect(replayCropYearShift(f, to('2026-12-31T23:59:00-05:00'))).toBe(0);
+    // Midnight EST on Jan 1 is 05:00 UTC: the year turns there, not at UTC midnight.
+    expect(replayCropYearShift(f, to('2027-01-01T04:59:00Z'))).toBe(0);
+    expect(replayCropYearShift(f, to('2027-01-01T05:00:00Z'))).toBe(1);
+    expect(replayCropYearShift(f, to('2029-07-04T12:00:00Z'))).toBe(3);
+
+    const body = { ops: [{ cropSeason: '2026', year: 2026, startDate: '2026-10-16T08:00:00Z' }] };
+    const out = shiftInstants(body, HOUR, [], { keys: ['cropSeason', 'year'], by: 1 });
+    expect(out).toEqual({
+      ops: [{ cropSeason: '2027', year: 2027, startDate: '2026-10-16T09:00:00Z' }],
+    });
+    // Only 4-digit values under the named keys; nothing moves when the shift is 0.
+    expect(
+      shiftInstants({ cropSeason: 'n/a', other: '2026' }, 0, [], { keys: ['cropSeason'], by: 1 }),
+    ).toEqual({ cropSeason: 'n/a', other: '2026' });
+    expect(shiftInstants(body, HOUR, [], { keys: ['cropSeason'], by: 0 })).toEqual({
+      ops: [{ cropSeason: '2026', year: 2026, startDate: '2026-10-16T09:00:00Z' }],
+    });
   });
 
   test('delta is quantized to the fixture step', () => {

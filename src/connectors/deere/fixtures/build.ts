@@ -157,6 +157,7 @@ function fixture(
   anchor: string,
   exchanges: ReplayExchange[],
   shiftStepSeconds?: number,
+  cropYearKeys?: string[],
 ): ReplayFixture {
   return {
     format: 1,
@@ -167,6 +168,7 @@ function fixture(
     anchor,
     ...(shiftStepSeconds ? { shiftStepSeconds } : {}),
     basePath: '/platform',
+    ...(cropYearKeys ? { cropYearKeys } : {}),
     exchanges,
   };
 }
@@ -656,7 +658,10 @@ function operationsFixture(c: Ctx): ReplayFixture {
       ),
     );
   }
-  return fixture('operations', REF.operations, OPERATIONS_ANCHOR, exchanges);
+  // cropSeason moves with the anchor (a 2027 replay serves 2027's operations).
+  return fixture('operations', REF.operations, OPERATIONS_ANCHOR, exchanges, undefined, [
+    'cropSeason',
+  ]);
 }
 
 // ---------------------------------------------------------------------------------------------
