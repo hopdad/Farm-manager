@@ -6,7 +6,10 @@ Nov 3, 2026. Update this file at the end of each build session.
 
 | Branch | State |
 |---|---|
-| `main` | M0 + M1 (slices 1a-1d), the e2e flake fixes, the follow-up to the PC checks (`claude/pc-followups`, below), the soil type map (`claude/soil-map`, merged Oct 31, below) and slices 1f + 1f.2 (`claude/m1-1f`, merged Oct 31, below). Work from here; the PC agent follows `PC-AGENT.md`. |
+| `main` | M0 + M1 (slices 1a-1d), the e2e flake fixes, the follow-up to the PC checks (`claude/pc-followups`, below), the soil type map (`claude/soil-map`, merged Oct 31, below) slices 1f + 1f.2 (`claude/m1-1f`, merged Oct 31, below), and on Nov 3 the nightly CI fix, the date sweep and D23, "this season" follows the growing year (`claude/fix-clock-tests`, `claude/date-fixes`, `claude/growing-year`, below). Work from here; the PC agent follows `PC-AGENT.md`. |
+| `claude/growing-year` | D23, "this season" follows the growing year, and its review fixes (5 of 8 findings confirmed and fixed). CI fully green at `801a616` (run 86: Linux, e2e with the replay step, Windows). Fast-forwarded into `main` on Nov 3. Safe to delete. |
+| `claude/date-fixes` | The Nov 3 date sweep: boundary dates in the farm's time zone, replay crop years. Merged into `main` on Nov 3 (CI green on Linux and Windows). Safe to delete. |
+| `claude/fix-clock-tests` | The fix for the Nov 2 nightly CI failure (`832bec9`). Merged into `main` on Nov 3. Safe to delete. |
 | `claude/m1-1f` | Slices 1f and 1f.2: seven builders, integration, two review rounds (20 findings: 14 fixed, 6 rejected with reasons) and two CI test fixes. CI fully green at `3b951d4` (run 70: Linux, e2e with the replay step, Windows). Merged into `main` on Oct 31. Safe to delete. |
 | `claude/1f-followups` | After the 1f merge: the sim Deere grant fix, two e2e timing fixes, and these docs (PC-AGENT round 2, status, README). CI fully green at `1dc586c` (run 74: Linux, e2e with the replay step, Windows). Fast-forwarded into `main` on Oct 31. Safe to delete. |
 | `claude/soil-map` | Soil type map Phase A. Two reviews (12 findings, all fixed); CI fully green at `44d7779`; merged into `main` on Oct 31. Safe to delete. |
@@ -65,7 +68,8 @@ year. Replay's `cropYearKeys` now move at Aug 1 too, not Jan 1: a replay in Janu
 a field's cost from the same runs as the fields they checked (it halved down to 1 field after
 the change, then overshot the share); the stand-in lists the newer season's plantings (the
 October wheat under next year, each field's spring planting under the new season); History
-dates show the year when it isn't the season's.
+dates show the year when it isn't the season's. CI fully green at `801a616` (run 86: Linux, e2e
+with the replay step, Windows); fast-forwarded into `main` on Nov 3. No new migration.
 
 ## Oct 31, 2026: slices 1f and 1f.2 (merged into `main`)
 
@@ -212,8 +216,8 @@ Phase B (texture, slope, interpretations, OM/pH/CEC) is the PC's, after 1e.
   - E: branch cleanup, if Derrick agrees.
 - Then Derrick's own data (PC-AGENT.md section 3, item 2).
 - **Done (Nov 3, D23):** "this season" follows the growing year, so the History tab no longer
-  goes blank from Jan 1 and `e2e/deere-ops.spec.ts` passes all year (`claude/growing-year`, not
-  merged yet; see Nov 3 above). The season switcher and the rolling field timeline wait (D23).
+  goes blank from Jan 1 and `e2e/deere-ops.spec.ts` passes all year (`claude/growing-year`, merged
+  into `main` Nov 3; see Nov 3 above). The season switcher and the rolling field timeline wait (D23).
 - In the cloud, per `docs/build-plan.md` §6 and D22: the war board next (M2 2a job board and
   drag-to-assign, then 2b morning meeting, Work Plans and go/no-go v1), then the rest of 1g, then
   2c, then MD. The Deere season backfill is deferred to after MD.

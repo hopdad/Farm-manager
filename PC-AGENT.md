@@ -15,13 +15,15 @@ The plan is `docs/build-plan.md`, and the code-level rules are `docs/contracts.m
 
 **This round starts at "Round 2" just below.** Sections 1-4 are the standing reference.
 
-## Round 2 (updated Oct 31, 2026): start here
+## Round 2 (updated Nov 3, 2026): start here
 
 Round 2 hasn't been started yet. `main` now has your section 2 results, the cloud's follow-up to
 them, and (since Oct 31) the soil type map and slices 1f and 1f.2: live connectors for Deere and
 every truck, machine and pickup vendor, fault codes, and `/admin/connectors`. Read
 `docs/status.md`, "Oct 30, 2026: cloud follow-up to the PC checks", "Oct 31, 2026: soil type map"
-and "Oct 31, 2026: slices 1f and 1f.2", for what changed. Work on a
+and "Oct 31, 2026: slices 1f and 1f.2", for what changed. Since Nov 3 `main` also has "Nov 3,
+2026: nightly CI red from Nov 2, and a date sweep": a field's History tab now shows its growing
+year (D23), not the calendar year; no new migration, so step A is unchanged. Work on a
 branch `pc/round2` made from `main` (slice 1e gets its own branch, step D). Record each step's
 result in one new dated entry under `## PC findings` in `docs/status.md`.
 
@@ -199,6 +201,9 @@ git push origin --delete claude/soil-map
 git push origin --delete claude/pc-agent-docs
 git push origin --delete claude/m1-1f
 git push origin --delete claude/1f-followups
+git push origin --delete claude/fix-clock-tests
+git push origin --delete claude/date-fixes
+git push origin --delete claude/growing-year
 ```
 
 The cloud's proxy can't delete branches, so this has to happen on the PC (or on GitHub's
