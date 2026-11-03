@@ -44,6 +44,12 @@ export const COUNTED_MODES = [
 export type CountedMode = (typeof COUNTED_MODES)[number];
 
 /**
+ * A stream's own measures of one successful run, kept with that run's calls (D23,
+ * `SyncStepSpec.runMeasures`; deere.ops: `fields` checked and crop `seasons` listed per field).
+ */
+export type RunMeasures = Readonly<Record<string, number>>;
+
+/**
  * Every outside source the app syncs from or writes to. Used as `source` in ingest.* and farm.*
  * rows. 1f.2 (docs/contracts-1f.md part B) adds the multi-vendor telematics sources: `geotab`
  * (MyGeotab), `aemp` (the generic ISO 15143-3 client; the provider is the external_refs
@@ -617,6 +623,15 @@ export interface SyncStepSpec<TRaw = unknown, TNorm = unknown> {
    * Not called when nothing was claimed (skipped).
    */
   afterRun?(result: SyncStepResult, ctx: SyncContext): Promise<void>;
+  /**
+   * Optional (D23, deere.ops' call budget): what a run's cost depends on (deere.ops: the fields
+   * it checked and the crop seasons it listed per field). runSyncStep keeps it with that run's
+   * calls in sync_state.extra `runsRecent` (src/db/queries/api-calls.ts recordRunCalls): in the
+   * same statement and under the same condition as `callsRecent` (a successful run that made
+   * calls, in a counted mode), so a cost per unit is measured from the same runs. Called after
+   * afterRun; null records nothing for the run (its calls still count).
+   */
+  runMeasures?(result: SyncStepResult): RunMeasures | null;
   /**
    * Optional hook (1f review): the stream's stored mode differs from `mode` (sim → live, replay
    * → sim, anything → off). Called by runSyncStep BEFORE ensureStream switches the row (so a

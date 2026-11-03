@@ -14,9 +14,10 @@
  *                                          − locations' calls a day at its cron)
  *               fields per run = max(1, floor(share / (runs a day × calls per field))),
  *               the fields checked longest ago first
- *               calls per field = callsPerRun / fieldsPerRun × seasons now / seasons measured
- *               (D23: every field is listed once per crop season of the sync window, two;
- *               a measurement taken listing fewer seasons a field is scaled up)
+ *               calls per field = Σ calls_i × seasons now / seasons_i ÷ Σ fields_i over the
+ *               stream's recent successful runs i (each run's calls, fields checked and
+ *               seasons listed per field, kept together: D23, every field is listed once per
+ *               crop season of the sync window, two)
  *
  * Locations come first (the live board): operations get what is left after the unpaced streams
  * and locations at full cadence, so the two paced streams never both plan on the same calls.
@@ -85,23 +86,44 @@ export function paceSeconds(callsPerRun: number | null, share: number): number |
   return Math.ceil((callsPerRun * DAY_SECONDS) / share);
 }
 
+/** One successful deere.ops run, as sync_state.extra `runsRecent` keeps it (D23). */
+export interface OpsRunCost {
+  /** Its Deere calls. */
+  calls: number;
+  /** The fields it checked. */
+  fields: number;
+  /** The crop seasons it listed per field. */
+  seasons: number;
+}
+
 /**
- * deere.ops's calls per field when it lists `seasons` crop seasons per field (D23: two), from
- * sync-health's `callsPerRun` (the mean of the stream's recent runs) and the last run's
- * `fieldsPerRun`, measured while listing `seasonsMeasured` seasons per field (the fewest of the
- * runs behind that mean; runs from before D23 listed one). Every call of a run is scaled with
- * the seasons (the listings double; the per-operation calls and the org and field listings
- * don't, so this errs high: the budget holds). Null when not measured.
+ * deere.ops's calls per field when it lists `seasons` crop seasons per field (D23: two),
+ * measured from the same runs: Σ calls_i × seasons / seasons_i ÷ Σ fields_i over its recent
+ * successful runs (`runs`: each with its own calls, fields checked and seasons listed). A cap
+ * is thus judged on what the runs it shaped spent; a mean of calls over the last run's fields
+ * would pair runs of different sizes, and after a change in the seasons listed it swings
+ * (halving every run, then overshooting). Every call of a run is scaled with the seasons (the
+ * listings are; the org and field listings and the per-operation calls aren't, so a scaled run
+ * errs high: the budget holds). With no such run yet (deere.ops before D23 kept no runs):
+ * `legacy`, sync-health's `callsPerRun` ÷ the last run's `fieldsPerRun`, runs that listed one
+ * season a field, × `seasons`. Null when not measured.
  */
 export function operationsCallsPerField(m: {
-  callsPerRun: number | null;
-  fieldsPerRun: number | null;
+  runs: readonly OpsRunCost[];
   seasons: number;
-  seasonsMeasured: number;
+  legacy?: { callsPerRun: number | null; fieldsPerRun: number | null };
 }): number | null {
-  if (!m.callsPerRun || m.callsPerRun <= 0 || !m.fieldsPerRun || m.fieldsPerRun <= 0) return null;
-  const scale = Math.max(1, m.seasons) / Math.max(1, m.seasonsMeasured);
-  return (m.callsPerRun / m.fieldsPerRun) * scale;
+  const seasons = Math.max(1, m.seasons);
+  let calls = 0;
+  let fields = 0;
+  for (const r of m.runs) {
+    calls += (Math.max(0, r.calls) * seasons) / Math.max(1, r.seasons);
+    fields += Math.max(0, r.fields);
+  }
+  if (fields > 0) return calls / fields;
+  const { callsPerRun, fieldsPerRun } = m.legacy ?? { callsPerRun: null, fieldsPerRun: null };
+  if (!callsPerRun || callsPerRun <= 0 || !fieldsPerRun || fieldsPerRun <= 0) return null;
+  return (callsPerRun / fieldsPerRun) * seasons;
 }
 
 /** Fields deere.ops may check in one run (at least 1); null when calls per field aren't measured. */

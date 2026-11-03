@@ -37,7 +37,6 @@ import {
   operationProductSchema,
 } from '../../domain/operations';
 import { type Executor, exec } from '../exec';
-import { CALLS_PER_RUN_WINDOW } from './api-calls';
 import { ACRES, NORMALIZED_POLYGON } from './boundaries-sql';
 
 /** ST_SimplifyPreserveTopology tolerance of stored coverage, degrees (≈ 1.1 m N-S, 0.8 m E-W). */
@@ -353,45 +352,24 @@ export async function fieldOperations(
     }));
 }
 
-/** Successful runs whose seasons per field `seasonsRecent` keeps (sync-health's window). */
-export const SEASONS_RECENT_WINDOW = CALLS_PER_RUN_WINDOW;
-
 /**
- * Merge `fieldsPerRun` (fields the last run checked) into the stream's sync_state.extra, and,
- * for a successful run (`seasonsPerField` set), append the crop seasons it listed per field to
- * `seasonsRecent` (the last SEASONS_RECENT_WINDOW runs, the ones sync-health's `callsPerRun`
- * averages): src/connectors/deere/call-shares.ts `operationsCallsPerField`. Writers merge their
- * own keys and never replace the object (docs/contracts-1f.md §3.1).
+ * Merge `fieldsPerRun` (fields the last run checked) into the stream's sync_state.extra (shown on
+ * /admin/connectors; src/connectors/deere/call-shares.ts reads it only until deere.ops has runs
+ * kept with their fields in `runsRecent`, D23). Writers merge their own keys and never replace
+ * the object (docs/contracts-1f.md §3.1).
  */
 export async function recordFieldsPerRun(
   ex: Executor,
   source: string,
   stream: string,
   fieldsPerRun: number,
-  seasonsPerField: number | null = null,
 ): Promise<void> {
   await exec(
     ex,
     `update ingest.sync_state
-        set extra = coalesce(extra, '{}'::jsonb)
-              || jsonb_build_object('fieldsPerRun', $3::int)
-              || case when $4::int is null then '{}'::jsonb else jsonb_build_object(
-                   'seasonsRecent',
-                   (select coalesce(jsonb_agg(v order by i), '[]'::jsonb)
-                      from (select v, i from jsonb_array_elements(
-                              (case when jsonb_typeof(extra->'seasonsRecent') = 'array'
-                                    then extra->'seasonsRecent' else '[]'::jsonb end)
-                              || jsonb_build_array($4::int))
-                              with ordinality as e(v, i)
-                             order by i desc limit $5::int) w)) end,
+        set extra = coalesce(extra, '{}'::jsonb) || jsonb_build_object('fieldsPerRun', $3::int),
             updated_at = now()
       where source = $1 and stream = $2`,
-    [
-      source,
-      stream,
-      Math.max(0, Math.round(fieldsPerRun)),
-      seasonsPerField === null ? null : Math.max(1, Math.round(seasonsPerField)),
-      SEASONS_RECENT_WINDOW,
-    ],
+    [source, stream, Math.max(0, Math.round(fieldsPerRun))],
   );
 }

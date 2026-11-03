@@ -16,10 +16,12 @@
  *   upsert  src/db/queries/operations.ts upsertOperation (clipping against the boundary valid
  *           at started_at, deterministic ids, nothing touched when nothing changed)
  *   afterRun  ages provisional operations into `final` (24 h unchanged), records the run's
- *           `fieldsPerRun` and (a successful run) its seasons per field in sync_state.extra
- *           (calls per field for the cap), publishes
+ *           `fieldsPerRun` in sync_state.extra, publishes
  *           `fields`/`updated` { parts: ['operations'] } once per changed field (one
  *           `fields`/`invalidate` above MAX_FIELD_MESSAGES), then `admin`/`sync.status`.
+ *   runMeasures  the fields the run checked and the seasons it listed per field: sync-health
+ *           keeps them with the run's calls (`runsRecent`, a successful run only), so the cap's
+ *           calls per field come from the same runs (D23).
  *
  * Replay (CONNECTOR_DEERE=replay) runs the same client on the committed fixtures with no OAuth
  * (DeereClient.forReplay); sim talks to the stand-in's `ops` module.
@@ -159,19 +161,17 @@ export function createDeereOpsJob(opts: DeereOpsJobOptions = {}) {
       afterRun: async (result, sctx) => {
         for (const f of await finalizeOperations(ctx.pool, 'deere', ctx.now())) changed.add(f);
         if (fieldsChecked !== null) {
-          // Seasons only for a successful run: those are the runs sync-health's callsPerRun
-          // averages (src/db/queries/operations-budget.ts seasonsMeasuredOf).
-          await recordFieldsPerRun(
-            ctx.pool,
-            'deere',
-            DEERE_OPS_STREAM,
-            fieldsChecked,
-            result.ok ? seasonsPerField : null,
-          );
+          await recordFieldsPerRun(ctx.pool, 'deere', DEERE_OPS_STREAM, fieldsChecked);
         }
         await publishOperationsChanged(ctx.pool, [...changed]);
         await publishSyncStatus(result, sctx);
       },
+      // Kept with the run's calls by sync-health (successful runs only): the cap's calls per
+      // field (src/connectors/deere/call-shares.ts operationsCallsPerField).
+      runMeasures: () =>
+        fieldsChecked === null || seasonsPerField === null
+          ? null
+          : { fields: fieldsChecked, seasons: seasonsPerField },
     };
     return syncStepJobResult(await runSyncStep(spec, ctx));
   };

@@ -2,53 +2,49 @@
  * What deere.ops reads to cap its fields per run under DEERE_DAILY_CALL_BUDGET (decision 4,
  * docs/contracts-1f.md §5.5; the arithmetic is src/connectors/deere/call-shares.ts and
  * src/jobs/deere-ops-budget.ts): the Deere calls per stream on the last full UTC day (in the
- * connector's mode: sim and replay rows never count against a real budget), and the measured
- * `callsPerRun` (sync-health writes it) and `fieldsPerRun` (deere.ops writes it) in the
- * `locations` and `operations` streams' sync_state.extra (callsPerRun only when measured in
- * this mode, `callsPerRunMode`), and the crop seasons per field the runs behind that
- * `callsPerRun` listed (D23: deere.ops' `seasonsRecent`, one entry per successful run, beside
- * sync-health's `callsRecent`; runs it has no entry for listed one season, as before D23).
+ * connector's mode: sim and replay rows never count against a real budget), fleet.deere's
+ * measured `callsPerRun`, and deere.ops' recent successful runs (`runsRecent`: each run's calls,
+ * the fields it checked and the crop seasons it listed per field, kept together by sync-health
+ * beside `callsRecent`, D23), all in this mode (`callsPerRunMode`). Until deere.ops has kept a
+ * run (runs from before D23): its `callsPerRun` and the last run's `fieldsPerRun` (deere.ops
+ * writes it), runs that listed one season a field.
  */
 import {
   DEERE_LOCATIONS_STREAM,
   DEERE_OPERATIONS_STREAM,
   lastFullUtcDay,
+  type OpsRunCost,
   type StreamCalls,
 } from '../../connectors/deere/call-shares';
 import type { CountedMode } from '../../connectors/types';
 import { type Executor, exec } from '../exec';
-import { callsPerRunOfExtra, streamCallsOn } from './api-calls';
+import { callsPerRunOfExtra, type RunRecord, streamCallsOn } from './api-calls';
 
 export interface OpsBudgetReadings {
   /** Calls per Deere stream on the last full UTC day, in this mode. */
   lastDay: StreamCalls;
   /** fleet.deere's measured calls per run (null: not measured yet). */
   locationsCallsPerRun: number | null;
-  /** deere.ops' measured calls per run and fields per run (null: not measured yet). */
+  /** deere.ops' recent successful runs in this mode, oldest first ([] before D23). */
+  runs: OpsRunCost[];
+  /** deere.ops' measured calls per run and the last run's fields (null: not measured yet). */
   callsPerRun: number | null;
   fieldsPerRun: number | null;
-  /** The fewest crop seasons per field among the runs behind `callsPerRun` (1 before D23). */
-  seasonsMeasured: number;
-}
-
-/**
- * The fewest seasons per field among the last `runs` runs (sync-health's `callsRecent`, the
- * runs its mean covers), from deere.ops' `seasonsRecent` (newest last); a run with no entry
- * (written before D23) listed one season. With no runs measured: the newest entry, else 1.
- */
-export function seasonsMeasuredOf(runs: number, seasonsRecent: unknown): number {
-  const recent = Array.isArray(seasonsRecent)
-    ? seasonsRecent.filter((n): n is number => Number.isInteger(n) && n >= 1)
-    : [];
-  if (runs <= 0) return recent.at(-1) ?? 1;
-  const covered = recent.slice(-runs);
-  return Math.min(...covered, ...(covered.length < runs ? [1] : []));
 }
 
 const num = (v: unknown): number | null => {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : Number.NaN;
   return Number.isFinite(n) && n > 0 ? n : null;
 };
+
+/** A kept run as deere.ops records it (`fields`, `seasons` ≥ 1), or null. */
+function opsRunOf(r: RunRecord): OpsRunCost | null {
+  const { calls, fields, seasons } = r;
+  if (fields === undefined || seasons === undefined || !Number.isInteger(seasons) || seasons < 1) {
+    return null;
+  }
+  return { calls, fields, seasons };
+}
 
 export async function readOpsBudget(
   ex: Executor,
@@ -65,20 +61,16 @@ export async function readOpsBudget(
   const extra = (stream: string) => extras.rows.find((r) => r.stream === stream)?.extra ?? {};
   // sync-health's measurement (src/db/queries/api-calls.ts), counted only when it was measured
   // in this mode: a sim run's cost never sizes a sandbox or live budget.
-  const callsPerRun = (stream: string) => {
+  const measured = (stream: string) => {
     const m = callsPerRunOfExtra(extra(stream));
-    return m.mode === mode ? num(m.callsPerRun) : null;
+    return m.mode === mode ? m : null;
   };
-  const ops = extra(DEERE_OPERATIONS_STREAM);
-  const opsCalls = callsPerRunOfExtra(ops);
+  const ops = measured(DEERE_OPERATIONS_STREAM);
   return {
     lastDay,
-    locationsCallsPerRun: callsPerRun(DEERE_LOCATIONS_STREAM),
-    callsPerRun: callsPerRun(DEERE_OPERATIONS_STREAM),
-    fieldsPerRun: num(ops.fieldsPerRun),
-    seasonsMeasured: seasonsMeasuredOf(
-      opsCalls.mode === mode ? Math.max(opsCalls.recent.length, opsCalls.callsPerRun ? 1 : 0) : 0,
-      ops.seasonsRecent,
-    ),
+    locationsCallsPerRun: num(measured(DEERE_LOCATIONS_STREAM)?.callsPerRun),
+    runs: (ops?.runs ?? []).map(opsRunOf).filter((r): r is OpsRunCost => r !== null),
+    callsPerRun: num(ops?.callsPerRun),
+    fieldsPerRun: num(extra(DEERE_OPERATIONS_STREAM).fieldsPerRun),
   };
 }

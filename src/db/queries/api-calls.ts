@@ -7,7 +7,12 @@
  * The budget math reads sandbox/live rows only (src/connectors/call-budget.ts): a day of sim or
  * replay never counts against a real budget.
  */
-import { COUNTED_MODES, type CountedMode, type Mode } from '../../connectors/types';
+import {
+  COUNTED_MODES,
+  type CountedMode,
+  type Mode,
+  type RunMeasures,
+} from '../../connectors/types';
 import { type Executor, exec } from '../exec';
 
 /** One upsert into ingest.api_calls_daily (the counts are added to the day's row). */
@@ -125,6 +130,9 @@ export async function apiCallsOn(ex: Executor, days: readonly string[]): Promise
 /** Runs averaged into `callsPerRun`. */
 export const CALLS_PER_RUN_WINDOW = 10;
 
+/** One successful run in `runsRecent`: its calls and the stream's own measures of it. */
+export type RunRecord = RunMeasures & { readonly calls: number };
+
 /** What sync_state.extra keeps for the measured cost of one stream's runs. */
 export interface CallsPerRun {
   /** Mean calls of the stream's recent successful runs (one decimal), or null. */
@@ -133,35 +141,63 @@ export interface CallsPerRun {
   mode: string | null;
   /** The recent runs' call counts, oldest first (at most CALLS_PER_RUN_WINDOW). */
   recent: number[];
+  /**
+   * The recent successful runs that recorded measures (`runsRecent`, SyncStepSpec.runMeasures),
+   * oldest first, at most CALLS_PER_RUN_WINDOW, each with its own calls: same mode as `recent`.
+   */
+  runs: RunRecord[];
+}
+
+const isCount = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0;
+
+/** A `runsRecent` entry, or null when malformed (every value a count, `calls` among them). */
+function runRecordOf(v: unknown): RunRecord | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const entries = Object.entries(v as Record<string, unknown>);
+  if (!entries.every((e): e is [string, number] => isCount(e[1]))) return null;
+  const r = Object.fromEntries(entries) as Record<string, number>;
+  return 'calls' in r ? (r as RunRecord) : null;
 }
 
 /** Read sync_state.extra's measurement shape (lenient: anything malformed reads as none). */
 export function callsPerRunOfExtra(extra: unknown): CallsPerRun {
   const e = (extra && typeof extra === 'object' ? extra : {}) as Record<string, unknown>;
-  const recent = Array.isArray(e.callsRecent)
-    ? e.callsRecent.filter(
-        (n): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0,
-      )
+  const recent = Array.isArray(e.callsRecent) ? e.callsRecent.filter(isCount) : [];
+  const runs = Array.isArray(e.runsRecent)
+    ? e.runsRecent.map(runRecordOf).filter((r): r is RunRecord => r !== null)
     : [];
   const cpr =
     typeof e.callsPerRun === 'number' && Number.isFinite(e.callsPerRun) ? e.callsPerRun : null;
   const mode = typeof e.callsPerRunMode === 'string' ? e.callsPerRunMode : null;
-  return { callsPerRun: cpr, mode, recent };
+  return { callsPerRun: cpr, mode, recent, runs };
 }
 
-/** The next measurement after a run that made `calls` calls (pure). */
-export function nextCallsPerRun(prev: CallsPerRun, mode: string, calls: number): CallsPerRun {
-  const recent = [...(prev.mode === mode ? prev.recent : []), Math.max(0, calls)].slice(
-    -CALLS_PER_RUN_WINDOW,
-  );
+/**
+ * The next measurement after a run that made `calls` calls in `mode` (pure); with `measures`,
+ * the run is also kept in `runs` with its calls (a mode switch starts both over).
+ */
+export function nextCallsPerRun(
+  prev: CallsPerRun,
+  mode: string,
+  calls: number,
+  measures?: RunMeasures | null,
+): CallsPerRun {
+  const same = prev.mode === mode;
+  const n = Math.max(0, calls);
+  const recent = [...(same ? prev.recent : []), n].slice(-CALLS_PER_RUN_WINDOW);
+  const kept = same ? prev.runs : [];
+  const runs = measures ? [...kept, { ...measures, calls: n }].slice(-CALLS_PER_RUN_WINDOW) : kept;
   const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
-  return { callsPerRun: Math.round(mean * 10) / 10, mode, recent };
+  return { callsPerRun: Math.round(mean * 10) / 10, mode, recent, runs };
 }
 
 /**
  * After a successful run of (source, stream) that made `calls` calls in `mode`: fold them into
  * the stream's `callsPerRun` (mean of the last CALLS_PER_RUN_WINDOW successful runs of that
- * mode), merged into sync_state.extra. Returns the new mean (null when the row is missing).
+ * mode), merged into sync_state.extra; with the stream's `measures` of the run (D23,
+ * SyncStepSpec.runMeasures), the run is kept with its calls in `runsRecent` too, in the same
+ * statement, so a cost per unit (deere.ops: calls per field) is measured from the same runs.
+ * Returns the new mean (null when the row is missing).
  */
 export async function recordRunCalls(
   ex: Executor,
@@ -169,6 +205,7 @@ export async function recordRunCalls(
   stream: string,
   mode: string,
   calls: number,
+  measures?: RunMeasures | null,
 ): Promise<number | null> {
   const r = await exec<{ extra: unknown }>(
     ex,
@@ -176,14 +213,20 @@ export async function recordRunCalls(
     [source, stream],
   );
   if (!r.rows[0]) return null;
-  const next = nextCallsPerRun(callsPerRunOfExtra(r.rows[0].extra), mode, calls);
+  const prev = callsPerRunOfExtra(r.rows[0].extra);
+  const next = nextCallsPerRun(prev, mode, calls, measures);
+  // runsRecent only for streams that keep it (written when there is a run to keep, or old runs
+  // to drop after a mode switch).
+  const runs = measures || prev.runs.length ? JSON.stringify(next.runs) : null;
   await exec(
     ex,
     `update ingest.sync_state
         set extra = coalesce(extra, '{}'::jsonb) || jsonb_build_object(
               'callsPerRun', $3::numeric, 'callsPerRunMode', $4::text, 'callsRecent', $5::jsonb)
+              || case when $6::jsonb is null then '{}'::jsonb
+                      else jsonb_build_object('runsRecent', $6::jsonb) end
       where source = $1 and stream = $2`,
-    [source, stream, next.callsPerRun, mode, JSON.stringify(next.recent)],
+    [source, stream, next.callsPerRun, mode, JSON.stringify(next.recent), runs],
   );
   return next.callsPerRun;
 }

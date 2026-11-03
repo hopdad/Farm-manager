@@ -70,18 +70,49 @@ describe('Deere call shares', () => {
     expect(operationsFieldCap(2_880, 96, null)).toBeNull();
   });
 
-  test('calls per field scale with the crop seasons listed per field (D23)', () => {
-    const m = { callsPerRun: 30, fieldsPerRun: 10, seasons: 2, seasonsMeasured: 2 };
-    expect(operationsCallsPerField(m)).toBe(3);
-    // Measured listing one season a field (before D23), now two: twice the calls a field.
-    expect(operationsCallsPerField({ ...m, seasonsMeasured: 1 })).toBe(6);
-    // 2 880 calls a day: 10 fields a run at the measured cost, 5 when it was one season's.
-    expect(operationsFieldCap(2_880, 96, operationsCallsPerField(m))).toBe(10);
+  test('calls per field come from the same runs, scaled with the crop seasons listed (D23)', () => {
+    const run = { calls: 30, fields: 10, seasons: 2 };
+    expect(operationsCallsPerField({ runs: [run], seasons: 2 })).toBe(3);
+    // Σ calls ÷ Σ fields over the runs, not a mean of calls over one run's fields: a big run
+    // and a small one (10 + 104 calls for 4 + 52 fields) cost what they cost together.
     expect(
-      operationsFieldCap(2_880, 96, operationsCallsPerField({ ...m, seasonsMeasured: 1 })),
+      operationsCallsPerField({
+        runs: [
+          { calls: 10, fields: 4, seasons: 2 },
+          { calls: 104, fields: 52, seasons: 2 },
+        ],
+        seasons: 2,
+      }),
+    ).toBeCloseTo(114 / 56, 10);
+    // A run that listed one season a field (before D23), now two: twice its calls a field.
+    expect(operationsCallsPerField({ runs: [{ ...run, seasons: 1 }], seasons: 2 })).toBe(6);
+    expect(operationsCallsPerField({ runs: [{ ...run, seasons: 1 }, run], seasons: 2 })).toBe(
+      (60 + 30) / 20,
+    );
+    // 2 880 calls a day: 10 fields a run at the measured cost, 5 when it was one season's.
+    expect(
+      operationsFieldCap(2_880, 96, operationsCallsPerField({ runs: [run], seasons: 2 })),
+    ).toBe(10);
+    expect(
+      operationsFieldCap(
+        2_880,
+        96,
+        operationsCallsPerField({ runs: [{ ...run, seasons: 1 }], seasons: 2 }),
+      ),
     ).toBe(5);
-    expect(operationsCallsPerField({ ...m, callsPerRun: null })).toBeNull();
-    expect(operationsCallsPerField({ ...m, fieldsPerRun: 0 })).toBeNull();
+    // No run kept yet (before D23): sync-health's mean over the last run's fields, one season.
+    const legacy = { callsPerRun: 30, fieldsPerRun: 10 };
+    expect(operationsCallsPerField({ runs: [], seasons: 2, legacy })).toBe(6);
+    expect(operationsCallsPerField({ runs: [run], seasons: 2, legacy })).toBe(3);
+    // Nothing measured.
+    expect(operationsCallsPerField({ runs: [], seasons: 2 })).toBeNull();
+    expect(
+      operationsCallsPerField({ runs: [], seasons: 2, legacy: { ...legacy, callsPerRun: null } }),
+    ).toBeNull();
+    expect(
+      operationsCallsPerField({ runs: [], seasons: 2, legacy: { ...legacy, fieldsPerRun: 0 } }),
+    ).toBeNull();
+    expect(operationsCallsPerField({ runs: [{ ...run, fields: 0 }], seasons: 2 })).toBeNull();
   });
 
   test('the split /admin/connectors shows, with the warning', () => {

@@ -397,6 +397,62 @@ describe('runSyncStep: call counting and minIntervalSeconds (1f decision 4)', ()
     expect(await counts(off.stream)).toEqual([]);
   });
 
+  test("runMeasures (D23): kept with a successful run's calls, never with a failed run's", async () => {
+    let fields = 4;
+    const s = spec([], {
+      poll: callingPoll([200, 200, 200]),
+      runMeasures: () => ({ fields, seasons: 2 }),
+    });
+    await runSyncStep(s, testJobContext(t()));
+    fields = 1;
+    await runSyncStep({ ...s, poll: callingPoll([200]) }, testJobContext(t()));
+    expect(await extra(s.stream)).toMatchObject({
+      callsRecent: [3, 1],
+      runsRecent: [
+        { calls: 3, fields: 4, seasons: 2 },
+        { calls: 1, fields: 1, seasons: 2 },
+      ],
+    });
+    // A failed run: neither its calls nor its measures are kept.
+    await runSyncStep(
+      {
+        ...s,
+        async poll() {
+          await callingPoll([200, 200])();
+          throw new Error('vendor broke mid-run');
+        },
+      },
+      testJobContext(t()),
+    );
+    // afterRun throwing fails the run too: nothing kept.
+    await runSyncStep(
+      {
+        ...s,
+        afterRun: async () => {
+          throw new Error('publish failed');
+        },
+      },
+      testJobContext(t()),
+    );
+    // A hook that throws keeps the run's calls without measures.
+    await runSyncStep(
+      {
+        ...s,
+        runMeasures: () => {
+          throw new Error('bad measure');
+        },
+      },
+      testJobContext(t()),
+    );
+    expect(await extra(s.stream)).toMatchObject({
+      callsRecent: [3, 1, 3],
+      runsRecent: [
+        { calls: 3, fields: 4, seasons: 2 },
+        { calls: 1, fields: 1, seasons: 2 },
+      ],
+    });
+  });
+
   test('calls of other modes go to their own rows (a sim day never counts as sandbox)', async () => {
     const s = spec([], { mode: 'sandbox', poll: callingPoll([200]) });
     await runSyncStep(s, testJobContext(t()));

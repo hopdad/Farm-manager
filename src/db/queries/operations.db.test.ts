@@ -25,11 +25,10 @@ import {
   finalizeOperations,
   operationStatus,
   recordFieldsPerRun,
-  SEASONS_RECENT_WINDOW,
   storedOperationModified,
   upsertOperation,
 } from './operations';
-import { readOpsBudget, seasonsMeasuredOf } from './operations-budget';
+import { readOpsBudget } from './operations-budget';
 
 const t = setupTestDb(import.meta.url);
 const NOW = new Date('2026-10-31T13:00:00.000Z');
@@ -393,10 +392,10 @@ describe('sync_state.extra and the budget readings', () => {
     expect(b).toEqual({
       lastDay: { locations: 2000, fields: 300 },
       locationsCallsPerRun: 7,
+      // Measured before deere.ops kept its runs with their fields and seasons (D23).
+      runs: [],
       callsPerRun: 120,
       fieldsPerRun: 40,
-      // Measured before deere.ops recorded seasons (D23): those runs listed one a field.
-      seasonsMeasured: 1,
     });
     // A measurement made in another mode (sim) never sizes this budget.
     await t().admin.query(
@@ -406,47 +405,32 @@ describe('sync_state.extra and the budget readings', () => {
     expect((await readOpsBudget(t().pool, 'sandbox', NOW)).locationsCallsPerRun).toBeNull();
   });
 
-  test('seasons per field (D23): kept per successful run beside callsRecent, the fewest counts', async () => {
+  test("deere.ops' kept runs (D23): each with its calls, fields and seasons, in this mode only", async () => {
     await t().admin.query(
       `insert into ingest.sync_state (source, stream, mode, extra)
        values ('deere', 'operations', 'sandbox',
-               '{"callsPerRun": 50, "callsPerRunMode": "sandbox", "callsRecent": [40, 50, 60]}')
+               '{"callsPerRun": 80, "callsPerRunMode": "sandbox", "callsRecent": [106, 54],
+                 "fieldsPerRun": 26,
+                 "runsRecent": [{"calls": 106, "fields": 52, "seasons": 2},
+                                {"calls": 54, "fields": 26, "seasons": 2},
+                                {"calls": 5, "fields": 2}, {"calls": 5, "fields": 2, "seasons": 0}]}')
        on conflict (source, stream) do update set extra = excluded.extra`,
     );
     const read = () => readOpsBudget(t().pool, 'sandbox', NOW);
-    // Three runs measured, none with seasons recorded: they listed one season a field.
-    expect((await read()).seasonsMeasured).toBe(1);
-    // A failed run records its fields but no seasons (sync-health doesn't count its calls).
-    await recordFieldsPerRun(t().pool, 'deere', 'operations', 12, null);
-    const extra = async () =>
-      (
-        await t().pool.query(
-          `select extra from ingest.sync_state where source = 'deere' and stream = 'operations'`,
-        )
-      ).rows[0].extra as Record<string, unknown>;
-    expect((await extra()).seasonsRecent).toBeUndefined();
-    expect((await extra()).fieldsPerRun).toBe(12);
-    // Two-season runs: until every run behind callsPerRun listed two, the fewest (1) counts.
-    for (let i = 0; i < 3; i++) {
-      await recordFieldsPerRun(t().pool, 'deere', 'operations', 20, 2);
-    }
-    expect((await extra()).seasonsRecent).toEqual([2, 2, 2]);
-    expect((await read()).seasonsMeasured).toBe(2); // the three runs callsRecent covers
+    // Entries without a whole number of seasons (≥ 1) are dropped.
+    expect((await read()).runs).toEqual([
+      { calls: 106, fields: 52, seasons: 2 },
+      { calls: 54, fields: 26, seasons: 2 },
+    ]);
+    // A failed run records its fields; the kept runs (sync-health's, successful runs) stay.
+    await recordFieldsPerRun(t().pool, 'deere', 'operations', 12);
+    expect(await read()).toMatchObject({ fieldsPerRun: 12, runs: { length: 2 } });
+    // Measured in another mode: none of it sizes this budget.
     await t().admin.query(
-      `update ingest.sync_state set extra = extra || '{"callsRecent": [40, 50, 60, 70]}'
+      `update ingest.sync_state set extra = extra || '{"callsPerRunMode": "sim"}'
         where source = 'deere' and stream = 'operations'`,
     );
-    expect((await read()).seasonsMeasured).toBe(1); // one of the four runs has no entry
-    // The list keeps the last SEASONS_RECENT_WINDOW runs.
-    for (let i = 0; i < SEASONS_RECENT_WINDOW + 2; i++) {
-      await recordFieldsPerRun(t().pool, 'deere', 'operations', 20, 2);
-    }
-    expect((await extra()).seasonsRecent).toHaveLength(SEASONS_RECENT_WINDOW);
-    expect((await read()).seasonsMeasured).toBe(2);
-    expect(seasonsMeasuredOf(0, [1, 2])).toBe(2);
-    expect(seasonsMeasuredOf(0, undefined)).toBe(1);
-    expect(seasonsMeasuredOf(2, [1, 2, 2])).toBe(2);
-    expect(seasonsMeasuredOf(3, [1, 2, 2])).toBe(1);
+    expect(await read()).toMatchObject({ runs: [], callsPerRun: null });
   });
 });
 

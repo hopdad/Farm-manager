@@ -243,9 +243,9 @@ fields, farms, boundaries, machines and parties use the existing ones (contracts
 customer org's party is `('deere', 'party', <org id>, <org id>)`); operations and pins carry their
 own `source_id`. `ingest.sync_state.extra` holds per-stream values; **writers merge their own keys
 (`extra = coalesce(extra, '{}') || jsonb_build_object(…)`, the weather job's pattern) and never
-replace the object**: sync-health's measured `callsPerRun`, deere-ops' `fieldsPerRun`, deere-data's
-`unmappedKinds` (§5.7); `/admin/connectors` already shows numeric keys (one level deep) as
-counters.
+replace the object**: sync-health's measured `callsPerRun` (and `runsRecent`, D23), deere-ops'
+`fieldsPerRun`, deere-data's `unmappedKinds` (§5.7); `/admin/connectors` already shows numeric
+keys (one level deep) as counters.
 
 ### 3.2 Not exported
 
@@ -315,6 +315,7 @@ NormalizedVehicleStat.faultAgeOutSeconds?: number          // Oct 31: delta sour
 NormalizedVehicleStat { …, defPct?, engineOn?, readings?: { [field]: StatReading } }   // 1f.2: raw value, unit, adjusted flag
 NormalizedPosition { …, positionKind?: 'live' | 'last_known', provider? }               // 1f.2 (§B.4.1)
 SyncStepSpec.minIntervalSeconds?: number | null                                        // decision 4, §5.5
+SyncStepSpec.runMeasures?(result): RunMeasures | null                                  // D23: kept with the run's calls (§5.5)
 ```
 
 **1f.2:** the vehicle telematics port (`VehicleTelematicsSource`, `NormalizedVehicle`,
@@ -664,7 +665,11 @@ access" (the app's configuration, e.g. a grant without `ag2`), else `needs_appro
   when `fn` settles; with no label and no step, stream `''`. Sim and replay calls count too (they measure the
   per-run cost offline) but under their own mode, so they never count against a real budget.
   sync-health also records each stream's measured **`callsPerRun`** (mean of its recent runs) in
-  that stream's `sync_state.extra` (merged, §3.1).
+  that stream's `sync_state.extra` (merged, §3.1). **D23:** a spec's `runMeasures(result)` (what a
+  run's cost depends on: deere-ops' fields checked and seasons listed per field) is kept with
+  the run's calls in `runsRecent` (`{ calls, …measures }`, the last 10), in the same write and
+  under the same condition as `callsRecent` (a successful run that made calls; a mode switch
+  starts both over).
 - `SyncStepSpec.minIntervalSeconds`: after a claimed run, `runSyncStep` releases with
   `next_run_at` = the later of (run start + this) and the Retry-After time. It never makes a stream
   run faster than its cron. Undefined or null = no minimum.
@@ -680,15 +685,21 @@ access" (the app's configuration, e.g. a grant without `ag2`), else `needs_appro
     cron (`callsPerDay(callsPerRun, cron interval)`)); fields per run = `operationsFieldCap(share,
     runs a day, callsPerField)` = max(1, floor(share / (runs a day × calls per field))), the
     fields checked longest ago first; calls per field = `operationsCallsPerField(…)` =
-    `callsPerRun` / `fieldsPerRun` × seasons listed per field now / seasons measured (deere-ops
-    records `fieldsPerRun` in its stream's `extra`, and per successful run the seasons it listed
-    per field in `seasonsRecent`, the last 10 runs beside sync-health's `callsRecent`; seasons
-    measured = the fewest among the runs `callsPerRun` averages, 1 for runs before D23). **D23:**
-    each field is listed once per season of the sync window (two), about twice the listing calls
-    of one season; a one-season measurement is scaled ×2, so the first runs after the change
-    check half as many fields and the day's budget holds (the scaling also doubles the org and
-    field listings and per-operation calls, which don't double: it errs high). Locations come first (the live board), so
-    the two paced streams never both plan on the same calls.
+    Σ calls_i × seasons listed per field now / seasons_i ÷ Σ fields_i over deere-ops' recent
+    successful runs i, **calls and fields from the same runs**: deere-ops' spec gives
+    `runMeasures` (the fields the run checked, the seasons it listed per field) and sync-health
+    keeps them with the run's calls in `runsRecent` (the last 10, same write and same condition
+    as `callsRecent`: a successful run that made calls, same mode). Until deere-ops has a run
+    kept (runs from before D23): `callsPerRun` / `fieldsPerRun` (deere-ops records the last
+    run's in its stream's `extra`) × seasons now, those runs having listed one season a field.
+    **D23:** each field is listed once per season of the sync window (two), about twice the
+    listing calls of one season; a one-season measurement is scaled ×2, so after the change
+    deere-ops checks about half as many fields a run, run after run, and the day's budget holds
+    (the scaling also doubles the org and field listings and per-operation calls, which don't
+    double: it errs high). (A mean of the last 10 runs' calls over the last run's fields, scaled
+    by the fewest seasons among them, paired runs of different sizes: after the change the cap
+    halved every run down to 1, then overshot the share by about a third.) Locations come first
+    (the live board), so the two paced streams never both plan on the same calls.
   - The unpaced streams (`fields`, `flags`, `equipment`, `hours`, the CLIs) keep their cron.
   - Unset budget, sim/replay, or nothing measured yet = no pacing and no cap; the page says
     "limit unknown" when unset.

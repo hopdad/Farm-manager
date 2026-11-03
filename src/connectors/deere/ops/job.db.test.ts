@@ -169,14 +169,14 @@ describe('deere.ops (sim)', () => {
 });
 
 describe('deere.ops under a call budget (sandbox mode against the stand-in)', () => {
-  test('the per-run cap holds and the fields checked longest ago go first', async () => {
+  test('the per-run cap holds run after run (D23: two seasons) and the fields checked longest ago go first', async () => {
     const sandbox: DeereOpsConfig = {
       ...cfg,
       CONNECTOR_DEERE: 'sandbox',
       DEERE_API_BASE: `${sim.url}/deere/platform`,
       DEERE_CLIENT_ID: SIM_CREDENTIALS.deere.clientId,
       DEERE_CLIENT_SECRET: SIM_CREDENTIALS.deere.clientSecret,
-      DEERE_DAILY_CALL_BUDGET: 1000,
+      DEERE_DAILY_CALL_BUDGET: 3000,
     };
     // A sandbox grant, minted by the stand-in (whose platform the sandbox base points at).
     const simEp = deereEndpoints('sim', cfg);
@@ -201,10 +201,13 @@ describe('deere.ops under a call budget (sandbox mode against the stand-in)', ()
     }).save({ ...tokens, expiresAt: new Date(wall + 3_600_000 * 48) });
 
     // Yesterday (UTC) in sandbox: nothing else spent; sim rows never count. Measured:
-    // locations 1 call a run (720 a day at its cron), operations 10 calls for 40 fields, on a
-    // run from before D23 (no seasons recorded: one listing a field). This run lists two
-    // seasons a field (D23), so a field costs twice that:
-    // share = max(100, 800 − 0 − 720) = 100; cap = floor(100 / (96 × 10/40 × 2/1)) = 2.
+    // locations 1 call a run (720 a day at its cron); operations on ten runs from before D23
+    // (one listing a field, no runs kept with their fields): 44 calls a run (the org and field
+    // listings, 4 calls, and a listing for each of 40 fields), the last run checked 40 fields.
+    // This run lists two seasons a field (D23), so a field costs twice that:
+    // share = max(300, 2400 − 0 − 720) = 1680 a day; cap = floor(1680 / (96 × 44/40 × 2)) = 7
+    // (one season: floor(1680 / (96 × 44/40)) = 15).
+    const share = 1680;
     const day = new Date(wall - 86_400_000).toISOString().slice(0, 10);
     await t().admin.query(
       `insert into ingest.api_calls_daily (source, stream, mode, day, calls)
@@ -218,9 +221,11 @@ describe('deere.ops under a call budget (sandbox mode against the stand-in)', ()
     );
     await t().admin.query(
       `update ingest.sync_state
-          set extra = (extra - 'seasonsRecent') || '{"callsPerRun": 10, "callsPerRunMode": "sandbox", "callsRecent": [10], "fieldsPerRun": 40}', cursor = null,
-              next_run_at = null
+          set extra = (extra - 'runsRecent') || jsonb_build_object('callsPerRun', 44,
+                'callsPerRunMode', 'sandbox', 'callsRecent', $1::jsonb, 'fieldsPerRun', 40),
+              cursor = null, next_run_at = null
         where source = 'deere' and stream = 'operations'`,
+      [JSON.stringify(Array(10).fill(44))],
     );
     wall += 60_000;
     await run(sandbox);
@@ -234,20 +239,50 @@ describe('deere.ops under a call budget (sandbox mode against the stand-in)', ()
       };
     };
     const a = await cursor();
-    expect(Object.keys(a.checked)).toHaveLength(2);
-    expect(a.extra.fieldsPerRun).toBe(2);
-    expect(a.extra.seasonsRecent).toEqual([2]);
+    expect(Object.keys(a.checked)).toHaveLength(7);
+    expect(a.extra.fieldsPerRun).toBe(7);
+    // sync-health kept the run with its calls, fields and seasons (D23).
+    type Kept = { calls: number; fields: number; seasons: number };
+    const kept = a.extra.runsRecent as Kept[];
+    expect(kept).toEqual([
+      { calls: (a.extra.callsRecent as number[]).at(-1), fields: 7, seasons: 2 },
+    ]);
 
-    // Next run: about 10 calls a run for 2 fields measured, one of the two runs behind it from
-    // before D23 (still scaled ×2) → the cap is 1; it takes a field never checked.
-    wall += 60_000;
-    await run(sandbox);
-    const b = await cursor();
-    const newest = Object.entries(b.checked).filter(
-      ([, at]) => at === new Date(wall).toISOString(),
-    );
-    expect(newest).toHaveLength(1);
-    expect(Object.keys(a.checked)).not.toContain(newest[0]?.[0]);
+    // The next runs: calls per field from those same runs (Σ calls ÷ Σ fields), so the cap is
+    // what the share holds at that cost and it stays there run after run. (A mean of calls
+    // that still holds the pre-D23 runs, over this run's 7 fields, scaled ×2 again, would
+    // halve it every run, down to 1.) Each run takes fields never checked.
+    const capFrom = (runs: readonly Kept[]) =>
+      Math.max(
+        1,
+        Math.floor(
+          share /
+            (96 * (runs.reduce((n, r) => n + r.calls, 0) / runs.reduce((n, r) => n + r.fields, 0))),
+        ),
+      );
+    let seen = new Set(Object.keys(a.checked));
+    let runs = kept;
+    const caps: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      const cap = capFrom(runs);
+      caps.push(cap);
+      wall += 60_000;
+      await run(sandbox);
+      const b = await cursor();
+      const newest = Object.entries(b.checked)
+        .filter(([, at]) => at === new Date(wall).toISOString())
+        .map(([k]) => k);
+      expect(newest).toHaveLength(cap);
+      expect(b.extra.fieldsPerRun).toBe(cap);
+      for (const k of newest) expect(seen.has(k)).toBe(false);
+      seen = new Set([...seen, ...newest]);
+      runs = b.extra.runsRecent as Kept[];
+      expect(runs).toHaveLength(i + 2);
+    }
+    // Steady at about half the one-season cap (15), not collapsing: 4 calls of org and field
+    // listings and 2 a field, 18 calls for 7 fields → floor(17.5 / (18/7)) = 6, then 16 for 6
+    // run after run (the listings weigh more in a smaller run).
+    expect(caps).toEqual([6, 6, 6]);
     // Its operations were written like sim's (same deterministic ids, nothing duplicated).
     const total = await t().pool.query('select count(*)::int as n from farm.operations');
     expect(total.rows[0].n).toBe(allFields().length + 1);

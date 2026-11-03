@@ -18,7 +18,8 @@
  *   7. (1f, sync-health) every vendor call of steps 2-6 was counted in the step's call tally
  *      (src/connectors/http.ts `withCallTally`): it is added to ingest.api_calls_daily under the
  *      vendor, the step's stream and mode, and a successful run folds its calls into the stream's
- *      `callsPerRun` (sync_state.extra). Counting never fails the step (logged).
+ *      `callsPerRun` (sync_state.extra), and keeps them with the spec's `runMeasures` of the
+ *      run in `runsRecent` (D23). Counting never fails the step (logged).
  *
  * After the claim it never throws for poll, landing, lease-lost or processing failures; it
  * returns `{ claimed: true, ok: false, error }` (contracts §8 failure rules).
@@ -40,6 +41,7 @@ import { CallTally, withCallTally } from './http';
 import {
   type Mode,
   type RawItem,
+  type RunMeasures,
   type RunSyncStep,
   retryAfterFrom,
   type SyncContext,
@@ -347,10 +349,29 @@ async function runClaimed<TRaw, TNorm>(
   return result;
 }
 
+/** The spec's measures of a successful run (SyncStepSpec.runMeasures); a hook that throws records none. */
+function runMeasuresOf<TRaw, TNorm>(
+  spec: SyncStepSpec<TRaw, TNorm>,
+  ctx: JobContext,
+  result: SyncStepResult,
+): RunMeasures | null {
+  try {
+    return spec.runMeasures?.(result) ?? null;
+  } catch (e) {
+    ctx.log.warn('run measures not saved', {
+      source: spec.source,
+      stream: spec.stream,
+      error: errorText(e),
+    });
+    return null;
+  }
+}
+
 /**
  * Step 7: add the run's calls to ingest.api_calls_daily (the step's mode; 'off' never gets here)
- * and, after a successful run, fold their number into the stream's `callsPerRun`. Logged, never
- * thrown: counting must not fail a sync.
+ * and, after a successful run, fold their number into the stream's `callsPerRun`, with the spec's
+ * `runMeasures` of the run (`runsRecent`, same statement). Logged, never thrown: counting must not
+ * fail a sync.
  */
 async function flushStepCalls<TRaw, TNorm>(
   ctx: JobContext,
@@ -378,7 +399,14 @@ async function flushStepCalls<TRaw, TNorm>(
       );
     }
     if (result.ok && calls > 0) {
-      await recordRunCalls(ctx.pool, spec.source, spec.stream, mode, calls);
+      await recordRunCalls(
+        ctx.pool,
+        spec.source,
+        spec.stream,
+        mode,
+        calls,
+        runMeasuresOf(spec, ctx, result),
+      );
     }
   } catch (e) {
     ctx.log.warn('call counts not saved', {

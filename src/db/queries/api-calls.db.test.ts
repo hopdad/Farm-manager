@@ -80,5 +80,35 @@ describe('recordRunCalls', () => {
       callsRecent: [30, 40],
     });
     expect(await recordRunCalls(p, 'deere', 'nothing', 'sim', 3)).toBeNull();
+    // A stream that keeps no measures gets no runsRecent.
+    expect(extra.runsRecent).toBeUndefined();
+  });
+
+  test("with the stream's measures, the run is kept with its calls in the same write (D23)", async () => {
+    const p = t().pool;
+    await ensureStream(p, 'deere', 'operations', 'sandbox');
+    await p.query(
+      `update ingest.sync_state set extra = '{"fieldsPerRun": 104, "callsPerRun": 106, "callsPerRunMode": "sandbox", "callsRecent": [106, 106]}'
+        where source = 'deere' and stream = 'operations'`,
+    );
+    const extra = async () =>
+      (
+        await p.query(
+          `select extra from ingest.sync_state where source = 'deere' and stream = 'operations'`,
+        )
+      ).rows[0].extra;
+    await recordRunCalls(p, 'deere', 'operations', 'sandbox', 106, { fields: 52, seasons: 2 });
+    await recordRunCalls(p, 'deere', 'operations', 'sandbox', 54, { fields: 26, seasons: 2 });
+    expect(await extra()).toMatchObject({
+      fieldsPerRun: 104,
+      callsRecent: [106, 106, 106, 54],
+      runsRecent: [
+        { calls: 106, fields: 52, seasons: 2 },
+        { calls: 54, fields: 26, seasons: 2 },
+      ],
+    });
+    // A switch of mode starts both over, even for a run without measures.
+    await recordRunCalls(p, 'deere', 'operations', 'live', 9);
+    expect(await extra()).toMatchObject({ callsRecent: [9], runsRecent: [] });
   });
 });
