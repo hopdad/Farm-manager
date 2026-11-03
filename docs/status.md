@@ -58,9 +58,14 @@ Decided by Derrick the same day (D23, "the season should follow the growing year
 is the newest of the two synced seasons with operations on it (so in January it is still last
 season, and a field seeded to wheat in October moves to next year by itself); `deere.ops` syncs
 two seasons (Jan-Jul last season and this one, Aug-Dec this one and next) with the budget cap
-counting both listings; the stand-in files its season under the one being harvested, so the demo
-and `e2e/deere-ops.spec.ts` hold all year. Replay's `cropYearKeys` now move at Aug 1 too, not
-Jan 1: a replay in January 2027 serves 2026's operations, as the stand-in does.
+counting both listings; the stand-in files the scenario's work under the season being harvested
+and each season's plantings under that season, so the demo and `e2e/deere-ops.spec.ts` hold all
+year. Replay's `cropYearKeys` now move at Aug 1 too, not Jan 1: a replay in January 2027 serves
+2026's operations, as the stand-in does. Review fixes on the same branch: the budget cap measures
+a field's cost from the same runs as the fields they checked (it halved down to 1 field after
+the change, then overshot the share); the stand-in lists the newer season's plantings (the
+October wheat under next year, each field's spring planting under the new season); History
+dates show the year when it isn't the season's.
 
 ## Oct 31, 2026: slices 1f and 1f.2 (merged into `main`)
 
