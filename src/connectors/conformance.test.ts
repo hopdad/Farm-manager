@@ -62,8 +62,13 @@ async function standIn(source: string, url: URL): Promise<{ status: number; body
 
 const notSimulated = (body: unknown) => /not simulated/.test(JSON.stringify(body));
 
+// The stand-in's clock and every request's time: a fixed day in the 2026 season. On the real
+// clock the Deere stand-in's "this season's operations" are empty early in a new crop year (from
+// Jan 1), so the operations endpoints below would have nothing to compare.
+const NOW = new Date('2026-10-29T15:00:00Z');
+
 beforeAll(async () => {
-  sim = await startVendorSim({ createWorld: createSimWorld, port: 0 });
+  sim = await startVendorSim({ createWorld: createSimWorld, port: 0, now: () => new Date(NOW) });
   cfg = { VENDOR_SIM_URL: sim.url, PUBLIC_URL: 'http://localhost:3114' };
   deereToken = await simAutoConnect(deereEndpoints('sim', cfg), new MemoryTokenStore('deere'));
 }, 60_000);
@@ -81,7 +86,7 @@ describe('doc-derived fixtures vs the stand-in', () => {
       const byUrl = new Map<string, { url: URL; template: string; bodies: unknown[] }>();
       for (const x of fixture.exchanges) {
         if (x.response.status >= 300) continue;
-        const url = standInRequest(sim.url, fixture, x, new Date());
+        const url = standInRequest(sim.url, fixture, x, new Date(NOW));
         const key = url.toString();
         const entry = byUrl.get(key) ?? {
           url,

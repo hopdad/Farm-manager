@@ -20,6 +20,8 @@ export interface WriterHarness {
   fetch(url: string, init?: RequestInit): Promise<Response>;
   /** Move the clock forward (null: the adapter's clock can't be moved; expiry cases skip). */
   advance: ((seconds: number) => void) | null;
+  /** The adapter's clock (default: the real one). A harness with a fixed clock must say so. */
+  now?: () => Date;
   cleanup(): Promise<void>;
 }
 
@@ -83,7 +85,8 @@ export function describeStorageWriterContract(
         expect(grant).toMatchObject({ bucket: 'uploads', key: 'photos/p1.jpg', method: 'PUT' });
         expect(grant.maxBytes).toBe(1000);
         expect(grant.headers['content-type']).toBe('image/jpeg');
-        expect(Date.parse(grant.expiresAt)).toBeGreaterThan(Date.now() - 60_000);
+        const now = (h.now?.() ?? new Date()).getTime();
+        expect(Date.parse(grant.expiresAt)).toBeGreaterThan(now - 60_000);
 
         const first = await put(h, grant.url, body, 'image/jpeg');
         expect(first.status).toBe(201);

@@ -17,15 +17,19 @@ import { describeStorageWriterContract, type WriterHarness } from './writer-cont
 const SECRET = 'x'.repeat(40);
 
 async function localHarness(): Promise<
-  WriterHarness & { root: string; writer: LocalStorageWriter }
+  WriterHarness & { root: string; writer: LocalStorageWriter; now: () => Date }
 > {
   const root = await mkdtemp(path.join(tmpdir(), 'farm-writer-'));
+  // A fixed clock, used by every call below: the writer, the route's checks and the contract's
+  // expiry assertion. A real-clock check against it turns into a failure once the real date
+  // passes the grant's expiry (Nov 2, 2026 14:00 UTC: the nightly CI runs 77 and 78).
   let now = new Date('2026-11-02T12:00:00Z').getTime();
   const clock = () => new Date(now);
   const writer = new LocalStorageWriter(root, SECRET, { now: clock });
   return {
     root,
     writer,
+    now: clock,
     advance: (s) => {
       now += s * 1000;
     },
@@ -83,7 +87,10 @@ describe('local writer details', () => {
       body,
       duplex: 'half',
     } as RequestInit);
-    const res = await handleStoragePut(req, h.writer, 'uploads', ['x.csv'], { secret: SECRET });
+    const res = await handleStoragePut(req, h.writer, 'uploads', ['x.csv'], {
+      secret: SECRET,
+      now: h.now(),
+    });
     expect(res.status).toBe(413);
     expect(await h.writer.stat('uploads', 'x.csv')).toBeNull();
   });
@@ -110,7 +117,10 @@ describe('local writer details', () => {
       body,
       duplex: 'half',
     } as RequestInit);
-    const res = await handleStoragePut(req, h.writer, 'uploads', ['big.jpg'], { secret: SECRET });
+    const res = await handleStoragePut(req, h.writer, 'uploads', ['big.jpg'], {
+      secret: SECRET,
+      now: h.now(),
+    });
     expect(res.status).toBe(413);
     expect(sent).toBeLessThan(16 * 1024 * 1024);
     expect(await h.writer.stat('uploads', 'big.jpg')).toBeNull();
