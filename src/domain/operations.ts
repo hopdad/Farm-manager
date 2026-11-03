@@ -122,7 +122,10 @@ export interface OperationView {
 /** GET /api/fields/<id>/operations (viewer and up). */
 export interface FieldOperationsResponse {
   fieldId: string;
-  /** The crop year listed (default: the current one, America/Detroit). */
+  /**
+   * The crop year listed: `?cropYear=` when asked, else the field's growing year (D23: the newest
+   * synced season with operations on the field, else the current one, America/Detroit).
+   */
   cropYear: number;
   /** Oldest first. */
   operations: OperationView[];

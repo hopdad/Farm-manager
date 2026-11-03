@@ -402,7 +402,9 @@ to the snapshot once it doesn't. Jobs that write `last_known` fixes pass
   (`cropSeasonsToSync(now)`) with operations on that field (`fieldGrowingYear`,
   `src/db/queries/operations.ts`; a year past the window never wins); else the calendar year
   (`currentCropYear`, America/Detroit). The answer's `cropYear` is the year used, and the tab's
-  heading ("This season (YYYY)") shows it. The History tab fetches it and refetches on
+  heading ("This season (YYYY)") shows it. A row's dates carry the year when they are in
+  another calendar year than that crop year ("Oct 12, 2026" for a wheat seeding under 2027,
+  "Jan 12, 2027" for a late harvest under 2026). The History tab fetches it and refetches on
   `fields`/`updated` with part `operations` (and in `onResync`).
 - **Crop seasons (D23).** An operation keeps the crop season Deere gives it (`cropSeason` →
   `crop_year`); there is no rollover date for operations. `deere.ops` lists each field once per

@@ -3,7 +3,8 @@
  * docs/contracts-1f.md §5.1): what the tab shows and how it stays current, framework-free
  * (./operations-section.tsx renders it; ./operations.test.ts drives it with fakes).
  *
- *  - Text: kind, crop, dates (America/Detroit), acres reported and inside the field, the
+ *  - Text: kind, crop, dates (America/Detroit; with the year when it isn't the crop year the
+ *    operation is filed under, D23), acres reported and inside the field, the
  *    measured yield, moisture and speed, products with their rates (ADAPT unit ids in words),
  *    machines and operator, provisional vs final, coverage or not.
  *  - Loader: GET /api/fields/<id>/operations (`fieldOperationsUrl`), refetched on realtime
@@ -68,17 +69,36 @@ const DAY = new Intl.DateTimeFormat('en-US', {
 });
 const DAY_KEY = new Intl.DateTimeFormat('en-CA', { timeZone: FARM_TIME_ZONE });
 
-/** 'May 6', or 'Oct 15–16' / 'Oct 31 – Nov 2' when it spans days (local dates). */
-export function dateRangeText(startedAt: string, endedAt: string | null): string {
+const yearOf = (d: Date) => Number(DAY_KEY.format(d).slice(0, 4));
+
+/**
+ * 'May 6', or 'Oct 15–16' / 'Oct 31 – Nov 2' when it spans days (local dates). With the crop
+ * year it is filed under (D23: a season spans two calendar years), the year is added when the
+ * dates are in another one: a wheat seeding under next season reads 'Oct 12, 2026', a late
+ * harvest under last season 'Jan 12, 2027', and a range over New Year 'Dec 30, 2026 – Jan 2,
+ * 2027' (formatSeasonDate in ./view-model.ts does the same for typed-in seasons).
+ */
+export function dateRangeText(
+  startedAt: string,
+  endedAt: string | null,
+  cropYear?: number,
+): string {
   const a = new Date(startedAt);
+  const ya = yearOf(a);
   const from = DAY.format(a);
-  if (!endedAt) return `${from} (still running)`;
+  const dated = (text: string, y: number) =>
+    cropYear !== undefined && y !== cropYear ? `${text}, ${y}` : text;
+  if (!endedAt) return `${dated(from, ya)} (still running)`;
   const b = new Date(endedAt);
-  if (DAY_KEY.format(a) === DAY_KEY.format(b)) return from;
+  if (DAY_KEY.format(a) === DAY_KEY.format(b)) return dated(from, ya);
   const to = DAY.format(b);
+  const yb = yearOf(b);
+  if (ya !== yb) {
+    return cropYear === undefined ? `${from} – ${to}` : `${from}, ${ya} – ${to}, ${yb}`;
+  }
   const [m1] = from.split(' ');
   const [m2, d2] = to.split(' ');
-  return m1 === m2 ? `${from}–${d2}` : `${from} – ${to}`;
+  return dated(m1 === m2 ? `${from}–${d2}` : `${from} – ${to}`, ya);
 }
 
 /**
@@ -127,7 +147,7 @@ export interface OperationRowText {
 export function operationRowText(o: OperationView): OperationRowText {
   return {
     title: `${OPERATION_KIND_LABELS[o.kind]}${o.crop ? ` · ${o.crop}` : ''}`,
-    dates: dateRangeText(o.startedAt, o.endedAt),
+    dates: dateRangeText(o.startedAt, o.endedAt, o.cropYear),
     acres: acresText(o),
     measurements: measurementsText(o),
     products: o.products.map(productText),

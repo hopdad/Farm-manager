@@ -92,6 +92,42 @@ describe('text', () => {
     expect(dateRangeText('2026-10-31T13:00:00Z', null)).toBe('Oct 31 (still running)');
   });
 
+  test('dates add the year when it is not the crop year they are filed under (D23)', () => {
+    // In the season's own year: no year.
+    expect(dateRangeText('2026-05-06T13:12:00Z', '2026-05-06T19:47:00Z', 2026)).toBe('May 6');
+    expect(dateRangeText('2026-10-15T11:00:00Z', '2026-10-16T15:00:00Z', 2026)).toBe('Oct 15–16');
+    // A wheat seeding in October filed under next season.
+    expect(dateRangeText('2026-10-12T12:00:00Z', '2026-10-12T19:00:00Z', 2027)).toBe(
+      'Oct 12, 2026',
+    );
+    expect(dateRangeText('2026-10-31T13:00:00Z', '2026-11-02T15:00:00Z', 2027)).toBe(
+      'Oct 31 – Nov 2, 2026',
+    );
+    // A late harvest in January filed under last season.
+    expect(dateRangeText('2027-01-12T14:00:00Z', '2027-01-12T22:00:00Z', 2026)).toBe(
+      'Jan 12, 2027',
+    );
+    expect(dateRangeText('2027-01-12T14:00:00Z', '2027-01-13T22:00:00Z', 2026)).toBe(
+      'Jan 12–13, 2027',
+    );
+    expect(dateRangeText('2027-01-12T14:00:00Z', null, 2026)).toBe('Jan 12, 2027 (still running)');
+    // Over New Year: both years.
+    expect(dateRangeText('2026-12-30T15:00:00Z', '2027-01-02T20:00:00Z', 2026)).toBe(
+      'Dec 30, 2026 – Jan 2, 2027',
+    );
+    // The local date decides (Dec 31, 8 PM EST is Jan 1 in UTC).
+    expect(dateRangeText('2027-01-01T01:00:00Z', '2027-01-01T03:00:00Z', 2026)).toBe('Dec 31');
+    // A row says it too.
+    expect(
+      operationRowText({
+        ...harvest,
+        cropYear: 2026,
+        startedAt: '2027-01-12T14:00:00Z',
+        endedAt: '2027-01-12T22:00:00Z',
+      }).dates,
+    ).toBe('Jan 12, 2027');
+  });
+
   test('acres, measurements, machines', () => {
     expect(acresText(harvest)).toBe('150.8 ac (148.2 in the field)');
     expect(acresText({ areaReportedAc: 80, areaClippedAc: 80.04 })).toBe('80 ac');
