@@ -7,9 +7,12 @@
  * /api/v1/crew) and the machines (`useFleetPanel()`'s shared feed, no second fetch), and follows
  * the `jobs` realtime topic.
  *
- * FOUNDATION STUB, owned by the board builder: an EMPTY band at the default height (wall) and an
- * inert pill (phone), so the layout every existing spec runs against is the 2a one. The props
- * are frozen (additive changes only). Test ids: contracts-2a §7.5.
+ * FOUNDATION STUB, owned by the board builder: nothing on the wall (the band's row is where this
+ * element renders: BoardScreen places it between the status strip and the map area) and an inert
+ * pill on phones. The wall renders nothing on purpose: a band of the default 208 px moves the
+ * map centre 104 px towards the weather strip and lowers the first fit below z10, which three
+ * existing wall specs feel (docs/contracts-2a.md §7.1); the board builder lands the band with
+ * those specs green. The props are frozen (additive changes only). Test ids: contracts-2a §7.5.
  */
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import type { PublicConfig } from '../../../config';
@@ -40,15 +43,5 @@ export function WorkBoard({ variant }: WorkBoardProps) {
       </button>
     );
   }
-  return (
-    <section
-      className={css.band}
-      data-testid="jobs-band"
-      data-variant="wall"
-      aria-label="Job board"
-    >
-      <span className={css.bandTitle}>Jobs</span>
-      <span className={css.muted}>The job board arrives with slice 2a.</span>
-    </section>
-  );
+  return null;
 }

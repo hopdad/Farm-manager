@@ -55,7 +55,7 @@ is `docs/contracts-2a.md`; its decisions are rows 2a-1 … 2a-13 in `docs/decisi
   API contract (`src/ui/work/contract.ts`, every route under `/api/v1/**`, all answering 501
   until their builder lands), `ROLE_FOR.planJobs` (manager) and `updateOwnJobStatus` (driver),
   the `jobs` realtime topic, `@dnd-kit/core` 6.3.1 and `@dnd-kit/utilities` 3.2.2, the job
-  board's mount in BoardScreen (an empty jobs band on the wall, an inert "Jobs" pill on phones),
+  board's mount in BoardScreen (nothing on the wall yet, an inert "Jobs" pill on phones),
   a hidden Jobs tab in the field panel, `/admin/products` and `/admin/usage` (stubs, in the nav),
   the usage writer already called from `/board`, `/m` and the PIN sign-in, the Deere data-rights
   gate already called in the four per-org loops (allows everything until rights-usage lands),

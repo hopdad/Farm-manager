@@ -131,6 +131,7 @@ Already in place (the foundation landed every seam, so nobody needs a new mount)
 | `tools/import/data-transfer.db.test.ts` | the 2a round trip | integrator |
 | `src/platform/auth/gate.test.ts` | the `/r/` cases | integrator (job-forms' `/r/` e2e covers the page) |
 | `e2e/board.spec.ts` | the map controls' `exact: true` (the band's effect, §7.1) | integrator |
+| `e2e/deere-fields.spec.ts`, `e2e/imagery.spec.ts` | the two wall taps the band moves (§7.1): if the band needs a spec change, the board builder writes it in its report and the integrator applies it | integrator |
 
 ---
 
@@ -552,19 +553,31 @@ must cover `jobs` (noted in `docs/status.md`).
 
 - **Wall:** the jobs band is a **row of its own** between the status strip and the map area
   (`.screen` is a flex column, so the map area shrinks; no panel is covered; `fit.ts` needs no
-  change). The foundation's stub is an empty band of **208 px** (`--jobs-band`), which keeps the
-  map area at 800 of 1080 px (74 %; the floor is 65 %, a band of at most 306 px) with every
-  existing wall spec green. Lanes side by side; cards scroll horizontally within a lane or the
+  change). Proposed default height **208 px** (`--jobs-band`): the map area keeps 800 of 1080 px
+  (74 %; the floor is 65 %, a band of at most 306 px). The foundation's stub renders **nothing**
+  on the wall (see "Measured" below), so today's wall is exactly 1f's. Lanes side by side; cards scroll horizontally within a lane or the
   band scrolls (set `touch-action` per scroller, as the fleet panel's `.scroll` uses `pan-y`);
   a "New job" button (managers); the **chips tray** at the band's right end: person chips (crew,
   `GET /api/v1/crew`) and machine chips (non-retired machines from `useFleetPanel()`). The band
   can collapse to a thin bar (remembered per device in `localStorage`). Touch targets 72 px.
   The rail, the fleet panel, the weather strip and the map controls stay visible by default.
-  **Known effect of the band (measured with the stub):** the shorter map area lowers the wall's
-  first fit of the 40 demo fields just below z10, so the rail shows "Zoom in to see it (from
-  zoom 10)" under Deere flags at start-up; that hint is a button, so `e2e/board.spec.ts` now
-  matches the map controls with `exact: true`. A builder test that finds a button by a name
-  like "Zoom in" must do the same.
+  **Measured (the foundation ran the full e2e suite with an empty 208 px band, Nov 6):** 162
+  passed, and three wall specs failed because of the band; the board builder lands the band
+  with them green (a shorter default, or the specs' tap helpers revealing the point inside the
+  free map area, as `revealAbovePanel` does on phones; say which in the report):
+  - `e2e/board.spec.ts` "map controls": the shorter map area lowers the first fit of the 40 demo
+    fields below z10, so the rail shows "Zoom in to see it (from zoom 10)" under Deere flags,
+    and that hint is a button too. **Fixed** in the foundation: the spec matches the controls
+    with `exact: true` (do the same in any test that finds a button by such a name).
+  - `e2e/deere-fields.spec.ts` "a flag tap closes an open field panel; a tap on open ground
+    closes the popup" and `e2e/imagery.spec.ts` "tile lines: a manager draws a tile line …":
+    their taps near the map centre (after `jumpTo` a point) land on the weather strip, which
+    stays anchored to the screen's bottom while the map centre moves 104 px down (the free map
+    area becomes y 280-790 instead of 72-790).
+  (The fourth failure of that run, `e2e/m0-demo.spec.ts` "trucks API down", failed the same way
+  on `main` against this dev database while the CNH combine C3's position was days old, and
+  passed once the CNH stand-in's backlog had caught up.) With the stub rendering nothing, the
+  required specs plus `deere-fields` and `imagery` passed: 60 passed, 14 skipped.
 - **Phone:** a **"Jobs" pill**, third in the top-left stack (left 12, top 112; Fleet at 12,
   weather at 62), opens a **bottom sheet** reusing `src/ui/fields/sheet.ts` snaps; **closed by
   default** (`revealAboveSheet` / `revealAbovePanel` in existing specs know only the field
@@ -606,8 +619,8 @@ must cover `jobs` (noted in `docs/status.md`).
 ```
 
 - `WorkBoardProviderProps { variant, map: maplibregl.Map | null, children }` (stub: renders the
-  children). `WorkBoardProps { variant, map, config: PublicConfig, onOpen?() }` (stub: the empty
-  band / an inert pill). Frozen, additive only.
+  children). `WorkBoardProps { variant, map, config: PublicConfig, onOpen?() }` (stub: nothing on
+  the wall, an inert pill on phones). Frozen, additive only.
 - **One sheet at a time:** `useWorkBoardUi` (`src/ui/work/board/store.ts`: `overlayOpen`,
   `setOverlayOpen`) and `closeWorkBoardOverlays()`. BoardScreen calls `closeWorkBoardOverlays()`
   when a field opens (`onFieldTap`), a machine is picked (`onSelect`) and in `closePanels` (the
@@ -758,8 +771,9 @@ stays until `db:reset`); products and the agreement only change when a seeded va
 - Planned units add **tons** and **gal** to the plan's loads, bu, hours (the store lane's
   deliveries); rate units are per acre (`*_ac`) or totals.
 - The Jobs tab sits at `TAB_ORDER.jobs = 15`, right after Overview, hidden until job-forms lands.
-- The wall's stub band is an empty 208 px row (the layout every spec runs against now is 2a's);
-  it lowers the first fit zoom just below 10 (§7.1), hence `exact: true` in `e2e/board.spec.ts`.
+- The wall's stub renders nothing (an empty 208 px band broke two wall specs' taps, §7.1); the
+  phone's stub is an inert "Jobs" pill in its final place. `e2e/board.spec.ts` matches the map
+  controls with `exact: true` (the band's lower first zoom shows a "Zoom in to see it" hint).
 - `PanelMachine.workPlanCapable` from the Deere sync's source or a Deere machine ref.
 - `usage.prune` is a daily job (07:23 UTC) with a stub run.
 - Demo EPA numbers are placeholders (`DEMO-0001` …), never a real registration.

@@ -1,31 +1,12 @@
 /*
  * The job board's band (wall) and pill (phone): FOUNDATION STUB styles, owned by the board
  * builder (docs/contracts-2a.md §7.1). The band is a flex row of the board's .screen column
- * between the status strip and the map area (the map area shrinks; no panel is covered).
- * Default height keeps the map area at 74 % of a 1080 px wall (>= 65 %, contracts-2a §7.1).
+ * between the status strip and the map area (the map area shrinks; no panel is covered); its
+ * default height keeps the map area at >= 65 % of a 1080 px wall.
  */
 
-.band {
-  flex: none;
-  height: var(--jobs-band, 208px);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 20px;
-  background: #0f1814;
-  border-bottom: 1px solid rgb(255 255 255 / 10%);
-  font-size: var(--font, 22px);
-  overflow: hidden;
-}
-
-.bandTitle {
-  font-weight: 800;
-  color: #86efac;
-}
-
-.muted {
-  opacity: 0.6;
-}
+/* The wall's band (`.band`, `--jobs-band`: 208 px proposed, contracts-2a §7.1) comes with the
+ * board builder; the stub renders nothing on the wall. */
 
 .pill {
   /* Phones: third in the top-left stack (Fleet at 12, weather at 62). */
