@@ -1,0 +1,39 @@
+/* The request-link card on /admin/parties/<id> (job-forms). */
+
+.made {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: 1px solid #22a355;
+  background: #0f2a1c;
+}
+
+.url {
+  overflow-wrap: anywhere;
+  color: #bbf7d0;
+}
+
+.qr {
+  width: 200px;
+  height: 200px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid #1f2d27;
+}
+
+.newForm {
+  margin-top: 12px;
+}

@@ -1,0 +1,22 @@
+/* /r/<token> (job-forms): the pieces login.module.css doesn't have. */
+
+.dates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 12px;
+}
+
+.notes {
+  min-height: 96px;
+  padding-top: 10px;
+  resize: vertical;
+}
+
+/* The bot trap: off screen, out of the tab order, hidden from screen readers. */
+.trap {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
