@@ -1,0 +1,38 @@
+/* /admin/products (job-forms): the row's actions and its inline edit form. */
+
+.badge {
+  margin-left: 8px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.edit {
+  flex: 1 1 100%;
+}
+
+.edit > summary {
+  display: inline-flex;
+  align-items: center;
+  list-style: none;
+  cursor: pointer;
+}
+
+.edit > summary::-webkit-details-marker {
+  display: none;
+}
+
+.edit[open] > summary {
+  margin-bottom: 10px;
+}
+
+.editForm {
+  min-width: min(100%, 520px);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #2f4a3e;
+}
