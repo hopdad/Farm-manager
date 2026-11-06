@@ -1,12 +1,13 @@
 # Build status
 
-Nov 3, 2026. Update this file at the end of each build session.
+Nov 6, 2026. Update this file at the end of each build session.
 
 ## Branches
 
 | Branch | State |
 |---|---|
 | `main` | M0 + M1 (slices 1a-1d), the e2e flake fixes, the follow-up to the PC checks (`claude/pc-followups`, below), the soil type map (`claude/soil-map`, merged Oct 31, below) slices 1f + 1f.2 (`claude/m1-1f`, merged Oct 31, below), and on Nov 3 the nightly CI fix, the date sweep and D23, "this season" follows the growing year (`claude/fix-clock-tests`, `claude/date-fixes`, `claude/growing-year`, below). Work from here; the PC agent follows `PC-AGENT.md`. |
+| `claude/m2-2a` | **Slice 2a (job board + drag-to-assign), in progress.** From `main` at `729dd7c`. The foundation stage is done (Nov 6, below): `docs/contracts-2a.md`, migration `0008_m2a_job_board`, the shared seams and stubs, the demo jobs. Next: the four builders (`m2a/jobs-api`, `m2a/board`, `m2a/job-forms`, `m2a/rights-usage`) in worktrees off this branch, then the integration. Not pushed yet. |
 | `claude/growing-year` | D23, "this season" follows the growing year, and its review fixes (5 of 8 findings confirmed and fixed). CI fully green at `801a616` (run 86: Linux, e2e with the replay step, Windows). Fast-forwarded into `main` on Nov 3. Safe to delete. |
 | `claude/date-fixes` | The Nov 3 date sweep: boundary dates in the farm's time zone, replay crop years. Merged into `main` on Nov 3 (CI green on Linux and Windows). Safe to delete. |
 | `claude/fix-clock-tests` | The fix for the Nov 2 nightly CI failure (`832bec9`). Merged into `main` on Nov 3. Safe to delete. |
@@ -35,6 +36,35 @@ Lint, typecheck, unit (also in a clean clone with no env files), DB tests, build
 ## Not verifiable from the cloud build machine
 
 Its proxy blocks the real Protomaps basemap, live NWS weather, real SSURGO soils and NAIP close-ups. All four passed on Derrick's PC on Oct 29 (PC findings below). Live weather needs one re-check after the staleness change (Next).
+
+## Nov 6, 2026: slice 2a started (`claude/m2-2a`, foundation)
+
+The job board and drag-to-assign (plan §6 M2 2a), built like 1f: one foundation stage, then four
+parallel builders (jobs-api, board, job-forms, rights-usage), then the integration. The contract
+is `docs/contracts-2a.md`; its decisions are rows 2a-1 … 2a-13 in `docs/decisions.md`
+(defaults, easy to change). What the foundation landed:
+
+- **Migration `0008_m2a_job_board`:** `farm.products`, `farm.jobs` (with `version` for
+  optimistic concurrency and `planned_window`, the plan's `window`), `farm.job_assignments`,
+  `farm.job_products`, `farm.data_rights_agreements`, `farm.job_request_links` and
+  `app.usage_events`, mirrored in `src/db/schema/{farm,app}.ts`. The jobs **publish triggers**
+  come from the jobs-api builder (`db/pending/jobs-api.sql`) and will be folded into the next
+  migration (likely `0009`). **Slice 1e on the PC takes the next free number after those**
+  (PC-AGENT.md).
+- **Seams:** the vocabulary and the status-machine signatures (`src/domain/work-jobs.ts`), the
+  API contract (`src/ui/work/contract.ts`, every route under `/api/v1/**`, all answering 501
+  until their builder lands), `ROLE_FOR.planJobs` (manager) and `updateOwnJobStatus` (driver),
+  the `jobs` realtime topic, `@dnd-kit/core` 6.3.1 and `@dnd-kit/utilities` 3.2.2, the job
+  board's mount in BoardScreen (an empty jobs band on the wall, an inert "Jobs" pill on phones),
+  a hidden Jobs tab in the field panel, `/admin/products` and `/admin/usage` (stubs, in the nav),
+  the usage writer already called from `/board`, `/m` and the PIN sign-in, the Deere data-rights
+  gate already called in the four per-org loops (allows everything until rights-usage lands),
+  `/r/<token>` as a public path, `e2e/support/drag.ts` (trusted CDP touch drags), `data:export`
+  of the new tables, the `usage.prune` job (stub), the machine chips' "Deere" badge field.
+- **Demo seed:** 8 products, 10 jobs across the four lanes (an unassigned spray job on a
+  Halvorsen field and a phoned-in request with no field yet, for the done-when; SP2 left free),
+  the Halvorsen data-rights agreement. After pulling: `pnpm db:migrate` and `pnpm db:seed demo`.
+- **MD note:** the `realtime.messages` RLS policies must cover the new `jobs` topic.
 
 ## Nov 3, 2026: nightly CI red from Nov 2, and a date sweep
 
@@ -212,15 +242,17 @@ Phase B (texture, slope, interpretations, OM/pH/CEC) is the PC's, after 1e.
   - B2: soil map walk-through and fleet inventory with Derrick;
   - C: Windows re-checks, now including the soil map (C5, C6) and slice 1f (C7, C8);
   - D: slice 1e on `pc/slice-1e`, pushed in pieces for the cloud to review and fold into the next
-    free migration (`0008` or later: 1f took `0007`);
+    free migration (1f took `0007`, 2a takes `0008` and likely `0009` for its triggers: 1e takes
+    the next free number after those when it merges);
   - E: branch cleanup, if Derrick agrees.
 - Then Derrick's own data (PC-AGENT.md section 3, item 2).
 - **Done (Nov 3, D23):** "this season" follows the growing year, so the History tab no longer
   goes blank from Jan 1 and `e2e/deere-ops.spec.ts` passes all year (`claude/growing-year`, merged
   into `main` Nov 3; see Nov 3 above). The season switcher and the rolling field timeline wait (D23).
 - In the cloud, per `docs/build-plan.md` §6 and D22: the war board next (M2 2a job board and
-  drag-to-assign, then 2b morning meeting, Work Plans and go/no-go v1), then the rest of 1g, then
-  2c, then MD. The Deere season backfill is deferred to after MD.
+  drag-to-assign, **started Nov 6 on `claude/m2-2a`**: the four builders of
+  `docs/contracts-2a.md`, then the integration; then 2b morning meeting, Work Plans and go/no-go
+  v1), then the rest of 1g, then 2c, then MD. The Deere season backfill is deferred to after MD.
 - Vendors go from stand-ins to real accounts as Derrick's sign-ups land (Deere developer account
   first; PC-AGENT.md section 3, item 3). `connectors:record` knows only Deere and Samsara; CNH's
   README entry asks for a staging recording, so a CNH recorder comes before CNH goes past `sim`.

@@ -1190,7 +1190,7 @@ Terminal row; the Deere scope warning and the 403 kinds (§5.4).
 ## 12. For Derrick's PC (not buildable here)
 
 - Slice 1e's `db/pending/pc-1e.sql` takes the next free migration number when it merges (0007
-  went to 1f).
+  went to 1f, 0008 to 2a: the next free number after 0008, see `docs/contracts-2a.md` §12).
 - With a Deere app: `CONNECTOR_DEERE=sandbox`, `DEERE_CLIENT_ID` / `DEERE_CLIENT_SECRET`, register
   both `${PUBLIC_URL}/api/oauth/deere` (or the `DEERE_REDIRECT_URI` page) and
   `${PUBLIC_URL}/admin/connectors` as Redirect URIs in the app profile, sign in (the consent asks
