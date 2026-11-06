@@ -5,15 +5,24 @@
  * under the 5-minute bucket), so the gate report counts board time per device and the people
  * signed in on it. The server records a beat only for a session with a person (appUserId): an
  * unattended wall (a device session) answers `recorded: false` and logs no board time. Renders
- * nothing.
- *
- * FOUNDATION STUB, owned by the rights-usage builder (src/ui/usage/**): does nothing yet. Props
- * frozen (additive changes only).
+ * nothing. The logic is ./heartbeat.ts (tested there). Props frozen (additive changes only).
  */
+import { useEffect } from 'react';
+import { startUsageHeartbeat } from './heartbeat';
+
 export interface UsageHeartbeatProps {
   route: '/board' | '/m';
 }
 
-export function UsageHeartbeat(_props: UsageHeartbeatProps) {
+export function UsageHeartbeat({ route }: UsageHeartbeatProps) {
+  useEffect(
+    () =>
+      startUsageHeartbeat({
+        route,
+        fetch: (input, init) => globalThis.fetch(input, init),
+        document,
+      }),
+    [route],
+  );
   return null;
 }

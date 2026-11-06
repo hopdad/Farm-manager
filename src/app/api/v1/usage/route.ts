@@ -1,13 +1,13 @@
 /**
- * POST /api/v1/usage <- UsageHeartbeatBody -> UsageHeartbeatResponse: the board's heartbeat (viewer: any session).
- * FOUNDATION STUB (slice 2a; docs/contracts-2a.md §5): answers 501 until rights-usage replaces
- * it with its handler (keep this file thin: runtime, dynamic, then the handler).
+ * POST /api/v1/usage <- UsageHeartbeatBody -> UsageHeartbeatResponse: the board's heartbeat
+ * (viewer: any session; recorded only for a session with a person). Logic: ./handler.ts.
  */
-import { notBuiltYet } from '@/platform/http/not-built';
+import { getPool } from '@/db/client';
+import { handleUsageHeartbeat } from './handler';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST(): Promise<Response> {
-  return notBuiltYet('api/v1/usage');
+export async function POST(request: Request): Promise<Response> {
+  return handleUsageHeartbeat(request, getPool());
 }

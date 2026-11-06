@@ -1,0 +1,26 @@
+/* /admin/usage: the Phase 2 gate report (rights-usage). */
+
+.today td {
+  background: #13221c;
+}
+
+.day {
+  white-space: nowrap;
+}
+
+.devices {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+
+/* The demo-and-test-people line sits under its day, without a rule between them. */
+.demoRow td {
+  padding-top: 0;
+}
+
+tr:has(+ .demoRow) td {
+  border-bottom-color: transparent;
+}
