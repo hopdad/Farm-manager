@@ -53,6 +53,47 @@ export async function mapIdle(page: Page): Promise<void> {
   await page.evaluate(() => window.__map?.idle(20_000));
 }
 
+/**
+ * The wall: before a tap on the map, make sure the point is in the map's FREE area, between the
+ * top of the war-room map and the top of the weather strip docked at the screen's bottom; if it
+ * is closer than `marginPx` to either edge, jump the map so the point sits in the middle of that
+ * area. The rows above the map (the slice 2a jobs band, contracts-2a §7.1) shrink the map area
+ * and move its centre down, while the strip stays at the bottom, so a tap aimed near the centre
+ * could land on the strip. A no-op where there is no docked strip (phones: revealAboveSheet /
+ * revealAbovePanel in the specs) and when the point is already well inside. Returns whether the
+ * map moved (it then waits for the map to be idle).
+ */
+export async function revealInFreeMap(
+  page: Page,
+  lngLat: { lng: number; lat: number },
+  opts: { marginPx?: number } = {},
+): Promise<boolean> {
+  const margin = opts.marginPx ?? 48;
+  const strip = page.locator('[data-testid="weather-strip"][data-dock="bottom"]');
+  const stripBox = (await strip.count()) > 0 ? await strip.first().boundingBox() : null;
+  const mapBox = await page.getByTestId('war-room-map').boundingBox();
+  if (!stripBox || !mapBox || stripBox.y <= mapBox.y) return false;
+  const top = mapBox.y;
+  const bottom = stripBox.y;
+  const moved = await page.evaluate(
+    ({ c, top, bottom, margin }) => {
+      const m = window.__map;
+      if (!m) return false;
+      const p = m.project(c.lng, c.lat);
+      if (p.y >= top + margin && p.y <= bottom - margin) return false;
+      const targetY = (top + bottom) / 2;
+      const pxPerDegLat = p.y - m.project(c.lng, c.lat + 0.001).y;
+      if (!(pxPerDegLat > 0)) return false;
+      const centre = m.center();
+      m.jumpTo({ center: [centre.lng, centre.lat - ((p.y - targetY) / pxPerDegLat) * 0.001] });
+      return true;
+    },
+    { c: lngLat, top, bottom, margin },
+  );
+  if (moved) await mapIdle(page);
+  return moved;
+}
+
 declare global {
   interface Window {
     /** Installed by installFakeRealtime(): deliver a message to subscribers of `topic`. */
@@ -60,6 +101,7 @@ declare global {
       topic: string,
       message: { event: string; payload: unknown; seq: number },
     ) => void;
+    /** Resyncs delivered to `fleet` subscribers (other topics don't count). */
     __fleetResyncs?: number;
     /** Installed by installFakeRealtime(): what the real client does after a reconnect. */
     __fleetResync?: () => void;
@@ -69,7 +111,10 @@ declare global {
 /**
  * Replace the realtime client with a test double before the app loads (outside production the
  * map uses `window.__farmTestRealtime` when present). It calls onResync once on subscribe, like
- * the real client after connecting, and window.__fleetEmit() delivers events.
+ * the real client after connecting, and window.__fleetEmit() delivers events to every topic's
+ * subscribers (`fleet`, `fields`, `jobs`, …). `window.__fleetResyncs` counts the resyncs of
+ * `fleet` subscriptions only (contracts-2a §7.1): other subscribers on the page (the job board
+ * subscribes `jobs` on mount) don't move it.
  */
 export async function installFakeRealtime(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -81,7 +126,7 @@ export async function installFakeRealtime(page: Page): Promise<void> {
         const sub: Sub = { topic, onEvent, opts };
         subs.push(sub);
         queueMicrotask(() => {
-          window.__fleetResyncs = (window.__fleetResyncs ?? 0) + 1;
+          if (topic === 'fleet') window.__fleetResyncs = (window.__fleetResyncs ?? 0) + 1;
           opts.onResync();
         });
         return () => {
@@ -93,7 +138,7 @@ export async function installFakeRealtime(page: Page): Promise<void> {
     window.__farmTestRealtime = client as unknown as RealtimeClient;
     window.__fleetResync = () => {
       for (const s of subs) {
-        window.__fleetResyncs = (window.__fleetResyncs ?? 0) + 1;
+        if (s.topic === 'fleet') window.__fleetResyncs = (window.__fleetResyncs ?? 0) + 1;
         s.opts.onResync();
       }
     };

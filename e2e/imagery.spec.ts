@@ -25,7 +25,7 @@ import { tileFor } from '../src/test/fixtures';
 import { decodeMvt } from '../tools/gis/mvt';
 import { loadSyntheticParcels } from '../tools/gis/parcels';
 import { signInAs } from './support/auth';
-import { mapIdle, WEBGL_ARGS, waitForMap } from './support/map';
+import { mapIdle, revealInFreeMap, WEBGL_ARGS, waitForMap } from './support/map';
 
 test.use({ launchOptions: { args: WEBGL_ARGS } });
 
@@ -262,6 +262,8 @@ async function openBoardAt(page: Page, f: DemoField): Promise<void> {
 }
 
 async function tap(page: Page, lng: number, lat: number): Promise<void> {
+  // Clear of the weather strip whatever the rows above the map take (2a's jobs band).
+  await revealInFreeMap(page, { lng, lat });
   const p = await page.evaluate((c) => window.__map?.project(c[0], c[1]), [lng, lat] as [
     number,
     number,

@@ -215,10 +215,31 @@ export async function createTmpDevice(
 }
 
 /**
- * Remove what earlier runs left: throwaway e2e people and devices, and devices the specs added
- * through /admin/devices (named 'E2E …'). The fixed principals stay.
+ * Remove what earlier runs left: the job board's e2e rows (jobs of source 'e2e', with their
+ * assignments and products; and any job row, assignment, data-rights agreement or request link
+ * that names a throwaway e2e party, whatever its source: the job form and the /r POST write
+ * source 'app'; contracts-2a §8), throwaway e2e people and devices, and devices the specs added
+ * through /admin/devices (named 'E2E …'). The board's rows go first: their party FKs are
+ * `restrict`, so a crashed spec would otherwise make the party delete fail. The fixed
+ * principals stay.
  */
 export async function pruneE2eLeftovers(db: pg.Pool = e2ePool()): Promise<void> {
+  const tmpParties = `select id from farm.parties where source = $1 and source_id like 'tmp:%'`;
+  await db.query(
+    `delete from farm.jobs
+      where source = $1 or customer_party_id in (${tmpParties})
+         or requested_by_party_id in (${tmpParties})`,
+    [E2E_SOURCE],
+  );
+  await db.query(`delete from farm.job_assignments where party_id in (${tmpParties})`, [
+    E2E_SOURCE,
+  ]);
+  await db.query(`delete from farm.data_rights_agreements where party_id in (${tmpParties})`, [
+    E2E_SOURCE,
+  ]);
+  await db.query(`delete from farm.job_request_links where party_id in (${tmpParties})`, [
+    E2E_SOURCE,
+  ]);
   await db.query(
     `delete from farm.devices
       where (source = $1 and source_id like 'tmp:%') or (source = 'app' and name like 'E2E %')`,

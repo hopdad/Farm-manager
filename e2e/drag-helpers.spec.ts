@@ -55,7 +55,16 @@ async function record(page: import('@playwright/test').Page, types: string[]): P
 
 test('touchDrag: trusted press, a hold, moves in steps, lift', async ({ page }) => {
   await record(page, ['touchstart', 'touchmove', 'touchend', 'touchcancel']);
-  await touchDrag(page, { x: 100, y: 120 }, { x: 300, y: 220 }, { holdMs: 300, steps: 5 });
+  const before = Date.now();
+  const { releasedAt } = await touchDrag(
+    page,
+    { x: 100, y: 120 },
+    { x: 300, y: 220 },
+    { holdMs: 300, steps: 5 },
+  );
+  // The done-when's clock starts at the lift: after the hold and the moves, not before.
+  expect(releasedAt - before).toBeGreaterThanOrEqual(300);
+  expect(releasedAt).toBeLessThanOrEqual(Date.now());
   const seen = (await page.evaluate(() => window.__seen)) ?? [];
   expect(seen.map((e) => e.type)).toEqual([
     'touchstart',

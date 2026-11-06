@@ -13,8 +13,9 @@
  *  - `mapPoint`: the viewport point of a lng/lat on the board's map (`window.__map.project`),
  *    for a drop on a field.
  *
- * Coordinates are viewport CSS pixels (what boundingBox and __map.project return). A self-test
- * is e2e/drag-helpers.spec.ts.
+ * Coordinates are viewport CSS pixels (what boundingBox and __map.project return). Each drag
+ * resolves to `{ releasedAt }` (Date.now() right after the lift): the done-when's clock starts
+ * there (contracts-2a §8). A self-test is e2e/drag-helpers.spec.ts.
  */
 import type { CDPSession, Locator, Page } from '@playwright/test';
 
@@ -34,6 +35,11 @@ export interface TouchDragOptions {
   settleMs?: number;
   /** A CDP session of this page to reuse (one is opened per call otherwise). */
   cdp?: CDPSession;
+}
+
+/** What a drag returns: when the finger or button came up (Date.now(), test-process clock). */
+export interface DragResult {
+  releasedAt: number;
 }
 
 export interface MouseDragOptions {
@@ -70,7 +76,7 @@ export async function touchDrag(
   from: Pt,
   to: Pt,
   opts: TouchDragOptions = {},
-): Promise<void> {
+): Promise<DragResult> {
   const holdMs = opts.holdMs ?? 350;
   const steps = Math.max(1, opts.steps ?? 12);
   const stepMs = opts.stepMs ?? 16;
@@ -89,6 +95,7 @@ export async function touchDrag(
     }
     if (settleMs > 0) await page.waitForTimeout(settleMs);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    return { releasedAt: Date.now() };
   } finally {
     if (!opts.cdp) await cdp.detach().catch(() => {});
   }
@@ -100,7 +107,7 @@ export async function mouseDrag(
   from: Pt,
   to: Pt,
   opts: MouseDragOptions = {},
-): Promise<void> {
+): Promise<DragResult> {
   const steps = Math.max(1, opts.steps ?? 12);
   const stepMs = opts.stepMs ?? 16;
   const settleMs = opts.settleMs ?? 150;
@@ -121,6 +128,7 @@ export async function mouseDrag(
   }
   if (settleMs > 0) await page.waitForTimeout(settleMs);
   await page.mouse.up();
+  return { releasedAt: Date.now() };
 }
 
 /** Drag `source` (a job card) onto `target` (a chip, or a map point) with touch or the mouse. */
@@ -129,9 +137,9 @@ export async function dragTo(
   source: Locator,
   target: Locator | Pt,
   opts: { pointer?: 'touch' | 'mouse' } & TouchDragOptions & MouseDragOptions = {},
-): Promise<void> {
+): Promise<DragResult> {
   const from = await centerOf(source);
   const to = 'x' in target ? target : await centerOf(target);
-  if ((opts.pointer ?? 'touch') === 'mouse') await mouseDrag(page, from, to, opts);
-  else await touchDrag(page, from, to, opts);
+  if ((opts.pointer ?? 'touch') === 'mouse') return mouseDrag(page, from, to, opts);
+  return touchDrag(page, from, to, opts);
 }

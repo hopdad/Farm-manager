@@ -18,7 +18,7 @@ import { createDb, createPool } from '../src/db/client';
 import { deterministicId } from '../src/domain/ids';
 import { insertField, squareMultiPolygon } from '../src/test/fixtures';
 import { signInAs } from './support/auth';
-import { mapIdle, mapPathFor, WEBGL_ARGS, waitForMap } from './support/map';
+import { mapIdle, mapPathFor, revealInFreeMap, WEBGL_ARGS, waitForMap } from './support/map';
 
 test.use({ launchOptions: { args: WEBGL_ARGS } });
 // One worker per project runs this file in order: the seeded pins sit at fixed places.
@@ -186,6 +186,8 @@ async function revealAboveSheet(page: Page, lngLat: { lng: number; lat: number }
 async function tapAt(page: Page, lngLat: { lng: number; lat: number }): Promise<void> {
   await mapIdle(page);
   await revealAboveSheet(page, lngLat);
+  // The wall: clear of the weather strip whatever the rows above the map take (2a's jobs band).
+  await revealInFreeMap(page, lngLat);
   const p = await page.evaluate((c) => window.__map?.project(c.lng, c.lat), lngLat);
   if (!p) throw new Error('map not ready');
   await page.touchscreen.tap(p.x, p.y);
