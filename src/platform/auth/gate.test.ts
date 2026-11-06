@@ -45,6 +45,17 @@ describe('who is sent to /login', () => {
       expect((await decideGate(input({ pathname }))).action).toBe('next');
     }
     expect(isPublicPath('/loginx')).toBe(false);
+    // 2a: a customer's request link opens with no identity (GET shows the form, POST sends it).
+    for (const method of ['GET', 'HEAD', 'POST']) {
+      const pathname = '/r/Ab3dEf6hIj9kLm2nOp5qRs';
+      expect(isPublicPath(pathname)).toBe(true);
+      expect((await decideGate(input({ pathname, method }))).action).toBe('next');
+    }
+    // …but only under /r/: look-alikes still need an identity.
+    for (const pathname of ['/rx', '/requests', '/reports/r']) {
+      expect(isPublicPath(pathname)).toBe(false);
+      expect((await decideGate(input({ pathname }))).action).toBe('redirect');
+    }
     expect((await decideGate(input({ adminKey: true }))).action).toBe('next');
     expect((await decideGate(input({ method: 'POST' }))).action).toBe('next');
   });

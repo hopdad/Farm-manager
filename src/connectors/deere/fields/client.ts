@@ -27,6 +27,7 @@ import type {
 } from '../../types';
 import type { DeereClient } from '../client';
 import { deereOrgAccess } from '../orgs';
+import { type OrgReadRights, orgReadAllowed } from '../rights';
 import { type DeereBoundary, type DeereEquipment, deereBoundariesSchema } from '../schemas';
 import { activeBoundaryOf, mapDeereEquipment, mapDeereField, mapDeereFlag } from './mapper';
 import {
@@ -56,7 +57,11 @@ function withQuery(url: string, query: Readonly<Record<string, string>>): string
 }
 
 export class DeereFieldsApi {
-  constructor(readonly client: DeereClient) {}
+  constructor(
+    readonly client: DeereClient,
+    /** The data-rights gate's view of this run (D17, docs/contracts-2a.md §4.4); none = allowed. */
+    private readonly opts: { rights?: OrgReadRights | null } = {},
+  ) {}
 
   /** Every field of the org, archived ones included, each with its farm and client embedded. */
   fields(orgId: string): Promise<DeereFieldWithRefs[]> {
@@ -113,10 +118,16 @@ export class DeereFieldsApi {
     return this.client.machines(orgId);
   }
 
-  /** Orgs of the connection that approved the app (decision 5). */
+  /**
+   * Orgs of the connection that approved the app (decision 5) and that the data-rights gate
+   * lets this run read (D17, 2a).
+   */
   private async connectedOrgs() {
     const orgs = await this.client.organizations();
-    return orgs.filter((o) => deereOrgAccess(o).status === 'connected');
+    return orgs.filter(
+      (o) =>
+        deereOrgAccess(o).status === 'connected' && orgReadAllowed(o.id, orgs, this.opts.rights),
+    );
   }
 
   /** FieldSource: every field of every connected org, with its active boundary. */

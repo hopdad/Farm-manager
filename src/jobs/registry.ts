@@ -29,6 +29,10 @@
  *   fleet.terminal   every 60 s, 15 s demo (Terminal; terminal-pickups)
  *   fleet.vehicles   hourly at :41, 60 s demo (vendor tags → vehicle kind; terminal-pickups)
  *
+ * 2a (docs/contracts-2a.md §7.7):
+ *   usage.prune      daily at 07:23 UTC (night in Michigan): app.usage_events older than 400
+ *                    days (rights-usage; a stub until it lands); no demo cadence, no connector
+ *
  * 1f (docs/contracts-1f.md §1): the foundation registered deere.fields and deere.ops with stub
  * run functions in the builders' own files (./deere-fields.ts, ./deere-ops.ts); the builders
  * replace the stubs and leave this file alone.
@@ -86,6 +90,7 @@ import {
 } from './fleet-terminal';
 import { runFleetVehicles, VEHICLES_STREAM } from './fleet-vehicles';
 import type { JobRegistry } from './types';
+import { runUsagePrune } from './usage-prune';
 import { FORECAST_STREAM, OBSERVATIONS_STREAM, runWeatherNws } from './weather';
 
 export const jobs = {
@@ -191,6 +196,10 @@ export const jobs = {
     connector: 'CONNECTOR_SAMSARA',
     streams: [VEHICLES_STREAM],
     run: runFleetVehicles,
+  },
+  'usage.prune': {
+    cron: '23 7 * * *',
+    run: runUsagePrune,
   },
 } satisfies JobRegistry;
 

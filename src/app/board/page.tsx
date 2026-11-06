@@ -5,6 +5,7 @@
  */
 import type { Metadata, Viewport } from 'next';
 import { requirePageSession } from '@/platform/auth/page';
+import { recordUsage, usageOf } from '@/platform/usage/record';
 import { BoardScreen } from '@/ui/board/BoardScreen';
 import { loadMapPageData } from '@/ui/map/server/map-data';
 
@@ -24,7 +25,9 @@ export const viewport: Viewport = {
 
 export default async function BoardPage() {
   // A revoked or signed-out screen goes to /login (the proxy only checks the cookie's signature).
-  await requirePageSession('/board');
+  const session = await requirePageSession('/board');
+  // The Phase 2 gate report (2a, decision 2a-11): never fails the page.
+  await recordUsage(usageOf(session, 'page_view', '/board'));
   const data = await loadMapPageData();
   return <BoardScreen data={data} variant="wall" />;
 }

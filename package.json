@@ -64,6 +64,8 @@
     "@deck.gl/layers": "9.4.1",
     "@deck.gl/maplibre": "9.4.1",
     "@deck.gl/mesh-layers": "9.4.1",
+    "@dnd-kit/core": "6.3.1",
+    "@dnd-kit/utilities": "3.2.2",
     "@loaders.gl/core": "4.5.4",
     "@luma.gl/core": "9.4.2",
     "@luma.gl/engine": "9.4.2",

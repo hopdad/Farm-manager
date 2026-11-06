@@ -33,6 +33,7 @@ import { DeereClient } from '../connectors/deere/client';
 import { mapDeereOperation } from '../connectors/deere/ops/mapper';
 import { pollDeereOperations } from '../connectors/deere/ops/poll';
 import type { DeereOperationRaw } from '../connectors/deere/ops/schemas';
+import { loadOrgReadRights } from '../connectors/deere/rights';
 import { type ConnectorConfig, deereEndpoints } from '../connectors/endpoints';
 import type { VendorHttpOptions } from '../connectors/http';
 import { tokenKey } from '../connectors/oauth/crypto';
@@ -66,7 +67,7 @@ export const PROCESS_RESERVE_MS = 15_000;
 /** What deere.ops reads from config (tests pass their own). */
 export type DeereOpsConfig = ConnectorConfig &
   Pick<Config, 'CONNECTOR_DEERE'> &
-  Partial<Pick<Config, 'DEERE_DAILY_CALL_BUDGET'>>;
+  Partial<Pick<Config, 'DEERE_DAILY_CALL_BUDGET' | 'DEERE_HOME_ORG_ID'>>;
 
 export interface DeereOpsJobOptions {
   /** Default: getConfig() at run time. */
@@ -146,6 +147,8 @@ export function createDeereOpsJob(opts: DeereOpsJobOptions = {}) {
           cropSeasons,
           fieldCap,
           storedModified: (ids) => storedOperationModified(ctx.pool, 'deere', ids),
+          // D17 (2a): customer orgs without a data-rights agreement are not read in sandbox/live.
+          rights: await loadOrgReadRights(ctx.pool, mode, cfg.DEERE_HOME_ORG_ID ?? null),
           log: ctx.log,
         });
         fieldsChecked = r.stats.fieldsChecked;

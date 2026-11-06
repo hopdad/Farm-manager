@@ -20,6 +20,7 @@ describe('job registry', () => {
       ['fleet.cnh', { kind: 'cron', expr: '*/5 * * * *' }, 'app'],
       ['fleet.terminal', { kind: 'cron', expr: '* * * * *' }, 'app'],
       ['fleet.vehicles', { kind: 'cron', expr: '41 * * * *' }, 'app'],
+      ['usage.prune', { kind: 'cron', expr: '23 7 * * *' }, 'app'],
     ]);
   });
 
@@ -38,6 +39,7 @@ describe('job registry', () => {
       ['fleet.cnh', { kind: 'every', seconds: 30 }],
       ['fleet.terminal', { kind: 'every', seconds: 15 }],
       ['fleet.vehicles', { kind: 'every', seconds: 59 }],
+      ['usage.prune', null],
     ]);
   });
 
@@ -60,6 +62,7 @@ describe('job registry', () => {
       'fleet.cnh': 'CONNECTOR_CNH',
       'fleet.terminal': 'CONNECTOR_TERMINAL',
       'fleet.vehicles': 'CONNECTOR_SAMSARA',
+      'usage.prune': undefined,
     });
     for (const def of Object.values(jobs)) expect(typeof def.run).toBe('function');
   });

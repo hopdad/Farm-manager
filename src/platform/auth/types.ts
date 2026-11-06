@@ -42,18 +42,24 @@ export function isRole(value: unknown): value is Role {
 }
 
 /**
- * What each role may do in M1 (the auth builder enforces; others call requireRole with these).
- *  - viewer:   see the board, fields, fleet, weather (private layers included)
- *  - driver:   + mark a machine down/up, enter a soil temperature reading
- *  - operator: same as driver in M1 (field crew; spray-related actions arrive in M2)
+ * What each role may do (the auth builder enforces; others call requireRole with these).
+ *  - viewer:   see the board, fields, fleet, weather (private layers included), the job board
+ *  - driver:   + mark a machine down/up, enter a soil temperature reading; 2a: move a job they are
+ *              assigned to from assigned/pushed to in progress and from in progress to done
+ *              (`updateOwnJobStatus`: the route checks "own job" too; managers set any status)
+ *  - operator: same as driver (field crew; 2b may give operators more spray actions)
  *  - manager:  + edit field notes, parties, fields, boundaries of non-Deere fields, tile lines,
- *              spray thresholds; admin pages; enroll devices; manage people below owner
+ *              spray thresholds; admin pages; enroll devices; manage people below owner; 2a:
+ *              create, edit, assign, reorder and cancel jobs (`planJobs`, decision 2a-2)
  *  - owner:    + manage managers and owners
+ * The wall on its own is a viewer (D8): dragging jobs on the wall needs a manager's PIN on it.
  */
 export const ROLE_FOR = {
   viewPrivate: 'viewer',
   markMachineDown: 'driver',
   enterSoilTemp: 'driver',
+  updateOwnJobStatus: 'driver',
+  planJobs: 'manager',
   editFieldNotes: 'manager',
   editFieldData: 'manager',
   editTileLines: 'manager',

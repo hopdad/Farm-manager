@@ -5,7 +5,8 @@
  *  - pages need SOME identity: an enrolled device, a signed-in person, or the PC's admin cookie.
  *    A page request with none is redirected to /login (which offers "enroll this screen" and
  *    "sign in"), never shown an error. Role checks stay in the pages and handlers.
- *  - never redirected: /login, /enroll, /admin/unlock (and, by the proxy's matcher, every
+ *  - never redirected: /login, /enroll, /admin/unlock, /r/<token> (2a's customer request links)
+ *    (and, by the proxy's matcher, every
  *    /api/** path, /_next/** and static files: a signed-out API call gets 401 JSON from
  *    requireRole, and pg_cron, the clock, webhooks and MapLibre never see a 3xx);
  *  - only GET and HEAD redirect: a server action POST without identity runs and is refused by
@@ -25,8 +26,11 @@ import {
 import { OPERATOR_TTL_SECONDS } from './operator';
 import { signIdentity, signOperator, verifyIdentity, verifyOperator } from './tokens';
 
-/** Paths a browser with no identity may open. */
-export const PUBLIC_PAGE_PATHS = ['/login', '/enroll', '/admin/unlock'] as const;
+/**
+ * Paths a browser with no identity may open. `/r` (2a, decision 2a-9): a customer's request link
+ * `/r/<token>` (no login; the page checks the token and answers without a session).
+ */
+export const PUBLIC_PAGE_PATHS = ['/login', '/enroll', '/admin/unlock', '/r'] as const;
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PAGE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

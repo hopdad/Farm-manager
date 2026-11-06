@@ -22,7 +22,11 @@ import { LayerRail, type RailMap } from '../map/rail/LayerRail';
 import type { MapPageData, MapVariant } from '../map/types';
 import { DeerePins, openPinFromTap, PIN_TAP_LAYERS } from '../pins';
 import { MapUnitSheet, mapUnitAt, useMapUnitSheet } from '../soils';
+import { UsageHeartbeat } from '../usage/UsageHeartbeat';
 import { SprayFieldState, WeatherStrip } from '../weather';
+import { closeWorkBoardOverlays } from '../work/board/store';
+import { WorkBoard } from '../work/board/WorkBoard';
+import { WorkBoardProvider } from '../work/board/WorkBoardProvider';
 import css from './board.module.css';
 import { ACTIVITY_LABELS, compassPoint, formatAge, formatClock, SOURCE_LABELS } from './format';
 import { useKiosk } from './useKiosk';
@@ -223,14 +227,21 @@ function PhoneMachineCard({ m, onClose }: { m: FleetFrame; onClose(): void }) {
 /**
  * The composed screen (docs/contracts-m1.md §12; the integrator owns this layout):
  *
- *   wall   status strip (clock, fleet counts, who is signed in) over the map. Left: the layer
- *          rail (open by default, a button at the left edge when closed). Right, beside the map
- *          controls: the fleet panel, replaced by the field panel while a field is open. Bottom,
- *          between the rail and the controls: the weather strip. A tapped machine's card sits
- *          left of the fleet panel; the tile tool (managers) bottom right.
- *   phone  status strip with the session chip; map controls top right; the Fleet button and the
- *          weather chip top left (each opens a full sheet); the rail's button at the left edge;
- *          the field panel and a tapped machine's card as bottom sheets.
+ *   wall   status strip (clock, fleet counts, who is signed in), then the jobs band (2a: lanes
+ *          of job cards and the chips tray, a row of its own, so the map area shrinks and no
+ *          panel is covered), then the map. Left: the layer rail (open by default, a button at
+ *          the left edge when closed). Right, beside the map controls: the fleet panel, replaced
+ *          by the field panel while a field is open. Bottom, between the rail and the controls:
+ *          the weather strip. A tapped machine's card sits left of the fleet panel; the tile tool
+ *          (managers) bottom right.
+ *   phone  status strip with the session chip; map controls top right; the Fleet button, the
+ *          weather chip and the Jobs pill top left (each opens a sheet); the rail's button at the
+ *          left edge; the field panel and a tapped machine's card as bottom sheets.
+ *
+ * 2a (docs/contracts-2a.md §7.2): the jobs band and the map area sit inside the job board's
+ * drag context (WorkBoardProvider), so cards and the drop targets (chips, the map) share it.
+ * One sheet at a time: opening a field, a machine or a pin closes the job board's sheet or
+ * popover (closeWorkBoardOverlays), and the job board's `onOpen` closes the others.
  *
  * One MapLibre map (`onMapReady`) is shared by the rail (applyLayers), the spray colours
  * (SprayFieldState), the field panel's highlight and the tile tool. Field taps open the panel,
@@ -269,6 +280,7 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
       if (id) {
         setFieldId(null);
         closeMapUnit();
+        closeWorkBoardOverlays();
       }
     },
     [closeMapUnit],
@@ -276,7 +288,10 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
   const onFieldTap = useCallback(
     (id: string | null) => {
       setFieldId(id);
-      if (id) closeMapUnit();
+      if (id) {
+        closeMapUnit();
+        closeWorkBoardOverlays();
+      }
     },
     [closeMapUnit],
   );
@@ -300,7 +315,14 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
   const closePanels = useCallback(() => {
     setFieldId(null);
     closeMapUnit();
+    closeWorkBoardOverlays();
   }, [closeMapUnit]);
+  // The job board opened its sheet (phone) or a job popover (wall): the others close.
+  const onWorkOpen = useCallback(() => {
+    setFieldId(null);
+    closeMapUnit();
+    if (variant === 'phone') setSelectedId(null);
+  }, [closeMapUnit, variant]);
 
   return (
     <main
@@ -310,47 +332,56 @@ export function BoardScreen({ data, variant }: { data: MapPageData; variant: Map
       <StatusStrip status={status} variant={variant}>
         <SessionChip variant={variant} placement="strip" />
       </StatusStrip>
-      <div className={`${css.mapArea} ${variant === 'phone' ? css.phoneMapArea : ''}`}>
-        <WarRoomMap
-          data={data}
-          variant={variant}
-          flavor={variant === 'wall' ? 'dark' : 'light'}
-          fleet={model}
-          fleetStatus={status}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          showLegend={variant === 'wall' && !railOpen}
-          flyTo={flyTo}
-          fleetVisible={fleetVisible}
-          onFieldTap={drawing ? undefined : onFieldTap}
-          onEmptyTap={drawing || tileToolOpen ? undefined : onEmptyTap}
-          onMapReady={setMap}
-          tapLayers={PIN_TAP_LAYERS}
-          onFeatureTap={drawing ? undefined : openPinFromTap}
-        />
-        <SprayFieldState map={map} />
-        <LayerRail map={map} variant={variant} config={data.config} onOpenChange={setRailOpen} />
-        <FleetPanel variant={variant} onLocate={locate} />
-        <WeatherStrip variant={variant} />
-        {selected && fleetVisible && variant === 'wall' && (
-          <MachineCard m={selected} onClose={() => setSelectedId(null)} />
+      <WorkBoardProvider variant={variant} map={map}>
+        {variant === 'wall' && (
+          <WorkBoard variant="wall" map={map} config={data.config} onOpen={onWorkOpen} />
         )}
-        <TileLineDrawTool map={map} variant={variant} config={data.config} onOpen={closePanels} />
-        <DeerePins map={map} variant={variant} config={data.config} onOpen={closePanels} />
-        {fieldId && (
-          <FieldPanel
-            fieldId={fieldId}
+        <div className={`${css.mapArea} ${variant === 'phone' ? css.phoneMapArea : ''}`}>
+          <WarRoomMap
+            data={data}
             variant={variant}
-            config={data.config}
-            map={map}
-            onClose={closeField}
+            flavor={variant === 'wall' ? 'dark' : 'light'}
+            fleet={model}
+            fleetStatus={status}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            showLegend={variant === 'wall' && !railOpen}
+            flyTo={flyTo}
+            fleetVisible={fleetVisible}
+            onFieldTap={drawing ? undefined : onFieldTap}
+            onEmptyTap={drawing || tileToolOpen ? undefined : onEmptyTap}
+            onMapReady={setMap}
+            tapLayers={PIN_TAP_LAYERS}
+            onFeatureTap={drawing ? undefined : openPinFromTap}
           />
-        )}
-        <MapUnitSheet variant={variant} map={map} />
-      </div>
+          <SprayFieldState map={map} />
+          <LayerRail map={map} variant={variant} config={data.config} onOpenChange={setRailOpen} />
+          <FleetPanel variant={variant} onLocate={locate} />
+          <WeatherStrip variant={variant} />
+          {selected && fleetVisible && variant === 'wall' && (
+            <MachineCard m={selected} onClose={() => setSelectedId(null)} />
+          )}
+          <TileLineDrawTool map={map} variant={variant} config={data.config} onOpen={closePanels} />
+          <DeerePins map={map} variant={variant} config={data.config} onOpen={closePanels} />
+          {fieldId && (
+            <FieldPanel
+              fieldId={fieldId}
+              variant={variant}
+              config={data.config}
+              map={map}
+              onClose={closeField}
+            />
+          )}
+          <MapUnitSheet variant={variant} map={map} />
+          {variant === 'phone' && (
+            <WorkBoard variant="phone" map={map} config={data.config} onOpen={onWorkOpen} />
+          )}
+        </div>
+      </WorkBoardProvider>
       {selected && fleetVisible && variant === 'phone' && (
         <PhoneMachineCard m={selected} onClose={() => setSelectedId(null)} />
       )}
+      <UsageHeartbeat route={variant === 'wall' ? '/board' : '/m'} />
     </main>
   );
 }

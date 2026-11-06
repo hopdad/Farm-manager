@@ -22,6 +22,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <Link href="/admin/parties" className={css.navLink}>
             Parties
           </Link>
+          <Link href="/admin/products" className={css.navLink}>
+            Products
+          </Link>
           <Link href="/admin/spray" className={css.navLink}>
             Spray
           </Link>
@@ -36,6 +39,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </Link>
           <Link href="/admin/vehicles" className={css.navLink}>
             Vehicles
+          </Link>
+          <Link href="/admin/usage" className={css.navLink}>
+            Usage
           </Link>
           <Link href="/admin/realtime" className={css.navLink}>
             Realtime

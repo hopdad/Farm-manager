@@ -51,6 +51,7 @@ import type { Mode, PollResult, PositionSource, RawItem } from '../types';
 import { deereBreadcrumbItems, mapDeereBreadcrumb } from './mapper';
 import { type DeereHttpOptions, refreshDeereTokens, simAutoConnect } from './oauth';
 import { type DeereOrgAccess, deereOrgAccess, deniedOrgAccess, isDeereOrgDenied } from './orgs';
+import { blockedOrgAccess, type OrgReadRights, orgReadAllowed } from './rights';
 import {
   DEERE_EQUIPMENT_MEDIA_TYPE,
   DEERE_MEDIA_TYPE,
@@ -376,11 +377,15 @@ export class DeereClient {
 
   /**
    * `pollLocations` with each org's access as this run saw it (decision 5): needs-approval orgs
-   * are skipped, an org that answers 403 (`isDeereOrgDenied`) stops only its own work (what it
-   * already returned is kept), and any other failure fails the poll as before. A failed org
-   * listing throws (nothing is known about the orgs then).
+   * are skipped, and so is a customer org the data-rights gate refuses (`opts.rights`, D17,
+   * docs/contracts-2a.md §4.4); an org that answers 403 (`isDeereOrgDenied`) stops only its own
+   * work (what it already returned is kept), and any other failure fails the poll as before. A
+   * failed org listing throws (nothing is known about the orgs then).
    */
-  async pollLocationsWithOrgs(cursor: string | null): Promise<DeereLocationsPoll> {
+  async pollLocationsWithOrgs(
+    cursor: string | null,
+    opts: { rights?: OrgReadRights | null } = {},
+  ): Promise<DeereLocationsPoll> {
     this.connectedThisPoll = false;
     const end = this.now();
     const parsed = cursor ? Date.parse(cursor) : Number.NaN;
@@ -399,6 +404,11 @@ export class DeereClient {
       const access = deereOrgAccess(org);
       if (access.status === 'needs_approval') {
         orgs.push(access);
+        continue;
+      }
+      // D17 (2a): a customer org without a data-rights agreement is not read in sandbox/live.
+      if (!orgReadAllowed(org.id, listing, opts.rights)) {
+        orgs.push(blockedOrgAccess(org));
         continue;
       }
       try {

@@ -12,6 +12,7 @@
 import { cookies } from 'next/headers';
 import { getConfig } from '../../config';
 import { getDb, getPool } from '../../db/client';
+import { recordUsage } from '../usage/record';
 import { isOwnerSetupCode, looksLikeResetCode, normalizeEnrollCode } from './codes';
 import { clearOperator, setOperator } from './operator';
 import { isWellFormedPin } from './pin';
@@ -76,7 +77,13 @@ export async function signInOperator(appUserId: string, pin: string): Promise<Fl
       { appUserId, epoch: a.user.sessionEpoch, deviceId: auth.sharedDevice.id },
       now,
     );
-    return { ok: true, home: homePathFor(auth.sharedDevice.kind) };
+    const home = homePathFor(auth.sharedDevice.kind);
+    // The Phase 2 gate report (2a, decision 2a-11): never fails the sign-in.
+    await recordUsage(
+      { kind: 'pin_sign_in', route: home, appUserId, deviceId: auth.sharedDevice.id },
+      { now },
+    );
+    return { ok: true, home };
   } catch (e) {
     return explain(e, 'Sign-in');
   }

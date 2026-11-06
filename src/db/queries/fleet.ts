@@ -394,6 +394,7 @@ interface PanelRow {
   place_name: string | null;
   place_kind: PanelPlace['kind'] | null;
   place_since: Date | string | null;
+  work_plan_capable: boolean;
 }
 
 const isoOrNull = (v: unknown) => toDate(v)?.toISOString() ?? null;
@@ -409,6 +410,10 @@ const numOrNull = (v: unknown) =>
  * and kind of its latest fix (the "Samsara · sim" badge), engine hours, odometer, fuel and DEF,
  * how its vendor gets the data and who set its kind, and what its route doesn't report
  * (`statsNotReported` / `faultsNotReported` of the latest fix's vendor and the machine's via).
+ *
+ * 2a (decision 2a-13): whether the machine can take a Deere Work Plan (2b): the Deere sync made
+ * it, or Deere knows it (a ('deere', 'machine', …) external ref). The job board's machine chip
+ * shows a "Deere" badge from it.
  */
 export async function fleetPanelMachines(ex: Executor): Promise<PanelMachine[]> {
   const r = await exec<PanelRow>(
@@ -421,7 +426,11 @@ export async function fleetPanelMachines(ex: Executor): Promise<PanelMachine[]> 
             s.position_kind, s.fuel_pct, s.def_pct, s.fault_codes, s.ts,
             s.current_field_id::text as field_id, f.name as field_name,
             v.geofence_id::text as place_id, v.name as place_name, v.kind as place_kind,
-            v.entered_at as place_since
+            v.entered_at as place_since,
+            (m.source = 'deere' or exists (
+               select 1 from ingest.external_refs r
+                where r.source = 'deere' and r.kind = 'machine' and r.entity_id = m.id
+            )) as work_plan_capable
        from farm.machines m
        left join farm.machine_state s on s.machine_id = m.id
        left join farm.fields f on f.id = s.current_field_id
@@ -476,6 +485,7 @@ export async function fleetPanelMachines(ex: Executor): Promise<PanelMachine[]> 
       via,
       kindSetBy: row.kind_set_by,
       notReported: statsNotReported(vendor, via),
+      workPlanCapable: row.work_plan_capable,
       place:
         row.place_id === null || row.place_kind === null || row.place_since === null
           ? null

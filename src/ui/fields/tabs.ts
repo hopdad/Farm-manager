@@ -8,6 +8,7 @@
  *
  *   tab           id         order  owner        file
  *   Overview      overview   10     field-panel  src/ui/fields/tabs/overview.tsx
+ *   Jobs          jobs       15     job-forms    src/ui/fields/tabs/jobs.tsx (2a)
  *   History       history    20     field-data   src/ui/fields/tabs/history.tsx
  *   Soils         soils      30     soils        src/ui/fields/tabs/soils.tsx
  *   Parcels       parcels    40     imagery      src/ui/fields/tabs/parcels.tsx
@@ -50,6 +51,8 @@ export interface FieldPanelTab {
 /** Reserved `order` slots (so two builders never pick the same). */
 export const TAB_ORDER = {
   overview: 10,
+  /** 2a (docs/contracts-2a.md §7.3): the field's open jobs, right after Overview. */
+  jobs: 15,
   history: 20,
   soils: 30,
   parcels: 40,

@@ -23,6 +23,7 @@ import { loadFleetDeerePace } from '../connectors/call-budget';
 import { DeereClient, type DeereLocationsPoll } from '../connectors/deere/client';
 import { mapDeereBreadcrumb } from '../connectors/deere/mapper';
 import { deereHomeOrg } from '../connectors/deere/orgs';
+import { loadOrgReadRights } from '../connectors/deere/rights';
 import type { DeereBreadcrumbRaw } from '../connectors/deere/schemas';
 import { deereEndpoints } from '../connectors/endpoints';
 import { tokenKey } from '../connectors/oauth/crypto';
@@ -132,7 +133,9 @@ export function createFleetDeereJob(opts: FleetDeereJobOptions = {}) {
             http,
           });
         }
-        const r = await client.pollLocationsWithOrgs(cursor);
+        // D17 (2a): customer orgs without a data-rights agreement are not read in sandbox/live.
+        const rights = await loadOrgReadRights(ctx.pool, mode, cfg.DEERE_HOME_ORG_ID ?? null);
+        const r = await client.pollLocationsWithOrgs(cursor, { rights });
         seen = r;
         for (const o of r.orgs) {
           if (o.status !== 'needs_approval') continue;

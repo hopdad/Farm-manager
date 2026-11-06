@@ -32,6 +32,7 @@ import { VendorHttpError } from '../../http';
 import type { PollResult, RawItem } from '../../types';
 import type { DeereClient } from '../client';
 import { deereDenialOf, deereOrgAccess, isDeereOrgDenied } from '../orgs';
+import { NO_AGREEMENT_DETAIL, type OrgReadRights, orgReadAllowed } from '../rights';
 import { fieldOperationCoverage, listFieldOperations, measurementsOf } from './client';
 import type { DeereOperationRaw, DeereOpsFieldOperation } from './schemas';
 
@@ -114,6 +115,8 @@ export interface OpsPollDeps {
   fieldCap: number | null;
   /** The stored `source_modified_at` (ISO) of operations already written, by Deere operation id. */
   storedModified(operationIds: readonly string[]): Promise<Map<string, string | null>>;
+  /** The data-rights gate's view of this run (D17, docs/contracts-2a.md §4.4); none = allowed. */
+  rights?: OrgReadRights | null;
   log: JobLogger;
 }
 
@@ -170,11 +173,16 @@ export async function pollDeereOperations(
   // 1-2: orgs and their fields.
   const candidates: FieldToCheck[] = [];
   const listedOrgs = new Set<string>();
-  for (const org of await client.organizations()) {
+  const listing = await client.organizations();
+  for (const org of listing) {
     stats.orgs++;
     const access = deereOrgAccess(org);
     if (access.status !== 'connected') {
       skipOrg(org.id, 'needs approval in Deere Connections');
+      continue;
+    }
+    if (!orgReadAllowed(org.id, listing, deps.rights)) {
+      skipOrg(org.id, NO_AGREEMENT_DETAIL);
       continue;
     }
     try {

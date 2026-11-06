@@ -126,6 +126,24 @@ export interface PinsUpdatedPayload {
 }
 
 /**
+ * jobs/updated (2a, decision 2a-8; docs/contracts-2a.md §6): farm work jobs changed. Published
+ * ONLY by the statement-level AFTER triggers on farm.jobs, farm.job_assignments and
+ * farm.job_products (one message per statement, through app.publish), never from TypeScript.
+ * Ids only, each list deduplicated: the jobs touched, every field id they had before or after the
+ * change (a card leaving a field updates that field too), the machines and the people (crew
+ * parties) on the changed rows. When the payload would pass JOBS_TRIGGER_MAX_PAYLOAD_BYTES
+ * (src/domain/work-jobs.ts) the trigger sends jobs/invalidate { reason: 'too_large' } instead.
+ * Subscribers: the board refetches its snapshot (or the jobs named); the field panel's Jobs tab
+ * and open-jobs count refetch when `fieldIds` has their field.
+ */
+export interface JobsUpdatedPayload {
+  jobIds: string[];
+  fieldIds: string[];
+  machineIds: string[];
+  partyIds: string[];
+}
+
+/**
  * Topic catalogue: topic -> event -> payload type. Topic names are lower-case words (the SSE
  * route rejects anything else); per-entity topics would use a colon (e.g. 'field:<uuid>'), but
  * M1 keeps one topic per kind with the id in the payload. Every topic has 'invalidate'.
@@ -136,8 +154,10 @@ export interface PinsUpdatedPayload {
  *  - 'spray':   'assessed' (new verdicts; 1b)
  *  - 'layers':  'updated' (a map layer was rebuilt or added; 1d)
  *  - 'pins':    'updated' (Deere flags as read-only pins changed; 1f)
- * Add a topic or event through the contracts (docs/contracts-m1.md §6, docs/contracts-1f.md §6),
- * never ad hoc.
+ *  - 'jobs':    'updated' (farm work jobs, their assignments or products changed; 2a, by trigger)
+ * Add a topic or event through the contracts (docs/contracts-m1.md §6, docs/contracts-1f.md §6,
+ * docs/contracts-2a.md §6), never ad hoc. At MD the realtime.messages RLS policies cover each
+ * topic (the `jobs` topic is new in 2a).
  */
 export interface TopicEvents {
   fleet: {
@@ -170,6 +190,10 @@ export interface TopicEvents {
     updated: PinsUpdatedPayload;
     invalidate: InvalidatePayload;
   };
+  jobs: {
+    updated: JobsUpdatedPayload;
+    invalidate: InvalidatePayload;
+  };
 }
 
 /** Every topic, for subscribers that list them (the SSE `?topics=` parameter, admin pages). */
@@ -181,6 +205,7 @@ export const TOPICS = [
   'spray',
   'layers',
   'pins',
+  'jobs',
 ] as const satisfies readonly (keyof TopicEvents)[];
 
 export type Topic = keyof TopicEvents;

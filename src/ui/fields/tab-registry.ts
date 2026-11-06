@@ -10,12 +10,14 @@
 import { weatherTab } from '../weather/FieldWeatherTab';
 import type { FieldPanelTab } from './tabs';
 import { historyTab } from './tabs/history';
+import { jobsTab } from './tabs/jobs';
 import { overviewTab } from './tabs/overview';
 import { parcelsTab } from './tabs/parcels';
 import { soilsTab } from './tabs/soils';
 
 export const FIELD_PANEL_TABS: readonly FieldPanelTab[] = [
   overviewTab,
+  jobsTab,
   historyTab,
   soilsTab,
   parcelsTab,

@@ -9,6 +9,7 @@ import {
   type ClockPayload,
   type FieldUpdatedPayload,
   type InvalidatePayload,
+  type JobsUpdatedPayload,
   type LayerUpdatedPayload,
   type MachineStatusPayload,
   type PinsUpdatedPayload,
@@ -92,6 +93,7 @@ describe('M1 topics', () => {
       'admin',
       'fields',
       'fleet',
+      'jobs',
       'layers',
       'pins',
       'spray',
@@ -124,6 +126,16 @@ describe('M1 topics', () => {
     expectTypeOf(onPins).toBeFunction();
     const faults: InvalidatePayload = { event: 'machine', reason: 'faults' };
     expect(faults.reason).toBe('faults');
+  });
+
+  test('the 2a jobs event narrows to its payload (ids only)', () => {
+    const onJobs = (evt: TopicMessage<'jobs'>) => {
+      if (evt.event === 'updated') expectTypeOf(evt.payload).toEqualTypeOf<JobsUpdatedPayload>();
+      else expectTypeOf(evt.payload).toEqualTypeOf<InvalidatePayload>();
+    };
+    expectTypeOf(onJobs).toBeFunction();
+    const updated: JobsUpdatedPayload = { jobIds: [], fieldIds: [], machineIds: [], partyIds: [] };
+    expect(Object.keys(updated).sort()).toEqual(['fieldIds', 'jobIds', 'machineIds', 'partyIds']);
   });
 
   test("topic names pass the SSE route's topic check", async () => {

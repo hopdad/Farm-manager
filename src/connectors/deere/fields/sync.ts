@@ -24,6 +24,7 @@ import {
   deniedOrgAccess,
   isDeereOrgDenied,
 } from '../orgs';
+import { NO_AGREEMENT_DETAIL, type OrgReadRights, orgReadAllowed } from '../rights';
 import type { DeereEquipment, DeereOrganization } from '../schemas';
 import type { DeereFieldsApi } from './client';
 import { activeBoundaryOf } from './mapper';
@@ -50,6 +51,8 @@ export interface DeereFieldsRunOptions {
   mode: Mode;
   /** DEERE_HOME_ORG_ID (decision 8). */
   homeOrgId?: string | null;
+  /** The data-rights gate's view of this run (D17, docs/contracts-2a.md §4.4); none = allowed. */
+  rights?: OrgReadRights | null;
   log: JobLogger;
   now(): Date;
   /**
@@ -72,7 +75,10 @@ export class DeereFieldsRun {
 
   constructor(private readonly opts: DeereFieldsRunOptions) {}
 
-  /** GET /organizations once per run; the orgs that need approval are dropped (logged). */
+  /**
+   * GET /organizations once per run; the orgs that need approval, and customer orgs the
+   * data-rights gate refuses (D17), are dropped (logged).
+   */
   orgs(): Promise<OrgListing> {
     this.listing ??= (async () => {
       const all = await this.opts.api.client.organizations();
@@ -80,13 +86,17 @@ export class DeereFieldsRun {
       const orgs: DeereOrganization[] = [];
       for (const o of all) {
         const access = deereOrgAccess(o);
-        if (access.status === 'connected') orgs.push(o);
-        else {
+        if (access.status !== 'connected') {
           this.opts.log.info('deere org skipped: needs approval in Deere Connections', {
             orgId: o.id,
             detail: access.detail,
           });
-        }
+        } else if (!orgReadAllowed(o.id, all, this.opts.rights)) {
+          this.opts.log.info('deere org skipped: no data-rights agreement', {
+            orgId: o.id,
+            detail: NO_AGREEMENT_DETAIL,
+          });
+        } else orgs.push(o);
       }
       return { orgs, home };
     })();

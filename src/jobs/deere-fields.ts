@@ -36,6 +36,7 @@ import {
 } from '../connectors/deere/fields/schemas';
 import { DEERE_FIELDS_STREAMS, DeereFieldsRun } from '../connectors/deere/fields/sync';
 import type { DeereHttpOptions } from '../connectors/deere/oauth';
+import { loadOrgReadRights } from '../connectors/deere/rights';
 import { type ConnectorConfig, deereEndpoints } from '../connectors/endpoints';
 import { tokenKey } from '../connectors/oauth/crypto';
 import { OAuthTokenStore, userGrantOrg } from '../connectors/oauth/token-store';
@@ -122,17 +123,20 @@ export function createDeereFieldsJob(opts: DeereFieldsJobOptions = {}) {
       api = new DeereFieldsApi(client);
       return api;
     };
-    let run: DeereFieldsRun | null = null;
-    const runOf = (): DeereFieldsRun => {
-      run ??= new DeereFieldsRun({
-        api: deere(),
-        mode,
-        homeOrgId: cfg.DEERE_HOME_ORG_ID ?? null,
-        log: ctx.log,
-        now: () => ctx.now(),
-        mappedMachines: async (orgId, ids) =>
-          new Set((await resolveExternalRefs(ctx.pool, 'deere', 'machine', orgId, ids)).keys()),
-      });
+    let run: Promise<DeereFieldsRun> | null = null;
+    const runOf = (): Promise<DeereFieldsRun> => {
+      run ??= (async () =>
+        new DeereFieldsRun({
+          api: deere(),
+          mode,
+          homeOrgId: cfg.DEERE_HOME_ORG_ID ?? null,
+          // D17 (2a): customer orgs without a data-rights agreement aren't read in sandbox/live.
+          rights: await loadOrgReadRights(ctx.pool, mode, cfg.DEERE_HOME_ORG_ID ?? null),
+          log: ctx.log,
+          now: () => ctx.now(),
+          mappedMachines: async (orgId, ids) =>
+            new Set((await resolveExternalRefs(ctx.pool, 'deere', 'machine', orgId, ids)).keys()),
+        }))();
       return run;
     };
     const status = (result: SyncStepResult, sctx: SyncContext) => publishSyncStatus(result, sctx);
@@ -141,7 +145,7 @@ export function createDeereFieldsJob(opts: DeereFieldsJobOptions = {}) {
       source: 'deere',
       stream: DEERE_FIELDS_STREAMS.fields,
       mode,
-      poll: () => runOf().pollFields(),
+      poll: async () => (await runOf()).pollFields(),
       map: (raw) => mapDeereField(raw),
       upsert: async (tx, item) => {
         const r = await upsertDeereField(tx, item);
@@ -159,7 +163,7 @@ export function createDeereFieldsJob(opts: DeereFieldsJobOptions = {}) {
       source: 'deere',
       stream: DEERE_FIELDS_STREAMS.flags,
       mode,
-      poll: () => runOf().pollFlags(),
+      poll: async () => (await runOf()).pollFlags(),
       map: (raw) => {
         const r = deereFlagsRawSchema.parse(raw);
         return [
@@ -179,7 +183,7 @@ export function createDeereFieldsJob(opts: DeereFieldsJobOptions = {}) {
       source: 'deere',
       stream: DEERE_FIELDS_STREAMS.equipment,
       mode,
-      poll: () => runOf().pollEquipment(),
+      poll: async () => (await runOf()).pollEquipment(),
       map: (raw) => {
         const r = deereEquipmentRawSchema.parse(raw);
         return [
@@ -212,7 +216,7 @@ export function createDeereFieldsJob(opts: DeereFieldsJobOptions = {}) {
       source: 'deere',
       stream: DEERE_FIELDS_STREAMS.hours,
       mode,
-      poll: () => runOf().pollHours(),
+      poll: async () => (await runOf()).pollHours(),
       map: (raw) => mapDeereEngineHours(raw),
       upsert: async (tx, stat, sctx) => {
         if (stat.engineHours === undefined) return;

@@ -22,6 +22,8 @@ import {
   setLandlordAction,
   updatePartyAction,
 } from '../actions';
+import { AgreementsSection } from './_agreements/AgreementsSection';
+import { RequestLinksSection } from './_request-links/RequestLinksSection';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Party · Farm Ops' };
@@ -191,6 +193,10 @@ export default async function PartyPage({ params }: { params: Promise<{ id: stri
             </ul>
           </section>
         )}
+
+        {/* 2a (docs/contracts-2a.md §7.6): rights-usage's and job-forms' sections. */}
+        <AgreementsSection party={party} />
+        <RequestLinksSection party={party} />
 
         <section className={adminCss.card}>
           <h2>Delete</h2>

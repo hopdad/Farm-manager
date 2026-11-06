@@ -128,6 +128,12 @@ export const panelMachineSchema = z.object({
    * a null value among them reads "not reported", never 0 or "unknown".
    */
   notReported: z.array(z.enum(VEHICLE_STAT_FIELDS)).optional(),
+  /**
+   * 2a (decision 2a-13, docs/contracts-2a.md §5.6): the machine can take a Deere Work Plan in 2b
+   * (the Deere sync created it, or it has a ('deere', 'machine') external ref). The job board's
+   * machine chip shows a small "Deere" badge from it. Absent = unknown (false).
+   */
+  workPlanCapable: z.boolean().optional(),
 });
 export type PanelMachine = z.infer<typeof panelMachineSchema>;
 
