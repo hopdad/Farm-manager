@@ -68,7 +68,7 @@ import {
 import { removeDropHover, showDropHover } from './hover';
 import { OverlayCard } from './JobCard';
 import { findJob } from './model';
-import { closeWorkBoardOverlays } from './store';
+import { closeWorkBoardOverlays, useWorkBoardUi } from './store';
 import css from './work-board.module.css';
 
 export interface WorkBoardProviderProps {
@@ -184,8 +184,12 @@ export function WorkBoardProvider({ variant, map, children }: WorkBoardProviderP
         hoverFrame: null,
         hoverField: null,
       };
-      // The wall's job popover would cover the top of the map (where the card may go).
-      if (variant === 'wall') closeWorkBoardOverlays();
+      // The wall's job popover would cover the top of the map (where the card may go); a form
+      // being filled in (Edit, New job) stays.
+      const ui = useWorkBoardUi.getState();
+      const form =
+        ui.detail?.kind === 'new' || (ui.detail?.kind === 'job' && ui.detail.mode === 'edit');
+      if (variant === 'wall' && !form) closeWorkBoardOverlays();
       store.getState().dragStart(data.jobId);
     },
     [store, variant],
