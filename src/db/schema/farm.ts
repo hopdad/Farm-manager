@@ -67,6 +67,25 @@ import { PIN_KINDS, type PinGeometry } from '../../domain/pins';
 import { KIND_SET_BY } from '../../domain/vehicles';
 import type { SprayReason, WeatherStation } from '../../domain/weather';
 import { SPRAY_VERDICTS } from '../../domain/weather';
+import {
+  ASSIGNMENT_ROLES,
+  BUSINESS_LINES,
+  JOB_KINDS,
+  JOB_PLANNED_UNITS,
+  JOB_STATUSES,
+  MAX_CANCEL_REASON_CHARS,
+  MAX_JOB_NOTES_CHARS,
+  MAX_JOB_TITLE_CHARS,
+  MAX_PRODUCT_NAME_CHARS,
+  MAX_REQUESTER_NAME_CHARS,
+  MAX_REQUESTER_PHONE_CHARS,
+  PERMITTED_USES,
+  PRODUCT_KINDS,
+  PRODUCT_UNITS,
+  RATE_UNITS,
+  REQUEST_CHANNELS,
+  SUPPLIED_BY,
+} from '../../domain/work-jobs';
 import { geometryColumn } from '../geo';
 import { tstzrange } from '../range';
 
@@ -74,6 +93,8 @@ export const farm = pgSchema('farm');
 
 const tstz = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
 const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
+/** A number constant inside a CHECK (the TS limit and the SQL one stay the same). */
+const n = (value: number) => sql.raw(String(value));
 
 export const parties = farm.table(
   'parties',
@@ -1010,4 +1031,290 @@ export const machineFaultSnapshots = farm.table(
     updatedAt: tstz('updated_at').notNull().defaultNow(),
   },
   (t) => [primaryKey({ name: 'machine_fault_snapshots_pkey', columns: [t.machineId, t.source] })],
+);
+
+// =============================================================================================
+// 2a job board (db/migrations/0008_m2a_job_board.sql; docs/contracts-2a.md §3)
+// =============================================================================================
+
+/**
+ * Seed, chemicals, fertilizer and fuel the farm puts on (plan §4; decision 2a-12). `labelRules`
+ * is 2b's go/no-go input (`{}` until then). A product is retired (`active` false), never deleted
+ * while a job names it.
+ */
+export const products = farm.table(
+  'products',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind', { enum: PRODUCT_KINDS }).notNull(),
+    name: text('name').notNull(),
+    /** EPA registration number (chemicals), as printed on the label. */
+    epaRegNo: text('epa_reg_no'),
+    restrictedUse: boolean('restricted_use').notNull().default(false),
+    unit: text('unit', { enum: PRODUCT_UNITS }).notNull(),
+    labelRules: jsonb('label_rules')
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    active: boolean('active').notNull().default(true),
+    source: text('source').notNull().default('app'),
+    sourceId: text('source_id'),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('products_source_source_id_key').on(t.source, t.sourceId),
+    check('products_kind_check', sql`${t.kind} in (${inList(PRODUCT_KINDS)})`),
+    check('products_unit_check', sql`${t.unit} in (${inList(PRODUCT_UNITS)})`),
+    check(
+      'products_name_check',
+      sql`length(btrim(${t.name})) between 1 and ${sql.raw(String(MAX_PRODUCT_NAME_CHARS))}`,
+    ),
+    check('products_label_rules_check', sql`jsonb_typeof(${t.labelRules}) = 'object'`),
+  ],
+);
+
+/**
+ * A customer's revocable request link (decision 2a-9, the stretch web form): `/r/<token>`, no
+ * login. Only the token's HMAC is stored (`tokenHash`, SESSION_SECRET); `revokedAt` ends it.
+ */
+export const jobRequestLinks = farm.table(
+  'job_request_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** The customer the requests come from. */
+    partyId: uuid('party_id')
+      .notNull()
+      .references(() => parties.id, { onDelete: 'restrict' }),
+    tokenHash: text('token_hash').notNull(),
+    label: text('label'),
+    createdBy: uuid('created_by').references((): AnyPgColumn => appUsers.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    revokedAt: tstz('revoked_at'),
+    lastUsedAt: tstz('last_used_at'),
+  },
+  (t) => [
+    unique('job_request_links_token_hash_key').on(t.tokenHash),
+    index('job_request_links_party_id_idx').on(t.partyId),
+  ],
+);
+
+/**
+ * A piece of farm work on the board (plan §4; decisions 2a-1 … 2a-13). `version` is the
+ * optimistic-concurrency counter: EVERY job write (this row, its assignments, its products)
+ * compares and bumps it in one transaction (decision 2a-7). `plannedWindow` is the plan's
+ * `window` (a reserved word in SQL). `cropYear` is set when the field is set (decision 2a-6).
+ * Rows with source 'demo' or 'sim' are never exported.
+ */
+export const jobs = farm.table(
+  'jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind', { enum: JOB_KINDS }).notNull(),
+    businessLine: text('business_line', { enum: BUSINESS_LINES }).notNull(),
+    status: text('status', { enum: JOB_STATUSES }).notNull().default('planned'),
+    /** When `status` last changed (the board keeps a job done today; 2b's morning mode). */
+    statusChangedAt: tstz('status_changed_at').notNull().defaultNow(),
+    /** A short label; the card shows a generated summary (jobSummary) when null. */
+    title: text('title'),
+    customerPartyId: uuid('customer_party_id').references(() => parties.id, {
+      onDelete: 'restrict',
+    }),
+    fieldId: uuid('field_id').references(() => fields.id, { onDelete: 'set null' }),
+    /** When the work should happen, [from, to); null = not scheduled yet. */
+    plannedWindow: tstzrange('planned_window'),
+    cropYear: integer('crop_year'),
+    /** Snapshot of the field's current boundary acres unless typed by hand (decision 2a-5). */
+    plannedAcres: numeric('planned_acres', { precision: 12, scale: 4, mode: 'number' }),
+    plannedAcresByHand: boolean('planned_acres_by_hand').notNull().default(false),
+    plannedQty: numeric('planned_qty', { precision: 12, scale: 2, mode: 'number' }),
+    plannedUnit: text('planned_unit', { enum: JOB_PLANNED_UNITS }),
+    /** 1 urgent … 4 low (JOB_PRIORITIES). */
+    priority: integer('priority').notNull().default(3),
+    /** Order within a lane after priority and window start (reorder writes it). */
+    sortKey: doublePrecision('sort_key').notNull().default(0),
+    version: integer('version').notNull().default(1),
+    /** 2b: the Deere Work Plan this job was pushed as. */
+    deereWorkPlanId: text('deere_work_plan_id'),
+    notes: text('notes'),
+    /** How a customer asked (a `requested` job; decision 2a-9). */
+    requestChannel: text('request_channel', { enum: REQUEST_CHANNELS }),
+    requestedByPartyId: uuid('requested_by_party_id').references(() => parties.id, {
+      onDelete: 'restrict',
+    }),
+    /** Who asked when they are not a party (a name and phone typed in). */
+    requesterName: text('requester_name'),
+    requesterPhone: text('requester_phone'),
+    /** The request link a web-form request came through. */
+    requestLinkId: uuid('request_link_id').references(() => jobRequestLinks.id, {
+      onDelete: 'set null',
+    }),
+    cancelledReason: text('cancelled_reason'),
+    createdBy: uuid('created_by').references((): AnyPgColumn => appUsers.id, {
+      onDelete: 'set null',
+    }),
+    updatedBy: uuid('updated_by').references((): AnyPgColumn => appUsers.id, {
+      onDelete: 'set null',
+    }),
+    source: text('source').notNull().default('app'),
+    sourceId: text('source_id'),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('jobs_source_source_id_key').on(t.source, t.sourceId),
+    // The board snapshot: open jobs by lane (decision 2a-1 order).
+    index('jobs_board_idx')
+      .on(t.businessLine, t.priority, t.sortKey)
+      .where(sql`${t.status} not in ('done', 'invoiced', 'cancelled')`),
+    index('jobs_field_id_idx').on(t.fieldId),
+    index('jobs_customer_party_id_idx').on(t.customerPartyId),
+    index('jobs_requested_by_party_id_idx').on(t.requestedByPartyId),
+    index('jobs_request_link_id_created_at_idx').on(t.requestLinkId, t.createdAt),
+    check('jobs_kind_check', sql`${t.kind} in (${inList(JOB_KINDS)})`),
+    check('jobs_business_line_check', sql`${t.businessLine} in (${inList(BUSINESS_LINES)})`),
+    check('jobs_status_check', sql`${t.status} in (${inList(JOB_STATUSES)})`),
+    check(
+      'jobs_planned_unit_check',
+      sql`${t.plannedUnit} is null or ${t.plannedUnit} in (${inList(JOB_PLANNED_UNITS)})`,
+    ),
+    check(
+      'jobs_request_channel_check',
+      sql`${t.requestChannel} is null or ${t.requestChannel} in (${inList(REQUEST_CHANNELS)})`,
+    ),
+    check('jobs_priority_check', sql`${t.priority} between 1 and 4`),
+    check('jobs_version_check', sql`${t.version} >= 1`),
+    check(
+      'jobs_crop_year_check',
+      sql`${t.cropYear} is null or ${t.cropYear} between 1950 and 2100`,
+    ),
+    check(
+      'jobs_planned_check',
+      sql`(${t.plannedAcres} is null or ${t.plannedAcres} >= 0) and (${t.plannedQty} is null or ${t.plannedQty} >= 0)`,
+    ),
+    check(
+      'jobs_planned_window_check',
+      sql`${t.plannedWindow} is null or not isempty(${t.plannedWindow})`,
+    ),
+    check(
+      'jobs_text_check',
+      sql`(${t.title} is null or length(${t.title}) <= ${n(MAX_JOB_TITLE_CHARS)})
+  and (${t.notes} is null or length(${t.notes}) <= ${n(MAX_JOB_NOTES_CHARS)})
+  and (${t.cancelledReason} is null or length(${t.cancelledReason}) <= ${n(MAX_CANCEL_REASON_CHARS)})
+  and (${t.requesterName} is null or length(${t.requesterName}) <= ${n(MAX_REQUESTER_NAME_CHARS)})
+  and (${t.requesterPhone} is null or length(${t.requesterPhone}) <= ${n(MAX_REQUESTER_PHONE_CHARS)})`,
+    ),
+  ],
+);
+
+/**
+ * Who and what is on a job (plan §4): a person (`partyId`, a crew party; app_users is one-to-one
+ * with party), a machine, or both on one row ("SP2 run by Dale"; decision 2a-4). One row per
+ * person and one per machine on a job. Writing a row bumps the job's `version`.
+ */
+export const jobAssignments = farm.table(
+  'job_assignments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    partyId: uuid('party_id').references(() => parties.id, { onDelete: 'restrict' }),
+    machineId: uuid('machine_id').references(() => machines.id, { onDelete: 'restrict' }),
+    role: text('role', { enum: ASSIGNMENT_ROLES }).notNull().default('crew'),
+    /** The part of the job's window this row is on; null = the whole window. */
+    plannedFor: tstzrange('planned_for'),
+    assignedBy: uuid('assigned_by').references((): AnyPgColumn => appUsers.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('job_assignments_job_id_party_id_key')
+      .on(t.jobId, t.partyId)
+      .where(sql`${t.partyId} is not null`),
+    uniqueIndex('job_assignments_job_id_machine_id_key')
+      .on(t.jobId, t.machineId)
+      .where(sql`${t.machineId} is not null`),
+    index('job_assignments_party_id_idx').on(t.partyId),
+    index('job_assignments_machine_id_idx').on(t.machineId),
+    check('job_assignments_who_check', sql`${t.partyId} is not null or ${t.machineId} is not null`),
+    check('job_assignments_role_check', sql`${t.role} in (${inList(ASSIGNMENT_ROLES)})`),
+    check(
+      'job_assignments_planned_for_check',
+      sql`${t.plannedFor} is null or not isempty(${t.plannedFor})`,
+    ),
+  ],
+);
+
+/** Products on a job with their rate (plan §4). Writing a row bumps the job's `version`. */
+export const jobProducts = farm.table(
+  'job_products',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'restrict' }),
+    rate: numeric('rate', { precision: 12, scale: 4, mode: 'number' }),
+    unit: text('unit', { enum: RATE_UNITS }),
+    suppliedBy: text('supplied_by', { enum: SUPPLIED_BY }).notNull().default('us'),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('job_products_job_id_product_id_key').on(t.jobId, t.productId),
+    index('job_products_product_id_idx').on(t.productId),
+    check('job_products_rate_check', sql`${t.rate} is null or ${t.rate} >= 0`),
+    check(
+      'job_products_unit_check',
+      sql`${t.unit} is null or ${t.unit} in (${inList(RATE_UNITS)})`,
+    ),
+    check('job_products_supplied_by_check', sql`${t.suppliedBy} in (${inList(SUPPLIED_BY)})`),
+  ],
+);
+
+/**
+ * A customer's signed data-rights agreement (D17; decision 2a-10). `partyId` is the customer
+ * org party (the one `customerOrgParty` resolves for a Deere org). `documentKey` is a key in the
+ * private `uploads` bucket (two-step grant). An agreement counts while `revokedOn` is null.
+ */
+export const dataRightsAgreements = farm.table(
+  'data_rights_agreements',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    partyId: uuid('party_id')
+      .notNull()
+      .references(() => parties.id, { onDelete: 'restrict' }),
+    signedOn: date('signed_on', { mode: 'string' }).notNull(),
+    documentKey: text('document_key'),
+    permittedUses: text('permitted_uses', { enum: PERMITTED_USES })
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    revokedOn: date('revoked_on', { mode: 'string' }),
+    notes: text('notes'),
+    createdBy: uuid('created_by').references((): AnyPgColumn => appUsers.id, {
+      onDelete: 'set null',
+    }),
+    source: text('source').notNull().default('app'),
+    sourceId: text('source_id'),
+    createdAt: tstz('created_at').notNull().defaultNow(),
+    updatedAt: tstz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('data_rights_agreements_source_source_id_key').on(t.source, t.sourceId),
+    index('data_rights_agreements_party_id_idx').on(t.partyId),
+    check(
+      'data_rights_agreements_permitted_uses_check',
+      sql`${t.permittedUses} <@ array[${inList(PERMITTED_USES)}]::text[]`,
+    ),
+    check(
+      'data_rights_agreements_revoked_on_check',
+      sql`${t.revokedOn} is null or ${t.revokedOn} >= ${t.signedOn}`,
+    ),
+  ],
 );

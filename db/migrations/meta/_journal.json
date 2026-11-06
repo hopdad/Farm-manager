@@ -57,6 +57,13 @@
       "when": 1793389341135,
       "tag": "0007_m1f_live_connectors",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793976943972,
+      "tag": "0008_m2a_job_board",
+      "breakpoints": true
     }
   ]
 }
