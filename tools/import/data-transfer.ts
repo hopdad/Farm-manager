@@ -16,8 +16,12 @@
  *    their role, their epoch and a PIN changed in the app, so `db:reset` never turns switched-off
  *    demo sign-ins back on.
  *
- * Import upserts by id (`on conflict (id)`), table by table in foreign-key order, in ONE
- * transaction: all or nothing unless `partial`. Re-importing the same file changes nothing.
+ * Import upserts by id (`on conflict (id)`; usage events are insert-only), table by table in
+ * foreign-key order, in ONE transaction: all or nothing unless `partial`. Re-importing the same
+ * file changes nothing. The job board's rows (2a) travel too: products, request links, jobs with
+ * their assignments and products, data-rights agreements and the usage events of your own people
+ * and devices; the jobs publish triggers stay quiet during an import (`app.jobs_publish` = off
+ * for the transaction) and one `jobs`/`invalidate` goes out at the end.
  * A boundary version that overlaps a synced version of the same field closes the synced one
  * where the hand-made one starts (what the original edit did).
  *
@@ -71,6 +75,11 @@ interface TableSpec {
   actors?: Record<string, ActorTable>;
   /** Export order (stable files diff well). */
   orderBy: string;
+  /**
+   * Rows never change once written (usage events): import with `on conflict do nothing` on any
+   * key, so a row already there (by id or by another unique key) is left alone.
+   */
+  insertOnly?: boolean;
 }
 
 const STAMPS = ['created_at', 'updated_at'];
@@ -323,6 +332,147 @@ export const TABLES: readonly TableSpec[] = [
     geometry: ['geom'],
     orderBy: 't.created_at, t.id',
   },
+  // ------------------------------------------------------------------------------------------
+  // 2a (docs/contracts-2a.md §3.3): the job board. Demo rows (source demo) never travel; the
+  // demo seed brings them back under the same ids, so your jobs that name a demo field, machine,
+  // crew member or product still fit.
+  // ------------------------------------------------------------------------------------------
+  {
+    table: 'farm.products',
+    key: 'id',
+    where: `t.source in ('app', 'import')`,
+    columns: [
+      'id',
+      'kind',
+      'name',
+      'epa_reg_no',
+      'restricted_use',
+      'unit',
+      'label_rules',
+      'active',
+      'source',
+      'source_id',
+      ...STAMPS,
+    ],
+    orderBy: 't.created_at, t.id',
+  },
+  {
+    // Only the token's HMAC travels (the link keeps working with the same SESSION_SECRET).
+    table: 'farm.job_request_links',
+    key: 'id',
+    where: 'true',
+    columns: [
+      'id',
+      'party_id',
+      'token_hash',
+      'label',
+      'created_by',
+      'created_at',
+      'revoked_at',
+      'last_used_at',
+    ],
+    actors: { created_by: 'farm.app_users' },
+    orderBy: 't.created_at, t.id',
+  },
+  {
+    table: 'farm.jobs',
+    key: 'id',
+    where: `t.source in ('app', 'import')`,
+    columns: [
+      'id',
+      'kind',
+      'business_line',
+      'status',
+      'status_changed_at',
+      'title',
+      'customer_party_id',
+      'field_id',
+      'crop_year',
+      'planned_acres',
+      'planned_acres_by_hand',
+      'planned_qty',
+      'planned_unit',
+      'priority',
+      'sort_key',
+      'version',
+      'deere_work_plan_id',
+      'notes',
+      'request_channel',
+      'requested_by_party_id',
+      'requester_name',
+      'requester_phone',
+      'request_link_id',
+      'cancelled_reason',
+      'created_by',
+      'updated_by',
+      'source',
+      'source_id',
+      ...STAMPS,
+    ],
+    ranges: ['planned_window'],
+    actors: { created_by: 'farm.app_users', updated_by: 'farm.app_users' },
+    orderBy: 't.created_at, t.id',
+  },
+  {
+    table: 'farm.job_assignments',
+    key: 'id',
+    where: `exists (select 1 from farm.jobs j where j.id = t.job_id and j.source in ('app', 'import'))`,
+    columns: ['id', 'job_id', 'party_id', 'machine_id', 'role', 'assigned_by', 'created_at'],
+    ranges: ['planned_for'],
+    actors: { assigned_by: 'farm.app_users' },
+    orderBy: 't.job_id, t.created_at, t.id',
+  },
+  {
+    table: 'farm.job_products',
+    key: 'id',
+    where: `exists (select 1 from farm.jobs j where j.id = t.job_id and j.source in ('app', 'import'))`,
+    columns: ['id', 'job_id', 'product_id', 'rate', 'unit', 'supplied_by', 'created_at'],
+    orderBy: 't.job_id, t.created_at, t.id',
+  },
+  {
+    table: 'farm.data_rights_agreements',
+    key: 'id',
+    where: `t.source in ('app', 'import')`,
+    columns: [
+      'id',
+      'party_id',
+      'signed_on',
+      'document_key',
+      'permitted_uses',
+      'revoked_on',
+      'notes',
+      'created_by',
+      'source',
+      'source_id',
+      ...STAMPS,
+    ],
+    actors: { created_by: 'farm.app_users' },
+    orderBy: 't.signed_on, t.created_at, t.id',
+  },
+  {
+    // The Phase 2 gate report must survive a move from the PC to production (D11): the usage
+    // of your own people and devices (never the demo crew's or the e2e principals').
+    table: 'app.usage_events',
+    key: 'id',
+    where: `(t.app_user_id is null or exists (select 1 from farm.app_users u
+                                                where u.id = t.app_user_id and u.source = 'app'))
+            and (t.device_id is null or exists (select 1 from farm.devices d
+                                                  where d.id = t.device_id and d.source = 'app'))`,
+    columns: [
+      'id',
+      'at',
+      'farm_day',
+      'kind',
+      'route',
+      'app_user_id',
+      'device_id',
+      'actor_key',
+      'bucket_at',
+    ],
+    actors: { app_user_id: 'farm.app_users', device_id: 'farm.devices' },
+    orderBy: 't.at, t.id',
+    insertOnly: true,
+  },
   {
     // Settings people chose (not the job clock's pause, which is the PC's state).
     table: 'app.settings',
@@ -552,6 +702,13 @@ function upsertSql(s: TableSpec, row: Row): string {
     ),
   ];
   const updatable = all.filter((c) => c !== s.key);
+  if (s.insertOnly) {
+    return `insert into ${s.table} as t (${all.map(q).join(', ')})
+            select ${select.join(', ')}
+              from jsonb_populate_record(null::${s.table}, $1::jsonb${strip}) r
+            on conflict do nothing
+            returning (xmax = 0) as inserted`;
+  }
   const onConflict = updatable.length
     ? `do update
              set (${updatable.map(q).join(', ')}) = row(${updatable.map((c) => `excluded.${q(c)}`).join(', ')})
@@ -688,6 +845,9 @@ export async function importData(
   const c = await pool.connect();
   try {
     await c.query('begin');
+    // 2a: the jobs publish triggers (decision 2a-8) stay quiet for this transaction; one
+    // jobs/invalidate goes out at the end instead of a message per imported row.
+    await c.query(`select set_config('app.jobs_publish', 'off', true)`);
     for (const s of TABLES) {
       const rows = doc.tables[s.table] ?? [];
       const status: (keyof ImportCounts)[] = [];
@@ -778,6 +938,7 @@ export async function importData(
     } else {
       // Every open panel and map refetches (one message, not one per row).
       await publish('fields', 'invalidate', { event: 'updated', reason: 'changed' }, c);
+      await publish('jobs', 'invalidate', { event: 'updated', reason: 'changed' }, c);
       await c.query('commit');
       report.written = true;
     }

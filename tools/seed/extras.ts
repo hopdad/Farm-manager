@@ -10,7 +10,10 @@
  *  - parcels (1d, D7 default): the synthetic parcel fixture, unless a real county or vendor file
  *    has been imported (its `--replace` would retire real parcels of the same counties);
  *  - the online NAIP layer row (1d): no network, only the registry row the rail needs. Only when
- *    it is missing, so a later `pnpm gis:naip` keeps its vintage.
+ *    it is missing, so a later `pnpm gis:naip` keeps its vintage;
+ *  - the job board (2a, ./work.ts): products, ten demo jobs across the four lanes and the
+ *    Halvorsen data-rights agreement (jobs are written once; products and the agreement only
+ *    change when a seeded value does).
  *
  * Each step is idempotent and skipped when its data is already there; a re-run writes nothing.
  */
@@ -24,6 +27,7 @@ import { SYNTHETIC_SOURCE } from '../gis/parcels-synthetic';
 import { FIXTURE_DIR } from '../gis/soils';
 import { loadSoilsRun } from '../gis/soils-load';
 import { listRuns, openRun, rawRoot } from '../gis/soils-raw';
+import { formatWorkReport, seedDemoWork, type WorkSeedReport } from './work';
 
 export interface ExtrasReport {
   people: { inserted: number; existing: number; skipped: number };
@@ -31,6 +35,8 @@ export interface ExtrasReport {
   soils: { action: 'kept' | 'ssurgo-cache' | 'fixture'; detail: string };
   parcels: { action: 'kept' | 'synthetic' | 'real-import'; detail: string };
   naip: { action: 'kept' | 'online-row' };
+  /** 2a: the job board's demo rows. */
+  work: WorkSeedReport;
 }
 
 export interface ExtrasOptions {
@@ -40,6 +46,8 @@ export interface ExtrasOptions {
   /** Look for a real SSURGO download in data/raw/soils first (default true; tests: false). */
   soilsCache?: boolean;
   log?: (msg: string) => void;
+  /** The job windows' farm day (2a); default now. Tests pass a fixed clock. */
+  now?: Date;
 }
 
 async function scalar<T>(pool: pg.Pool, sql: string, values: unknown[] = []): Promise<T> {
@@ -116,7 +124,9 @@ export async function seedDemoExtras(pool: pg.Pool, opts: ExtrasOptions): Promis
                       and url_or_key not like '%/ImageServer/exportImage%') as v`,
   );
   if (!hasNaip) await writeOnlineRow(pool);
-  return { people, soils, parcels, naip: { action: hasNaip ? 'kept' : 'online-row' } };
+  // After the people: the demo jobs name Amy as who entered them.
+  const work = await seedDemoWork(pool, { now: opts.now });
+  return { people, soils, parcels, naip: { action: hasNaip ? 'kept' : 'online-row' }, work };
 }
 
 /** Report lines for the seed's output (two-space indent like formatSeedReport). */
@@ -130,6 +140,7 @@ export async function formatExtrasReport(
     `  soils              ${r.soils.detail}`,
     `  parcels            ${r.parcels.detail}`,
     `  NAIP online layer  ${r.naip.action === 'kept' ? 'registered' : 'registered now (online only)'}`,
+    ...formatWorkReport(r.work),
   ];
   const pins = formatDemoPins(await listDemoPeople(pool, secret));
   if (pins.length) {

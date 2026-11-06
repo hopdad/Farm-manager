@@ -136,13 +136,14 @@ test('map controls are big enough to hit on a touch screen', async ({ page }, te
   await page.goto(mapPathFor(testInfo));
   await waitForMap(page);
   const min = testInfo.project.name === 'phone' ? 48 : 72;
+  // `exact`: the rail's "Zoom in to see it (from zoom 10)" hints are buttons too.
   for (const name of ['Zoom in', 'Zoom out', 'Reset north', 'Show all fields']) {
-    const box = await page.getByRole('button', { name }).boundingBox();
+    const box = await page.getByRole('button', { name, exact: true }).boundingBox();
     expect(box?.width, name).toBeGreaterThanOrEqual(min);
     expect(box?.height, name).toBeGreaterThanOrEqual(min);
   }
   const before = await page.evaluate(() => window.__map?.zoom() ?? 0);
-  await page.getByRole('button', { name: 'Zoom in' }).tap();
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).tap();
   await expect
     .poll(() => page.evaluate(() => window.__map?.zoom() ?? 0))
     .toBeGreaterThan(before + 0.5);

@@ -14,6 +14,7 @@ import {
   validateParty,
 } from '../../src/db/queries/parties';
 import { importSeasons } from '../../src/db/queries/seasons';
+import { usageActorKey } from '../../src/domain/work-jobs';
 import {
   DEMO_PEOPLE,
   deactivateDemoPeople,
@@ -40,7 +41,9 @@ async function resetAndResync(admin: pg.Pool, pool: pg.Pool): Promise<void> {
   const r = await admin.query<{ t: string }>(
     `select format('%I.%I', schemaname, tablename) as t from pg_tables where schemaname in ('farm', 'ingest')`,
   );
-  await admin.query(`truncate ${r.rows.map((x) => x.t).join(', ')} cascade`);
+  await admin.query(
+    `truncate ${[...r.rows.map((x) => x.t), 'app.usage_events'].join(', ')} cascade`,
+  );
   await admin.query(`delete from app.settings where key <> 'clock.paused'`);
   await seedDemo(pool, { seed: 1 });
 }
@@ -314,6 +317,155 @@ describe('data:export / data:import', () => {
     const bare = await importData(pool, doc);
     expect(bare.errors).toEqual([]);
     expect(bare.warnings.filter((w) => w.table === 'farm.app_users')).toEqual([]);
+  });
+
+  test('2a: products, jobs with their crew, machines and products, agreements, request links and usage come back', async () => {
+    const { pool, admin } = t();
+    await resetAndResync(admin, pool);
+    await seedDemoPeople(pool, SECRET);
+    const one = async (sql: string, values: unknown[] = []) =>
+      (await pool.query<{ id: string }>(sql, values)).rows[0]?.id as string;
+
+    // Your own customer, crew member (with a sign-in) and wall; demo rows to point at.
+    const customer = validateParty({
+      displayName: 'Piotrowski Farms',
+      kind: 'org',
+      roles: 'customer',
+    });
+    const crew = validateParty({ displayName: 'Wes Kowalczyk', roles: 'crew' });
+    if (!customer.ok || !crew.ok) throw new Error('fixture');
+    const customerId = await createParty(pool, customer.value, actor);
+    const crewId = await createParty(pool, crew.value, actor);
+    const userId = await one(
+      `insert into farm.app_users (party_id, role) values ($1, 'operator') returning id::text as id`,
+      [crewId],
+    );
+    const deviceId = await one(
+      `insert into farm.devices (kind, name) values ('wall', 'Shop wall') returning id::text as id`,
+    );
+    const demoField = await one(
+      `select id::text as id from farm.fields where source = 'demo' order by name limit 1`,
+    );
+    const sp2 = await one(`select id::text as id from farm.machines where unit_no = 'SP2'`);
+    const demoProduct = await one(
+      `insert into farm.products (kind, name, unit, source, source_id)
+       values ('fuel', 'Diesel (demo)', 'gal', 'demo', 'product:diesel') returning id::text as id`,
+    );
+
+    const product = await one(
+      `insert into farm.products (kind, name, epa_reg_no, restricted_use, unit, label_rules)
+       values ('chemical', 'Atrazine 4L', '100-497', true, 'gal', '{"maxWindMph": 10}')
+       returning id::text as id`,
+    );
+    const link = await one(
+      `insert into farm.job_request_links (party_id, token_hash, label, created_by)
+       values ($1, 'hmac-of-token', 'Piotrowski text link', $2) returning id::text as id`,
+      [customerId, userId],
+    );
+    const job = await one(
+      `insert into farm.jobs (kind, business_line, status, title, customer_party_id, field_id,
+                              planned_window, crop_year, planned_acres, planned_acres_by_hand,
+                              planned_qty, planned_unit, priority, sort_key, version, notes,
+                              request_channel, requested_by_party_id, requester_name,
+                              requester_phone, request_link_id, created_by, updated_by)
+       values ('spray', 'spraying', 'assigned', 'Burndown', $1, $2,
+               tstzrange('2026-11-07T12:00:00Z', '2026-11-07T22:00:00Z', '[)'), 2026, 77.5, true,
+               3, 'loads', 2, 10, 4, 'Watch the creek', 'web_form', $1, 'Joe Piotrowski',
+               '517-555-0101', $3, $4, $4)
+       returning id::text as id`,
+      [customerId, demoField, link, userId],
+    );
+    await pool.query(
+      `insert into farm.job_assignments (job_id, party_id, machine_id, role, planned_for, assigned_by)
+       values ($1, $2, $3, 'operator', tstzrange('2026-11-07T13:00:00Z', null, '[)'), $4)`,
+      [job, crewId, sp2, userId],
+    );
+    await pool.query(
+      `insert into farm.job_products (job_id, product_id, rate, unit, supplied_by)
+       values ($1, $2, 32, 'floz_ac', 'customer'), ($1, $3, 5, 'gal', 'us')`,
+      [job, product, demoProduct],
+    );
+    await pool.query(
+      `insert into farm.data_rights_agreements (party_id, signed_on, document_key, permitted_uses, notes, created_by)
+       values ($1, '2026-10-01', 'agreements/piotrowski.pdf', '{billing,agronomy}', 'Signed at the shop', $2)`,
+      [customerId, userId],
+    );
+    // Your operator on your wall travels; the demo crew's usage does not.
+    for (const [kind, who] of [
+      ['board_heartbeat', userId],
+      ['pin_sign_in', userId],
+      ['page_view', demoUserId('crew-amy')],
+    ] as const) {
+      await pool.query(
+        `insert into app.usage_events (at, farm_day, kind, route, app_user_id, device_id, actor_key, bucket_at)
+         values ('2026-11-06T14:07:00Z', '2026-11-06', $1, '/board', $2, $3, $4,
+                 '2026-11-06T14:05:00Z')`,
+        [kind, who, deviceId, usageActorKey(deviceId, who)],
+      );
+    }
+    // A demo job and its assignment stay behind.
+    const demoJob = await one(
+      `insert into farm.jobs (kind, business_line, field_id, source, source_id)
+       values ('harvest', 'grain', $1, 'demo', 'job:x') returning id::text as id`,
+      [demoField],
+    );
+    await pool.query(`insert into farm.job_assignments (job_id, machine_id) values ($1, $2)`, [
+      demoJob,
+      sp2,
+    ]);
+
+    const first = JSON.parse(JSON.stringify(await exportData(pool))) as ExportDoc;
+    expect(first.tables['farm.products']).toHaveLength(1);
+    expect(first.tables['farm.job_request_links']).toHaveLength(1);
+    expect(first.tables['farm.jobs']).toHaveLength(1);
+    expect(first.tables['farm.job_assignments']).toHaveLength(1);
+    expect(first.tables['farm.job_products']).toHaveLength(2);
+    expect(first.tables['farm.data_rights_agreements']).toHaveLength(1);
+    expect(first.tables['app.usage_events']).toHaveLength(2);
+    expect(first.tables['farm.jobs']?.[0]).toMatchObject({
+      version: 4,
+      planned_window: { from: expect.stringMatching(/^2026-11-07T12:00:00/) },
+    });
+
+    // db:reset, then the demo seed (the demo product here stands in for tools/seed's).
+    await resetAndResync(admin, pool);
+    await seedDemoPeople(pool, SECRET);
+    await pool.query(
+      `insert into farm.products (id, kind, name, unit, source, source_id)
+       values ($1, 'fuel', 'Diesel (demo)', 'gal', 'demo', 'product:diesel')`,
+      [demoProduct],
+    );
+    const report = await importData(pool, first);
+    expect(report.errors, JSON.stringify(report.errors)).toEqual([]);
+    expect(report.tables['farm.jobs']).toEqual({
+      inserted: 1,
+      updated: 0,
+      unchanged: 0,
+      failed: 0,
+    });
+    expect(report.tables['app.usage_events']?.inserted).toBe(2);
+    const second = JSON.parse(JSON.stringify(await exportData(pool))) as ExportDoc;
+    for (const table of [
+      'farm.products',
+      'farm.job_request_links',
+      'farm.jobs',
+      'farm.job_assignments',
+      'farm.job_products',
+      'farm.data_rights_agreements',
+      'app.usage_events',
+    ]) {
+      expect(second.tables[table], table).toEqual(first.tables[table]);
+    }
+    const demoJobs = await pool.query(`select 1 from farm.jobs where source = 'demo'`);
+    expect(demoJobs.rowCount).toBe(0);
+
+    // Importing again changes nothing (usage events are insert-only).
+    const again = await importData(pool, first);
+    for (const [table, c] of Object.entries(again.tables)) {
+      expect(c.inserted + c.updated + c.failed, table).toBe(0);
+    }
+    // Leave the database as the other tests expect it (the demo farm, no demo sign-ins).
+    await resetAndResync(admin, pool);
   });
 
   test('all or nothing, dry run, and refusing what is not an export', async () => {
