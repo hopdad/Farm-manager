@@ -1,26 +1,1064 @@
 /*
- * The job board's band (wall) and pill (phone): FOUNDATION STUB styles, owned by the board
- * builder (docs/contracts-2a.md §7.1). The band is a flex row of the board's .screen column
- * between the status strip and the map area (the map area shrinks; no panel is covered); its
- * default height keeps the map area at >= 65 % of a 1080 px wall.
+ * The job board (docs/contracts-2a.md §7.1). Wall: the jobs band, a flex row of the board's
+ * .screen column between the status strip and the map area (the map area shrinks; no panel is
+ * covered), 208 px by default so the map area keeps 800 of 1080 px (74 %, the floor is 65 %);
+ * 72 px touch targets. Phone: the "Jobs" pill in the top-left stack and a bottom sheet (z 22:
+ * above the field sheet 20, the weather sheet 20 and the soil sheet 21, under the fleet sheet
+ * 25); 48 px targets. z-order (§7.2): the wall's job popover is over the band and the map area
+ * (30), under the status sheet (40); the drag overlay is above everything (50, set in TS).
  */
 
-/* The wall's band (`.band`, `--jobs-band`: 208 px proposed, contracts-2a §7.1) comes with the
- * board builder; the stub renders nothing on the wall. */
+/* --- wall band ------------------------------------------------------------------------------ */
+
+.band {
+  --font: 17px;
+  --target: 72px;
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  display: flex;
+  gap: 10px;
+  height: var(--jobs-band, 208px);
+  padding: 8px 12px;
+  background: #0e1714;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  color: #e7efe9;
+  font-size: var(--font);
+  line-height: 1.25;
+}
+
+.bandCollapsed {
+  height: var(--jobs-band-collapsed, 72px);
+  padding: 0 12px;
+  align-items: center;
+}
+
+.tools {
+  flex: none;
+  width: 112px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bandCollapsed .tools {
+  width: auto;
+}
+
+.toggle,
+.newJob {
+  box-sizing: border-box;
+  min-height: var(--target);
+  border-radius: 14px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  background: rgb(255 255 255 / 6%);
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 8px;
+}
+
+.bandCollapsed .toggle {
+  flex-direction: row;
+  gap: 12px;
+  min-width: 160px;
+  height: var(--target);
+  padding: 0 20px;
+}
+
+.toggleTitle {
+  font-size: 1.1em;
+  color: #86efac;
+}
+
+.toggleCount {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.newJob {
+  padding: 4px 8px;
+  background: #14532d;
+  border-color: #22c55e;
+  color: #dcfce7;
+}
+
+.toggle:focus-visible,
+.newJob:focus-visible,
+.cardOpen:focus-visible,
+.grip:focus-visible,
+.remove:focus-visible,
+.action:focus-visible,
+.popoverClose:focus-visible,
+.pill:focus-visible,
+.sheetButton:focus-visible,
+.sheetHandle:focus-visible,
+.back:focus-visible {
+  outline: 3px solid #86efac;
+  outline-offset: 2px;
+}
+
+.collapsedSummary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+
+.lanes {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.feedMessage {
+  grid-column: 1 / -1;
+  align-self: center;
+  justify-self: center;
+  margin: 0;
+  opacity: 0.75;
+}
+
+.stale {
+  position: absolute;
+  right: 12px;
+  bottom: 2px;
+  font-size: 13px;
+  color: #fbbf24;
+}
+
+/* --- lanes and cards ------------------------------------------------------------------------ */
+
+.lane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+}
+
+.laneWall {
+  border-radius: 12px;
+  background: rgb(255 255 255 / 3%);
+}
+
+.laneHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 4px 10px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.laneCount {
+  display: inline-flex;
+  min-width: 1.6em;
+  justify-content: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 10%);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.laneCards {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 8px;
+  padding: 0 8px 8px;
+}
+
+.laneWall .laneCards {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  /* The board's screen is touch-action: none; a lane scrolls sideways by touch. */
+  touch-action: pan-x;
+  scrollbar-width: thin;
+}
+
+.lanePhone {
+  flex: none;
+}
+
+.lanePhone .laneCards {
+  flex: none;
+  flex-direction: column;
+  padding: 0 0 12px;
+}
+
+.laneEmpty {
+  margin: auto 0;
+  padding: 0 4px;
+  font-size: 14px;
+  opacity: 0.5;
+}
+
+.card {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-width: 0;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-left: 8px solid var(--status-fill, #94a3b8);
+  background: #15211c;
+  color: #e7efe9;
+  /* A held finger starts the drag (TouchSensor); taps and the lane's pan-x scroll still work. */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  transition: opacity 0.12s ease;
+}
+
+.cardWall {
+  width: 252px;
+  font-size: 15px;
+}
+
+.cardPhone {
+  width: 100%;
+  font-size: 15px;
+}
+
+.cardSelected {
+  border-color: #86efac;
+  box-shadow: 0 0 0 2px #86efac inset;
+}
+
+.cardDragging {
+  opacity: 0.35;
+}
+
+.card[data-saving="true"] {
+  opacity: 0.75;
+}
+
+.cardOpen {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-height: 0;
+  padding: 6px 34px 4px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  overflow: hidden;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.glyph {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 10%);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.summary {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 1.07em;
+  font-weight: 800;
+}
+
+.cardLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.cardLine > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statusTag {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.priority {
+  flex: none;
+  color: #fca5a5;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.muted {
+  color: rgb(231 239 233 / 70%);
+}
+
+.fieldName {
+  font-weight: 700;
+}
+
+.acres {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: rgb(231 239 233 / 85%);
+}
+
+.flag {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 10%);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.flagWarn {
+  background: #78350f;
+  color: #fde68a;
+}
+
+.cardChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0 6px 6px;
+  list-style: none;
+  max-height: 84px;
+  overflow: hidden;
+}
+
+.cardWall .cardChips {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+
+.assignment {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  height: 40px;
+  padding: 0 0 0 10px;
+  border-radius: 10px;
+  background: #1e3a2f;
+  border: 1px solid rgb(134 239 172 / 30%);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.cardPhone .assignment {
+  height: 44px;
+}
+
+.assignmentDown {
+  border-color: #f87171;
+}
+
+.assignmentLabel {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.downTag {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: #7f1d1d;
+  color: #fecaca;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.deere {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: #365314;
+  color: #fde047;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.remove {
+  flex: none;
+  width: 40px;
+  height: 100%;
+  border: 0;
+  border-left: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 0 10px 10px 0;
+  background: transparent;
+  color: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.cardPhone .remove {
+  width: 44px;
+}
+
+.grip {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgb(231 239 233 / 60%);
+  font-size: 18px;
+  line-height: 1;
+  cursor: grab;
+  touch-action: manipulation;
+}
+
+.cardOverlay {
+  height: auto;
+  min-height: 96px;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 55%);
+  border-color: #86efac;
+  cursor: grabbing;
+  transform: rotate(-2deg);
+}
+
+.overlay {
+  pointer-events: none;
+}
+
+.overlay * {
+  pointer-events: none;
+}
+
+/* --- chips tray ----------------------------------------------------------------------------- */
+
+.tray {
+  flex: none;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.trayWall {
+  width: 520px;
+  grid-template-rows: 1fr 1fr;
+}
+
+.trayPhone {
+  flex: none;
+  grid-template-rows: 48px 48px;
+  padding: 0 10px 6px;
+}
+
+.trayRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.trayLabel {
+  flex: none;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.trayScroll {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-x;
+  scrollbar-width: thin;
+}
+
+.trayEmpty {
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.chip {
+  flex: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  border-radius: 14px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  background: #18251f;
+  color: #e7efe9;
+  transition:
+    background 0.1s ease,
+    border-color 0.1s ease;
+}
+
+.trayWall .chip {
+  height: 76px;
+  min-width: 88px;
+  padding: 0 12px;
+}
+
+.trayPhone .chip {
+  height: 48px;
+  min-width: 56px;
+  padding: 0 10px;
+}
+
+.chipMachine {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.trayPhone .chipMachine {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Phones: the unit and its badges only (more chips in view), no row labels. */
+.trayPhone .chipKind,
+.trayPhone .trayLabel {
+  display: none;
+}
+
+.chipUnit {
+  font-size: 1.15em;
+  font-weight: 800;
+}
+
+.chipSub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.chipPerson {
+  gap: 8px;
+}
+
+.initials {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #1e3a8a;
+  color: #dbeafe;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.trayPhone .initials {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+.chipName {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.chipDown {
+  border-color: #f87171;
+}
+
+.chipInactive {
+  opacity: 0.6;
+}
+
+.chipOver {
+  background: #14532d;
+  border-color: #86efac;
+  box-shadow: 0 0 0 3px rgb(134 239 172 / 40%);
+}
+
+/* --- the map's drop zone -------------------------------------------------------------------- */
+
+.mapDrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 0;
+}
+
+.mapDrop[data-dragging="true"] {
+  box-shadow: inset 0 0 0 3px rgb(56 189 248 / 45%);
+}
+
+.mapDrop[data-over="true"] {
+  box-shadow: inset 0 0 0 4px rgb(56 189 248 / 85%);
+}
+
+/* --- the job detail (wall popover, phone sheet view) ---------------------------------------- */
+
+.popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  left: clamp(12px, calc(var(--anchor, 0px) - 24px), calc(100% - 812px));
+  box-sizing: border-box;
+  width: 800px;
+  max-height: calc(100vh - var(--strip, 72px) - var(--jobs-band, 208px) - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 20px 24px 24px;
+  border-radius: 20px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  background: #0d1512;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 60%);
+  font-size: 20px;
+}
+
+.popoverClose {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 72px;
+  height: 72px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: inherit;
+  font-size: 36px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.detail,
+.detailForm {
+  display: grid;
+  gap: 12px;
+}
+
+.detailHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding-right: 72px;
+}
+
+.detailTitle {
+  margin: 0;
+  min-width: 0;
+  font-size: 1.3em;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.subhead {
+  margin: 4px 0 0;
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.fact {
+  display: contents;
+}
+
+.fact dt {
+  opacity: 0.7;
+}
+
+.fact dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.plainList,
+.detailAssignments {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.alsoOn {
+  font-size: 0.85em;
+  color: #fde68a;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.action {
+  box-sizing: border-box;
+  min-height: var(--target, 72px);
+  min-width: var(--target, 72px);
+  padding: 0 22px;
+  border-radius: 14px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  background: rgb(255 255 255 / 6%);
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.actionPrimary {
+  background: #14532d;
+  border-color: #22c55e;
+  color: #dcfce7;
+}
+
+.actionDanger {
+  background: #450a0a;
+  border-color: #f87171;
+  color: #fecaca;
+}
+
+.cancelBox,
+.moveBox {
+  display: grid;
+  gap: 8px;
+}
+
+.cancelBox {
+  flex: 1 1 100%;
+}
+
+.cancelLabel {
+  display: grid;
+  gap: 6px;
+}
+
+.input {
+  box-sizing: border-box;
+  min-height: 56px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  background: #0b1210;
+  color: inherit;
+  font: inherit;
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: manipulation;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8em;
+  opacity: 0.75;
+}
+
+/* --- notices -------------------------------------------------------------------------------- */
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.noticeBand {
+  position: absolute;
+  z-index: 31;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 900px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 50%);
+}
+
+.noticeBad {
+  background: #7c2d12;
+  color: #ffedd5;
+}
+
+.noticeInfo {
+  background: #1e3a8a;
+  color: #dbeafe;
+}
+
+.noticeClose {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-size: 26px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* --- phone ---------------------------------------------------------------------------------- */
 
 .pill {
-  /* Phones: third in the top-left stack (Fleet at 12, weather at 62). */
+  /* Third in the top-left stack (Fleet at 12, weather at 62). */
   position: absolute;
   left: 12px;
   top: 112px;
   z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   height: 44px;
   padding: 0 16px;
-  border: 1px solid rgb(0 0 0 / 15%);
+  border: 1px solid rgb(255 255 255 / 18%);
   border-radius: 999px;
-  background: rgb(255 255 255 / 92%);
-  color: #101a16;
+  background: rgb(11 18 16 / 92%);
+  color: #e7efe9;
+  font: inherit;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 40%);
+}
+
+.pillCount {
+  min-width: 1.5em;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet {
+  --target: 48px;
+  --font: 16px;
+  position: fixed;
+  z-index: 22;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: var(--sheet-visible, 55vh);
+  max-height: var(--sheet-full, 92vh);
+  border-radius: 18px 18px 0 0;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-bottom: 0;
+  background: #0d1512;
+  color: #e7efe9;
+  box-shadow: 0 -12px 40px rgb(0 0 0 / 50%);
+  font-size: var(--font);
+  /* clip, not hidden: nothing (a focus, scrollIntoView) may scroll the sheet's own box. */
+  overflow: clip;
+  padding-bottom: env(safe-area-inset-bottom);
+  transition: height 0.22s ease;
+}
+
+.sheetResizing {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    transition: none;
+  }
+}
+
+.sheetGrab {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: 52px;
+  padding: 0 6px 0 14px;
+  touch-action: none;
+}
+
+.sheetTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.sheetHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+}
+
+.grip2 {
+  width: 48px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 40%);
+}
+
+.sheetActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.sheetButton {
+  min-width: 48px;
+  height: 48px;
+  padding: 0 12px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 6%);
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  font-size: 18px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.sheetBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 4px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sheetBody > * {
+  flex: none;
+}
+
+.sheet .laneHead {
+  padding: 6px 2px;
+}
+
+.sheet .popoverClose {
+  display: none;
+}
+
+.sheet .detailHead {
+  padding-right: 0;
+}
+
+.back {
+  justify-self: start;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
   font: inherit;
   font-weight: 700;
-  font-size: 16px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.sheet .notice {
+  flex: none;
+  margin: 0 12px 6px;
+}
+
+.sheet .stale {
+  position: static;
 }
