@@ -4,8 +4,10 @@
  * makes it) is skipped and logged, an org that answers 403 mid-run is skipped for the rest of the
  * run with Deere's reason, and the other orgs sync. In SANDBOX mode (the client pointed at the
  * stand-in through DEERE_API_BASE / DEERE_EQUIPMENT_API_BASE, a stored grant) with several member
- * orgs and DEERE_HOME_ORG_ID unset there is no home org: no farm, field or machine is created,
- * fields that map are still updated; once DEERE_HOME_ORG_ID names it, the Deere-only field is.
+ * orgs and DEERE_HOME_ORG_ID unset there is no home org, and the data-rights gate fails closed
+ * (slice 2a, D17, docs/contracts-2a.md §4.4): with no agreement on file every org is refused,
+ * the farm's own included, so nothing is read, created or updated and each refusal is logged;
+ * once DEERE_HOME_ORG_ID names it, the home org is read and the Deere-only field is created.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { deterministicId } from '../../../domain/ids';
@@ -166,10 +168,11 @@ describe('sandbox with several member orgs and no DEERE_HOME_ORG_ID', () => {
   });
   afterAll(() => db?.drop());
 
-  test('nothing is created, mapped fields still update', async () => {
+  test('nothing is read: with no home org every org without an agreement is refused (§4.4), nothing is created or updated, the refusal is logged', async () => {
     const fields = await n(db, 'select count(*)::int as n from farm.fields');
     const farms = await n(db, 'select count(*)::int as n from farm.farms');
-    await job(sandbox())(testJobContext(db, { name: 'deere.fields', now }));
+    const ctx = testJobContext(db, { name: 'deere.fields', now });
+    await job(sandbox())(ctx);
     expect(await n(db, 'select count(*)::int as n from farm.fields')).toBe(fields);
     expect(await n(db, 'select count(*)::int as n from farm.farms')).toBe(farms);
     expect(
@@ -177,7 +180,14 @@ describe('sandbox with several member orgs and no DEERE_HOME_ORG_ID', () => {
         db,
         `select count(*)::int as n from farm.field_boundaries where source = 'deere' and upper_inf(valid)`,
       ),
-    ).toBeGreaterThan(0);
+    ).toBe(0);
+    expect(await n(db, 'select count(*)::int as n from farm.pins')).toBe(0);
+    // org-customer-1 still needs approval (the blocker above); the gate refuses the other two,
+    // the farm's own org included.
+    const refused = ctx.log.lines.filter((l) => l.msg.includes('no data-rights agreement'));
+    expect(new Set(refused.map((l) => l.data?.orgId))).toEqual(
+      new Set(['org-home', 'org-customer-2']),
+    );
     // Sandbox calls never count as sim; the mode on sync_state says sandbox.
     const modes = await db.pool.query(
       `select distinct mode from ingest.sync_state where source = 'deere' and stream in ('fields', 'flags', 'equipment', 'hours')`,
