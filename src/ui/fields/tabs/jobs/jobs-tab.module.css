@@ -1,0 +1,157 @@
+/* The field panel's Jobs tab (job-forms; docs/contracts-2a.md §7.3). Sizes follow the panel's
+   type (22 px on the wall, 16 px on phones); targets 72 px on the wall, 48 px on phones. */
+
+.tab {
+  --target: 48px;
+  display: grid;
+  gap: 12px;
+}
+
+.wall {
+  --target: 72px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.heading {
+  margin: 0;
+  font-size: 0.8em;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: stretch;
+  padding: 10px 12px 10px 0;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(255 255 255 / 4%);
+  overflow: hidden;
+}
+
+.bar {
+  border-radius: 0 4px 4px 0;
+}
+
+.main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+}
+
+.glyph {
+  font-size: 0.7em;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 10%);
+}
+
+.title {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.pill {
+  font-size: 0.7em;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.line {
+  margin: 0;
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  opacity: 0.7;
+  font-size: 0.85em;
+}
+
+.flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.flag {
+  font-size: 0.7em;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid rgb(251 191 36 / 55%);
+  color: #fbbf24;
+}
+
+.side {
+  display: flex;
+  align-items: center;
+}
+
+.button {
+  min-height: var(--target);
+  min-width: var(--target);
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 25%);
+  background: rgb(255 255 255 / 6%);
+  color: inherit;
+  font-size: max(16px, 0.9em);
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.primary {
+  border-color: #22a355;
+  background: #166534;
+}
+
+.error {
+  color: #fca5a5;
+  font-size: 0.85em;
+}
+
+.formWrap {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgb(134 239 172 / 35%);
+  background: rgb(0 0 0 / 20%);
+}
+
+.saved {
+  color: #86efac;
+  font-size: 0.85em;
+}
+
+.button:focus-visible {
+  outline: 3px solid #86efac;
+  outline-offset: 2px;
+}
