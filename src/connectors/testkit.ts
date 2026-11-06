@@ -7,10 +7,20 @@
 import pg from 'pg';
 import type { Db } from '../db/client';
 import { upsertExternalRef } from '../db/external-refs';
-import { farms, fieldBoundaries, fields, geofences, machines, parties } from '../db/schema';
+import {
+  dataRightsAgreements,
+  farms,
+  fieldBoundaries,
+  fields,
+  geofences,
+  machines,
+  parties,
+} from '../db/schema';
+import { PERMITTED_USES } from '../domain/work-jobs';
 import type { JobContext, JobLogger } from '../jobs/types';
 import type { NotifyMessage } from '../platform/realtime/types';
-import { type SimFarm, simExternalRefs } from '../sim/types';
+import { type SimFarm, simCustomerOrgParties, simExternalRefs } from '../sim/types';
+import { externalRef } from './types';
 
 export interface LogLine {
   level: 'debug' | 'info' | 'warn' | 'error';
@@ -149,5 +159,28 @@ export async function seedSimFarm(db: Db, farm: SimFarm): Promise<void> {
   }
   for (const r of simExternalRefs(farm)) {
     await upsertExternalRef(db, r.ref, r.entityId);
+  }
+}
+
+/**
+ * For DB tests that run the Deere loops in SANDBOX mode against the stand-in (slice 2a, the
+ * data-rights gate, docs/contracts-2a.md §4.4): link each customer org of the simulated farm to
+ * its party (the ('deere', 'party', <org>, <org>) ref) and put an unrevoked agreement for all
+ * uses on file, so the gate reads those orgs as before. Idempotent. Needs seedSimFarm first.
+ */
+export async function seedSimCustomerAgreements(db: Db, farm: SimFarm): Promise<void> {
+  for (const { orgId, partyId } of simCustomerOrgParties(farm)) {
+    await upsertExternalRef(db, externalRef('deere', 'party', orgId, orgId), partyId);
+    await db
+      .insert(dataRightsAgreements)
+      .values({
+        partyId,
+        signedOn: '2026-01-01',
+        permittedUses: [...PERMITTED_USES],
+        notes: 'test agreement (seedSimCustomerAgreements)',
+        source: 'test',
+        sourceId: `agreement:${orgId}`,
+      })
+      .onConflictDoNothing();
   }
 }

@@ -14,7 +14,7 @@ import { deterministicId } from '../../../domain/ids';
 import { createDeereOpsJob, type DeereOpsConfig } from '../../../jobs/deere-ops';
 import { createSimWorld } from '../../../sim/index';
 import { CURRENT_CROP_YEAR, cropFor } from '../../../sim/seasons';
-import { SIM_CREDENTIALS } from '../../../sim/types';
+import { SIM_CREDENTIALS, SIM_DEERE_HOME_ORG } from '../../../sim/types';
 import { simDeereOnlyField } from '../../../sim/vendors/deere/fields-world';
 import { SIM_OPS_REFUSED_EVERY } from '../../../sim/vendors/deere/ops-world';
 import { simDeereFields } from '../../../sim/vendors/deere/platform';
@@ -24,7 +24,12 @@ import { setupTestDb } from '../../../test/db';
 import { deereEndpoints } from '../../endpoints';
 import { tokenKey } from '../../oauth/crypto';
 import { OAuthTokenStore, userGrantOrg } from '../../oauth/token-store';
-import { listenAppEvents, seedSimFarm, testJobContext } from '../../testkit';
+import {
+  listenAppEvents,
+  seedSimCustomerAgreements,
+  seedSimFarm,
+  testJobContext,
+} from '../../testkit';
 import { exchangeDeereCode } from '../oauth';
 
 const t = setupTestDb(import.meta.url);
@@ -189,6 +194,8 @@ describe('deere.ops (sim)', () => {
 
 describe('deere.ops under a call budget (sandbox mode against the stand-in)', () => {
   test('the per-run cap holds run after run (D23: two seasons) and the fields checked longest ago go first', async () => {
+    // The home org named and an agreement on file for each customer org (slice 2a, the
+    // data-rights gate is enforced in sandbox: contracts-2a §4.4), so every org is read.
     const sandbox: DeereOpsConfig = {
       ...cfg,
       CONNECTOR_DEERE: 'sandbox',
@@ -196,7 +203,9 @@ describe('deere.ops under a call budget (sandbox mode against the stand-in)', ()
       DEERE_CLIENT_ID: SIM_CREDENTIALS.deere.clientId,
       DEERE_CLIENT_SECRET: SIM_CREDENTIALS.deere.clientSecret,
       DEERE_DAILY_CALL_BUDGET: 3000,
+      DEERE_HOME_ORG_ID: SIM_DEERE_HOME_ORG,
     };
+    await seedSimCustomerAgreements(t().adminDb, world.farm);
     // A sandbox grant, minted by the stand-in (whose platform the sandbox base points at).
     const simEp = deereEndpoints('sim', cfg);
     const auth = new URL(`${simEp.authBase}/v1/authorize`);

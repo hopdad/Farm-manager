@@ -3,8 +3,14 @@
  * four lanes with the done-when's pieces, the Halvorsen agreement; idempotent; jobs written once.
  */
 import { describe, expect, test } from 'vitest';
+import { currentCropYear } from '../../src/domain/crops';
 import { demoId } from '../../src/domain/ids';
-import { BUSINESS_LINES, PERMITTED_USES } from '../../src/domain/work-jobs';
+import {
+  autoJobStatus,
+  BUSINESS_LINES,
+  type JobStatus,
+  PERMITTED_USES,
+} from '../../src/domain/work-jobs';
 import { seedDemoPeople } from '../../src/platform/auth/demo';
 import { setupTestDb } from '../../src/test/db';
 import { seedDemo } from './demo';
@@ -93,6 +99,40 @@ describe('seedDemoWork', () => {
       `select name from farm.products where restricted_use and epa_reg_no like 'DEMO-%'`,
     );
     expect(restricted.rowCount).toBe(1);
+
+    // Each customer org links to its party (the gate's loader and customerOrgParty read it):
+    // Halvorsen's own org and Juniper Hill's, which has no farm ref of its own.
+    expect(r.orgLinks).toEqual({ inserted: 2, existing: 0 });
+    const links = await pool.query(
+      `select r.external_id as org, p.display_name from ingest.external_refs r
+         join farm.parties p on p.id = r.entity_id
+        where r.source = 'deere' and r.kind = 'party' and r.source_org = r.external_id
+        order by 1`,
+    );
+    expect(links.rows).toEqual([
+      { org: 'org-customer-1', display_name: 'Halvorsen Bros. Farms' },
+      { org: 'org-customer-2', display_name: 'Juniper Hill Farms LLC' },
+    ]);
+
+    // The demo agrees with the status machine: every job with a field and an assignment that
+    // could be assigned is (autoJobStatus), and crop years follow the field (D23 rule).
+    const jobs = await pool.query<{
+      source_id: string;
+      status: JobStatus;
+      has_field: boolean;
+      n: number;
+      crop_year: number | null;
+    }>(
+      `select j.source_id, j.status, j.field_id is not null as has_field, j.crop_year,
+              (select count(*)::int from farm.job_assignments a where a.job_id = j.id) as n
+         from farm.jobs j where j.source = 'demo'`,
+    );
+    for (const j of jobs.rows) {
+      expect(autoJobStatus(j.status, { hasField: j.has_field, assignmentCount: j.n })).toBe(
+        j.status,
+      );
+      expect(j.crop_year).toBe(j.has_field ? currentCropYear(NOW) : null);
+    }
   });
 
   test('a second run writes nothing, and what the board changed stays', async () => {
@@ -105,6 +145,7 @@ describe('seedDemoWork', () => {
     expect(r.products).toEqual({ inserted: 0, updated: 0, unchanged: DEMO_PRODUCTS.length });
     expect(r.jobs).toEqual({ inserted: 0, existing: 10, skipped: 0 });
     expect(r.agreements).toEqual({ inserted: 0, updated: 0, unchanged: 1 });
+    expect(r.orgLinks).toEqual({ inserted: 0, existing: 2 });
     const kept = await pool.query(
       `select j.status, j.version, p.active from farm.jobs j, farm.products p
         where j.source_id = 'job-haul-s2' and p.source_id = 'product-diesel'`,

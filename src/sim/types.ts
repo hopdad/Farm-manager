@@ -353,6 +353,38 @@ export function simExternalRefs(farm: SimFarm): SimExternalRefRow[] {
   return rows;
 }
 
+/**
+ * The simulated farm's customer Deere orgs and the customer party each belongs to (slice 2a,
+ * docs/contracts-2a.md §4.4): an org other than the home org whose farms, or whose shared
+ * fields' farms, all have one client party. The data-rights gate reads this link as the
+ * ('deere', 'party', <org>, <org>) external ref; the demo seed writes it for these orgs
+ * (tools/seed/work.ts DEMO_CUSTOMER_ORGS), and DB tests that run the Deere loops in sandbox
+ * seed it with an agreement (`seedSimCustomerAgreements`, src/connectors/testkit.ts). Not part of
+ * simExternalRefs (those are the vendor's own ids). Pure.
+ */
+export function simCustomerOrgParties(
+  farm: Pick<SimFarm, 'farms' | 'fields'>,
+): { orgId: string; partyId: string }[] {
+  const unitById = new Map(farm.farms.map((u) => [u.id, u]));
+  const partiesOf = new Map<string, Set<string | null>>();
+  const add = (org: string, party: string | null) => {
+    if (org === SIM_DEERE_HOME_ORG) return;
+    const set = partiesOf.get(org) ?? new Set<string | null>();
+    set.add(party);
+    partiesOf.set(org, set);
+  };
+  for (const u of farm.farms) add(u.deereOrgId, u.clientPartyId);
+  for (const f of farm.fields) {
+    if (f.sharedWith) add(f.sharedWith.deereOrgId, unitById.get(f.farmId)?.clientPartyId ?? null);
+  }
+  const out: { orgId: string; partyId: string }[] = [];
+  for (const [orgId, set] of [...partiesOf].sort(([a], [b]) => a.localeCompare(b))) {
+    const [only] = [...set];
+    if (set.size === 1 && only) out.push({ orgId, partyId: only });
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------------------------
 // The world (farm + scenario behaviour over sim time)
 // ---------------------------------------------------------------------------------------------

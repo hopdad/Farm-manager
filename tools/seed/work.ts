@@ -9,7 +9,11 @@
  *    REQUESTED spray job with no field yet (Juniper Hill phoned it in), to drag onto a field,
  *    then onto SP2 and an operator; SP2 is left free;
  *  - the Halvorsen data-rights agreement, all uses (decision 2a-10); none for Juniper Hill, so
- *    /admin/connectors shows both states.
+ *    /admin/connectors shows both states;
+ *  - the customer orgs' party links the gate resolves (contracts-2a §4.4): ('deere', 'party',
+ *    <org>, <org>) -> the customer party, for Halvorsen's own org (org-customer-1) and Juniper
+ *    Hill's (org-customer-2, which shares its fields with us and has no farm ref of its own).
+ *    Written only when the org has no link yet (a link made on /admin/connectors stays).
  *
  * Every row is source 'demo' with id = demoId(key), so it never travels in data:export and the
  * ids survive db:reset. Idempotent: products and the agreement change only when a seeded column
@@ -21,7 +25,8 @@
  */
 import type pg from 'pg';
 import { exec } from '../../src/db/exec';
-import { currentCropYear } from '../../src/domain/crops';
+import { fieldGrowingYear } from '../../src/db/queries/operations';
+import { cropSeasonsToSync, currentCropYear } from '../../src/domain/crops';
 import { demoId } from '../../src/domain/ids';
 import type {
   BusinessLine,
@@ -38,6 +43,7 @@ import type {
 } from '../../src/domain/work-jobs';
 import { PERMITTED_USES } from '../../src/domain/work-jobs';
 import { demoUserId } from '../../src/platform/auth/demo';
+import { CUSTOMER_ONLY_ORG, SHARED_CUSTOMER_ORG } from '../../src/sim/farm/build';
 import { civilDayNumber, hhmm, localDayTime, localParts } from '../../src/sim/time';
 
 export const WORK_DEMO_SOURCE = 'demo';
@@ -245,7 +251,8 @@ export const DEMO_JOBS: readonly DemoJob[] = [
     key: 'job-tillage-t1',
     kind: 'tillage',
     businessLine: 'grain',
-    status: 'planned',
+    // A field and a machine: assigned (autoJobStatus), though no one is on the tractor yet.
+    status: 'assigned',
     title: 'Fall chisel behind the combine',
     field: { group: 'own', n: 3 },
     customer: null,
@@ -310,10 +317,23 @@ export const DEMO_AGREEMENT = {
   notes: 'Demo agreement (fictional): signed by Mark Halvorsen for all four uses.',
 } as const;
 
+/**
+ * The demo's customer orgs and their parties (contracts-2a §4.4): the ('deere', 'party', org,
+ * org) links the data-rights gate and customerOrgParty resolve. Juniper Hill's org has no farm
+ * ref (its fields are shared from its own org into ours), so without this link the gate could
+ * not tell whose org it is.
+ */
+export const DEMO_CUSTOMER_ORGS = [
+  { org: CUSTOMER_ONLY_ORG, party: 'customer-halvorsen' },
+  { org: SHARED_CUSTOMER_ORG, party: 'customer-juniper-hill' },
+] as const;
+
 export interface WorkSeedReport {
   products: { inserted: number; updated: number; unchanged: number };
   jobs: { inserted: number; existing: number; skipped: number };
   agreements: { inserted: number; updated: number; unchanged: number };
+  /** Customer-org party links written (an org already linked is left alone). */
+  orgLinks: { inserted: number; existing: number };
 }
 
 type Outcome = 'inserted' | 'updated' | 'unchanged';
@@ -361,6 +381,7 @@ export async function seedDemoWork(
     products: { inserted: 0, updated: 0, unchanged: 0 },
     jobs: { inserted: 0, existing: 0, skipped: 0 },
     agreements: { inserted: 0, updated: 0, unchanged: 0 },
+    orgLinks: { inserted: 0, existing: 0 },
   };
   const c = await pool.connect();
   try {
@@ -408,13 +429,17 @@ export async function seedDemoWork(
       juniper: demoId('customer-juniper-hill'),
     };
     const amy = demoUserId('crew-amy');
-    const cropYear = currentCropYear(now);
+    const seasons = cropSeasonsToSync(now);
     for (const [i, j] of DEMO_JOBS.entries()) {
       const fieldId = j.field ? (fields[j.field.group][j.field.n] ?? null) : null;
       if (j.field && !fieldId) {
         report.jobs.skipped++;
         continue;
       }
+      // Decision 2a-6 (contracts-2a §4.6): the field's growing year, else the calendar year.
+      const cropYear = fieldId
+        ? ((await fieldGrowingYear(c, fieldId, seasons)) ?? currentCropYear(now))
+        : null;
       const win = j.window
         ? {
             from: localInstant(now, j.window.day, j.window.from),
@@ -433,7 +458,7 @@ export async function seedDemoWork(
                 (select id from farm.parties where id = $7::uuid), $8::uuid,
                 case when $9::timestamptz is null then null
                      else tstzrange($9::timestamptz, $10::timestamptz, '[)') end,
-                case when $8::uuid is null then null else $11::int end,
+                $11::int,
                 (select acres from farm.current_boundaries where field_id = $8::uuid),
                 $12, $13, $14, $15, $16, $17,
                 (select id from farm.parties where id = $23::uuid),
@@ -535,6 +560,17 @@ export async function seedDemoWork(
         ],
       )
     ]++;
+
+    for (const o of DEMO_CUSTOMER_ORGS) {
+      const r = await exec(
+        c,
+        `insert into ingest.external_refs (source, kind, external_id, source_org, entity_id)
+         select 'deere', 'party', $1, $1, p.id from farm.parties p where p.id = $2::uuid
+         on conflict (source, kind, external_id, source_org) do nothing`,
+        [o.org, demoId(o.party)],
+      );
+      report.orgLinks[r.rowCount ? 'inserted' : 'existing']++;
+    }
     await c.query('commit');
     return report;
   } catch (e) {
@@ -548,6 +584,6 @@ export async function seedDemoWork(
 /** Report lines for the seed's output (two-space indent like formatSeedReport). */
 export function formatWorkReport(r: WorkSeedReport): string[] {
   return [
-    `  job board          ${DEMO_PRODUCTS.length} products (${r.products.inserted} new), ${r.jobs.inserted} jobs new, ${r.jobs.existing} kept${r.jobs.skipped ? `, ${r.jobs.skipped} skipped (no demo field)` : ''}, Halvorsen agreement ${r.agreements.inserted ? 'added' : 'on file'}`,
+    `  job board          ${DEMO_PRODUCTS.length} products (${r.products.inserted} new), ${r.jobs.inserted} jobs new, ${r.jobs.existing} kept${r.jobs.skipped ? `, ${r.jobs.skipped} skipped (no demo field)` : ''}, Halvorsen agreement ${r.agreements.inserted ? 'added' : 'on file'}${r.orgLinks.inserted ? `, ${r.orgLinks.inserted} customer-org links` : ''}`,
   ];
 }
