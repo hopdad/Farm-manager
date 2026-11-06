@@ -96,8 +96,11 @@ export interface FieldDetail {
   soilsSummary: FieldSoilsSummary | null;
   /** Parcels overlapping the current boundary (private data), largest overlap first. */
   parcels: FieldParcelRow[];
-  /** Open jobs arrive in M2 (2a); 1a shows a placeholder. */
-  openJobs: { count: number; placeholder: true };
+  /**
+   * The field's open jobs (OPEN_JOB_STATUSES, src/domain/work-jobs.ts). Slice 2a: jobs-api
+   * fills the count in src/db/queries/fields.ts (0 until then; docs/contracts-2a.md §1.2).
+   */
+  openJobs: { count: number };
   notes: FieldNotes;
   lineage: { parents: LineageRef[]; children: LineageRef[] };
   /** Open "change this in Ops Center" requests (farm.boundary_change_requests). */

@@ -49,7 +49,7 @@ const detail: FieldDetail = {
   soils: [],
   soilsSummary: null,
   parcels: [],
-  openJobs: { count: 0, placeholder: true },
+  openJobs: { count: 0 },
   notes: { text: null, updatedAt: null, updatedByName: null, version: '2026-10-29T00:00:00.000Z' },
   lineage: { parents: [], children: [] },
   openBoundaryRequests: 0,

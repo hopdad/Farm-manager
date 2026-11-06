@@ -205,8 +205,8 @@ export function toFieldDetail(raw: RawFieldDetail): FieldDetail {
       ? { ...raw.boundary, editable: policy.editable, readOnlyReason: policy.reason }
       : null,
     soilsSummary: raw.soils.length > 0 ? summarizeFieldSoils(raw.soils) : null,
-    // Open jobs arrive with the job board (M2, 2a).
-    openJobs: { count: 0, placeholder: true },
+    // The job board fills the count (slice 2a: jobs-api, docs/contracts-2a.md §1.2).
+    openJobs: { count: 0 },
   };
 }
 

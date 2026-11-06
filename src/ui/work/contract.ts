@@ -35,11 +35,12 @@
  * (JobsUpdatedPayload) on commit (decision 2a-8, contracts-2a §6).
  */
 import { z } from 'zod';
-import { APP_ROLES } from '../../domain/farm';
+import { APP_ROLES, PARTY_KINDS } from '../../domain/farm';
 import { MACHINE_KINDS, MACHINE_STATUSES } from '../../domain/fleet';
 import {
   ASSIGNMENT_ROLES,
   BUSINESS_LINES,
+  JOB_FLAGS,
   JOB_KINDS,
   JOB_PLANNED_UNITS,
   JOB_STATUSES,
@@ -225,7 +226,11 @@ export type AssignJobBody = z.infer<typeof assignJobBodySchema>;
 export const ASSIGNMENT_PARTS = ['machine', 'person'] as const;
 export type AssignmentPart = (typeof ASSIGNMENT_PARTS)[number];
 
-/** POST /api/v1/jobs/<id>/status: the move is checked by checkJobTransition (decision 2a-3). */
+/**
+ * POST /api/v1/jobs/<id>/status: the move is checked by checkJobTransition (decision 2a-3).
+ * `cancelled` is refused here (422 'not_allowed': use …/cancel, which takes the reason);
+ * planned -> assigned is the automatic move only (422 'not_allowed').
+ */
 export const setJobStatusBodySchema = z.strictObject({ version, status: z.enum(JOB_STATUSES) });
 export type SetJobStatusBody = z.infer<typeof setJobStatusBodySchema>;
 
@@ -237,9 +242,13 @@ export const cancelJobBodySchema = z.strictObject({
 export type CancelJobBody = z.infer<typeof cancelJobBodySchema>;
 
 /**
- * POST /api/v1/jobs/reorder: the lane's cards in their new order (each with the version the
- * client saw); sort_key follows the list. Every listed job must be in that lane; one stale
- * version answers 409 with that job and changes nothing.
+ * POST /api/v1/jobs/reorder (the job detail's Move up / Move down, decision 2a-1): EVERY open job
+ * of the lane in its new order, each with the version the client saw. sort_key follows the list
+ * ((position + 1) × 10; a job whose sort_key changes gets version + 1); priority never changes
+ * here, and a lane lists by priority, then sort_key, so a move only shows within its priority
+ * (contracts-2a §5.2). One stale version answers 409 with that job; an open job of the lane
+ * missing from the list answers 409 with it (it is new or moved there); a listed job that is
+ * not open in that lane answers 422 'not_in_lane'. Nothing changes on a refusal.
  */
 export const reorderJobsBodySchema = z.strictObject({
   businessLine: z.enum(BUSINESS_LINES),
@@ -250,7 +259,10 @@ export const reorderJobsBodySchema = z.strictObject({
 });
 export type ReorderJobsBody = z.infer<typeof reorderJobsBodySchema>;
 
-/** POST /api/v1/usage: the board's heartbeat every USAGE_HEARTBEAT_MS while visible. */
+/**
+ * POST /api/v1/usage: the board's heartbeat every USAGE_HEARTBEAT_MS while visible. Recorded only
+ * for a session with a person (appUserId); a device-only session answers `recorded: false`.
+ */
 export const usageHeartbeatBodySchema = z.strictObject({ route: z.enum(['/board', '/m']) });
 export type UsageHeartbeatBody = z.infer<typeof usageHeartbeatBodySchema>;
 
@@ -305,18 +317,11 @@ export const jobProductViewSchema = z.object({
 export type JobProductView = z.infer<typeof jobProductViewSchema>;
 
 /**
- * What a card flags: no field yet; a machine on it is down; a machine or person is also on an
- * overlapping job; planned acres differ from the boundary's by more than ACRES_DIFFER_FRACTION;
- * a restricted-use product is on it.
+ * What a card flags (JOB_FLAGS, src/domain/work-jobs.ts, re-exported here): no field yet; a
+ * machine on it is down; a machine or person is also on an overlapping open job; planned acres
+ * differ from the boundary's by more than ACRES_DIFFER_FRACTION; a restricted-use product.
  */
-export const JOB_FLAGS = [
-  'no_field',
-  'machine_down',
-  'double_booked',
-  'acres_differ',
-  'restricted_use',
-] as const;
-export type JobFlag = (typeof JOB_FLAGS)[number];
+export { JOB_FLAGS, type JobFlag } from '../../domain/work-jobs';
 
 export const jobViewSchema = z.object({
   id: z.uuid(),
@@ -405,6 +410,7 @@ export const JOB_RULE_REASONS = [
   'same',
   'machine_retired',
   'closed',
+  'not_in_lane',
 ] as const;
 export const jobRuleErrorSchema = z.object({
   error: z.string(),
@@ -443,7 +449,18 @@ export const jobOptionsResponseSchema = z.object({
       active: z.boolean(),
     }),
   ),
-  customers: z.array(z.object({ id: z.uuid(), name: z.string() })),
+  /**
+   * Parties with role customer of either kind: orgs first, then persons (by name). `orgName`:
+   * a person's org (`farm.parties.org_id`), as a hint ("Gail Pressler · Juniper Hill").
+   */
+  customers: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string(),
+      kind: z.enum(PARTY_KINDS),
+      orgName: z.string().nullable(),
+    }),
+  ),
   fields: z.array(
     z.object({
       id: z.uuid(),

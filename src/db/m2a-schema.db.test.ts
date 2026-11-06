@@ -179,6 +179,14 @@ describe('farm.job_assignments', () => {
     const left = await t().db.select().from(jobAssignments).where(eq(jobAssignments.jobId, id));
     expect(left).toEqual([]);
   });
+
+  test('job_id has a plain index (the snapshot and the cascade cannot use the partial ones)', async () => {
+    const r = await t().pool.query<{ indexdef: string }>(
+      `select indexdef from pg_indexes
+        where schemaname = 'farm' and indexname = 'job_assignments_job_id_idx'`,
+    );
+    expect(r.rows[0]?.indexdef).toMatch(/btree \(job_id\)$/);
+  });
 });
 
 describe('farm.products and farm.job_products', () => {

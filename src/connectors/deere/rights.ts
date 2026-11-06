@@ -40,8 +40,11 @@ export const NO_AGREEMENT_DETAIL =
 /**
  * May this run read `orgId`'s data? The home org always (deereHomeOrg over this run's
  * `listing`, GET /organizations); another org in sandbox and live only when it is in
- * `rights.agreedOrgIds`; in sim and replay always. No rights (null or undefined: tests, tools)
- * = allowed. STUB (rights-usage): always true.
+ * `rights.agreedOrgIds`; in sim and replay always. With the home org unknown in sandbox or live
+ * (DEERE_HOME_ORG_ID unset, not exactly one member org) it FAILS CLOSED: every org without an
+ * agreement is refused, the farm's own included (logged; /admin/connectors asks for
+ * DEERE_HOME_ORG_ID). No rights (null or undefined: tests, tools) = allowed. STUB
+ * (rights-usage): always true.
  */
 export function orgReadAllowed(
   _orgId: string,

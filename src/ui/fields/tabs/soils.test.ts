@@ -80,7 +80,7 @@ function detail(soils: FieldSoilRow[] = ROWS): FieldDetail {
     soils,
     soilsSummary: soils.length ? summarizeFieldSoils(soils) : null,
     parcels: [],
-    openJobs: { count: 0, placeholder: true },
+    openJobs: { count: 0 },
     notes: { text: null, updatedAt: null, updatedByName: null, version: '2026-10-29T00:00:00Z' },
     lineage: { parents: [], children: [] },
     openBoundaryRequests: 0,

@@ -6,7 +6,8 @@
  *   /board and /m pages      page_view       (src/app/board/page.tsx, src/app/m/page.tsx)
  *   operator PIN sign-in     pin_sign_in     (signInOperator, src/platform/auth/flows.ts)
  *   each job write           job_action      (jobs-api's handlers, the route as `route`)
- *   the board's heartbeat    board_heartbeat (POST /api/v1/usage, every 5 minutes)
+ *   the board's heartbeat    board_heartbeat (POST /api/v1/usage, every 4 minutes; recorded
+ *                                            only when the session has a person)
  *   morning mode             morning_run     (2b)
  *
  * The row: farm_day = farmDate(at), actor_key = usageActorKey(deviceId, appUserId), bucket_at =

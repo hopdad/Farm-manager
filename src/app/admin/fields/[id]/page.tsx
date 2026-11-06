@@ -114,7 +114,7 @@ export default async function FieldAdminPage({ params }: { params: Promise<{ id:
     soils: [],
     soilsSummary: null,
     parcels: [],
-    openJobs: { count: 0, placeholder: true },
+    openJobs: { count: 0 },
     notes: { text: null, updatedAt: null, updatedByName: null, version: field.version },
     lineage: {
       parents: (history?.ancestors ?? [])

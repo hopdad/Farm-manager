@@ -12,6 +12,7 @@ import {
   CLOSED_JOB_STATUSES,
   DEFAULT_BUSINESS_LINE,
   isOpenJobStatus,
+  JOB_FLAGS,
   JOB_KIND_LABELS,
   JOB_KINDS,
   JOB_PLANNED_UNIT_LABELS,
@@ -34,6 +35,7 @@ import {
   SUPPLIED_BY,
   SUPPLIED_BY_LABELS,
   USAGE_BUCKET_MINUTES,
+  USAGE_HEARTBEAT_MS,
   USAGE_KIND_LABELS,
   USAGE_KINDS,
   usageActorKey,
@@ -75,6 +77,7 @@ describe('2a vocabularies', () => {
 
   test('every value fits the SQL CHECK format (lower-case words)', () => {
     for (const list of [
+      JOB_FLAGS,
       JOB_KINDS,
       BUSINESS_LINES,
       JOB_STATUSES,
@@ -115,5 +118,19 @@ describe('usage event keys', () => {
       '2026-11-06T14:05:00.000Z',
     );
     expect(usageBucketStart(at).getTime()).toBeLessThanOrEqual(at.getTime());
+  });
+
+  test('the heartbeat is shorter than a bucket, so timer drift never skips one', () => {
+    expect(USAGE_HEARTBEAT_MS).toBeLessThan(USAGE_BUCKET_MINUTES * 60_000);
+    // Drifting late by up to a minute each beat, every 5-minute bucket still gets one.
+    let at = Date.parse('2026-11-06T14:00:30Z');
+    const buckets = new Set<number>();
+    for (let i = 0; i < 300; i++) {
+      buckets.add(usageBucketStart(new Date(at)).getTime());
+      at += USAGE_HEARTBEAT_MS + 59_000;
+    }
+    const first = Math.min(...buckets);
+    const last = Math.max(...buckets);
+    expect(buckets.size).toBe((last - first) / (USAGE_BUCKET_MINUTES * 60_000) + 1);
   });
 });

@@ -329,7 +329,7 @@ describe('fieldDetail', () => {
       forecastCheckedAt: null,
       assessedAt: '2026-10-29T13:30:00.000Z',
     });
-    expect(d.openJobs).toEqual({ count: 0, placeholder: true });
+    expect(d.openJobs).toEqual({ count: 0 });
     expect(d.notes).toMatchObject({ text: null, updatedAt: null, updatedByName: null });
     expect(d.notes.version).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/);
 

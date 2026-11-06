@@ -94,7 +94,7 @@ export function makeFieldDetail(overrides: Overrides = {}): FieldDetail {
     soils: [],
     soilsSummary: null,
     parcels: [],
-    openJobs: { count: 0, placeholder: true },
+    openJobs: { count: 0 },
     notes: {
       text: 'Wet hole in the NW corner after big rains.\nGate code 1234.',
       updatedAt: '2026-10-29T13:55:00.000Z',

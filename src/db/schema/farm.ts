@@ -1238,6 +1238,7 @@ export const jobAssignments = farm.table(
     uniqueIndex('job_assignments_job_id_machine_id_key')
       .on(t.jobId, t.machineId)
       .where(sql`${t.machineId} is not null`),
+    index('job_assignments_job_id_idx').on(t.jobId),
     index('job_assignments_party_id_idx').on(t.partyId),
     index('job_assignments_machine_id_idx').on(t.machineId),
     check('job_assignments_who_check', sql`${t.partyId} is not null or ${t.machineId} is not null`),

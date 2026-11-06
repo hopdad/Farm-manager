@@ -10,11 +10,15 @@
  * and JOBS_SECRET are the scheduled-job runner (contracts-2a §4.1).
  *
  * Ownership (contracts-2a §1): the CONSTS, TYPES and LABELS here are the foundation's and frozen
- * (additive changes only, through a contract change). The FUNCTIONS at the end (the status
- * machine, the automatic moves, summaries, conflict flags) are stubs with fixed signatures that
- * the jobs-api builder fills in, in this file, keeping the signatures.
+ * (additive changes only, through a contract change). The FUNCTIONS at the end have fixed
+ * signatures: the status machine and the automatic moves are implemented (the foundation, so
+ * the board can draw its status buttons before the merge; jobs-api owns the bodies from here:
+ * the exhaustive tests and any correction), the summary and the conflict flags are stubs that
+ * jobs-api fills in. jobs-api may add new pure functions below the "SIGNATURES FROZEN" line.
  */
+import { ROLE_FOR, roleAtLeast } from '../platform/auth/types';
 import type { AppRole } from './farm';
+import type { OperationKind } from './operations';
 
 // ---------------------------------------------------------------------------------------------
 // Jobs
@@ -85,8 +89,10 @@ export const JOB_PLANNED_UNITS = ['loads', 'bu', 'hours', 'tons', 'gal'] as cons
 export type JobPlannedUnit = (typeof JOB_PLANNED_UNITS)[number];
 
 /**
- * farm.jobs.priority: 1 = urgent … 4 = low; lanes order by priority ascending, then the window
- * start, then sort_key (decision 2a-1). New jobs get JOB_DEFAULT_PRIORITY.
+ * farm.jobs.priority: 1 = urgent … 4 = low. A lane lists its open jobs by priority ascending,
+ * then sort_key (a manager's order within a priority, POST /api/v1/jobs/reorder), then
+ * created_at; the window shows on the card but doesn't order it (decision 2a-1). New jobs get
+ * JOB_DEFAULT_PRIORITY.
  */
 export const JOB_PRIORITIES = [1, 2, 3, 4] as const;
 export type JobPriority = (typeof JOB_PRIORITIES)[number];
@@ -178,8 +184,13 @@ export type UsageKind = (typeof USAGE_KINDS)[number];
 
 /** At most one usage row per device + person + kind + route per this many minutes. */
 export const USAGE_BUCKET_MINUTES = 5;
-/** The board posts a heartbeat this often while it has a session and is visible. */
-export const USAGE_HEARTBEAT_MS = USAGE_BUCKET_MINUTES * 60_000;
+/**
+ * The board posts a heartbeat this often while it is visible (4 minutes: below the bucket, so
+ * timer drift never skips a bucket; board time = the buckets with at least one heartbeat × 5
+ * minutes). The server records it only for a session with a person (appUserId set): an
+ * unattended wall logs no board time (contracts-2a §7.7).
+ */
+export const USAGE_HEARTBEAT_MS = 4 * 60_000;
 /** Usage rows are kept this long (the gate report must cover the whole of planting). */
 export const USAGE_RETENTION_DAYS = 400;
 /** Farm days the /admin/usage report lists. */
@@ -241,6 +252,21 @@ export const JOBS_TRIGGER_MAX_PAYLOAD_BYTES = 7_000;
  */
 export const ACRES_DIFFER_FRACTION = 0.01;
 
+/**
+ * What a card flags (JobView.flags, in this order): no field yet; a machine on it is down; a
+ * machine or person on it is also on another open job whose window overlaps (contracts-2a §4.5);
+ * planned acres differ from the boundary's by more than ACRES_DIFFER_FRACTION; a restricted-use
+ * product is on it. src/ui/work/contract.ts re-exports these.
+ */
+export const JOB_FLAGS = [
+  'no_field',
+  'machine_down',
+  'double_booked',
+  'acres_differ',
+  'restricted_use',
+] as const;
+export type JobFlag = (typeof JOB_FLAGS)[number];
+
 // ---------------------------------------------------------------------------------------------
 // Labels (one place; the board, the forms, the field tab and /admin use them)
 // ---------------------------------------------------------------------------------------------
@@ -277,6 +303,25 @@ export const DEFAULT_BUSINESS_LINE: Record<JobKind, BusinessLine> = {
   tile: 'grain',
   repair: 'grain',
   other: 'grain',
+};
+
+/**
+ * The Deere operation kind a job of each kind matches (src/domain/operations.ts OPERATION_KINDS):
+ * 2b matches farm.operations to jobs on field + window + this kind and pushes Work Plans only for
+ * jobs that have one; null = never a Work Plan or an operation (a haul, a repair, a scout). The
+ * board shows the machine chip's "Deere" badge on a card only when this is set (decision 2a-13).
+ */
+export const JOB_OPERATION_KIND: Record<JobKind, OperationKind | null> = {
+  plant: 'seeding',
+  spray: 'application',
+  harvest: 'harvest',
+  haul: null,
+  tillage: 'tillage',
+  fertilize: 'application',
+  scout: null,
+  tile: null,
+  repair: null,
+  other: null,
 };
 
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
@@ -398,40 +443,106 @@ export type JobTransitionCheck =
       message: string;
     };
 
+/** A move of the status machine and the `via` that may make it (decision 2a-3). */
+interface JobMove {
+  from: JobStatus;
+  to: JobStatus;
+  via: NonNullable<JobActor['via']>;
+}
+
+/**
+ * Every move a status change may make (contracts-2a §4.3). planned -> assigned and
+ * assigned -> planned are NOT here: they happen only through autoJobStatus when a write sets the
+ * field or the assignments. Nothing goes back to `requested`.
+ */
+const JOB_MOVES: readonly JobMove[] = [
+  { from: 'requested', to: 'planned', via: 'person' },
+  { from: 'assigned', to: 'pushed', via: 'work_plan' },
+  { from: 'assigned', to: 'in_progress', via: 'person' },
+  { from: 'pushed', to: 'in_progress', via: 'person' },
+  { from: 'in_progress', to: 'done', via: 'person' },
+  { from: 'done', to: 'in_progress', via: 'person' },
+  { from: 'done', to: 'invoiced', via: 'billing' },
+  ...OPEN_JOB_STATUSES.map((from) => ({ from, to: 'cancelled' as const, via: 'person' as const })),
+];
+
+/** The moves a driver or operator may make on their own job (decision 2a-2). */
+const OWN_JOB_MOVES: readonly { from: JobStatus; to: JobStatus }[] = [
+  { from: 'assigned', to: 'in_progress' },
+  { from: 'pushed', to: 'in_progress' },
+  { from: 'in_progress', to: 'done' },
+];
+
+const VIA_ONLY: Record<'work_plan' | 'billing', string> = {
+  work_plan: 'only the Work Plan push (2b) sends a job to the cab',
+  billing: 'only billing (M3) marks a job invoiced',
+};
+
 /**
  * May `who` move a job from `from` to `to` (decision 2a-3 for the moves, 2a-2 for the roles)?
- * Managers: any move the machine allows (cancel with an optional reason; done -> in_progress
- * for mistakes; requested -> planned is "accept"). Drivers and operators, on their own jobs only:
- * assigned/pushed -> in_progress and in_progress -> done. `pushed` only via 'work_plan',
- * `invoiced` only via 'billing'. Viewers: nothing. jobs-api implements it (unit-tested over every
- * pair); the stub refuses everything.
+ * In this order: the same status is 'same'; a move the machine doesn't have for `who.via`
+ * (default 'person') is 'not_allowed', for every role (assigned -> pushed only via 'work_plan',
+ * done -> invoiced only via 'billing'; planned -> assigned only by the automatic move); then the
+ * role: `planJobs` (manager and up) may make any of them (cancel from any open status;
+ * done -> in_progress for mistakes; requested -> planned is "accept"); below that,
+ * `updateOwnJobStatus` (driver, operator) only on their OWN job (`ownJob`: their party is on one
+ * of its assignments; a session with no person has no own job) and only assigned/pushed ->
+ * in_progress and in_progress -> done; viewers nothing. A refusal by role is 'forbidden' (the
+ * route answers 403), 'not_allowed' and 'same' answer 422. The /status route refuses
+ * `cancelled` itself ('not_allowed': use /cancel), so the reason travels with the cancel.
  */
 export function checkJobTransition(
-  _from: JobStatus,
-  _to: JobStatus,
-  _who: JobActor,
+  from: JobStatus,
+  to: JobStatus,
+  who: JobActor,
 ): JobTransitionCheck {
-  return { ok: false, reason: 'not_allowed', message: 'the job status machine is not built yet' };
+  if (from === to) {
+    return { ok: false, reason: 'same', message: `the job is already ${JOB_STATUS_LABELS[to]}` };
+  }
+  const via = who.via ?? 'person';
+  const moves = JOB_MOVES.filter((m) => m.from === from && m.to === to);
+  if (!moves.some((m) => m.via === via)) {
+    const only = moves.find((m) => m.via !== 'person')?.via;
+    const message =
+      only === 'work_plan' || only === 'billing'
+        ? VIA_ONLY[only]
+        : from === 'planned' && to === 'assigned'
+          ? 'a job becomes Assigned by itself once it has a field and a machine or person'
+          : `a job can't go from ${JOB_STATUS_LABELS[from]} to ${JOB_STATUS_LABELS[to]}`;
+    return { ok: false, reason: 'not_allowed', message };
+  }
+  if (roleAtLeast(who.role, ROLE_FOR.planJobs)) return { ok: true };
+  const ownMove = via === 'person' && OWN_JOB_MOVES.some((m) => m.from === from && m.to === to);
+  if (ownMove && roleAtLeast(who.role, ROLE_FOR.updateOwnJobStatus)) {
+    return who.ownJob
+      ? { ok: true }
+      : { ok: false, reason: 'forbidden', message: 'only the people on this job can change it' };
+  }
+  return { ok: false, reason: 'forbidden', message: 'only a manager can make this change' };
 }
 
 /**
  * The statuses `who` may move a job in `from` to, in JOB_STATUSES order (the job detail's status
- * buttons). jobs-api implements it from checkJobTransition; the stub returns none.
+ * buttons; `cancelled`, when present, is the Cancel button, which posts to …/cancel).
  */
-export function nextJobStatuses(_from: JobStatus, _who: JobActor): JobStatus[] {
-  return [];
+export function nextJobStatuses(from: JobStatus, who: JobActor): JobStatus[] {
+  return JOB_STATUSES.filter((to) => checkJobTransition(from, to, who).ok);
 }
 
 /**
- * The automatic move after a write (decision 2a-3): a requested or planned job that has a field
- * and at least one assignment becomes `assigned`; an assigned job with no assignment left goes
- * back to `planned`; anything else keeps its status. jobs-api implements it; the stub keeps the
- * status.
+ * The automatic move after a write that changes the field or the assignments (decision 2a-3):
+ * a requested or planned job that has a field and at least one assignment becomes `assigned`;
+ * an assigned job with no assignment left goes back to `planned`; anything else keeps its status
+ * (an assigned job whose field is cleared stays assigned, flagged `no_field`).
  */
 export function autoJobStatus(
   status: JobStatus,
-  _job: { hasField: boolean; assignmentCount: number },
+  job: { hasField: boolean; assignmentCount: number },
 ): JobStatus {
+  if ((status === 'requested' || status === 'planned') && job.hasField && job.assignmentCount > 0) {
+    return 'assigned';
+  }
+  if (status === 'assigned' && job.assignmentCount === 0) return 'planned';
   return status;
 }
 
@@ -448,4 +559,30 @@ export function jobSummary(job: {
   plannedUnit: JobPlannedUnit | null;
 }): string {
   return job.title ?? JOB_KIND_LABELS[job.kind];
+}
+
+/** What jobFlags needs about one job (jobs-api's queries gather it). */
+export interface JobFlagInput {
+  hasField: boolean;
+  plannedAcres: number | null;
+  /** The field's current boundary acres (null: no field or no boundary). */
+  boundaryAcres: number | null;
+  /** How many machines on the job are down. */
+  machinesDown: number;
+  /**
+   * How many of its assignments share a machine or person with another open job whose window
+   * overlaps (contracts-2a §4.5: coalesce(planned_for, the job's window); null never overlaps).
+   */
+  overlaps: number;
+  /** A restricted-use product is on it. */
+  restrictedUse: boolean;
+}
+
+/**
+ * The card's flags, in JOB_FLAGS order (acres_differ when both acres are known and differ by
+ * more than ACRES_DIFFER_FRACTION of the boundary's). jobs-api implements it; the stub flags
+ * nothing.
+ */
+export function jobFlags(_job: JobFlagInput): JobFlag[] {
+  return [];
 }

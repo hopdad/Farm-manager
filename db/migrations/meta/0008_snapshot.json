@@ -2030,6 +2030,21 @@
           "method": "btree",
           "with": {}
         },
+        "job_assignments_job_id_idx": {
+          "name": "job_assignments_job_id_idx",
+          "columns": [
+            {
+              "expression": "job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "job_assignments_party_id_idx": {
           "name": "job_assignments_party_id_idx",
           "columns": [

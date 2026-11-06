@@ -53,7 +53,7 @@ describe('GET /api/fields/<id>', () => {
       const body = (await res.json()) as FieldDetail;
       expect(body.field.id).toBe(fieldId);
       expect(body.field.acres).toBeCloseTo(160, 0);
-      expect(body.openJobs).toEqual({ count: 0, placeholder: true });
+      expect(body.openJobs).toEqual({ count: 0 });
     }
   });
 

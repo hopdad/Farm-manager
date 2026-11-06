@@ -47,7 +47,7 @@ describe('toFieldDetail', () => {
   test('no boundary stays null; open jobs are the M2 placeholder', () => {
     const d = toFieldDetail(raw({ boundary: null }));
     expect(d.boundary).toBeNull();
-    expect(d.openJobs).toEqual({ count: 0, placeholder: true });
+    expect(d.openJobs).toEqual({ count: 0 });
   });
 
   test('the soils summary is computed when there are soils, else null', () => {

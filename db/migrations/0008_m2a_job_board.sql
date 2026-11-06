@@ -186,6 +186,11 @@ create unique index if not exists job_assignments_job_id_party_id_key
 create unique index if not exists job_assignments_job_id_machine_id_key
   on farm.job_assignments using btree (job_id, machine_id) where machine_id is not null;
 --> statement-breakpoint
+-- The board snapshot's `where job_id = any($1)` and the cascade from farm.jobs can't use the
+-- partial unique indexes above (their predicates aren't implied), so job_id gets its own.
+create index if not exists job_assignments_job_id_idx
+  on farm.job_assignments using btree (job_id);
+--> statement-breakpoint
 create index if not exists job_assignments_party_id_idx
   on farm.job_assignments using btree (party_id);
 --> statement-breakpoint
