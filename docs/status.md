@@ -65,6 +65,14 @@ is `docs/contracts-2a.md`; its decisions are rows 2a-1 … 2a-13 in `docs/decisi
   Halvorsen field and a phoned-in request with no field yet, for the done-when; SP2 left free),
   the Halvorsen data-rights agreement. After pulling: `pnpm db:migrate` and `pnpm db:seed demo`.
 - **MD note:** the `realtime.messages` RLS policies must cover the new `jobs` topic.
+- **After two contract reviews (Nov 6):** the publish triggers are one per event per table
+  (Postgres refuses transition tables on a multi-event trigger), with a lock order for job
+  writers; a lane follows priority, then the order a manager sets (Move up / Move down); the
+  status machine is implemented in the foundation; the gate fails closed while the home Deere
+  org is unknown, and the demo links both customer orgs to their parties; the heartbeat posts
+  every 4 minutes and counts only with a person signed in; `0008` gained a `job_id` index on
+  `farm.job_assignments`; the e2e helpers are band-proof (`revealInFreeMap`) and prune e2e board
+  rows. `docs/contracts-2a.md` and decisions 2a-1, 2a-3, 2a-4, 2a-10, 2a-11 and 2a-13 say how.
 
 ## Nov 3, 2026: nightly CI red from Nov 2, and a date sweep
 

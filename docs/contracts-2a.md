@@ -39,10 +39,10 @@ here).
 
 | Key | Builds (brief, plan §6 2a) | Owns (may create and edit) | Next / stand-in | Dev database |
 |---|---|---|---|---|
-| **jobs-api** | The server core. The status machine, the automatic moves, summaries and conflict flags (the stub **function bodies** at the end of `src/domain/work-jobs.ts`, §4.3); the job queries; every `/api/v1/jobs/**` route (board snapshot with lanes, one job, create, patch with version, set the field by id or by the drop point, assign / unassign, status, cancel, reorder; §5) and `GET /api/v1/crew`; the **publish triggers** (§6) in `db/pending/jobs-api.sql` with their DB tests; a `job_action` usage event per job write through the usage writer (§7.7); the field detail's real open-jobs count; `deleteParty`'s new links. DB, unit and handler tests | the function bodies at the end of `src/domain/work-jobs.ts` (below the line "SIGNATURES FROZEN"; never the consts, types or labels above it), `src/domain/work-jobs.test.ts`, `src/db/queries/work-jobs*.ts`, `src/db/queries/crew*.ts`, `src/app/api/v1/jobs/**`, `src/app/api/v1/crew/**`, `db/pending/jobs-api.sql`; **plus (assigned, §1.2)** the open-jobs lines in `src/domain/fields.ts`, `src/db/queries/fields.ts`, `src/ui/fields/view-model.ts`, `src/ui/fields/fixtures.ts`, `src/app/admin/fields/[id]/page.tsx`, the `jobs` subscription in `src/ui/fields/detail-loader.ts`, the link list of `deleteParty` in `src/db/queries/parties.ts`, and the tests of §1.3 | 3121 / 4031 | `farm_dev_jobs_api` |
+| **jobs-api** | The server core. The summaries and conflict flags (the stubs `jobSummary` and `jobFlags` at the end of `src/domain/work-jobs.ts`, §4.3), and from here the status machine and the automatic moves (the foundation implemented them, so the board can draw its status buttons before the merge; jobs-api owns their bodies, the exhaustive tests in `src/domain/work-jobs.test.ts` and any correction); the job queries; every `/api/v1/jobs/**` route (board snapshot with lanes, one job, create, patch with version, set the field by id or by the drop point, assign / unassign, status, cancel, reorder; §5) and `GET /api/v1/crew`; the **publish triggers** (§6) in `db/pending/jobs-api.sql` with their DB tests; a `job_action` usage event per job write through the usage writer (§7.7); the field detail's real open-jobs count; `deleteParty`'s new links. DB, unit and handler tests | the function bodies at the end of `src/domain/work-jobs.ts` (below the line "SIGNATURES FROZEN"; never the consts, types or labels above it, never a signature; new pure functions may be added below the line), `src/domain/work-jobs.test.ts` (the foundation's start), `src/db/queries/work-jobs*.ts`, `src/db/queries/crew*.ts`, `src/app/api/v1/jobs/**`, `src/app/api/v1/crew/**`, `db/pending/jobs-api.sql`; **plus (assigned, §1.2)** the open-jobs count in `src/db/queries/fields.ts`, the open-jobs line of `src/ui/fields/view-model.ts`, the `jobs` subscription in `src/ui/fields/detail-loader.ts`, the link list of `deleteParty` in `src/db/queries/parties.ts`, and the tests of §1.3 | 3121 / 4031 | `farm_dev_jobs_api` |
 | **board** | The drag UI. The wall's jobs band (lanes, cards, "New job", the chips tray, collapse) and the phone's Jobs pill and sheet (§7.1); the job detail (wall popover, phone sheet view) with edit (rendering job-forms' `JobForm`), the status buttons (decision 2a-2) and cancel; the drag mechanics (dnd-kit, the map drop, the hover highlight, §4.5, §7.2); the realtime feed (snapshot, subscribe `jobs`, refetch on `updated` / `onResync`, poll every 15 s while disconnected, the pattern of `src/ui/fields/detail-loader.ts`); the done-when spec and e2e for the wall and phone layouts. Builds against the API contract with route mocks (`page.route`) until the merge; the integrator runs it against the real API | `src/ui/work/board/**` (the foundation's stubs `WorkBoard.tsx`, `WorkBoardProvider.tsx`, `store.ts` and `work-board.module.css` included: replace them, keep their exports and props), `e2e/m2a-board*.spec.ts` | 3122 / 4032 | `farm_dev_board` |
-| **job-forms** | The new and edit job form (kind, business line, customer, field, window, crop year, planned qty / unit / acres, products with rate / unit / supplied-by, notes, request channel and requester); `GET /api/v1/job-options`; the field panel's **Jobs** tab (the field's open jobs with status, "New job here" for managers); `/admin/products` (list, add, edit, retire); the stretch request links (the `/admin/parties/<id>` section, the public `/r/<token>` form, decision 2a-9) | `src/ui/work/forms/**` (the stub `JobForm.tsx` included), `src/ui/fields/tabs/jobs*.tsx` (the stub included) and their tests, `src/app/api/v1/job-options/**`, `src/db/queries/{products,job-options,request-links}*.ts`, `src/app/admin/products/**` (the stub page included), `src/app/admin/parties/[id]/_request-links/**` (the stub section included), `src/app/r/**`, `e2e/m2a-forms*.spec.ts`, `e2e/m2a-request*.spec.ts` | 3123 / 4033 | `farm_dev_job_forms` |
-| **rights-usage** | Data-rights agreements (D17, decision 2a-10): the queries, the `/admin/parties/<id>` agreements section with the document upload through the existing two-step storage grant, the `/admin/connectors` org rows (agreement status, "link to customer"), the shared gate predicate and its loader (already called in the four Deere per-org loops, §4.4), and the prospecting policy `mayUseCustomerData`. Usage events (decision 2a-11): the writer (already called from the pages and the PIN sign-in, §7.7), `POST /api/v1/usage` with the board's heartbeat component, the `/admin/usage` report and the `usage.prune` retention job | `src/connectors/deere/rights*.ts` (the stub included), `src/domain/data-rights*.ts`, `src/db/queries/{agreements,usage}*.ts`, `src/platform/usage/**` (the stub included), `src/ui/usage/**` (the stub included), `src/app/api/v1/usage/**`, `src/app/admin/usage/**` (the stub page included), `src/app/admin/parties/[id]/_agreements/**` (the stub section included), `src/jobs/usage-prune*.ts` (the stub included); **plus (assigned, §1.2)** the `deere-orgs` table of `src/app/admin/connectors/health-cards.tsx` and new files under `src/app/admin/connectors/` (`org-rights*.ts(x)` and its actions), `e2e/m2a-rights*.spec.ts`, `e2e/m2a-usage*.spec.ts` | 3124 / 4034 | `farm_dev_rights_usage` |
+| **job-forms** | The new and edit job form (kind, business line, customer, field, window, crop year, planned qty / unit / acres, products with rate / unit / supplied-by, notes, request channel and requester); `GET /api/v1/job-options`; the field panel's **Jobs** tab (the field's open jobs with status, "New job here" for managers); `/admin/products` (list, add, edit, retire); the stretch request links (the `/admin/parties/<id>` section, the public `/r/<token>` form, decision 2a-9) | `src/ui/work/forms/**` (the stub `JobForm.tsx` included), `src/ui/fields/tabs/jobs*` and `src/ui/fields/tabs/jobs/**` (the stub `jobs.tsx` included; tests and CSS modules too), `src/app/api/v1/job-options/**`, `src/db/queries/{products,job-options,request-links}*.ts`, `src/app/admin/products/**` (the stub page included), `src/app/admin/parties/[id]/_request-links/**` (the stub section included), `src/app/r/**`, `e2e/m2a-forms*.spec.ts`, `e2e/m2a-request*.spec.ts` | 3123 / 4033 | `farm_dev_job_forms` |
+| **rights-usage** | Data-rights agreements (D17, decision 2a-10): the queries, the `/admin/parties/<id>` agreements section with the document upload through the existing two-step storage grant, the `/admin/connectors` org rows (agreement status, "link to customer"), the shared gate predicate and its loader (already called in the four Deere per-org loops, §4.4), and the prospecting policy `mayUseCustomerData`. Usage events (decision 2a-11): the writer (already called from the pages and the PIN sign-in, §7.7), `POST /api/v1/usage` with the board's heartbeat component, the `/admin/usage` report and the `usage.prune` retention job | `src/connectors/deere/rights*.ts` (the stub included), `src/domain/data-rights*.ts`, `src/db/queries/{agreements,usage}*.ts`, `src/platform/usage/**` (the stub included), `src/ui/usage/**` (the stub included), `src/app/api/v1/usage/**`, `src/app/admin/usage/**` (the stub page included), `src/app/admin/parties/[id]/_agreements/**` (the stub section included), `src/jobs/usage-prune*.ts` (the stub included); **plus (assigned, §1.2)** the `deere-orgs` table of `src/app/admin/connectors/health-cards.tsx` and new files under `src/app/admin/connectors/` (`org-rights*.ts(x)` and its actions), the test cases §1.3 assigns, `e2e/m2a-rights*.spec.ts`, `e2e/m2a-usage*.spec.ts` | 3124 / 4034 | `farm_dev_rights_usage` |
 
 Existing test files follow the code they test, **except the ones §1.3 assigns** (that list wins).
 A test of a file you don't own that your change breaks means you changed a contract: don't edit
@@ -69,8 +69,8 @@ rights-usage's assignment, `tools/seed/**`, `tools/import/**`, `src/sim/**`,
 `tools/vendor-sim/**`, `e2e/support/**`, every M0/M1/1f e2e spec, `README.md`, `docs/**`,
 `.github/**`, and **every contract file**:
 
-`src/domain/work-jobs.ts` (the consts, types, labels and signatures; jobs-api fills the stub
-bodies), `src/ui/work/contract.ts`, `src/ui/work/style.ts`, `src/platform/realtime/types.ts`,
+`src/domain/work-jobs.ts` (the consts, types, labels and signatures; jobs-api owns the function
+bodies below "SIGNATURES FROZEN", §4.3), `src/ui/work/contract.ts`, `src/ui/work/style.ts`, `src/platform/realtime/types.ts`,
 `src/platform/auth/types.ts`, `src/ui/fields/tabs.ts`, `src/ui/fleet/contract.ts`,
 `src/domain/{fields,farm,fleet,ids}.ts`, this file.
 
@@ -105,15 +105,17 @@ Already in place (the foundation landed every seam, so nobody needs a new mount)
 
 **Assigned lines (only these, in these files):**
 
-- **jobs-api**: in `src/domain/fields.ts`, `FieldDetail.openJobs` becomes `{ count: number }`
-  (the `placeholder: true` literal goes); in `src/db/queries/fields.ts` the real count (open
-  statuses, §4.2) replacing the hard-coded zero; `src/ui/fields/view-model.ts` (the open-jobs
-  line), `src/ui/fields/fixtures.ts` and `src/app/admin/fields/[id]/page.tsx` (the `openJobs`
-  literal); in `src/ui/fields/detail-loader.ts` a `jobs` subscription next to the `fields` one
-  that refetches when `updated.fieldIds` contains the open field (and on `invalidate`); in
+- **jobs-api**: `FieldDetail.openJobs` is already `{ count: number }` (the foundation changed
+  the type and every literal, the count still 0: `src/domain/fields.ts`, `fixtures.ts`, the
+  admin field page, `toFieldDetail` and the tests). jobs-api's lines: in
+  `src/db/queries/fields.ts` the real count (open statuses, §4.2) replacing the hard-coded zero
+  (`fieldDetail`'s query and `toFieldDetail`); `src/ui/fields/view-model.ts` (the open-jobs
+  line's text); in `src/ui/fields/detail-loader.ts` a `jobs` subscription next to the `fields`
+  one that refetches when `updated.fieldIds` contains the open field (and on `invalidate`); in
   `src/db/queries/parties.ts` `deleteParty`'s inbound-link list gains jobs (customer,
   requested by), job assignments, data-rights agreements and request links, each with a plain
-  message ("has 3 jobs").
+  message ("has 3 jobs"). Any new test that needs a `FieldDetail` (job-forms' tab tests
+  included) builds it with `makeFieldDetail()` (`src/ui/fields/fixtures.ts`), never a literal.
 - **rights-usage**: in `src/app/admin/connectors/health-cards.tsx`, the `deere-orgs` table only
   (an agreement column, "link to customer" for an org with no party); its data in new files
   under `src/app/admin/connectors/`.
@@ -123,15 +125,16 @@ Already in place (the foundation landed every seam, so nobody needs a new mount)
 | File | Part | Owner |
 |---|---|---|
 | `src/ui/fields/view-model.test.ts` | the open-jobs case (line ~143) | jobs-api |
-| `src/app/api/fields/handler.db.test.ts` | the open-jobs expectation (line ~56) | jobs-api |
-| `src/db/queries/fields.db.test.ts` | the open-jobs expectation (line ~332) | jobs-api |
-| `src/db/queries/fields.test.ts` | the open-jobs expectation (line ~50) | jobs-api |
+| `src/app/api/fields/handler.db.test.ts`, `src/db/queries/fields.db.test.ts`, `src/db/queries/fields.test.ts` | the open-jobs expectations (now `{ count: 0 }`; only if your count query changes them) | jobs-api |
+| `src/domain/work-jobs.test.ts` | all (the foundation's exhaustive machine test is the start) | jobs-api |
+| `src/connectors/deere/fields/job-orgs.db.test.ts` | the case "sandbox with several member orgs and no DEERE_HOME_ORG_ID › nothing is created, mapped fields still update" (and its header comment): with the gate real it reads "nothing is read: with no home org every org without an agreement is refused (§4.4), nothing is created or updated, the refusal is logged" | rights-usage |
 | `e2e/field-panel.spec.ts` | the "open jobs" line (~329): the integrator changes it at the merge (an M1 spec); jobs-api says what it should read | integrator |
-| `src/db/m2a-schema.db.test.ts`, `src/domain/work-jobs-vocab.test.ts`, `src/ui/work/contract.test.ts`, `tools/seed/work.db.test.ts`, `e2e/drag-helpers.spec.ts` | all (the foundation's) | integrator |
+| `src/db/m2a-schema.db.test.ts`, `src/domain/work-jobs-vocab.test.ts`, `src/ui/work/contract.test.ts`, `tools/seed/work.db.test.ts`, `tools/seed/work.test.ts`, `e2e/drag-helpers.spec.ts` | all (the foundation's) | integrator |
+| `src/connectors/deere/ops/job.db.test.ts`, `src/connectors/call-budget.db.test.ts` (sandbox runs) | already gate-proof: the ops budget run names `DEERE_HOME_ORG_ID` and puts an agreement on file for each customer org (`seedSimCustomerAgreements`, `src/connectors/testkit.ts`); call-budget's home-unknown run asserts nothing the gate changes (checked with a fail-closed stand-in predicate, Nov 6) | integrator |
 | `tools/import/data-transfer.db.test.ts` | the 2a round trip | integrator |
 | `src/platform/auth/gate.test.ts` | the `/r/` cases | integrator (job-forms' `/r/` e2e covers the page) |
 | `e2e/board.spec.ts` | the map controls' `exact: true` (the band's effect, §7.1) | integrator |
-| `e2e/deere-fields.spec.ts`, `e2e/imagery.spec.ts` | the two wall taps the band moves (§7.1): if the band needs a spec change, the board builder writes it in its report and the integrator applies it | integrator |
+| `e2e/deere-fields.spec.ts`, `e2e/imagery.spec.ts` | already band-proof: their wall taps go through `revealInFreeMap` (`e2e/support/map.ts`, §7.1); if the band needs anything more, the board builder writes it in its report | integrator |
 
 ---
 
@@ -203,6 +206,12 @@ contracts-1f §2 holds, with the 2a base, branches, ports and databases:
   demo (`e2e/m0-demo.spec.ts`), `e2e/board.spec.ts`, `e2e/fleet-panel.spec.ts`,
   `e2e/field-panel.spec.ts`, `e2e/weather.spec.ts` and `e2e/layers.spec.ts` still passing.
   Commit on your branch with the attribution lines from the task; don't push.
+- **One heavy run at a time across the worktrees:** the box has 4 CPUs and 15 GB; four
+  `next build`s or four Playwright runs (each with 2 software-WebGL Chromium workers) at once
+  starve each other, and the timing assertions (the field panel's 200 ms tap, the 2 s realtime
+  specs, the done-when's `took < 2000`) then fail for no reason. Take the shared lock:
+  `flock /tmp/claude-0/e2e.lock pnpm test:e2e …` and `flock /tmp/claude-0/e2e.lock pnpm build`
+  (it waits its turn). Judge a timing failure only from a run made under the lock.
 - **Report:** what you built, files, how to see it (`pnpm dev` / `pnpm pilot` steps), what the
   integrator must add or change (pending SQL, assigned-line changes, contract additions, doc
   rows), open questions.
@@ -229,7 +238,7 @@ SELECT/INSERT/UPDATE/DELETE on all of it (default privileges, repeated). Checked
 |---|---|---|---|---|
 | `farm.products` | `kind` text (`PRODUCT_KINDS`: seed, chemical, fertilizer, fuel), `name` text, `epa_reg_no` text null, `restricted_use` bool default false, `unit` text (`PRODUCT_UNITS`: gal, qt, pt, floz, lb, oz, ton, bag, unit, kseed), `label_rules` jsonb default `{}` (2b's go/no-go input), `active` bool default true (retired = false), `source` default `'app'`, `source_id` | unique (`source`, `source_id`); CHECKs kind, unit, `name` 1-120 characters after trimming, `label_rules` an object | — | job-forms |
 | `farm.jobs` | `kind` text (`JOB_KINDS`: plant, spray, harvest, haul, tillage, fertilize, scout, tile, repair, other), `business_line` text (`BUSINESS_LINES`: spraying, grain, trucking, store), `status` text default `'planned'` (`JOB_STATUSES`: requested, planned, assigned, pushed, in_progress, done, invoiced, cancelled), `status_changed_at` timestamptz default now(), `title` text null (≤ 80), `customer_party_id` uuid null, `field_id` uuid null, **`planned_window` tstzrange null** (plan §4's `window`, a reserved word in SQL; `[from, to)`, `src/db/range.ts`), `crop_year` int null, `planned_acres` numeric(12,4) null, `planned_acres_by_hand` bool default false, `planned_qty` numeric(12,2) null, `planned_unit` text null (`JOB_PLANNED_UNITS`: loads, bu, hours, tons, gal), `priority` int default 3 (1 urgent … 4 low), `sort_key` double precision default 0, **`version` int default 1**, `deere_work_plan_id` text null (2b), `notes` text null (≤ 4,000), `request_channel` text null (`REQUEST_CHANNELS`: text, phone, in_person, web_form), `requested_by_party_id` uuid null, `requester_name` text null (≤ 120), `requester_phone` text null (≤ 40), `request_link_id` uuid null, `cancelled_reason` text null (≤ 500), `created_by` / `updated_by` uuid null, `source` default `'app'`, `source_id` | unique (`source`, `source_id`); **`jobs_board_idx`** btree (`business_line`, `priority`, `sort_key`) where `status not in ('done', 'invoiced', 'cancelled')`; btree `field_id`, `customer_party_id`, `requested_by_party_id`, (`request_link_id`, `created_at`); CHECKs kind, business_line, status, planned_unit, request_channel, priority 1-4, version ≥ 1, crop_year null or 1950-2100, acres and qty ≥ 0, a window never empty, the text limits | `field_id` → fields **set null**; `customer_party_id`, `requested_by_party_id` → parties **restrict**; `request_link_id` → job_request_links **set null**; `created_by`, `updated_by` → app_users **set null** | jobs-api |
-| `farm.job_assignments` | `job_id` uuid, `party_id` uuid null (a crew party: app_users is one-to-one with party), `machine_id` uuid null, `role` text default `'crew'` (`ASSIGNMENT_ROLES`: operator, crew), `planned_for` tstzrange null (the part of the job's window this row is on; null = all of it), `assigned_by` uuid null (no `updated_at`) | **one row per person per job** (unique `job_id, party_id` where party set) and **one per machine per job** (unique `job_id, machine_id` where machine set); btree `party_id`, `machine_id`; CHECKs a person or a machine, role, `planned_for` never empty | `job_id` → jobs **cascade**; `party_id` → parties **restrict**; `machine_id` → machines **restrict**; `assigned_by` → app_users **set null** | jobs-api |
+| `farm.job_assignments` | `job_id` uuid, `party_id` uuid null (a crew party: app_users is one-to-one with party), `machine_id` uuid null, `role` text default `'crew'` (`ASSIGNMENT_ROLES`: operator, crew), `planned_for` tstzrange null (the part of the job's window this row is on; null = all of it), `assigned_by` uuid null (no `updated_at`) | **one row per person per job** (unique `job_id, party_id` where party set) and **one per machine per job** (unique `job_id, machine_id` where machine set); btree **`job_id`** (`job_assignments_job_id_idx`: the snapshot's `job_id = any($1)` and the cascade from farm.jobs can't use the partial unique indexes), `party_id`, `machine_id`; CHECKs a person or a machine, role, `planned_for` never empty | `job_id` → jobs **cascade**; `party_id` → parties **restrict**; `machine_id` → machines **restrict**; `assigned_by` → app_users **set null** | jobs-api |
 | `farm.job_products` | `job_id` uuid, `product_id` uuid, `rate` numeric(12,4) null, `unit` text null (`RATE_UNITS`: gal_ac, qt_ac, pt_ac, floz_ac, lb_ac, oz_ac, ton_ac, unit_ac, kseed_ac, or totals gal, lb, ton, unit), `supplied_by` text default `'us'` (`SUPPLIED_BY`: us, customer) (no `updated_at`) | unique (`job_id`, `product_id`); btree `product_id`; CHECKs rate ≥ 0, unit, supplied_by | `job_id` → jobs **cascade**; `product_id` → products **restrict** | jobs-api (written through the job routes; job-forms' form sends them) |
 | `farm.data_rights_agreements` | `party_id` uuid (the customer **org** party), `signed_on` date, `document_key` text null (a key in the private `uploads` bucket), `permitted_uses` text[] default `{}` (⊆ `PERMITTED_USES`: billing, agronomy, prospecting, landlord_sharing), `revoked_on` date null (counts while null), `notes` text null, `created_by` uuid null, `source` default `'app'`, `source_id` | unique (`source`, `source_id`); btree `party_id`; CHECKs the uses ⊆ the list, `revoked_on ≥ signed_on` | `party_id` → parties **restrict**; `created_by` → app_users **set null** | rights-usage |
 | `farm.job_request_links` | `party_id` uuid (the customer), `token_hash` text (HMAC-SHA256 of the token under SESSION_SECRET; the token itself is never stored), `label` text null, `created_by` uuid null, `revoked_at` timestamptz null, `last_used_at` timestamptz null (only `created_at`) | unique `token_hash`; btree `party_id` | `party_id` → parties **restrict**; `created_by` → app_users **set null** | job-forms |
@@ -246,6 +255,8 @@ with deterministic ids, removed by the spec that made them (jobs cascade to thei
   folds them into the next migration.
 - **`farm.jobs.window` by its plan name** (reserved word): it is `planned_window`.
 - **A crews table** (decision 2a-1: lanes are business lines).
+- **A unique index on `farm.jobs.deere_work_plan_id`**: 2b adds a unique partial index
+  (`where deere_work_plan_id is not null`) with its status sync, which looks jobs up by it.
 - **A new `ingest.connector_orgs` status** for "blocked by the data-rights gate": the CHECK stays
   (connected, needs_approval); a blocked org is stored as needs_approval with
   `NO_AGREEMENT_DETAIL` (§4.4), and /admin/connectors reads the agreement state at render time.
@@ -291,6 +302,13 @@ The lists of §3.1 with their labels (`JOB_KIND_LABELS`, `BUSINESS_LINE_LABELS`,
 - `BUSINESS_LINES` is in **lane order** (Spraying, Grain, Trucking, Store);
   `DEFAULT_BUSINESS_LINE[kind]` is a new job's lane (spray, fertilize, scout → spraying; haul →
   trucking; the rest → grain).
+- `JOB_OPERATION_KIND[kind]`: the Deere operation kind a job matches (`OPERATION_KINDS`,
+  `src/domain/operations.ts`): plant → seeding, spray and fertilize → application, harvest →
+  harvest, tillage → tillage, the rest null (never a Work Plan, never matched to an operation).
+  2b's matching (field + window + this kind) and Work Plan push use it; the board shows the
+  machine chip's "Deere" badge on a card only when it is set (§5.6).
+- `JOB_FLAGS` (no_field, machine_down, double_booked, acres_differ, restricted_use) and
+  `JobFlag` live here; `src/ui/work/contract.ts` re-exports them.
 - `OPEN_JOB_STATUSES` (requested, planned, assigned, pushed, in_progress) are the board's cards
   and the field's open-jobs count; `CLOSED_JOB_STATUSES` (done, invoiced, cancelled);
   `isOpenJobStatus`.
@@ -301,44 +319,68 @@ The lists of §3.1 with their labels (`JOB_KIND_LABELS`, `BUSINESS_LINE_LABELS`,
 - `ACRES_DIFFER_FRACTION = 0.01` (decision 2a-5), `JOBS_TRIGGER_MAX_PAYLOAD_BYTES = 7_000`
   (§6).
 - Request links: `REQUEST_LINK_MAX_PER_DAY = 20`, `REQUEST_LINK_TOKEN_BYTES = 16` (128 bits).
-- Usage: `USAGE_BUCKET_MINUTES = 5`, `USAGE_HEARTBEAT_MS` (5 min), `USAGE_RETENTION_DAYS = 400`,
+- Usage: `USAGE_BUCKET_MINUTES = 5`, `USAGE_HEARTBEAT_MS` (**4 min**: under the bucket, so timer
+  drift never skips one), `USAGE_RETENTION_DAYS = 400`,
   `USAGE_REPORT_DAYS = 30`, `PHASE2_MIN_DAILY_CREW = 2`, `CREW_APP_ROLES` (driver, operator,
   manager), `GATE_SKIPPED_WEEKDAYS` ([0]: Sunday); `usageActorKey(deviceId, appUserId)`,
   `usageBucketStart(at)` (implemented, tested in `work-jobs-vocab.test.ts`).
 - `JOB_SOURCE_APP = 'app'`, `JOB_SOURCE_DEMO = 'demo'`.
 
-### 4.3 The status machine (decision 2a-3; signatures frozen, bodies by jobs-api)
+### 4.3 The status machine (decision 2a-3; signatures frozen)
 
 ```ts
 interface JobActor { role: AppRole; ownJob: boolean; via?: 'person' | 'work_plan' | 'billing' }
 type JobTransitionCheck = { ok: true } | { ok: false; reason: 'same' | 'not_allowed' | 'forbidden'; message: string };
-checkJobTransition(from: JobStatus, to: JobStatus, who: JobActor): JobTransitionCheck
-nextJobStatuses(from: JobStatus, who: JobActor): JobStatus[]            // in JOB_STATUSES order
-autoJobStatus(status: JobStatus, job: { hasField: boolean; assignmentCount: number }): JobStatus
-jobSummary(job: { kind, title, fieldName, plannedAcres, plannedQty, plannedUnit }): string
+checkJobTransition(from: JobStatus, to: JobStatus, who: JobActor): JobTransitionCheck   // implemented
+nextJobStatuses(from: JobStatus, who: JobActor): JobStatus[]   // implemented; JOB_STATUSES order
+autoJobStatus(status: JobStatus, job: { hasField: boolean; assignmentCount: number }): JobStatus  // implemented
+jobSummary(job: { kind, title, fieldName, plannedAcres, plannedQty, plannedUnit }): string        // stub
+jobFlags(job: JobFlagInput): JobFlag[]                                                            // stub
 ```
 
-The stubs refuse every move, return none, keep the status, and return the title or the kind's
-label. jobs-api implements, and tests **every (from, to, role, ownJob, via) combination**:
+The foundation **implemented** the machine and the automatic moves (pure, so the board can draw
+and e2e-test its status buttons for a manager, a driver on their own job and a viewer before
+the merge), with an exhaustive test over every (from, to, role, ownJob, via) in
+`src/domain/work-jobs.test.ts`. jobs-api owns those bodies and that test from here (a correction
+is a contract change: say so in the report), and fills the two stubs: `jobSummary` (returns the
+title or the kind's label) and `jobFlags` (returns none). jobs-api may add new pure functions
+below the "SIGNATURES FROZEN" line. The rules:
 
-- Moves: requested → planned ("accept"); planned → assigned; assigned → pushed (**only `via:
-  'work_plan'`**, 2b); assigned / pushed → in_progress; in_progress → done; done → invoiced
-  (**only `via: 'billing'`**, M3); **cancelled from any status before done** (with an optional
-  reason); **done → in_progress** (a manager fixing a mistake). Nothing else: an assigned job
-  goes back to planned only by losing its last assignment (the automatic move below), and no
-  job goes back to requested.
-- Who (decision 2a-2): `planJobs` (manager and up) may make any allowed move; below that,
-  `updateOwnJobStatus` (driver, operator) only **on their own job** (`ownJob`: their party is on
-  one of its assignments) and only assigned / pushed → in_progress and in_progress → done;
-  viewers nothing. A refused move by role is `'forbidden'` (the route answers 403), a move the
-  machine doesn't have is `'not_allowed'` (422), the same status `'same'` (422).
+- **Moves** (each with the only `via` that makes it): requested → planned ("accept"); assigned →
+  pushed (**only `via: 'work_plan'`**, 2b's push); assigned / pushed → in_progress; in_progress →
+  done; done → invoiced (**only `via: 'billing'`**, M3); **cancelled from any open status**
+  (requested … in_progress); **done → in_progress** (a manager fixing a mistake). Nothing else.
+  In particular **planned → assigned and assigned → planned are never a manual move**: they
+  happen only through `autoJobStatus` (a planned job with no field or no one on it can't be
+  "assigned" by hand), and no job goes back to requested.
+- **Check order:** the same status is `'same'` (422); a move the machine doesn't have for this
+  `via` (default `'person'`) is `'not_allowed'` (422) **for every role** (a manager asking for
+  assigned → pushed or done → invoiced as a person gets `'not_allowed'`, not `'forbidden'`);
+  only then the role: `planJobs` (manager and up) may make any of them; below that,
+  `updateOwnJobStatus` (driver, operator) only **on their own job** and only assigned / pushed →
+  in_progress and in_progress → done; anything else by role is `'forbidden'` (403); viewers
+  nothing.
+- **Own job:** the session's `partyId` is on one of the job's assignments. A session with no
+  person (a device-only session: an unattended wall, a cab iPad with no one signed in, D8) has
+  `partyId` null and so **no own jobs**.
+- **The routes:** `POST …/status` refuses `cancelled` itself (422 `'not_allowed'`, "use
+  /cancel"): a cancel goes through `POST …/cancel`, which takes the optional reason and answers
+  422 `'closed'` for done, invoiced or cancelled (where `checkJobTransition(…, 'cancelled')` is
+  `'not_allowed'`). `nextJobStatuses` includes `cancelled` when allowed: the job detail draws it
+  as the Cancel button (posting to …/cancel), the rest as status buttons.
 - **Automatic moves on write** (`autoJobStatus`, applied by every write that changes the field
   or the assignments, in the same transaction): a requested or planned job that has a field and
   at least one assignment becomes **assigned** (accepting a request by assigning it); an
   assigned job that loses its last assignment goes back to **planned**; anything else keeps its
-  status. `status_changed_at` moves with every status change.
+  status. **Clearing the field** of an assigned job (PATCH `fieldId: null`, PUT field null, or
+  the field's delete setting it null) **keeps it assigned** and adds the `no_field` flag.
+  `status_changed_at` moves with every status change (an automatic one too).
 - `jobSummary`: "Spray · Halvorsen Corwin 80 · 78 ac" (kind, field, acres or qty + unit), used
   when `title` is null.
+- `jobFlags(JobFlagInput { hasField, plannedAcres, boundaryAcres, machinesDown, overlaps,
+  restrictedUse })`: the card's flags in `JOB_FLAGS` order; `acres_differ` when both acres are
+  known and differ by more than `ACRES_DIFFER_FRACTION` of the boundary's; `double_booked` when
+  `overlaps > 0` (§4.5 defines an overlap).
 
 ### 4.4 The data-rights gate (D17, decision 2a-10; `src/connectors/deere/rights.ts`)
 
@@ -354,6 +396,12 @@ NO_AGREEMENT_DETAIL                             // the log / stored-row text
   read; any other org is read **in sandbox and live only when** it is in `agreedOrgIds` (its
   customer party has an unrevoked agreement); **in sim and replay always** (reported, not
   enforced: the demo's customers are fake). No rights = allowed (tests, tools).
+- **Home org unknown** (sandbox or live, `DEERE_HOME_ORG_ID` unset and not exactly one
+  `member: true` org in the listing; `deereHomeOrg` answers `orgId: null`): **fail closed**.
+  No org is "the home org", so every org without an agreement is refused, your own included;
+  each refusal is logged as such ("home org unknown: set DEERE_HOME_ORG_ID") and
+  `/admin/connectors` asks for `DEERE_HOME_ORG_ID` (it already does for 1f's "nothing is
+  created" rule, contracts-1f §5.4). The predicate's tests cover this case.
 - **Where it is called** (the foundation already calls it; the call sites are integrator-owned):
   `DeereClient.pollLocationsWithOrgs(cursor, { rights })` (a refused org goes into the run's org
   list as `blockedOrgAccess(org)`, which fleet.deere stores), `DeereFieldsRun.orgs()`
@@ -364,21 +412,36 @@ NO_AGREEMENT_DETAIL                             // the log / stored-row text
   cfg.DEERE_HOME_ORG_ID ?? null)` once per run. **CNH companies are machines only: not gated.**
 - **rights-usage builds:** `loadOrgReadRights` (one query: unrevoked agreements joined to the
   org → party links the way `customerOrgParty` resolves them, **read-only**: the
-  `('deere', 'party', <org>, <org>)` ref, else the client party the org's farms share),
+  `('deere', 'party', <org>, <org>)` ref, else the client party the org's farms share; one rule,
+  never wider),
   `orgReadAllowed`, and `/admin/connectors`' org rows: "agreement on file" or "no agreement:
   blocked in live" per customer org, and for an org with no party yet a "link to customer"
   control that writes the same `('deere', 'party', <org>, <org>)` external ref (`upsertExternalRef`)
   so an agreement can be recorded before the first sync. Tests: the predicate over every mode ×
-  home/agreed/revoked/unlinked, the loader against seeded agreements and refs, each loop in sandbox
-  with a refused org (its data is not read, the others are), sim unchanged.
+  home/agreed/revoked/unlinked/**home unknown**, the loader against seeded agreements and refs,
+  each loop in sandbox with a refused org (its data is not read, the others are), sim unchanged.
+- **The demo's links** (`tools/seed/work.ts` `DEMO_CUSTOMER_ORGS`, already done): the seed writes
+  `('deere', 'party', 'org-customer-1', 'org-customer-1')` → Halvorsen Bros. Farms and
+  `('deere', 'party', 'org-customer-2', 'org-customer-2')` → Juniper Hill Farms LLC, insert-only
+  (a link made on `/admin/connectors` stays). Juniper Hill's org has no farm ref of its own (it
+  shares its fields into ours), so without this link the loader couldn't name its party and the
+  page would show "link to customer" instead of "Juniper Hill: no agreement". The links match
+  `simCustomerOrgParties(farm)` (`src/sim/types.ts`, tested in `tools/seed/work.test.ts`).
+- **DB tests that run the Deere loops in sandbox** against the stand-in: `seedSimCustomerAgreements(db,
+  farm)` (`src/connectors/testkit.ts`) links each customer org and puts an agreement on file, so
+  a test that isn't about the gate keeps reading every org (with `DEERE_HOME_ORG_ID` set:
+  `src/connectors/deere/ops/job.db.test.ts` does both). Measured with a fail-closed stand-in
+  predicate (Nov 6): every connector and job DB and unit test passed but the job-orgs
+  home-unknown case §1.3 assigns to rights-usage.
 - **Prospecting:** `mayUseCustomerData(agreements, use: PermittedUse): boolean` in
   `src/domain/data-rights.ts` (a pure policy plus tests: an unrevoked agreement naming the use;
   none = no). No prospecting code exists yet (M4).
 
 ### 4.5 Drag semantics (decision 2a-4)
 
-Drags start **only from job cards** (dnd-kit; never from the map, never from chips). A card
-dropped:
+Drags start **only from job cards** (dnd-kit; never from the map, never from chips). Chips are
+**drop targets only**: you drag the card onto a chip. (Plan §6 2a also allowed dragging a chip
+onto a card; decision 2a-4 records the narrower default and asks Derrick.) A card dropped:
 
 - **on the map over a field**: `PUT …/field` with `{ version, fieldId }`, the field found with
   `map.queryRenderedFeatures([x, y], { layers: ['fields-fill'] })[0].properties.id` at the drop
@@ -400,8 +463,11 @@ An assignment is removed with an × on its chip in the card (manager): `DELETE
 …/assignments/<id>?version=N` (the whole row) or `&part=machine|person` (one side; a row left
 with neither is deleted). A **down** machine still takes a drop; its chip and the card show
 "down" (flag `machine_down`). The same person or machine on two open jobs with overlapping
-windows is **allowed** and flagged on both (`double_booked`, `alsoOn`), never blocked. A machine
-already on the job is a no-op (200, same version).
+windows is **allowed** and flagged on both (`double_booked`, `alsoOn`), never blocked. **Overlap**
+is computed per assignment on `coalesce(assignment.planned_for, job.planned_window)` (`&&` on
+the ranges); a null window (no `planned_for` and no job window) **never overlaps**; only **open**
+jobs (`OPEN_JOB_STATUSES`) count, on either side. jobs-api computes it; the board only shows the
+flags and `alsoOn` it gets. A machine already on the job is a no-op (200, same version).
 
 ### 4.6 Planned acres and crop year (decisions 2a-5, 2a-6)
 
@@ -433,6 +499,27 @@ transaction over the listed jobs; one stale version fails it all (409 with that 
 refetches and says `JOB_CONFLICT_MESSAGE` ("Changed on another screen; try again"). Same pattern
 as the notes 409 (`src/app/api/fields/handler.ts`).
 
+**Lock order (every job write, jobs-api; job-forms' `/r` insert too).** Each publish trigger
+(§6) calls `app.publish`, which upserts the `app.topic_seq('jobs')` row: that row stays locked
+until the transaction commits. So a job-write transaction holds the `jobs` topic row from its
+first job statement to its commit, and one that then waits for a job row could deadlock
+(Postgres `40P01`) with a writer holding that row and waiting for the topic row. The rules:
+
+1. In every single-job write the **CAS `update farm.jobs … where id = $1 and version = $2` is
+   the first statement**, before any child-row change (assignments, products), and it carries
+   the job-row changes itself (`field_id`, `status`, acres, …) in the same statement.
+2. A write that touches **several jobs** (reorder; later 2b's status sync) first **locks them
+   all** with one `select … from farm.jobs where id = any($1) order by id for update` (a SELECT
+   fires no trigger), checks the versions, then writes them in **one** statement (`update
+   farm.jobs set … from (values …) v where farm.jobs.id = v.id`).
+3. **Job writers serialize on the `jobs` topic row until commit**: keep the transactions short
+   (no network call, no `recordUsage` inside), and never publish another topic in the same
+   transaction (no `fields`, `fleet` or `pins` from a job write).
+4. **`40P01` (deadlock) retries the whole transaction once**; a second one answers **409** with
+   the job as it is then (re-read), never a 503. (A field delete that sets `field_id` null while
+   a job write points a job at that field can still meet a job writer in the other order; the
+   retry covers it.)
+
 ---
 
 ## 5. HTTP API (`src/ui/work/contract.ts`)
@@ -448,26 +535,26 @@ framework-free handler, in this order (`src/app/api/machines/handler.ts`): `requ
 Every answer through `limitedJson(body, { status, headers: { 'cache-control': 'no-store' } },
 { route })`. Errors are `{ error: string, … }` with no error codes, except 422's `reason`.
 **No route publishes realtime** (the triggers do, §6). Each job write records a `job_action`
-usage event (`recordUsage(usageOf(session, 'job_action', '<route pattern>'))`, outside the
-write's transaction, never failing it).
+usage event (`recordUsage(usageOf(session, 'job_action', '<route pattern>'))`, after the write's
+transaction commits, never failing it). Job writes follow the lock order of §4.7.
 
 ### 5.2 Routes
 
 | Method and path | Role | Body (zod) | Answers |
 |---|---|---|---|
-| `GET /api/v1/jobs[?fieldId=<uuid>]` | viewer | — | 200 `BoardSnapshot` (`boardSnapshotSchema`): every open job plus jobs that went done on the current farm day, in the four lanes in `BUSINESS_LINES` order (empty lanes included), each lane ordered by priority, then window start (no window last), then `sort_key`, then `created_at`; `viewer { role, partyId, canPlan }`. With `fieldId`: that field's jobs only (the Jobs tab) |
+| `GET /api/v1/jobs[?fieldId=<uuid>]` | viewer | — | 200 `BoardSnapshot` (`boardSnapshotSchema`): every open job plus jobs that went done on the current farm day, in the four lanes in `BUSINESS_LINES` order (empty lanes included); each lane lists its **open** jobs by priority, then `sort_key`, then `created_at` (decision 2a-1: the window shows on the card, it doesn't order it), then the day's done jobs (by `status_changed_at`); `viewer { role, partyId, canPlan }`. With `fieldId`: that field's jobs only (the Jobs tab). A new job, or one moved to another lane, goes to the end of its priority in its lane (`sort_key` = the lane's largest + 10) |
 | `POST /api/v1/jobs` | planJobs | `createJobBodySchema` | 201 `JobResponse`; 404 an unknown field, customer or product id; 422 |
 | `GET /api/v1/jobs/<id>` | viewer | — | 200 `JobResponse`; 404 |
 | `PATCH /api/v1/jobs/<id>` | planJobs | `updateJobBodySchema` | 200 `JobResponse`; 409 `JobConflictResponse`; 404; 422 |
 | `PUT /api/v1/jobs/<id>/field` | planJobs | `setJobFieldBodySchema` | 200; 409; 404; 422 `{ error: 'not on a field', reason: 'not_on_field' }` |
 | `POST /api/v1/jobs/<id>/assignments` | planJobs | `assignJobBodySchema` | 200 (no-op when already on: same version); 409; 404 unknown machine or person; 422 `reason: 'machine_retired'` |
 | `DELETE /api/v1/jobs/<id>/assignments/<aid>?version=N[&part=machine\|person]` | planJobs | — | 200; 409; 404 |
-| `POST /api/v1/jobs/<id>/status` | updateOwnJobStatus (+ own job below planJobs) | `setJobStatusBodySchema` | 200; 409; 403 not your job / not for your role; 422 `reason: 'not_allowed' \| 'same'` |
+| `POST /api/v1/jobs/<id>/status` | updateOwnJobStatus (+ own job below planJobs, §4.3) | `setJobStatusBodySchema` | 200; 409; 403 not your job / not for your role (`'forbidden'`); 422 `reason: 'not_allowed' \| 'same'` (`cancelled` is always 422 `'not_allowed'`: "use /cancel"; so is planned → assigned and any move only `work_plan` or `billing` make) |
 | `POST /api/v1/jobs/<id>/cancel` | planJobs | `cancelJobBodySchema` | 200; 409; 422 `reason: 'closed'` (done, invoiced or cancelled) |
-| `POST /api/v1/jobs/reorder` | planJobs | `reorderJobsBodySchema` | 200 `BoardSnapshot`; 409 (the first stale job); 422 a job not in that lane |
+| `POST /api/v1/jobs/reorder` | planJobs | `reorderJobsBodySchema` | 200 `BoardSnapshot`. The body lists **every open job of the lane** in its new order; `sort_key` = (position + 1) × 10 and only the jobs whose `sort_key` changes get `version + 1`; `priority` never changes here (a move across priorities is an Edit). Locks per §4.7 rule 2. 409 with the first stale listed job, or with an open job of the lane missing from the list (it is new or moved there); 422 `reason: 'not_in_lane'` for a listed job that isn't open in that lane |
 | `GET /api/v1/crew` | viewer | — | 200 `CrewResponse`: parties of kind person with role crew, by name, with `appUserId`, `initials`, `appRole` (null = no sign-in) and `active` (e2e principals show in e2e databases) |
-| `GET /api/v1/job-options` | viewer | — | 200 `JobOptionsResponse`: active products, customer parties (role customer, kind org), active fields with a current boundary (name, farm, acres, customer), `cropYears` = `cropSeasonsToSync(now)`, `currentCropYear` |
-| `POST /api/v1/usage` | viewer (any session) | `usageHeartbeatBodySchema` `{ route: '/board' \| '/m' }` | 200 `{ recorded }` (false when the bucket already had it) |
+| `GET /api/v1/job-options` | viewer | — | 200 `JobOptionsResponse`: active products, customer parties (role customer, **either kind**: orgs first, then persons, by name; `kind`, and `orgName` = a person's org as a hint, "Gail Pressler · Juniper Hill Farms LLC"), active fields with a current boundary (name, farm, acres, customer), `cropYears` = `cropSeasonsToSync(now)`, `currentCropYear` |
+| `POST /api/v1/usage` | viewer (any session) | `usageHeartbeatBodySchema` `{ route: '/board' \| '/m' }` | 200 `{ recorded }`: false when the bucket already had it, and **always false for a session with no person** (`appUserId` null: an unattended wall logs no board time) |
 
 Owners: `/api/v1/jobs/**` and `/api/v1/crew` jobs-api; `/api/v1/job-options` job-forms;
 `/api/v1/usage` rights-usage. URL helpers: `jobsUrl`, `jobUrl`, `jobFieldUrl`,
@@ -485,8 +572,9 @@ flags: JobFlag[], createdAt, updatedAt }`, with `JobAssignmentView { id, role, m
 { id, unitNo, kind, status, workPlanCapable } | null, person { partyId, name, initials } | null,
 plannedFor, alsoOn: { jobId, summary }[] }`, `JobProductView { id, productId, name, kind, rate,
 unit, suppliedBy, restrictedUse, epaRegNo }` and `JOB_FLAGS` (no_field, machine_down,
-double_booked, acres_differ, restricted_use). Times are ISO with offset. The board and the forms
-render only from these; route mocks build them (board's e2e until the merge).
+double_booked, acres_differ, restricted_use; `src/domain/work-jobs.ts`, re-exported by the
+contract). Times are ISO with offset. The board and the forms render only from these; route
+mocks build them (board's e2e until the merge).
 
 ### 5.4 The 409 shape
 
@@ -516,7 +604,9 @@ The chips tray reads machines from `useFleetPanel()`'s shared feed (no second fe
 `PanelMachine.workPlanCapable` (optional boolean, decision 2a-13) is true when the Deere sync
 created the machine or it has a `('deere', 'machine', …)` external ref (`fleetPanelMachines`):
 the chip's small "Deere" badge, so a manager sees that SP2 (a Samsara-gatewayed RoGator) won't
-take a Work Plan.
+take a Work Plan. The chips tray shows the badge from the machine alone; on a **card** the
+machine's badge shows only when the job can become a Work Plan (`JOB_OPERATION_KIND[kind]` set:
+plant, spray, fertilize, harvest, tillage), never on a haul or a repair.
 
 ---
 
@@ -524,23 +614,43 @@ take a Work Plan.
 
 | Topic / event | Payload | Published by | Subscribers do |
 |---|---|---|---|
-| `jobs` / `updated` (**new topic**) | `JobsUpdatedPayload { jobIds, fieldIds, machineIds, partyIds }`: ids only, each list deduplicated; `fieldIds` has the old **and** new field of every changed job (a card leaving a field updates that field too); machines and people from the changed assignment rows (old and new) | **only the jobs triggers** (jobs-api, `db/pending/jobs-api.sql`): statement-level `AFTER INSERT OR UPDATE OR DELETE … REFERENCING NEW TABLE / OLD TABLE` triggers on `farm.jobs`, `farm.job_assignments` and `farm.job_products`, **one `app.publish('jobs', 'updated', …)` per statement**, delivered on commit | the board refetches its snapshot (or the named jobs); the field panel's Jobs tab and its open-jobs count refetch when `fieldIds` has their field |
+| `jobs` / `updated` (**new topic**) | `JobsUpdatedPayload { jobIds, fieldIds, machineIds, partyIds }`: ids only, each list deduplicated; `fieldIds` has the old **and** new field of every changed job (a card leaving a field updates that field too); machines and people from the changed assignment rows (old and new) | **only the jobs triggers** (jobs-api, `db/pending/jobs-api.sql`): statement-level `AFTER` triggers with transition tables, **one per event per table** (below), at most **one `app.publish('jobs', 'updated', …)` per statement per event**, delivered on commit | the board refetches its snapshot (or the named jobs); the field panel's Jobs tab and its open-jobs count refetch when `fieldIds` has their field |
 | `jobs` / `invalidate` | `InvalidatePayload` `{ event: 'updated', reason: 'too_large' }` when the payload text would pass `JOBS_TRIGGER_MAX_PAYLOAD_BYTES` (7,000; the trigger measures `octet_length` of the jsonb text), `{ event: 'updated', reason: 'changed' }` once after a `data:import` | the trigger; `data:import` | refetch everything (onResync) |
 
 Rules for the triggers (jobs-api):
 
+- **Nine triggers, one per event per table.** Postgres refuses transition tables on a trigger
+  with more than one event (`transition tables cannot be specified for triggers with more than
+  one event`, checked on the dev container, PG 17.11). On each of `farm.jobs`,
+  `farm.job_assignments` and `farm.job_products`:
+  `after insert … referencing new table as new_rows for each statement`,
+  `after update … referencing old table as old_rows new table as new_rows for each statement`,
+  `after delete … referencing old table as old_rows for each statement`. All of a table's
+  triggers (or all nine) call one shared function (`app.publish_jobs_*`), branching on `TG_OP`
+  (or an event passed as the trigger argument) and `TG_TABLE_NAME`; each branch reads only the
+  transition tables its event declares (PL/pgSQL plans a query when it first runs, so an
+  unused branch naming `old_rows` in an insert trigger is fine).
+- **The real guarantee: at most one message per statement per event**, never one per row: a
+  bulk insert of 500 jobs gives **one** `invalidate` (too large), not 500 messages. A statement
+  that changes no row publishes nothing (an empty transition table). So one statement can send
+  more than one: an `insert … on conflict do update` fires both its insert and its update
+  triggers (up to two messages: each sees only its own rows); a `delete from farm.jobs` cascades
+  and fires the children's delete triggers (up to **three**: jobs, assignments, products; checked
+  on PG 17: one firing per child table per statement, not per parent row); a job write is
+  usually two statements (the CAS update, then the child change: two messages). Subscribers
+  coalesce (the board never runs two refetches at once, §7.1), so this costs nothing visible.
 - **No TypeScript code publishes `jobs`** (no double publish). Job writes never publish `fleet`
   or `fields` (no `fields`/`updated` for a job: the panel subscribes to `jobs`; never touch
-  `fleet`'s `app.topic_seq` row from a job write).
-- One message per statement, never per row: a bulk insert of 500 jobs gives **one**
-  `invalidate` (too large), not 500 messages. A statement that changes no row publishes nothing.
+  `fleet`'s `app.topic_seq` row from a job write). The `jobs` topic row is the lock every job
+  writer queues on until commit (§4.7).
 - Quiet when `current_setting('app.jobs_publish', true) = 'off'` (data:import's transaction).
 - The functions are `create or replace`, `security invoker` (they call `app.publish`, which is
   SECURITY DEFINER), live in schema `app` (`app.publish_jobs_*`), and the triggers are created
   idempotently (`drop trigger if exists` + `create trigger`).
 - DB tests (plan §7): a write → a test LISTEN on `app_events` receives `jobs`/`updated` within
-  1 s with `seq` incrementing; old and new field ids; a rolled-back write sends nothing; 500
-  jobs in one statement → one invalidate; the import GUC silences them.
+  1 s with `seq` incrementing; old and new field ids; a rolled-back write sends nothing;
+  **500 jobs in one INSERT → one `invalidate`**; an upsert sends at most two and a job delete at
+  most three (one per table), never one per row; the import GUC silences them.
 
 `TOPICS` lists `jobs`; `types.test.ts` checks it. **MD:** the `realtime.messages` RLS policies
 must cover `jobs` (noted in `docs/status.md`).
@@ -555,25 +665,29 @@ must cover `jobs` (noted in `docs/status.md`).
   (`.screen` is a flex column, so the map area shrinks; no panel is covered; `fit.ts` needs no
   change). Proposed default height **208 px** (`--jobs-band`): the map area keeps 800 of 1080 px
   (74 %; the floor is 65 %, a band of at most 306 px). The foundation's stub renders **nothing**
-  on the wall (see "Measured" below), so today's wall is exactly 1f's. Lanes side by side; cards scroll horizontally within a lane or the
-  band scrolls (set `touch-action` per scroller, as the fleet panel's `.scroll` uses `pan-y`);
+  on the wall (see "Measured" below), so today's wall is exactly 1f's. Lanes side by side;
+  cards scroll horizontally within a lane or the band scrolls (set `touch-action` per scroller, as the fleet panel's `.scroll` uses `pan-y`);
   a "New job" button (managers); the **chips tray** at the band's right end: person chips (crew,
   `GET /api/v1/crew`) and machine chips (non-retired machines from `useFleetPanel()`). The band
   can collapse to a thin bar (remembered per device in `localStorage`). Touch targets 72 px.
   The rail, the fleet panel, the weather strip and the map controls stay visible by default.
   **Measured (the foundation ran the full e2e suite with an empty 208 px band, Nov 6):** 162
-  passed, and three wall specs failed because of the band; the board builder lands the band
-  with them green (a shorter default, or the specs' tap helpers revealing the point inside the
-  free map area, as `revealAbovePanel` does on phones; say which in the report):
+  passed, and three wall specs failed because of the band. All three are now band-proof, so the
+  board builder can land the 208 px band with them green:
   - `e2e/board.spec.ts` "map controls": the shorter map area lowers the first fit of the 40 demo
     fields below z10, so the rail shows "Zoom in to see it (from zoom 10)" under Deere flags,
     and that hint is a button too. **Fixed** in the foundation: the spec matches the controls
     with `exact: true` (do the same in any test that finds a button by such a name).
   - `e2e/deere-fields.spec.ts` "a flag tap closes an open field panel; a tap on open ground
     closes the popup" and `e2e/imagery.spec.ts` "tile lines: a manager draws a tile line …":
-    their taps near the map centre (after `jumpTo` a point) land on the weather strip, which
+    their taps near the map centre (after `jumpTo` a point) landed on the weather strip, which
     stays anchored to the screen's bottom while the map centre moves 104 px down (the free map
-    area becomes y 280-790 instead of 72-790).
+    area becomes y 280-790 instead of 72-790). **Fixed** in the foundation: their tap helpers
+    call `revealInFreeMap(page, lngLat)` (`e2e/support/map.ts`), which jumps the map so the
+    point sits in the middle of the free area between the war-room map's top and the docked
+    weather strip's top when it is closer than 48 px to either (a no-op otherwise and on phones).
+    Verified with a temporary empty 208 px band: both specs, wall project, 12 passed; then the
+    stub was put back. Any new wall spec that taps the map uses the same helper.
   (The fourth failure of that run, `e2e/m0-demo.spec.ts` "trucks API down", failed the same way
   on `main` against this dev database while the CNH combine C3's position was days old, and
   passed once the CNH stand-in's backlog had caught up.) With the stub rendering nothing, the
@@ -585,10 +699,15 @@ must cover `jobs` (noted in `docs/status.md`).
   sheet drops to **peek** so the map is reachable while the tray stays visible. One sheet at a
   time (§7.2). Touch targets 48-52 px.
 - **Cards:** the status colour (`JOB_STATUS_COLORS`, §7.4), the kind (`JOB_KIND_GLYPHS` or its
-  label), field name, acres, window, products summary, assignment chips (machine unit + person,
-  × for managers), the flags. Tap a card: the job detail (wall: a popover near the band; phone:
-  the sheet's detail view) with edit (job-forms' `JobForm`), the status buttons
-  (`nextJobStatuses`), cancel.
+  label), field name, acres, window (shown, not sorted by: decision 2a-1), products summary,
+  assignment chips (machine unit + person, × for managers; the machine's "Deere" badge only when
+  `JOB_OPERATION_KIND[kind]` is set, §5.6), the flags. Tap a card: the job detail (wall: a
+  popover near the band; phone: the sheet's detail view) with edit (job-forms' `JobForm`), the
+  status buttons (`nextJobStatuses`, implemented: §4.3; `cancelled` is the Cancel button,
+  posting to …/cancel), and for managers **Move up / Move down** (`POST /api/v1/jobs/reorder`
+  with the lane's open jobs in their new order: the card swaps with its neighbour of the same
+  priority; the buttons are disabled at the edge of its priority, with "change the priority to
+  move it further" (Edit)). Reordering by dragging within a lane is not in 2a.
 - **Drag (dnd-kit 6.3.1):** sensors `MouseSensor` (distance 6 px), `TouchSensor` (delay 200 ms,
   tolerance 8 px) and `KeyboardSensor`; collision `pointerWithin` with **chips before the map
   droppable**; while a drag runs `map.dragPan.disable()` and `map.touchZoomRotate.disable()`,
@@ -597,8 +716,21 @@ must cover `jobs` (noted in `docs/status.md`).
   `src/ui/fields/highlight.ts`; never the field panel's layers); a `DragOverlay` above
   everything (`DRAG_OVERLAY_Z_INDEX = 50`, pointer-events none). Map gestures keep working
   outside a drag (MapLibre accepts untrusted touches; don't filter on `isTrusted`).
+  **Two dnd-kit defaults to change** (a contract review checked `e2e/support/drag.ts` against
+  real dnd-kit 6.3.1 in a bundled test page, Nov 6, on the wall profile and on Pixel 7: `touchDrag` activates the TouchSensor and drops on a chip
+  and on the map droppable, with the card's `touch-action` none, manipulation or auto inside a
+  `pan-x` lane; a 50 ms hold starts no drag; `mouseDrag` works): set **`autoScroll={false}`** (or
+  a restricted `autoScroll`) on the `DndContext` (the default scrolled the lane 336 px while the
+  finger crossed the lane's edge on its way to the chips tray at the band's right end); and
+  measure droppables with **`measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}`**
+  (or call `measureDroppableContainers()` once the phone sheet's peek snap settles): under the
+  default `WhileDragging` the rects are measured at drag start, and the sheet dropping to peek
+  then moves the tray's chips away from their stored rects.
 - **Data:** snapshot `GET /api/v1/jobs` after the realtime `ready`; subscribe `jobs` through
-  `resolveRealtimeClient` (`src/ui/map/fleet/realtime.ts`; the e2e double works); refetch on
+  `resolveRealtimeClient` (`src/ui/map/fleet/realtime.ts`; the e2e double works: it delivers every
+  topic, `window.__fleetEmit('jobs', …)`, and its resync counter `window.__fleetResyncs` counts
+  `fleet` subscriptions only, so `e2e/map-fleet.spec.ts`'s `=== 1` holds with the board
+  subscribed); refetch on
   `updated` (all, or the named jobs) and in `onResync`; never two requests at once (a trigger
   during a request queues one more); poll every 15 s while `connected()` is false
   (`src/ui/fields/detail-loader.ts` is the pattern).
@@ -630,7 +762,14 @@ must cover `jobs` (noted in `docs/status.md`).
 - **z-order:** wall band = a flex row (no z-index needed); job popover over the band and the map
   area's top, under the status sheet (z 40); phone pill z 2 (with the other top-left buttons);
   jobs sheet **z 22** (above the field sheet 20, the weather sheet 20 and the soil sheet 21,
-  under the fleet sheet 25: one is open at a time anyway); drag overlay z 50.
+  under the fleet sheet 25); drag overlay z 50. **Not yet one at a time on phones:** the Fleet
+  sheet (z 25) and the weather sheet (z 20) open from inside `FleetPanel` and `WeatherStrip`,
+  which never call `closeWorkBoardOverlays()`, and `onWorkOpen` can't close them; so the jobs
+  sheet can be open with either (a weather-chip tap while the jobs sheet is open opens the
+  weather sheet hidden under it). **Integrator merge item** (BoardScreen, the fleet and the
+  weather code are integrator-owned; the board builder can't fix it): the phone openers of
+  `FleetPanel` and `WeatherStrip` call `closeWorkBoardOverlays()`, and `onWorkOpen` closes their
+  sheets (or one shared phone-sheet store).
 - **Map access:** the board gets the same MapLibre map as the rail (`onMapReady`); it may add its
   own layers (hover highlight, ids above) and must remove them on unmount; it never changes
   WarRoomMap's props. Dropping on a deck.gl machine marker is not in 2a (chips only).
@@ -675,9 +814,14 @@ and any legend use only these.
 stub pages in place (`requireRole(ROLE_FOR.admin)`, the `NoAccess` refusal). `/admin/usage`:
 the last `USAGE_REPORT_DAYS` farm days, each with the daily active crew (distinct signed-in
 people of `CREW_APP_ROLES`, excluding the owner and source demo and e2e people; names listed),
-board time per device (heartbeat buckets × 5 min), job actions, morning-mode runs ("starts in
-2b"); the gate line "crew used the board every day" passes for a day with at least
-`PHASE2_MIN_DAILY_CREW` active crew, Sundays not counted. The agreements and request-link
+board time per device (the 5-minute buckets with at least one heartbeat × 5 min), job actions,
+morning-mode runs ("starts in 2b"); the gate line "crew used the board every day" passes for a
+day with at least `PHASE2_MIN_DAILY_CREW` active crew, Sundays not counted. **Demo and test
+people** get a separate line per day ("demo and test people: Amy Kovach, Dale Mercer"), shown
+so the demo isn't an empty page, **never counted toward the gate** (under `pnpm pilot` every
+crew member is a demo person, so every day reads 0 active crew and the gate line fails: that is
+right, and the page says why). rights-usage's e2e for the gate line creates throwaway people of
+source `'app'` and removes them afterwards. The agreements and request-link
 sections on `/admin/parties/<id>` (§1.2).
 
 ### 7.7 The usage writer (`src/platform/usage/record.ts`, rights-usage)
@@ -691,7 +835,9 @@ recordUsage(input: UsageInput, opts?: { ex?: Executor; now?: Date }): Promise<vo
 Called (already) from the `/board` and `/m` page renders (`page_view`) and `signInOperator`
 (`pin_sign_in`, route = the device's home); jobs-api calls it per job write (`job_action`, the
 route pattern as `route`); `POST /api/v1/usage` (`board_heartbeat`) from `UsageHeartbeat` every
-`USAGE_HEARTBEAT_MS` while the page is visible and has a session; 2b adds `morning_run`. Never
+`USAGE_HEARTBEAT_MS` (4 min) while the page is visible; the route records it **only when the
+session has a person** (`appUserId` not null) and answers `recorded: false` otherwise, so an
+unattended wall (a device session all day) logs no board time; 2b adds `morning_run`. Never
 from `proxy.ts`. The row: `farm_day = farmDate(at)`, `actor_key = usageActorKey(…)`,
 `bucket_at = usageBucketStart(at)`, `on conflict (actor_key, kind, route, bucket_at) do
 nothing`. Retention: `usage.prune` (daily) deletes rows older than `USAGE_RETENTION_DAYS`.
@@ -702,7 +848,8 @@ nothing`. Retention: `usage.prune` (daily) deletes rows older than `USAGE_RETENT
 
 - `touchDrag(page, from, to, { holdMs = 350, steps = 12, stepMs = 16, settleMs = 150, cdp? })`:
   a **trusted** one-finger drag through `Input.dispatchTouchEvent` (press, hold still for the
-  TouchSensor's 200 ms, move in steps, rest, lift). Chromium only.
+  TouchSensor's 200 ms, move in steps, rest, lift). Chromium only. Every drag helper resolves to
+  `{ releasedAt }` (`Date.now()` right after the lift): the done-when's clock starts there.
 - `mouseDrag(page, from, to, { steps, stepMs, settleMs, nudgePx = 10 })`: press, a nudge past
   the MouseSensor's 6 px, move, rest, release.
 - `dragTo(page, sourceLocator, targetLocator | point, { pointer: 'touch' | 'mouse', … })`,
@@ -713,9 +860,25 @@ nothing`. Retention: `usage.prune` (daily) deletes rows older than `USAGE_RETENT
   `signInAs(watcher, 'viewer')`; the spec runs on the `wall` project only
   (`test.skip(info.project.name !== 'wall')`) and drives a wall context (1920 × 1080, DPR 2,
   touch) and a phone context (Pixel 7) itself; timing as `fleet-panel.spec.ts` (start the clock
-  at the drop's touchEnd, stop when the other screen shows it; log `took`; assert `< 2000`).
-  Seed e2e jobs (source `e2e`) on an e2e field in an empty corner of the map (as
-  `field-panel.spec.ts` does), remove them after; don't move the demo jobs.
+  at the drop's `releasedAt`, stop when the other screen shows it; log `took`; assert `< 2000`).
+- **The done-when's job is the spec's own**, never the demo's: it seeds a **requested spray job
+  of source `'e2e'` with no field** (deterministic id, `source_id` `e2e:<spec>:<project>`), with a
+  window that overlaps no demo job (or none: a null window never overlaps, §4.5), plus an e2e
+  field in an empty corner of the map (as `field-panel.spec.ts` does), and drags the job onto
+  that field, then onto the **demo's SP2** and a **demo operator** (Dale, Luis or Jake: on a freshly seeded
+  database each is on a demo job today, so give the e2e job no overlapping window, or the card
+  rightly carries `double_booked`). It asserts the **"SP2 · <name>" chip** on the watching
+  screen, not the absence of flags. The demo's own requested job (`job-spray-juniper-request`)
+  is for the by-hand check (§11.5); specs don't move demo jobs.
+- **Naming and cleanup of e2e board rows:** jobs a spec writes directly are source `'e2e'`;
+  rows the app writes for a spec (the job form and the `/r` POST write source `'app'`) must name
+  a throwaway e2e party (`createTmpPerson` / a `tmp:` party) as customer, requester, assignee,
+  agreement holder or request-link owner, or be deleted by the spec. Each spec deletes its jobs
+  (cascading to assignments and products) **before** `e2e/support/auth.ts` removes its throwaway
+  parties (their FKs are `restrict`); `pruneE2eLeftovers` (global setup and teardown) already
+  deletes jobs of source `'e2e'` and every job row, assignment, agreement and request link that
+  names a `tmp:` e2e party before it deletes the parties, so a crashed spec never breaks the
+  next run.
 - Map points: jump the map with `window.__map.jumpTo` (z15) and drop at `mapPoint` of the
   field's centre after `queryRenderedFeatures` shows it, as `field-panel.spec.ts` `openAt` does.
 
@@ -727,12 +890,16 @@ nothing`. Retention: `usage.prune` (daily) deletes rows older than `USAGE_RETENT
 **8 products** (`DEMO_PRODUCTS`: glyphosate, 2,4-D and a restricted-use atrazine with
 placeholder EPA numbers `DEMO-000n`, a fungicide, seed corn, soybean seed, 28% UAN, off-road
 diesel), **10 jobs** (`DEMO_JOBS`: spraying 4, grain 3, trucking 2, store 1; statuses
-requested, planned, assigned, in_progress and done) with assignments and products, and the
-**Halvorsen agreement** (all four uses; none for Juniper Hill). The done-when's pieces: an
+requested, planned, assigned, in_progress and done, each consistent with `autoJobStatus`: the
+tillage job with a field and a tractor is assigned) with assignments and products, the
+**Halvorsen agreement** (all four uses; none for Juniper Hill), and the **customer-org party
+links** (`DEMO_CUSTOMER_ORGS`, §4.4: org-customer-1 → Halvorsen, org-customer-2 → Juniper Hill;
+insert-only). A job's `crop_year` follows §4.6: `fieldGrowingYear(field, cropSeasonsToSync(now))`,
+else `currentCropYear(now)`; null with no field. The done-when's pieces: an
 **unassigned planned spray job on a Halvorsen field** (`job-spray-halvorsen-burndown`) and a
 **requested spray job with no field** that Juniper Hill phoned in (`job-spray-juniper-request`,
-requester Gail Pressler); **SP2 is on no job**. All `source = 'demo'`, ids `demoId(key)`;
-windows from the farm day of the first run; jobs written once (what the demo did on the board
+requester Gail Pressler); **SP2 is on no job**. The `sort_key`s follow `DEMO_JOBS` order (10,
+20, …). All `source = 'demo'`, ids `demoId(key)`; windows from the farm day of the first run; jobs written once (what the demo did on the board
 stays until `db:reset`); products and the agreement only change when a seeded value does
 (`active`, `label_rules` and `revoked_on` are yours). Tested in `tools/seed/work.db.test.ts`.
 
@@ -742,19 +909,19 @@ stays until `db:reset`); products and the agreement only change when a seeded va
 
 | # | Default | Where it lives |
 |---|---|---|
-| 2a-1 Crews = business lines | one lane per business line (Spraying, Grain, Trucking, Store), each ordered by priority, window start, sort key; no crews table; each card shows who and what is on it | `BUSINESS_LINES`; the snapshot query |
+| 2a-1 Crews = business lines | one lane per business line (Spraying, Grain, Trucking, Store); each lists its open jobs by priority, then the order a manager sets (`sort_key`, Move up / Move down in the job detail, within a priority), then created; the window shows on the card but doesn't order it (the brief's "then window start" would have made the manager's order invisible: every demo job has its own start); the day's done jobs last; no crews table; each card shows who and what is on it | `BUSINESS_LINES`; the snapshot query; `POST /api/v1/jobs/reorder` |
 | 2a-2 Who may do what | create, edit, assign, reorder, cancel: manager (`ROLE_FOR.planJobs`); own job assigned/pushed → in progress → done: driver and up (`updateOwnJobStatus`); managers any status; seeing jobs: viewer. The wall alone is a viewer: a drag there needs a manager's PIN (demo: Amy Kovach) | `src/platform/auth/types.ts`; `checkJobTransition` |
 | 2a-3 Status machine | §4.3 | `src/domain/work-jobs.ts` |
-| 2a-4 Drag semantics | §4.5 | the board; `PUT …/field`, `POST …/assignments` |
+| 2a-4 Drag semantics | §4.5; drags start only from cards, chips are drop targets only (narrower than plan §6's "from cards and chips"); double-booking = overlapping windows of open jobs, flagged | the board; `PUT …/field`, `POST …/assignments` |
 | 2a-5 Planned acres | the field's current boundary acres when the field is set, unless typed; later boundary changes don't move them; both shown when they differ > 1 %; billing acres stay D16's | `ACRES_DIFFER_FRACTION`; jobs-api's queries |
 | 2a-6 Crop year on jobs | set with the field from its growing year (D23), else the calendar year; the other synced season can be picked; no second date rule | `farm.jobs.crop_year`; `fieldGrowingYear` |
 | 2a-7 Optimistic concurrency | `version` compare-and-set on the job row for every job or child write; 409 with the current job; "Changed on another screen; try again" | §4.7 |
-| 2a-8 Realtime by trigger | statement-level triggers, ids only, one message per statement, `invalidate` over 7,000 bytes, no TypeScript publish, never `fleet` or `fields` | §6 |
+| 2a-8 Realtime by trigger | statement-level triggers (one per event per table), ids only, at most one message per statement per event, `invalidate` over 7,000 bytes, no TypeScript publish, never `fleet` or `fields` | §6 |
 | 2a-9 Requests by text or phone | a manager types a `requested` job with the channel and who asked; the stretch per-customer revocable link `/r/<token>` (128-bit token stored as an HMAC, 20 requests a link a day), LAN-only until MD | §5.5 |
-| 2a-10 Data-rights gate (D17) | enforced in sandbox and live in every Deere per-org loop through one predicate; reported in sim and replay; an org can be linked to a customer before its first sync; prospecting a pure policy; CNH not gated; demo: Halvorsen signed, Juniper Hill not | §4.4 |
-| 2a-11 Usage events and the gate report | §3.1, §7.6, §7.7; `PHASE2_MIN_DAILY_CREW = 2`, Sundays skipped, 400 days kept, exported by data:export | `src/domain/work-jobs.ts` |
+| 2a-10 Data-rights gate (D17) | enforced in sandbox and live in every Deere per-org loop through one predicate; reported in sim and replay; fail closed while the home org is unknown; an org can be linked to a customer before its first sync; prospecting a pure policy; CNH not gated; demo: Halvorsen signed, Juniper Hill not, both orgs linked | §4.4 |
+| 2a-11 Usage events and the gate report | §3.1, §7.6, §7.7; `PHASE2_MIN_DAILY_CREW = 2`, Sundays skipped, a heartbeat every 4 min counted only with a person signed in, demo and test people on their own line (never counted), 400 days kept, exported by data:export | `src/domain/work-jobs.ts` |
 | 2a-12 Products | §3.1; `/admin/products`; job products edited in the job form; 8 demo products | job-forms |
-| 2a-13 2b preparation | `jobs.deere_work_plan_id`; the machine chip's "Deere" badge from `workPlanCapable`; no outbox, no push | §5.6 |
+| 2a-13 2b preparation | `jobs.deere_work_plan_id`; `JOB_OPERATION_KIND`; the machine chip's "Deere" badge from `workPlanCapable` (on a card only for kinds that become a Work Plan); no outbox, no push | §5.6 |
 
 **Foundation choices beyond the brief** (also defaults, easy to change):
 
@@ -771,6 +938,10 @@ stays until `db:reset`); products and the agreement only change when a seeded va
 - Planned units add **tons** and **gal** to the plan's loads, bu, hours (the store lane's
   deliveries); rate units are per acre (`*_ac`) or totals.
 - The Jobs tab sits at `TAB_ORDER.jobs = 15`, right after Overview, hidden until job-forms lands.
+- The status machine and the automatic moves are implemented in the foundation (§4.3);
+  manual planned → assigned is not a move; `/status` refuses `cancelled`.
+- `farm.job_assignments_job_id_idx` (a plain `job_id` index beside the partial unique ones).
+- The demo seed links both customer orgs to their parties (§4.4).
 - The wall's stub renders nothing (an empty 208 px band broke two wall specs' taps, §7.1); the
   phone's stub is an inert "Jobs" pill in its final place. `e2e/board.spec.ts` matches the map
   controls with `exact: true` (the band's lower first zoom shows a "Zoom in to see it" hint).
@@ -789,21 +960,32 @@ Every builder: §2 "Quality" green in its worktree, the report written. Then, pe
 - Every route of §5.2 (except `/api/v1/job-options` and `/api/v1/usage`) answers as specified:
   handler DB tests over `ROLES` for every route (401 signed out, 403 below the role, 400 / 404 /
   409 / 413 / 415 / 422 cases, cross-site refused), the 409 carrying the current job.
-- The status machine and `autoJobStatus` unit-tested exhaustively (§4.3); `jobSummary`;
-  conflict flags (`double_booked` with overlapping windows only, `machine_down`, `no_field`,
-  `acres_differ` at 1 %, `restricted_use`).
+- The status machine and `autoJobStatus` stay exhaustively tested (§4.3, the foundation's
+  `src/domain/work-jobs.test.ts`); `jobSummary`; `jobFlags` and the conflict flags
+  (`double_booked` with overlapping windows only, per §4.5's definition, `machine_down`,
+  `no_field` (also after the field of an assigned job is cleared), `acres_differ` at 1 %,
+  `restricted_use`); the routes' refusals of §5.2 (`cancelled` on /status, planned → assigned,
+  a `work_plan`/`billing` move as a person, own job with no person).
 - Drag semantics (§4.5) as DB tests: field by id and by point (inside a current boundary,
   outside = 422, a hidden-layer case), customer default from the farm's client, acres snapshot
   and by-hand, crop year from `fieldGrowingYear`; machine then person fills one row; person then
   machine fills one row; a second machine makes a second row; already on = no-op; a down machine
   accepted and flagged; unassign whole and by part; the automatic moves both ways.
 - Concurrency: two writers with the same version, one wins, the other 409, in parallel
-  (`Promise.all`), for the job row, an assignment and reorder.
-- The triggers in `db/pending/jobs-api.sql` with the DB tests of §6 (within 1 s, seq up, old and
-  new field ids, rollback silent, 500-row statement = one invalidate, the import GUC).
-- `GET /api/v1/crew`; `job_action` usage through `recordUsage`; the field detail's real
-  open-jobs count (assigned lines, §1.2) refetched on `jobs`; `deleteParty` explains each new
-  link.
+  (`Promise.all`), for the job row, an assignment and reorder; **two reorders listing the same
+  lane in opposite orders**, and **a reorder against a single assign** on one of its jobs, in
+  parallel: never a 503 or a `40P01` reaching the client (§4.7's lock order; one retry, then
+  409); reorder's full-list rule (a missing open job → 409 with it, a job of another lane → 422
+  `not_in_lane`, a new job lands at the end of its priority).
+- The triggers in `db/pending/jobs-api.sql` (nine, one per event per table) with the DB tests of
+  §6 (within 1 s, seq up, old and new field ids, rollback silent, 500 jobs in one INSERT = one
+  invalidate, an upsert at most two messages, a job delete at most three, the import GUC).
+- `GET /api/v1/crew`; `job_action` usage through `recordUsage`: until rights-usage lands the
+  writer is a no-op, so jobs-api's tests **spy on the call** (`vi.mock` of
+  `src/platform/usage/record.ts`: called once per job write with `job_action`, the route
+  pattern and the session's ids, after the commit) instead of reading `app.usage_events`; the
+  field detail's real open-jobs count (assigned lines, §1.2) refetched on `jobs`;
+  `deleteParty` explains each new link.
 
 ### 11.2 board
 
@@ -811,12 +993,18 @@ Every builder: §2 "Quality" green in its worktree, the report written. Then, pe
   `useFleetPanel()`, collapse remembered, the "Deere" badge, job detail with status buttons and
   edit (`JobForm`), cancel, × on assignment chips, the 409 message.
 - **`e2e/m2a-board.spec.ts` (the done-when):** under `next start`, two contexts, the `wall`
-  project, trusted touch through CDP (`e2e/support/drag.ts`): (1) the wall (manager) drags the
-  requested spray job onto a field, then onto SP2, then onto an operator; the phone (viewer)
-  shows the card on that field with "SP2 · <operator>" each time within 2 s (`took` logged and
-  `< 2000`); (2) the phone (manager) drags a job (field, machine, person) and the wall (viewer)
-  shows it within 2 s. Before the merge it runs with route mocks for the API and the e2e realtime
-  double for the second screen; the integrator runs it unmocked.
+  project, trusted touch through CDP (`e2e/support/drag.ts`): (1) the wall (manager) drags **the
+  spec's own requested spray job** (source `'e2e'`, no field, §8) onto an e2e field, then onto
+  the demo's SP2, then onto a demo operator; the phone (viewer) shows the card on that field
+  with the **"SP2 · <operator>"** chip each time within 2 s (`took` from `releasedAt`, logged
+  and `< 2000`); (2) the phone (manager) drags another e2e job (field, machine, person) and the
+  wall (viewer) shows it within 2 s. Before the merge it runs with route mocks for the API and
+  the e2e realtime double for the second screen; the integrator runs it unmocked.
+- The job detail's status buttons for a manager, a driver on their own job (and not on
+  another's) and a viewer, from `nextJobStatuses` (implemented, so this is e2e-testable with
+  route mocks before the merge); Cancel posts to …/cancel; **Move up / Move down** reorders the
+  lane (the request lists the lane's open jobs in the new order), disabled at the edge of the
+  card's priority, absent for viewers.
 - E2E for the layouts: the band at its default height leaves every M0/M1/1f wall spec green and
   the map area ≥ 65 % of the screen; the phone sheet closed by default, peek on drag start, one
   sheet at a time; a drag never pans the map, a pan never drags a card; a drop on empty map or
@@ -837,15 +1025,20 @@ Every builder: §2 "Quality" green in its worktree, the report written. Then, pe
 
 ### 11.4 rights-usage
 
-- `orgReadAllowed` / `loadOrgReadRights` real (§4.4) with unit and DB tests, each Deere loop
-  tested in sandbox mode against the stand-in with a refused customer org; sim and replay
-  unchanged (`e2e/deere-fields.spec.ts`, `m1f-replay`, the job-orgs DB tests green).
+- `orgReadAllowed` / `loadOrgReadRights` real (§4.4) with unit and DB tests (the home-unknown
+  fail-closed case included), each Deere loop tested in sandbox mode against the stand-in with a
+  refused customer org; sim and replay unchanged (`e2e/deere-fields.spec.ts`, `m1f-replay`, the
+  job-orgs DB tests green: the home-unknown case §1.3 assigns to you with its new expectation,
+  the rest unchanged).
 - `/admin/connectors`: each customer org "agreement on file" or "no agreement: blocked in live",
   "link to customer" for an org with no party; `/admin/parties/<id>`: agreements listed,
   recorded with an uploaded document (two-step grant), revoked; `mayUseCustomerData` tested.
-- Usage: `recordUsage` real (never throws, the bucket dedupe), `POST /api/v1/usage` and
-  `UsageHeartbeat`, `/admin/usage` with the gate line (unit tests for the day math: DST,
-  Sundays, owner/demo/e2e excluded), `usage.prune` with a DB test (400 days, batches).
+- Usage: `recordUsage` real (never throws, the bucket dedupe), `POST /api/v1/usage` (nothing
+  recorded for a session with no person) and `UsageHeartbeat` (every `USAGE_HEARTBEAT_MS`),
+  `/admin/usage` with the gate line (unit tests for the day math: DST, Sundays, owner/demo/e2e
+  excluded, board time = buckets with a heartbeat) and the separate demo-and-test-people line;
+  its e2e makes throwaway source-`'app'` crew to drive the gate line; `usage.prune` with a DB
+  test (400 days, batches).
 
 ### 11.5 The slice (integrator, after merging)
 
@@ -859,8 +1052,15 @@ Every builder: §2 "Quality" green in its worktree, the report written. Then, pe
   `CONNECTOR_SAMSARA=replay`: `m1f-replay` and the replay specs) green with the gate in place.
 - By hand under `pnpm pilot`: the wall with Amy's PIN and a phone, the done-when on the demo's
   requested spray job (a field, SP2, Dale), the other screen within 2 s; a viewer can't drag;
-  `/admin/usage` shows the day; `/admin/connectors` shows Halvorsen agreed and Juniper Hill
-  reported.
+  `/admin/usage` shows the day with Amy on the "demo and test people" line and 0 active crew
+  (the gate line fails under the demo: every crew member is a demo person); `/admin/connectors`
+  shows Halvorsen "agreement on file" and Juniper Hill "no agreement: blocked in live" (both
+  orgs are linked by the seed, §4.4).
+- An integrator DB test (after the merge, when `recordUsage` is real): a job write leaves
+  exactly one bucketed `app.usage_events` row of kind `job_action`, and a usage insert that
+  fails (an injected executor that throws, or the insert privilege revoked in the test
+  database) never fails the job write.
+- The merge items noted above: the phone sheets one at a time (§7.2).
 - The assigned M1 spec line (`e2e/field-panel.spec.ts` open jobs), `docs/build-plan.md` 2a boxes
   ticked with an as-built note, `docs/decisions.md` rows current, `docs/status.md` entry, README
   (the job board, request links LAN-only, the usage report).
