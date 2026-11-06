@@ -1,0 +1,229 @@
+/* The job form (job-forms; docs/contracts-2a.md §7.3): inside the board's wall popover, its
+   phone sheet and the field panel's Jobs tab. Sizes follow the host's type (the field panel is
+   22 px on the wall, 16 px on phones); touch targets 72 px on the wall, 48 px on phones. */
+
+.form {
+  --target: 48px;
+  --gap: 10px;
+  display: grid;
+  gap: 14px;
+  color: inherit;
+  font-size: 1em;
+}
+
+.wall {
+  --target: 72px;
+  --gap: 14px;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 700;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85em;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.section {
+  display: grid;
+  gap: var(--gap);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  background: rgb(255 255 255 / 3%);
+  min-width: 0;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.8em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+
+.grid {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13em), 1fr));
+}
+
+.label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.8em;
+  opacity: 0.95;
+}
+
+.hint {
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+.input,
+.select,
+.textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--target);
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  background: rgb(0 0 0 / 28%);
+  color: inherit;
+  /* 16 px at least: iOS zooms the page into smaller inputs. */
+  font-size: max(16px, 1.25em);
+  font-family: inherit;
+  touch-action: manipulation;
+}
+
+.select {
+  padding-right: 8px;
+}
+
+.textarea {
+  min-height: calc(var(--target) * 1.6);
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.input[aria-invalid="true"],
+.select[aria-invalid="true"],
+.textarea[aria-invalid="true"] {
+  border-color: #f87171;
+}
+
+.fieldError {
+  color: #fca5a5;
+  font-size: 0.85em;
+}
+
+.products {
+  display: grid;
+  gap: var(--gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.productRow {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 2.4fr) minmax(5em, 1fr) minmax(6em, 1.2fr) minmax(7em, 1.3fr) auto;
+  align-items: end;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 18%);
+}
+
+.phone .productRow {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.phone .productName {
+  grid-column: 1 / -1;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid rgb(251 191 36 / 60%);
+  color: #fbbf24;
+  font-size: 0.75em;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.button {
+  min-height: var(--target);
+  min-width: var(--target);
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 25%);
+  background: rgb(255 255 255 / 6%);
+  color: inherit;
+  font-size: max(16px, 1.1em);
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.primary {
+  border-color: #22a355;
+  background: #166534;
+}
+
+.small {
+  min-height: calc(var(--target) * 0.75);
+  padding: 0 12px;
+  font-size: max(15px, 0.95em);
+}
+
+.message {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.9em;
+}
+
+.error {
+  border: 1px solid rgb(248 113 113 / 60%);
+  background: rgb(127 29 29 / 35%);
+  color: #fecaca;
+}
+
+.conflict {
+  border: 1px solid rgb(251 191 36 / 60%);
+  background: rgb(120 53 15 / 35%);
+  color: #fde68a;
+  display: grid;
+  gap: 8px;
+}
+
+.muted {
+  opacity: 0.7;
+  font-size: 0.85em;
+}
+
+.button:focus-visible,
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible {
+  outline: 3px solid #86efac;
+  outline-offset: 2px;
+}
