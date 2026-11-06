@@ -547,8 +547,10 @@ export function autoJobStatus(
 }
 
 /**
- * The card's one-line summary when the job has no title ("Spray · Halvorsen Corwin 80 · 78 ac").
- * jobs-api implements it; the stub returns the kind's label.
+ * The card's one-line summary (JobView.summary): the title when the job has one, else "Spray ·
+ * Halvorsen Corwin 80 · 78 ac": the kind's label, the field's name, then the planned acres, or
+ * the planned quantity with its unit when there are no acres ("Haul · 14 loads"). Parts that
+ * aren't known are left out ("Spray" for a fresh request with nothing else on it).
  */
 export function jobSummary(job: {
   kind: JobKind;
@@ -558,7 +560,19 @@ export function jobSummary(job: {
   plannedQty: number | null;
   plannedUnit: JobPlannedUnit | null;
 }): string {
-  return job.title ?? JOB_KIND_LABELS[job.kind];
+  const title = job.title?.trim();
+  if (title) return title;
+  const parts: string[] = [JOB_KIND_LABELS[job.kind]];
+  const field = job.fieldName?.trim();
+  if (field) parts.push(field);
+  const amount =
+    job.plannedAcres !== null && Number.isFinite(job.plannedAcres)
+      ? formatJobAcres(job.plannedAcres)
+      : job.plannedQty !== null && Number.isFinite(job.plannedQty)
+        ? formatJobQuantity(job.plannedQty, job.plannedUnit)
+        : null;
+  if (amount) parts.push(amount);
+  return parts.join(' · ');
 }
 
 /** What jobFlags needs about one job (jobs-api's queries gather it). */
@@ -579,10 +593,256 @@ export interface JobFlagInput {
 }
 
 /**
- * The card's flags, in JOB_FLAGS order (acres_differ when both acres are known and differ by
- * more than ACRES_DIFFER_FRACTION of the boundary's). jobs-api implements it; the stub flags
- * nothing.
+ * The card's flags, in JOB_FLAGS order: `no_field` without a field (also an assigned job whose
+ * field was cleared); `machine_down` when a machine on it is down; `double_booked` when one of
+ * its assignments overlaps another open job (contracts-2a §4.5); `acres_differ` when both acres
+ * are known and differ by more than ACRES_DIFFER_FRACTION of the boundary's (decision 2a-5);
+ * `restricted_use` with a restricted-use product on it.
  */
-export function jobFlags(_job: JobFlagInput): JobFlag[] {
-  return [];
+export function jobFlags(job: JobFlagInput): JobFlag[] {
+  const on: Record<JobFlag, boolean> = {
+    no_field: !job.hasField,
+    machine_down: job.machinesDown > 0,
+    double_booked: job.overlaps > 0,
+    acres_differ: acresDiffer(job.plannedAcres, job.boundaryAcres),
+    restricted_use: job.restrictedUse,
+  };
+  return JOB_FLAGS.filter((f) => on[f]);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Pure helpers (jobs-api; new functions below the frozen line, contracts-2a §4.3)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Do planned acres differ from the field's current boundary acres by more than
+ * ACRES_DIFFER_FRACTION of the boundary's (decision 2a-5)? False when either is unknown.
+ */
+export function acresDiffer(plannedAcres: number | null, boundaryAcres: number | null): boolean {
+  if (plannedAcres === null || boundaryAcres === null) return false;
+  if (!Number.isFinite(plannedAcres) || !Number.isFinite(boundaryAcres)) return false;
+  return Math.abs(plannedAcres - boundaryAcres) > ACRES_DIFFER_FRACTION * Math.abs(boundaryAcres);
+}
+
+/** "78 ac", "1,234 ac"; under 10 acres one decimal ("4.5 ac", "0 ac"). */
+export function formatJobAcres(acres: number): string {
+  const digits = Math.abs(acres) >= 10 || acres === 0 ? 0 : 1;
+  const text = acres.toLocaleString('en-US', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+  return `${text} ac`;
+}
+
+/** "12,000 bu", "14 loads", "2.5 hours"; a quantity with no unit is just the number. */
+export function formatJobQuantity(qty: number, unit: JobPlannedUnit | null): string {
+  const text = qty.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  return unit ? `${text} ${JOB_PLANNED_UNIT_LABELS[unit]}` : text;
+}
+
+/**
+ * Two letters for a person chip: the first letters of the first and last words ("Dale Mercer"
+ * -> "DM", "Mary Ann de Vries" -> "MV"), the first two letters of a single word ("Amy" ->
+ * "AM"), "?" for a name with no letters. Digits count as letters ("E2E Manager" -> "EM").
+ */
+export function personInitials(name: string): string {
+  const words = name.match(/[\p{L}\p{N}]+/gu) ?? [];
+  const first = words[0];
+  if (!first) return '?';
+  const last = words.length > 1 ? words[words.length - 1] : undefined;
+  const letters = last ? [...first][0] + ([...last][0] ?? '') : [...first].slice(0, 2).join('');
+  return letters.toLocaleUpperCase('en-US');
+}
+
+/**
+ * The status after a write that changes the field or the assignments (autoJobStatus), and
+ * whether it moved: the write sets status_changed_at with it (contracts-2a §4.3).
+ */
+export function autoJobStatusAfter(
+  status: JobStatus,
+  job: { hasField: boolean; assignmentCount: number },
+): { status: JobStatus; changed: boolean } {
+  const next = autoJobStatus(status, job);
+  return { status: next, changed: next !== status };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Drag semantics as pure plans (decision 2a-4, contracts-2a §4.5): the queries apply them
+// ---------------------------------------------------------------------------------------------
+
+/** One of a job's assignment rows, as the plans see it (rows in creation order). */
+export interface AssignmentRowLike {
+  id: string;
+  machineId: string | null;
+  partyId: string | null;
+}
+
+/** `operator` when the row has a machine, else `crew`. */
+export function assignmentRole(row: { machineId: string | null }): AssignmentRole {
+  return row.machineId ? 'operator' : 'crew';
+}
+
+export type AssignmentChange =
+  | { op: 'insert'; machineId: string | null; partyId: string | null; role: AssignmentRole }
+  | {
+      op: 'update';
+      id: string;
+      machineId: string | null;
+      partyId: string | null;
+      role: AssignmentRole;
+    }
+  | { op: 'delete'; id: string };
+
+export interface AssignmentPlan {
+  /** What to write, in order; empty = already on (a no-op: same version). */
+  changes: AssignmentChange[];
+  /** The job's assignment rows after the plan (for autoJobStatus). */
+  count: number;
+}
+
+/**
+ * A card dropped on a machine chip, a person chip, or both at once (contracts-2a §4.5): a
+ * machine fills the job's oldest row that has a person but no machine (the person's own row
+ * first when the drop names both), else a new row; a person fills the row the machine just
+ * went on when it has no one, else the oldest row with a machine but no person, else a new row.
+ * A machine or person already on the job changes nothing. So "SP2, then Dale" is one row.
+ */
+export function planAssignment(
+  rows: readonly AssignmentRowLike[],
+  add: { machineId?: string | null; partyId?: string | null },
+): AssignmentPlan {
+  type Row = AssignmentRowLike & { isNew: boolean; touched: boolean };
+  const next: Row[] = rows.map((r) => ({ ...r, isNew: false, touched: false }));
+  const fill = (i: number, patch: Partial<AssignmentRowLike>) => {
+    const row = next[i] as Row;
+    Object.assign(row, patch, { touched: true });
+  };
+  let machineRow = -1;
+  if (add.machineId) {
+    machineRow = next.findIndex((r) => r.machineId === add.machineId);
+    if (machineRow < 0) {
+      let target = add.partyId
+        ? next.findIndex((r) => r.partyId === add.partyId && r.machineId === null)
+        : -1;
+      if (target < 0) target = next.findIndex((r) => r.partyId !== null && r.machineId === null);
+      if (target >= 0) {
+        fill(target, { machineId: add.machineId });
+        machineRow = target;
+      } else {
+        next.push({ id: '', machineId: add.machineId, partyId: null, isNew: true, touched: true });
+        machineRow = next.length - 1;
+      }
+    }
+  }
+  if (add.partyId && !next.some((r) => r.partyId === add.partyId)) {
+    let target = machineRow >= 0 && next[machineRow]?.partyId === null ? machineRow : -1;
+    if (target < 0) target = next.findIndex((r) => r.machineId !== null && r.partyId === null);
+    if (target >= 0) fill(target, { partyId: add.partyId });
+    else next.push({ id: '', machineId: null, partyId: add.partyId, isNew: true, touched: true });
+  }
+  const changes: AssignmentChange[] = next
+    .filter((r) => r.touched)
+    .map((r) =>
+      r.isNew
+        ? { op: 'insert', machineId: r.machineId, partyId: r.partyId, role: assignmentRole(r) }
+        : {
+            op: 'update',
+            id: r.id,
+            machineId: r.machineId,
+            partyId: r.partyId,
+            role: assignmentRole(r),
+          },
+    );
+  return { changes, count: next.length };
+}
+
+/**
+ * The × on an assignment chip (contracts-2a §4.5): the whole row, or one side of it
+ * (`part`); a row left with neither machine nor person is deleted. Clearing a side the row
+ * doesn't have changes nothing.
+ */
+export function planUnassignment(
+  rows: readonly AssignmentRowLike[],
+  assignmentId: string,
+  part?: 'machine' | 'person',
+): AssignmentPlan | null {
+  const row = rows.find((r) => r.id === assignmentId);
+  if (!row) return null;
+  const others = rows.length - 1;
+  if (!part) return { changes: [{ op: 'delete', id: row.id }], count: others };
+  const left = {
+    machineId: part === 'machine' ? null : row.machineId,
+    partyId: part === 'person' ? null : row.partyId,
+  };
+  if (left.machineId === row.machineId && left.partyId === row.partyId) {
+    return { changes: [], count: rows.length };
+  }
+  if (left.machineId === null && left.partyId === null) {
+    return { changes: [{ op: 'delete', id: row.id }], count: others };
+  }
+  return {
+    changes: [{ op: 'update', id: row.id, ...left, role: assignmentRole(left) }],
+    count: rows.length,
+  };
+}
+
+/** A job of a lane as the reorder sees it (locked rows). */
+export interface ReorderRow {
+  id: string;
+  version: number;
+  status: JobStatus;
+  businessLine: BusinessLine;
+  priority: number;
+  sortKey: number;
+  /** Lane order tiebreak (epoch ms). */
+  createdAt: number;
+}
+
+export type ReorderPlan =
+  /** `changes`: only the jobs whose sort_key moves ((position + 1) × 10). */
+  | { ok: true; changes: { id: string; sortKey: number }[] }
+  /** stale / missing: 409 with `jobId`; not_in_lane: 422 naming it. */
+  | { ok: false; reason: 'stale' | 'missing' | 'not_in_lane'; jobId: string };
+
+/** The step between two neighbours' sort keys after a reorder. */
+export const REORDER_STEP = 10;
+
+/**
+ * POST /api/v1/jobs/reorder (decision 2a-1, contracts-2a §5.2): `listed` is every open job of
+ * `lane` in its new order, with the version the client saw; `rows` the jobs as they are now
+ * (the listed ones and the lane's open ones). Refusals, in this order: the first listed job
+ * whose version is stale (409 with it); a listed job that isn't open in the lane (422
+ * not_in_lane); an open job of the lane missing from the list, first in lane order (409 with
+ * it: it is new or moved there). Then sort_key = (position + 1) × 10.
+ */
+export function planJobReorder(
+  lane: BusinessLine,
+  listed: readonly { id: string; version: number }[],
+  rows: readonly ReorderRow[],
+): ReorderPlan {
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const stale = listed.find((l) => {
+    const r = byId.get(l.id);
+    return r !== undefined && r.version !== l.version;
+  });
+  if (stale) return { ok: false, reason: 'stale', jobId: stale.id };
+  const inLane = (r: ReorderRow | undefined): r is ReorderRow =>
+    r !== undefined && r.businessLine === lane && isOpenJobStatus(r.status);
+  const outside = listed.find((l) => !inLane(byId.get(l.id)));
+  if (outside) return { ok: false, reason: 'not_in_lane', jobId: outside.id };
+  const named = new Set(listed.map((l) => l.id));
+  const missing = rows
+    .filter((r) => inLane(r) && !named.has(r.id))
+    .sort(
+      (a, b) =>
+        a.priority - b.priority ||
+        a.sortKey - b.sortKey ||
+        a.createdAt - b.createdAt ||
+        a.id.localeCompare(b.id),
+    )[0];
+  if (missing) return { ok: false, reason: 'missing', jobId: missing.id };
+  const changes = listed
+    .map((l, i) => ({ id: l.id, sortKey: (i + 1) * REORDER_STEP }))
+    .filter((c) => byId.get(c.id)?.sortKey !== c.sortKey);
+  return { ok: true, changes };
 }
