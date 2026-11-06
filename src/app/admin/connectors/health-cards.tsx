@@ -31,6 +31,7 @@ import {
 } from './actions';
 import type { ConnectorsSnapshot } from './data';
 import type { SyncHealthSnapshot } from './health';
+import { DeereOrgRights } from './org-rights-cell';
 
 type Kind = 'ok' | 'bad' | 'warn' | 'idle';
 
@@ -311,6 +312,7 @@ export function DeereCard({
                 <th>Org</th>
                 <th>Status</th>
                 <th>Action</th>
+                <th>Data rights (D17)</th>
                 <th>Seen</th>
               </tr>
             </thead>
@@ -349,6 +351,14 @@ export function DeereCard({
                     ) : (
                       '-'
                     )}
+                  </td>
+                  <td>
+                    <DeereOrgRights
+                      orgId={o.orgId}
+                      orgIds={orgs.rows.map((r) => r.orgId)}
+                      mode={orgs.mode}
+                      homeOrgId={homeOrg.orgId}
+                    />
                   </td>
                   <td>{ago(o.lastSeenAt)}</td>
                 </tr>
