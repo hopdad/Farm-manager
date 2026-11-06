@@ -88,8 +88,11 @@ function DayRows({ day }: { day: UsageReportDay }) {
             <span className={css.muted}>none</span>
           ) : (
             <ul className={u.devices}>
-              {day.boardTime.map((d) => (
-                <li key={d.label}>
+              {day.boardTime.map((d, i) => (
+                // Labels can repeat (two deleted devices, two people of one name); the list
+                // is rendered once per request, so its position is a stable key.
+                // biome-ignore lint/suspicious/noArrayIndexKey: static, server-rendered list
+                <li key={`${i}:${d.label}`}>
                   {d.label} <span className={css.muted}>{formatMinutes(d.minutes)}</span>
                 </li>
               ))}

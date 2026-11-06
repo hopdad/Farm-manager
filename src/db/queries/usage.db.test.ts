@@ -309,6 +309,16 @@ describe('retention (usage.prune)', () => {
     expect(r).toEqual({ deleted: 0, complete: false, batches: 0 });
   });
 
+  test("the runner's abort (a shutdown) stops it too, rows left for the next run", async () => {
+    const ac = new AbortController();
+    ac.abort();
+    const ctx = testJobContext(t(), { name: 'usage.prune', now: () => now, signal: ac.signal });
+    const result = await runUsagePrune(ctx, { batch: 3 });
+    expect(result.items).toBe(0);
+    expect(result.note).toContain('the rest tomorrow');
+    expect((await left()).reduce((n, r) => n + r.n, 0)).toBe(20);
+  });
+
   test(`deletes the rows of farm days before ${USAGE_RETENTION_DAYS} days ago, in batches`, async () => {
     const ctx = testJobContext(t(), { name: 'usage.prune', now: () => now });
     const before = (await rows()).length;

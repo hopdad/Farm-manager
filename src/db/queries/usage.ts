@@ -194,19 +194,20 @@ export interface UsagePruneResult {
 
 /**
  * Delete the events of farm days before `beforeDay` ('YYYY-MM-DD'), `batch` rows a statement,
- * until none are left or the deadline passes.
+ * until none are left, the deadline passes or `signal` aborts (the job runner's: the deadline
+ * or a shutdown).
  */
 export async function pruneUsageEvents(
   ex: Executor,
   beforeDay: string,
   deadline: Date,
-  opts: { batch?: number; clock?: () => number } = {},
+  opts: { batch?: number; clock?: () => number; signal?: AbortSignal } = {},
 ): Promise<UsagePruneResult> {
   const batch = opts.batch ?? USAGE_PRUNE_BATCH;
   const clock = opts.clock ?? Date.now;
   const out: UsagePruneResult = { deleted: 0, complete: true, batches: 0 };
   for (;;) {
-    if (clock() >= deadline.getTime()) {
+    if (clock() >= deadline.getTime() || opts.signal?.aborted) {
       out.complete = false;
       return out;
     }

@@ -6,7 +6,8 @@
  *
  * "Older than 400 days" is by farm day: a row stays while its `farm_day` is on or after the
  * farm date 400 days before today (America/Detroit), so the cutoff never moves with the DST
- * change. The batches stop at the job's deadline; whatever is left goes on the next day.
+ * change. The batches stop at the job's deadline (or when the runner aborts the run); whatever
+ * is left goes on the next day.
  */
 import { pruneUsageEvents } from '../db/queries/usage';
 import { farmDate } from '../domain/farm';
@@ -27,8 +28,9 @@ export async function runUsagePrune(
   const r = await pruneUsageEvents(ctx.pool, cutoff, ctx.deadline, {
     batch: opts.batch,
     clock: () => ctx.now().getTime(),
+    signal: ctx.signal,
   });
-  const note = `${r.deleted} usage row(s) before ${cutoff} deleted${r.complete ? '' : ' (deadline: the rest tomorrow)'}`;
+  const note = `${r.deleted} usage row(s) before ${cutoff} deleted${r.complete ? '' : ' (stopped early: the rest tomorrow)'}`;
   if (r.deleted > 0 || !r.complete) ctx.log.info('usage.prune', { ...r, cutoff });
   return { items: r.deleted, note };
 }

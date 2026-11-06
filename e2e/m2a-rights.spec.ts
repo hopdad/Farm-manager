@@ -82,6 +82,10 @@ test('connectors: each Deere org shows its data-rights state (sim reports, never
   page,
 }) => {
   test.setTimeout(120_000);
+  test.skip(
+    !['sim', 'replay'].includes(getConfig().CONNECTOR_DEERE),
+    'the demo orgs exist in sim and replay',
+  );
   await page.goto('/admin/connectors');
   // fleet.deere lists the orgs every 15 s in the demo.
   await reloadUntil(page, async () => (await rights(page, 'org-customer-2').count()) > 0);
@@ -91,6 +95,7 @@ test('connectors: each Deere org shows its data-rights state (sim reports, never
   await expect(rights(page, 'org-customer-1')).toHaveAttribute('data-state', 'agreed');
   await expect(rights(page, 'org-customer-1')).toContainText('agreement on file');
   await expect(rights(page, 'org-customer-1')).toContainText('Halvorsen Bros. Farms');
+  // Sim and replay report (and read) the org live would block.
   await expect(rights(page, 'org-customer-2')).toHaveAttribute('data-state', 'reported');
   await expect(rights(page, 'org-customer-2')).toContainText('no agreement: blocked in live');
   await expect(rights(page, 'org-customer-2')).toContainText('Juniper Hill Farms LLC');
@@ -108,14 +113,17 @@ test('connectors: each Deere org shows its data-rights state (sim reports, never
 test('connectors: "link to customer" for an org with no party yet', async ({ page }) => {
   test.setTimeout(90_000);
   const db = e2ePool();
+  // The page shows the current mode's orgs (sim, or replay in CI's replay step).
+  const mode = getConfig().CONNECTOR_DEERE;
+  test.skip(mode === 'off', 'no Deere connection');
   // An org row of the spec's own. fleet.deere drops rows its next listing doesn't have (every
   // 15 s), so put it back until the page shows it; the link itself doesn't need the row.
   const seed = () =>
     db.query(
       `insert into ingest.connector_orgs (source, mode, org_external_id, name, status)
-       values ('deere', 'sim', $1, 'E2E unlinked org', 'connected')
+       values ('deere', $2, $1, 'E2E unlinked org', 'connected')
        on conflict (source, mode, org_external_id) do update set last_seen_at = now()`,
-      [ORG],
+      [ORG, mode],
     );
   await expect(async () => {
     await seed();
