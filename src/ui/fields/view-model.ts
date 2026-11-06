@@ -228,6 +228,12 @@ export function boundaryView(detail: FieldDetail): BoundaryView | null {
   };
 }
 
+/** The overview's open-jobs line (slice 2a): the field's jobs still open on the job board. */
+export function openJobsText(count: number): string {
+  if (count <= 0) return 'No open jobs on the job board';
+  return `${count.toLocaleString('en-US')} open job${count === 1 ? '' : 's'} on the job board`;
+}
+
 /** The whole panel. `now` (ms) only feeds the "edited … ago" text. */
 export function fieldPanelView(detail: FieldDetail, role: Role, now: number): FieldPanelView {
   const f = detail.field;
@@ -242,10 +248,7 @@ export function fieldPanelView(detail: FieldDetail, role: Role, now: number): Fi
     boundary: boundaryView(detail),
     seasons: detail.seasons.map(seasonView),
     notes: notesView(detail.notes, role, now),
-    openJobs:
-      detail.openJobs.count > 0
-        ? `${detail.openJobs.count} open`
-        : 'Open jobs show here once the job board arrives (M2).',
+    openJobs: openJobsText(detail.openJobs.count),
     inactive: !f.active,
   };
 }

@@ -44,10 +44,15 @@ describe('toFieldDetail', () => {
     expect(d.boundary).toMatchObject({ editable: true, readOnlyReason: null });
   });
 
-  test('no boundary stays null; open jobs are the M2 placeholder', () => {
+  test('no boundary stays null; no open-jobs count from the SQL is none', () => {
     const d = toFieldDetail(raw({ boundary: null }));
     expect(d.boundary).toBeNull();
     expect(d.openJobs).toEqual({ count: 0 });
+  });
+
+  test("open jobs: the statement's count of the field's open jobs (slice 2a)", () => {
+    expect(toFieldDetail({ ...raw(), openJobs: { count: 3 } }).openJobs).toEqual({ count: 3 });
+    expect(toFieldDetail({ ...raw(), openJobs: { count: 0 } }).openJobs).toEqual({ count: 0 });
   });
 
   test('the soils summary is computed when there are soils, else null', () => {

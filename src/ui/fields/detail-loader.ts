@@ -6,7 +6,8 @@
  *    shows a cached copy first when this tab opened the field before (then revalidates);
  *  - refetches on realtime `fields`/`updated` for this field, and in `onResync` (every
  *    (re)connect, `seq` gap, `invalidate`), so a notes edit on one screen reaches the others
- *    within the 2 s target;
+ *    within the 2 s target; and on `jobs`/`updated` naming this field (or `jobs`/`invalidate`),
+ *    so the open-jobs count follows the job board (slice 2a);
  *  - polls every `pollMs` while realtime can't deliver (SSE reconnecting, no adapter yet);
  *  - never runs two requests at once: a trigger during a request queues exactly one more, so the
  *    last answer always reflects the last change; stale answers of a stopped loader are dropped;
@@ -234,6 +235,17 @@ export function startFieldDetail(opts: FieldDetailLoaderOptions): FieldDetailLoa
     },
     { onResync: () => void load() },
   );
+  // The open-jobs count (slice 2a): job writes publish `jobs` only, naming every field a changed
+  // job had before or after (docs/contracts-2a.md §6); `invalidate` names none, so it refetches.
+  const openField = fieldId.toLowerCase();
+  const unsubscribeJobs = opts.realtime?.client.subscribe(
+    'jobs',
+    (evt) => {
+      if (evt.event === 'invalidate') void load();
+      else if (evt.payload.fieldIds.some((id) => id.toLowerCase() === openField)) void load();
+    },
+    { onResync: () => void load() },
+  );
   const poll = timers.setInterval(() => {
     if (!opts.realtime?.connected()) void load();
   }, opts.pollMs ?? DEFAULT_POLL_MS);
@@ -248,6 +260,7 @@ export function startFieldDetail(opts: FieldDetailLoaderOptions): FieldDetailLoa
       stopped = true;
       inflight?.abort();
       unsubscribe?.();
+      unsubscribeJobs?.();
       timers.clearInterval(poll);
     },
   };

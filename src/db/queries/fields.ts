@@ -9,7 +9,8 @@
  *      · farm.field_seasons (field_id, crop_year) · gis.field_soils pkey (boundary_id, mukey)
  *      · gis.parcels geom gist · farm.field_lineage (parent, child) / child_field_id
  *      · farm.boundary_change_requests open index · farm.spray_assessments (field_id, for_hour)
- *      · farm.weather_grids pkey (the verdict's cell, for its last NWS check).
+ *      · farm.weather_grids pkey (the verdict's cell, for its last NWS check)
+ *      · farm.jobs jobs_field_id_idx (the open-jobs count, slice 2a).
  *    The JSON is built in SQL with the contract's camelCase keys; timestamps leave as UTC ISO.
  *  - `saveFieldNotes()`: the notes edit (manager+, checked by the caller), optimistic on
  *    `FieldNotes.version` (farm.fields.updated_at, microseconds), publishing `fields`/`updated`
@@ -27,6 +28,7 @@ import { withStaleness } from '../../domain/spray';
 import { publish } from '../../platform/realtime/publish';
 import type { Db, DbTx } from '../client';
 import { type Executor, exec } from '../exec';
+import { OPEN_STATUS_SQL } from './work-jobs-sql';
 
 /** Parcels touching the boundary by less than this (a shared fence line) are left out. */
 export const MIN_PARCEL_OVERLAP_ACRES = 0.01;
@@ -161,6 +163,10 @@ select json_build_object(
     select count(*)::int
       from farm.boundary_change_requests r
      where r.field_id = $1::uuid and r.resolved_at is null),
+  'openJobs', json_build_object('count', (
+    select count(*)::int
+      from farm.jobs j
+     where j.field_id = $1::uuid and j.status in ${OPEN_STATUS_SQL})),
   'spray', (
     select json_build_object(
              'fieldId', s.field_id, 'forHour', ${iso('s.for_hour')}, 'verdict', s.verdict,
@@ -185,10 +191,12 @@ export function isUuid(id: string): boolean {
   return UUID_RE.test(id);
 }
 
-/** The SQL's JSON before the parts computed in TS (editability, the soils summary, open jobs). */
+/** The SQL's JSON before the parts computed in TS (editability, the soils summary). */
 type RawFieldDetail = Omit<FieldDetail, 'boundary' | 'soilsSummary' | 'openJobs' | 'field'> & {
   field: FieldSummary;
   boundary: Omit<NonNullable<FieldDetail['boundary']>, 'editable' | 'readOnlyReason'> | null;
+  /** The field's jobs in OPEN_JOB_STATUSES (slice 2a); absent counts as none. */
+  openJobs?: { count: number };
 };
 
 function parseJson<T>(v: unknown): T {
@@ -205,8 +213,8 @@ export function toFieldDetail(raw: RawFieldDetail): FieldDetail {
       ? { ...raw.boundary, editable: policy.editable, readOnlyReason: policy.reason }
       : null,
     soilsSummary: raw.soils.length > 0 ? summarizeFieldSoils(raw.soils) : null,
-    // The job board fills the count (slice 2a: jobs-api, docs/contracts-2a.md §1.2).
-    openJobs: { count: 0 },
+    // The field's open jobs on the board (slice 2a, docs/contracts-2a.md §1.2, §4.2).
+    openJobs: { count: Number(raw.openJobs?.count ?? 0) },
   };
 }
 

@@ -271,3 +271,55 @@ describe('FieldDetailCache', () => {
     expect(c.size).toBe(2);
   });
 });
+
+describe('startFieldDetail: the open-jobs count follows the job board (slice 2a)', () => {
+  const jobs = (h: ReturnType<typeof harness>, msg: TopicMessage<'jobs'>) => {
+    for (const s of h.subs) if (s.topic === 'jobs') s.onEvent(msg);
+  };
+  const updated = (fieldIds: string[], seq: number): TopicMessage<'jobs'> => ({
+    event: 'updated',
+    payload: {
+      jobIds: ['00000000-0000-4000-8000-0000000000a1'],
+      fieldIds,
+      machineIds: [],
+      partyIds: [],
+    },
+    seq,
+  });
+
+  test('refetches on jobs/updated naming this field (old or new, any case), not another', async () => {
+    const h = harness();
+    expect(h.subs.map((s) => s.topic).sort()).toEqual(['fields', 'jobs']);
+    h.calls[0]?.resolve(ok(makeFieldDetail()));
+    await flush();
+    jobs(h, updated(['0a0a0a0a-0000-4000-8000-000000000000'], 1));
+    jobs(h, updated([], 2));
+    expect(h.calls).toHaveLength(1);
+    jobs(h, updated(['0a0a0a0a-0000-4000-8000-000000000000', ID.toUpperCase()], 3));
+    expect(h.calls).toHaveLength(2);
+    h.calls[1]?.resolve(ok(makeFieldDetail({ openJobs: { count: 2 } })));
+    await flush();
+    expect(h.last().detail?.openJobs).toEqual({ count: 2 });
+    h.loader.stop();
+  });
+
+  test('refetches on jobs/invalidate (too large, or after an import) and on its resync', async () => {
+    const h = harness();
+    h.calls[0]?.resolve(ok(makeFieldDetail()));
+    await flush();
+    jobs(h, { event: 'invalidate', payload: { event: 'updated', reason: 'too_large' }, seq: 4 });
+    expect(h.calls).toHaveLength(2);
+    h.calls[1]?.resolve(ok(makeFieldDetail()));
+    await flush();
+    for (const s of h.subs) if (s.topic === 'jobs') s.opts.onResync();
+    expect(h.calls).toHaveLength(3);
+    h.loader.stop();
+  });
+
+  test('stop() drops both subscriptions', () => {
+    const h = harness();
+    expect(h.subs).toHaveLength(2);
+    h.loader.stop();
+    expect(h.subs).toHaveLength(0);
+  });
+});

@@ -8,6 +8,7 @@ import {
   formatSeasonDate,
   formatWhen,
   formatYield,
+  openJobsText,
   partyView,
 } from './view-model';
 
@@ -140,7 +141,17 @@ describe('fieldPanelView', () => {
       yield: DASH,
       yieldValue: DASH,
     });
-    expect(v.openJobs).toMatch(/job board/);
+    expect(v.openJobs).toBe('No open jobs on the job board');
+  });
+
+  test("open jobs: the count of the field's open jobs on the board (slice 2a)", () => {
+    const view = (count: number) =>
+      fieldPanelView(makeFieldDetail({ openJobs: { count } }), 'viewer', NOW).openJobs;
+    expect(view(0)).toBe('No open jobs on the job board');
+    expect(view(1)).toBe('1 open job on the job board');
+    expect(view(3)).toBe('3 open jobs on the job board');
+    expect(view(1200)).toBe('1,200 open jobs on the job board');
+    expect(openJobsText(-1)).toBe('No open jobs on the job board');
   });
 
   test('notes: who edited and when; only manager and owner may edit', () => {

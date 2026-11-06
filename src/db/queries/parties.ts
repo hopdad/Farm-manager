@@ -383,6 +383,9 @@ export async function updateParty(
   });
 }
 
+/** "1 job", "3 jobs". */
+const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+
 /** Delete a party nothing points at (refuses, listing the links, otherwise). */
 export async function deleteParty(pool: pg.Pool, id: string, _actor: Actor): Promise<void> {
   await withTransaction(pool, async (c) => {
@@ -393,13 +396,27 @@ export async function deleteParty(pool: pg.Pool, id: string, _actor: Actor): Pro
       members: number;
       user: boolean;
       geofences: number;
+      customer_jobs: number;
+      requested_jobs: number;
+      assignments: number;
+      agreements: number;
+      request_links: number;
     }>(
       `select exists (select 1 from farm.parties where id = $1) as found,
               (select count(*)::int from farm.fields where landlord_party_id = $1) as fields,
               (select count(*)::int from farm.farms where client_party_id = $1) as farms,
               (select count(*)::int from farm.parties where org_id = $1) as members,
               exists (select 1 from farm.app_users where party_id = $1) as user,
-              (select count(*)::int from farm.geofences where party_id = $1) as geofences`,
+              (select count(*)::int from farm.geofences where party_id = $1) as geofences,
+              (select count(*)::int from farm.jobs where customer_party_id = $1) as customer_jobs,
+              (select count(*)::int from farm.jobs where requested_by_party_id = $1)
+                as requested_jobs,
+              (select count(distinct job_id)::int from farm.job_assignments where party_id = $1)
+                as assignments,
+              (select count(*)::int from farm.data_rights_agreements where party_id = $1)
+                as agreements,
+              (select count(*)::int from farm.job_request_links where party_id = $1)
+                as request_links`,
       [id],
     );
     const x = r.rows[0];
@@ -410,6 +427,12 @@ export async function deleteParty(pool: pg.Pool, id: string, _actor: Actor): Pro
       x.members && `${x.members} member(s)`,
       x.user && 'an app sign-in (/admin/people)',
       x.geofences && `${x.geofences} geofence(s)`,
+      // The job board (slice 2a): these foreign keys restrict, so say which rows hold on.
+      x.customer_jobs && `customer of ${plural(x.customer_jobs, 'job')}`,
+      x.requested_jobs && `asked for ${plural(x.requested_jobs, 'job')}`,
+      x.assignments && `on ${plural(x.assignments, 'job')} on the job board`,
+      x.agreements && `${plural(x.agreements, 'data-rights agreement')}`,
+      x.request_links && `${plural(x.request_links, 'job request link')}`,
     ].filter(Boolean);
     if (links.length) {
       throw new FieldDataError(
