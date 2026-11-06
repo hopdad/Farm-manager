@@ -1,13 +1,14 @@
 /**
- * POST /api/v1/jobs/<id>/cancel <- CancelJobBody -> JobResponse | 409 | 422 (ROLE_FOR.planJobs).
- * FOUNDATION STUB (slice 2a; docs/contracts-2a.md §5): answers 501 until jobs-api replaces
- * it with its handler (keep this file thin: runtime, dynamic, then the handler).
+ * POST /api/v1/jobs/<id>/cancel <- CancelJobBody -> JobResponse | 409 | 422 closed
+ * (ROLE_FOR.planJobs). Logic: ../../handler.ts.
  */
-import { notBuiltYet } from '@/platform/http/not-built';
+import { getPool } from '@/db/client';
+import { handleCancelJob } from '../../handler';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST(): Promise<Response> {
-  return notBuiltYet('api/v1/jobs/[id]/cancel');
+export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  return handleCancelJob(request, id, getPool());
 }

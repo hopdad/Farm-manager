@@ -1,13 +1,13 @@
 /**
- * POST /api/v1/jobs/reorder <- ReorderJobsBody -> BoardSnapshot | 409 (ROLE_FOR.planJobs).
- * FOUNDATION STUB (slice 2a; docs/contracts-2a.md §5): answers 501 until jobs-api replaces
- * it with its handler (keep this file thin: runtime, dynamic, then the handler).
+ * POST /api/v1/jobs/reorder <- ReorderJobsBody (every open job of a lane, in its new order) ->
+ * BoardSnapshot | 409 | 422 not_in_lane (ROLE_FOR.planJobs). Logic: ../handler.ts.
  */
-import { notBuiltYet } from '@/platform/http/not-built';
+import { getPool } from '@/db/client';
+import { handleReorderJobs } from '../handler';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST(): Promise<Response> {
-  return notBuiltYet('api/v1/jobs/reorder');
+export async function POST(request: Request): Promise<Response> {
+  return handleReorderJobs(request, getPool());
 }

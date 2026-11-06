@@ -1,17 +1,19 @@
 /**
- * GET /api/v1/jobs[?fieldId=] -> BoardSnapshot (viewer); POST /api/v1/jobs <- CreateJobBody -> 201 JobResponse (ROLE_FOR.planJobs). Contract: src/ui/work/contract.ts.
- * FOUNDATION STUB (slice 2a; docs/contracts-2a.md §5): answers 501 until jobs-api replaces
- * it with its handler (keep this file thin: runtime, dynamic, then the handler).
+ * GET /api/v1/jobs[?fieldId=] -> BoardSnapshot (viewer): every open job plus the day's done
+ * ones, in the four lanes (the field panel's Jobs tab passes `fieldId`).
+ * POST /api/v1/jobs <- CreateJobBody -> 201 JobResponse (ROLE_FOR.planJobs).
+ * Contract: src/ui/work/contract.ts (docs/contracts-2a.md §5). Logic: ./handler.ts.
  */
-import { notBuiltYet } from '@/platform/http/not-built';
+import { getPool } from '@/db/client';
+import { handleBoardSnapshot, handleCreateJob } from './handler';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(): Promise<Response> {
-  return notBuiltYet('api/v1/jobs');
+export async function GET(request: Request): Promise<Response> {
+  return handleBoardSnapshot(request, getPool());
 }
 
-export async function POST(): Promise<Response> {
-  return notBuiltYet('api/v1/jobs');
+export async function POST(request: Request): Promise<Response> {
+  return handleCreateJob(request, getPool());
 }

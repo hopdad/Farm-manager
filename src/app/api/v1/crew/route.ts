@@ -1,13 +1,13 @@
 /**
- * GET /api/v1/crew -> CrewResponse: crew people with initials, app role, active (viewer).
- * FOUNDATION STUB (slice 2a; docs/contracts-2a.md §5): answers 501 until jobs-api replaces
- * it with its handler (keep this file thin: runtime, dynamic, then the handler).
+ * GET /api/v1/crew -> CrewResponse: crew people with initials, app role, active (viewer); the
+ * job board's person chips. Logic: ./handler.ts.
  */
-import { notBuiltYet } from '@/platform/http/not-built';
+import { getPool } from '@/db/client';
+import { handleCrew } from './handler';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(): Promise<Response> {
-  return notBuiltYet('api/v1/crew');
+  return handleCrew(getPool());
 }

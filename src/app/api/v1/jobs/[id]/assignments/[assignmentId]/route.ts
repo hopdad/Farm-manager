@@ -1,13 +1,17 @@
 /**
- * DELETE /api/v1/jobs/<id>/assignments/<aid>?version=N[&part=machine|person] -> JobResponse | 409 (ROLE_FOR.planJobs).
- * FOUNDATION STUB (slice 2a; docs/contracts-2a.md §5): answers 501 until jobs-api replaces
- * it with its handler (keep this file thin: runtime, dynamic, then the handler).
+ * DELETE /api/v1/jobs/<id>/assignments/<aid>?version=N[&part=machine|person] -> JobResponse |
+ * 409 (ROLE_FOR.planJobs): the × on an assignment chip. Logic: ../../../handler.ts.
  */
-import { notBuiltYet } from '@/platform/http/not-built';
+import { getPool } from '@/db/client';
+import { handleUnassignJob } from '../../../handler';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function DELETE(): Promise<Response> {
-  return notBuiltYet('api/v1/jobs/[id]/assignments/[assignmentId]');
+export async function DELETE(
+  request: Request,
+  ctx: { params: Promise<{ id: string; assignmentId: string }> },
+) {
+  const { id, assignmentId } = await ctx.params;
+  return handleUnassignJob(request, id, assignmentId, getPool());
 }
